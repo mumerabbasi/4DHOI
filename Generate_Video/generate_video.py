@@ -49,7 +49,7 @@ def main() -> None:
     parser.add_argument("--frame", default="./first_frames/frame_02.png")
     parser.add_argument("--outdir", default="./videos")
     parser.add_argument("--model", default="THUDM/CogVideoX-5b-I2V")
-    parser.add_argument("--device", default="cuda")
+    parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--seed", type=int, default=72)
     parser.add_argument("--width", type=int, default=720)
     parser.add_argument("--height", type=int, default=480)

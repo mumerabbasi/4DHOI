@@ -18,7 +18,7 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--height", type=int, default=1024)
     parser.add_argument("--width", type=int, default=1024)
-    parser.add_argument("--device", default="cuda")
+    parser.add_argument("--device", default="cuda:0")
     args = parser.parse_args()
 
     outdir = Path(args.outdir)
