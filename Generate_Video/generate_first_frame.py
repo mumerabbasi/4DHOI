@@ -16,8 +16,8 @@ def main() -> None:
     parser.add_argument("--outdir", default="./first_frames")
     parser.add_argument("--n", type=int, default=5)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--height", type=int, default=1024)
-    parser.add_argument("--width", type=int, default=1024)
+    parser.add_argument("--height", type=int, default=480)
+    parser.add_argument("--width", type=int, default=720)
     parser.add_argument("--device", default="cuda:0")
     args = parser.parse_args()
 

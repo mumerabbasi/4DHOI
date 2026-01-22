@@ -10,7 +10,7 @@ def main():
     parser.add_argument(
         "--result_path",
         type=str,
-        default="output_human_motion/frame_02_video_THUDM_CogVideoX_5b_I2V/hmr4d_results.pt"
+        default="output_human_motion/frame_00_video_THUDM_CogVideoX_5b_I2V/hmr4d_results.pt"
     )
     parser.add_argument(
         "--smpl_folder",

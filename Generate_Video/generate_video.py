@@ -46,7 +46,7 @@ def load_and_prepare_image(path: Path, width: int, height: int) -> Image.Image:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pag", default="../PAG/output_pag_deepseek_r1_32b.json")
-    parser.add_argument("--frame", default="./first_frames/frame_02.png")
+    parser.add_argument("--frame", default="./first_frames/frame_00.png")
     parser.add_argument("--outdir", default="./videos")
     parser.add_argument("--model", default="THUDM/CogVideoX-5b-I2V")
     parser.add_argument("--device", default="cuda:0")
@@ -62,8 +62,9 @@ def main() -> None:
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
 
+    frame_path = Path(args.frame)  # NEW
     prompt = load_pag_prompt(Path(args.pag))
-    image = load_and_prepare_image(Path(args.frame), args.width, args.height)
+    image = load_and_prepare_image(frame_path, args.width, args.height)  # CHANGED
 
     dtype = torch.bfloat16 if args.device.startswith("cuda") else torch.float32
     pipe = CogVideoXImageToVideoPipeline.from_pretrained(
@@ -86,7 +87,7 @@ def main() -> None:
         generator=generator,
     ).frames[0]
 
-    out_path = outdir / f"video_{model_suffix(args.model)}.mp4"
+    out_path = outdir / f"{frame_path.stem}_video_{model_suffix(args.model)}.mp4"  # CHANGED
     export_to_video(frames, out_path.as_posix(), fps=args.fps)
     print(out_path)
 
