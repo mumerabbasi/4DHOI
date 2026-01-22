@@ -1,0 +1,236 @@
+{
+  "object_name": "iron",
+  "parts": [
+    "handle",
+    "soleplate"
+  ],
+  "views": [
+    {
+      "image": "rgb_az000_el20.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": {
+          "detected": true,
+          "bbox": [
+            435,
+            375,
+            562,
+            592
+          ],
+          "mask_file": "rgb_az000_el20_handle.png"
+        },
+        "soleplate": {
+          "detected": true,
+          "bbox": [
+            425,
+            575,
+            572,
+            662
+          ],
+          "mask_file": "rgb_az000_el20_soleplate.png"
+        }
+      }
+    },
+    {
+      "image": "rgb_az000_el60.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": {
+          "detected": true,
+          "bbox": [
+            432,
+            317,
+            565,
+            645
+          ],
+          "mask_file": "rgb_az000_el60_handle.png"
+        },
+        "soleplate": {
+          "detected": true,
+          "bbox": [
+            432,
+            595,
+            565,
+            705
+          ],
+          "mask_file": "rgb_az000_el60_soleplate.png"
+        }
+      }
+    },
+    {
+      "image": "rgb_az090_el20.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": {
+          "detected": true,
+          "bbox": [
+            395,
+            405,
+            685,
+            555
+          ],
+          "mask_file": "rgb_az090_el20_handle.png"
+        },
+        "soleplate": {
+          "detected": true,
+          "bbox": [
+            322,
+            575,
+            585,
+            615
+          ],
+          "mask_file": "rgb_az090_el20_soleplate.png"
+        }
+      }
+    },
+    {
+      "image": "rgb_az090_el60.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": {
+          "detected": true,
+          "bbox": [
+            370,
+            425,
+            675,
+            550
+          ],
+          "mask_file": "rgb_az090_el60_handle.png"
+        },
+        "soleplate": {
+          "detected": true,
+          "bbox": [
+            325,
+            520,
+            675,
+            610
+          ],
+          "mask_file": "rgb_az090_el60_soleplate.png"
+        }
+      }
+    },
+    {
+      "image": "rgb_az180_el20.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": {
+          "detected": true,
+          "bbox": [
+            417,
+            405,
+            579,
+            647
+          ],
+          "mask_file": "rgb_az180_el20_handle.png"
+        },
+        "soleplate": {
+          "detected": false,
+          "bbox": null,
+          "mask_file": null
+        }
+      }
+    },
+    {
+      "image": "rgb_az180_el60.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": {
+          "detected": true,
+          "bbox": [
+            420,
+            400,
+            575,
+            698
+          ],
+          "mask_file": "rgb_az180_el60_handle.png"
+        },
+        "soleplate": {
+          "detected": true,
+          "bbox": [
+            420,
+            600,
+            575,
+            698
+          ],
+          "mask_file": "rgb_az180_el60_soleplate.png"
+        }
+      }
+    },
+    {
+      "image": "rgb_az270_el20.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": {
+          "detected": true,
+          "bbox": [
+            310,
+            405,
+            675,
+            575
+          ],
+          "mask_file": "rgb_az270_el20_handle.png"
+        },
+        "soleplate": {
+          "detected": true,
+          "bbox": [
+            310,
+            575,
+            675,
+            615
+          ],
+          "mask_file": "rgb_az270_el20_soleplate.png"
+        }
+      }
+    },
+    {
+      "image": "rgb_az270_el60.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": {
+          "detected": true,
+          "bbox": [
+            322,
+            423,
+            637,
+            547
+          ],
+          "mask_file": "rgb_az270_el60_handle.png"
+        },
+        "soleplate": {
+          "detected": true,
+          "bbox": [
+            319,
+            507,
+            672,
+            610
+          ],
+          "mask_file": "rgb_az270_el60_soleplate.png"
+        }
+      }
+    }
+  ]
+}

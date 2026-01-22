@@ -5,18 +5,8 @@ This script samples points from mesh surfaces and saves them as:
 - points.npy: (N, 3) array of XYZ coordinates
 - points.ply: PLY file for visualization
 
-Expected directory structure:
-    objects/<object_name>/
-        ├── mesh.glb           (input)
-        ├── points.npy         (output)
-        ├── points.ply         (output)
-        └── points_colors.npy  (output, if colors available)
-
 Usage:
     python mesh_to_pointcloud.py --input objects/iron/mesh.glb --num_points 100000
-
-The point cloud preserves the original mesh coordinate system,
-which is critical for projecting onto rendered images.
 """
 
 import argparse

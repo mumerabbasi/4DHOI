@@ -1,27 +1,9 @@
 """
 Blender 4.2 script to render 8 views of a GLB mesh with camera matrices.
 
-Camera positions on a sphere with:
-- Azimuth: 0°, 90°, 180°, 270°
-- Elevation: 20° and 60°
-
-IMPORTANT: This script does NOT modify any object positions or transforms.
-Objects remain exactly as they are in the GLB file. This is critical for
-point cloud projection workflows.
-
-Expected directory structure:
-    objects/<object_name>/
-        ├── mesh.glb          (input)
-        └── renders/          (output)
-            ├── rgb_az000_el20.png ... rgb_az270_el60.png
-            └── cameras.json
-
 Usage:
-    blender --background --python render_8views_blender.py -- \
+    blender --background --python render_8views_blender.py
         --input objects/iron/mesh.glb --resolution 1024
-
-Requirements:
-    Blender 4.2+
 """
 
 import argparse
