@@ -45,7 +45,7 @@ def load_and_prepare_image(path: Path, width: int, height: int) -> Image.Image:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--pag", default="../PAG/output_pag_deepseek_r1_32b.json")
+    parser.add_argument("--pag", default="../Generate_PAG/output_pag_deepseek_r1_32b.json")
     parser.add_argument("--frame", default="./first_frames/frame_00.png")
     parser.add_argument("--outdir", default="./videos")
     parser.add_argument("--model", default="THUDM/CogVideoX-5b-I2V")
