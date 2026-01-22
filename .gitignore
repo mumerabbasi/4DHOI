@@ -43,6 +43,18 @@ dmypy.json
 *.mkv
 *.webm
 
+# --- 3D Media (Meshes & Point Clouds) ---
+*.obj
+*.fbx
+*.glb
+*.gltf
+*.ply
+*.stl
+*.pcd
+*.las
+*.laz
+*.npy
+
 # --- Output Directories ---
 # Ignore specific output folders you are creating
 first_frames/
