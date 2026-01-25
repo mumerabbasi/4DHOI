@@ -15,20 +15,20 @@
         "handle": {
           "detected": true,
           "bbox": [
-            434,
-            374,
-            563,
-            593
+            437,
+            375,
+            561,
+            590
           ],
           "mask_file": "rgb_az000_el20_handle.png"
         },
         "soleplate": {
           "detected": true,
           "bbox": [
-            424,
-            574,
-            573,
-            664
+            425,
+            575,
+            572,
+            663
           ],
           "mask_file": "rgb_az000_el20_soleplate.png"
         }
@@ -55,8 +55,8 @@
           "detected": true,
           "bbox": [
             426,
-            557,
-            570,
+            382,
+            572,
             707
           ],
           "mask_file": "rgb_az000_el60_soleplate.png"
@@ -73,7 +73,7 @@
         "handle": {
           "detected": true,
           "bbox": [
-            390,
+            395,
             405,
             685,
             555
@@ -102,10 +102,10 @@
         "handle": {
           "detected": true,
           "bbox": [
-            375,
+            365,
             423,
             682,
-            567
+            575
           ],
           "mask_file": "rgb_az090_el60_handle.png"
         },
@@ -115,7 +115,7 @@
             327,
             522,
             682,
-            610
+            609
           ],
           "mask_file": "rgb_az090_el60_soleplate.png"
         }
@@ -155,20 +155,20 @@
         "handle": {
           "detected": true,
           "bbox": [
-            420,
-            394,
+            422,
+            417,
             575,
-            698
+            700
           ],
           "mask_file": "rgb_az180_el60_handle.png"
         },
         "soleplate": {
           "detected": true,
           "bbox": [
-            420,
+            422,
             625,
             575,
-            698
+            700
           ],
           "mask_file": "rgb_az180_el60_soleplate.png"
         }
@@ -185,9 +185,9 @@
           "detected": true,
           "bbox": [
             310,
-            404,
-            657,
-            597
+            405,
+            645,
+            575
           ],
           "mask_file": "rgb_az270_el20_handle.png"
         },
@@ -195,9 +195,9 @@
           "detected": true,
           "bbox": [
             310,
-            575,
-            677,
-            617
+            585,
+            675,
+            615
           ],
           "mask_file": "rgb_az270_el20_soleplate.png"
         }
@@ -213,17 +213,17 @@
         "handle": {
           "detected": true,
           "bbox": [
-            325,
+            322,
             423,
-            635,
-            545
+            637,
+            547
           ],
           "mask_file": "rgb_az270_el60_handle.png"
         },
         "soleplate": {
           "detected": true,
           "bbox": [
-            317,
+            319,
             507,
             672,
             610

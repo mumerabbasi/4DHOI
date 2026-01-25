@@ -2,7 +2,7 @@ import bpy
 import os
 import math
 
-OBJ_FOLDER = r"C:\Users\umerh\Desktop\output_objs"
+OBJ_FOLDER = r"C:\Users\umerh\Desktop\MSCE\Thesis\4DHOI\output_objs"
 
 
 def import_obj_sequence():

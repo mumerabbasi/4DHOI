@@ -1,0 +1,236 @@
+{
+  "object_name": "ironing_board",
+  "parts": [
+    "surface",
+    "support"
+  ],
+  "views": [
+    {
+      "image": "rgb_az000_el20.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            362,
+            232,
+            637,
+            442
+          ],
+          "mask_file": "rgb_az000_el20_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            394,
+            437,
+            604,
+            761
+          ],
+          "mask_file": "rgb_az000_el20_support.png"
+        }
+      }
+    },
+    {
+      "image": "rgb_az000_el60.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            359,
+            65,
+            647,
+            839
+          ],
+          "mask_file": "rgb_az000_el60_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            404,
+            714,
+            595,
+            736
+          ],
+          "mask_file": "rgb_az000_el60_support.png"
+        }
+      }
+    },
+    {
+      "image": "rgb_az090_el20.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            84,
+            275,
+            939,
+            350
+          ],
+          "mask_file": "rgb_az090_el20_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            320,
+            347,
+            660,
+            727
+          ],
+          "mask_file": "rgb_az090_el20_support.png"
+        }
+      }
+    },
+    {
+      "image": "rgb_az090_el60.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            49,
+            272,
+            962,
+            517
+          ],
+          "mask_file": "rgb_az090_el60_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            337,
+            515,
+            644,
+            668
+          ],
+          "mask_file": "rgb_az090_el60_support.png"
+        }
+      }
+    },
+    {
+      "image": "rgb_az180_el20.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            328,
+            232,
+            670,
+            444
+          ],
+          "mask_file": "rgb_az180_el20_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            395,
+            444,
+            603,
+            750
+          ],
+          "mask_file": "rgb_az180_el20_support.png"
+        }
+      }
+    },
+    {
+      "image": "rgb_az180_el60.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            335,
+            64,
+            662,
+            839
+          ],
+          "mask_file": "rgb_az180_el60_surface.png"
+        },
+        "support": {
+          "detected": false,
+          "bbox": null,
+          "mask_file": null
+        }
+      }
+    },
+    {
+      "image": "rgb_az270_el20.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            61,
+            275,
+            917,
+            350
+          ],
+          "mask_file": "rgb_az270_el20_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            342,
+            347,
+            682,
+            727
+          ],
+          "mask_file": "rgb_az270_el20_support.png"
+        }
+      }
+    },
+    {
+      "image": "rgb_az270_el60.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            35,
+            273,
+            950,
+            519
+          ],
+          "mask_file": "rgb_az270_el60_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            355,
+            517,
+            662,
+            667
+          ],
+          "mask_file": "rgb_az270_el60_support.png"
+        }
+      }
+    }
+  ]
+}

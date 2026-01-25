@@ -188,6 +188,73 @@ def save_mask(mask: np.ndarray, output_path: str) -> None:
     cv2.imwrite(output_path, mask_img)
 
 
+def draw_bboxes_on_image(
+    image: np.ndarray,
+    boxes: dict[str, list[int] | None],
+) -> np.ndarray:
+    """
+    Draw bounding boxes on image with labels.
+
+    Args:
+        image: BGR image as numpy array.
+        boxes: Dictionary mapping part names to bboxes [x1, y1, x2, y2] or None.
+
+    Returns:
+        Image with bboxes drawn.
+    """
+    result = image.copy()
+
+    # Color palette for different parts
+    colors = [
+        (0, 255, 0),    # Green
+        (255, 0, 0),    # Blue
+        (0, 0, 255),    # Red
+        (255, 255, 0),  # Cyan
+        (255, 0, 255),  # Magenta
+        (0, 255, 255),  # Yellow
+        (128, 255, 0),  # Light green
+        (255, 128, 0),  # Light blue
+    ]
+
+    for i, (part_name, bbox) in enumerate(boxes.items()):
+        if bbox is None:
+            continue
+
+        color = colors[i % len(colors)]
+        x1, y1, x2, y2 = bbox
+
+        # Draw rectangle
+        cv2.rectangle(result, (x1, y1), (x2, y2), color, 2)
+
+        # Draw label background
+        label = part_name
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.6
+        thickness = 2
+        (text_w, text_h), baseline = cv2.getTextSize(label, font, font_scale, thickness)
+
+        # Position label above bbox, or below if too close to top
+        label_y = y1 - 5 if y1 > text_h + 10 else y2 + text_h + 5
+        label_x = x1
+
+        # Draw text background
+        cv2.rectangle(
+            result,
+            (label_x, label_y - text_h - 2),
+            (label_x + text_w + 4, label_y + 2),
+            color,
+            -1
+        )
+
+        # Draw text
+        cv2.putText(
+            result, label, (label_x + 2, label_y),
+            font, font_scale, (0, 0, 0), thickness
+        )
+
+    return result
+
+
 def process_object(
     object_dir: Path,
     parts: list[str],
@@ -206,7 +273,9 @@ def process_object(
     """
     renders_dir = object_dir / "renders"
     masks_dir = object_dir / "masks"
+    bboxes_dir = object_dir / "bboxes"
     masks_dir.mkdir(exist_ok=True)
+    bboxes_dir.mkdir(exist_ok=True)
 
     object_name = object_dir.name
 
@@ -234,8 +303,15 @@ def process_object(
         h, w = image.shape[:2]
 
         # Detect bounding boxes with Qwen-VL
-        print("Detecting parts with Qwen-VL...")
+        print("    Detecting parts with Qwen-VL...")
         boxes = detect_parts_qwen(str(img_path), parts, object_name)
+
+        # Save image with bboxes drawn
+        bbox_image = draw_bboxes_on_image(image, boxes)
+        bbox_filename = f"{img_path.stem}_bboxes.png"
+        bbox_path = bboxes_dir / bbox_filename
+        cv2.imwrite(str(bbox_path), bbox_image)
+        print(f"    Saved bbox visualization: {bbox_filename}")
 
         view_result = {
             "image": img_path.name,
@@ -281,8 +357,8 @@ def process_object(
 
         results["views"].append(view_result)
 
-    # Save results JSON
-    results_path = masks_dir / "part_labels.json"
+    # Save results JSON to bboxes directory
+    results_path = bboxes_dir / "part_labels.json"
     with open(results_path, "w") as f:
         json.dump(results, f, indent=2)
     print(f"\nSaved results to: {results_path}")
