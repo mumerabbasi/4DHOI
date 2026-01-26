@@ -51,41 +51,36 @@ def detect_parts_qwen(
     image_path: str,
     parts: list[str],
     object_name: str,
+    image_width: int,
+    image_height: int,
 ) -> dict[str, list[int] | None]:
-    """
-    Use Qwen-VL to detect bounding boxes for object parts.
+    """Use Qwen-VL to detect bounding boxes for object parts.
 
     Args:
         image_path: Path to the image.
-        parts: List of part names to detect (e.g., ["handle", "soleplate"]).
+        parts: List of part names to detect.
         object_name: Name of the object (e.g., "iron").
+        image_width: Width of the image in pixels.
+        image_height: Height of the image in pixels.
 
     Returns:
-        Dictionary mapping part names to bounding boxes [x1, y1, x2, y2] or None.
+        Dictionary mapping part names to bounding boxes or None.
     """
     image_b64 = encode_image_base64(image_path)
 
-    # Build prompt for all parts at once
-    parts_str = ", ".join(parts)
-    prompt = f"""You are analyzing an image of a {object_name}. Detect bounding boxes
-    for these parts: {parts_str}
+    # Build detection requests using Qwen's native grounding format
+    parts_request = "\n".join([f"- {part}" for part in parts])
+    prompt = f"""You are analyzing an image of a {object_name}. \
+Detect bounding boxes for these parts:
+{parts_request}
 
-    For each part that is VISIBLE in the image, provide the bounding box coordinates
-    as [x1, y1, x2, y2] where:
-    - x1, y1 = top-left corner (pixels from left/top)
-    - x2, y2 = bottom-right corner (pixels from left/top)
+For each part, output in this format:
+<ref>part_name</ref><box>[[x1,y1,x2,y2]]</box>
 
-    Respond with a JSON object in this exact format:
-    {{
-        "part_name": [x1, y1, x2, y2],
-        "another_part": [x1, y1, x2, y2],
-        "not_visible_part": null
-    }}
+Coordinates should be on a 0-1000 normalized scale (not pixels).
+If a part is not visible, output: <ref>part_name</ref><box>null</box>
 
-    If a part is not visible or cannot be detected, set its value to null.
-    Coordinates should be integers representing pixel positions.
-
-    Detect bounding boxes for: {parts_str}"""
+Detect all parts listed above."""
 
     payload = {
         "model": QWEN_MODEL,
@@ -105,29 +100,77 @@ def detect_parts_qwen(
         response_text = result.get("response", "")
 
         # Remove think tags if present
-        response_text = re.sub(r'<think>.*?</think>', '', response_text, flags=re.DOTALL)
+        response_text = re.sub(
+            r"<think>.*?</think>", "", response_text, flags=re.DOTALL
+        )
 
-        # Parse JSON from response
-        json_match = re.search(r'\{[^{}]*\}', response_text, re.DOTALL)
-        if json_match:
-            boxes = json.loads(json_match.group())
-            # Normalize keys and validate
-            normalized = {}
+        # Parse all <ref>part</ref><box>[[x1,y1,x2,y2]]</box> patterns
+        normalized = {part: None for part in parts}
+
+        # Find all ref/box pairs
+        pattern = (
+            r"<ref>([^<]+)</ref>\s*<box>\s*"
+            r"(\[\s*\[?\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\]?\s*\]|null)"
+            r"\s*</box>"
+        )
+        matches = re.findall(pattern, response_text, re.IGNORECASE)
+
+        for ref_name, box_str in matches:
+            ref_name = ref_name.strip()
+            # Find matching part (case-insensitive)
+            matched_part = None
             for part in parts:
-                # Try exact match first, then case-insensitive
-                if part in boxes:
-                    normalized[part] = boxes[part]
-                else:
-                    for key, value in boxes.items():
-                        if key.lower() == part.lower():
-                            normalized[part] = value
-                            break
-                    else:
-                        normalized[part] = None
-            return normalized
-        else:
-            print(f"  Warning: Could not parse JSON from response: {response_text[:200]}")
-            return {part: None for part in parts}
+                if part.lower() == ref_name.lower():
+                    matched_part = part
+                    break
+
+            if matched_part is None:
+                continue
+
+            if box_str.strip().lower() == "null":
+                normalized[matched_part] = None
+            else:
+                # Extract coordinates from [[x1,y1,x2,y2]] or [x1,y1,x2,y2]
+                coord_match = re.search(
+                    r"(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)", box_str
+                )
+                if coord_match:
+                    # Convert from 0-1000 scale to pixels
+                    x1 = int(int(coord_match.group(1)) * image_width / 1000)
+                    y1 = int(int(coord_match.group(2)) * image_height / 1000)
+                    x2 = int(int(coord_match.group(3)) * image_width / 1000)
+                    y2 = int(int(coord_match.group(4)) * image_height / 1000)
+                    normalized[matched_part] = [x1, y1, x2, y2]
+
+        # Fallback: try JSON format for any parts not found
+        if any(v is None for v in normalized.values()):
+            json_match = re.search(r"\{[^{}]*\}", response_text, re.DOTALL)
+            if json_match:
+                try:
+                    boxes = json.loads(json_match.group())
+                    for part in parts:
+                        if normalized[part] is not None:
+                            continue
+                        bbox = boxes.get(part)
+                        if bbox is None:
+                            for key, value in boxes.items():
+                                if key.lower() == part.lower():
+                                    bbox = value
+                                    break
+                        if bbox and isinstance(bbox, list) and len(bbox) == 4:
+                            if all(0 <= c <= 1000 for c in bbox):
+                                normalized[part] = [
+                                    int(bbox[0] * image_width / 1000),
+                                    int(bbox[1] * image_height / 1000),
+                                    int(bbox[2] * image_width / 1000),
+                                    int(bbox[3] * image_height / 1000),
+                                ]
+                            else:
+                                normalized[part] = bbox
+                except json.JSONDecodeError:
+                    pass
+
+        return normalized
 
     except Exception as e:
         print(f"  Error calling Qwen-VL: {e}")
@@ -135,15 +178,10 @@ def detect_parts_qwen(
 
 
 def load_sam2_predictor() -> SAM2ImagePredictor:
-    """Load SAM2 model."""
+    """Load SAM2 model and return predictor."""
     print("Loading SAM2 model...")
     device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    sam2_model = build_sam2(
-        SAM2_CONFIG,
-        SAM2_CHECKPOINT,
-        device=device,
-    )
+    sam2_model = build_sam2(SAM2_CONFIG, SAM2_CHECKPOINT, device=device)
     predictor = SAM2ImagePredictor(sam2_model)
     print(f"SAM2 loaded on {device}")
     return predictor
@@ -154,8 +192,7 @@ def segment_with_sam2(
     image: np.ndarray,
     bbox: list[int],
 ) -> np.ndarray:
-    """
-    Segment object using SAM2 with bounding box prompt.
+    """Segment object using SAM2 with bounding box prompt.
 
     Args:
         predictor: SAM2 predictor.
@@ -166,18 +203,13 @@ def segment_with_sam2(
         Binary mask as numpy array (H, W).
     """
     predictor.set_image(image)
-
-    # Convert to numpy array for SAM2
     box = np.array(bbox)
-
-    masks, scores, _ = predictor.predict(
+    masks, _, _ = predictor.predict(
         point_coords=None,
         point_labels=None,
-        box=box[None, :],  # Add batch dimension
+        box=box[None, :],
         multimask_output=False,
     )
-
-    # Return the mask (squeeze batch and channel dims)
     return masks[0].astype(np.uint8)
 
 
@@ -192,28 +224,25 @@ def draw_bboxes_on_image(
     image: np.ndarray,
     boxes: dict[str, list[int] | None],
 ) -> np.ndarray:
-    """
-    Draw bounding boxes on image with labels.
+    """Draw bounding boxes on image with labels.
 
     Args:
         image: BGR image as numpy array.
-        boxes: Dictionary mapping part names to bboxes [x1, y1, x2, y2] or None.
+        boxes: Dictionary mapping part names to bboxes or None.
 
     Returns:
         Image with bboxes drawn.
     """
     result = image.copy()
-
-    # Color palette for different parts
     colors = [
-        (0, 255, 0),    # Green
-        (255, 0, 0),    # Blue
-        (0, 0, 255),    # Red
-        (255, 255, 0),  # Cyan
-        (255, 0, 255),  # Magenta
-        (0, 255, 255),  # Yellow
-        (128, 255, 0),  # Light green
-        (255, 128, 0),  # Light blue
+        (0, 255, 0),
+        (255, 0, 0),
+        (0, 0, 255),
+        (255, 255, 0),
+        (255, 0, 255),
+        (0, 255, 255),
+        (128, 255, 0),
+        (255, 128, 0),
     ]
 
     for i, (part_name, bbox) in enumerate(boxes.items()):
@@ -222,34 +251,34 @@ def draw_bboxes_on_image(
 
         color = colors[i % len(colors)]
         x1, y1, x2, y2 = bbox
-
-        # Draw rectangle
         cv2.rectangle(result, (x1, y1), (x2, y2), color, 2)
 
-        # Draw label background
         label = part_name
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 0.6
         thickness = 2
-        (text_w, text_h), baseline = cv2.getTextSize(label, font, font_scale, thickness)
+        (text_w, text_h), _ = cv2.getTextSize(
+            label, font, font_scale, thickness
+        )
 
-        # Position label above bbox, or below if too close to top
         label_y = y1 - 5 if y1 > text_h + 10 else y2 + text_h + 5
         label_x = x1
 
-        # Draw text background
         cv2.rectangle(
             result,
             (label_x, label_y - text_h - 2),
             (label_x + text_w + 4, label_y + 2),
             color,
-            -1
+            -1,
         )
-
-        # Draw text
         cv2.putText(
-            result, label, (label_x + 2, label_y),
-            font, font_scale, (0, 0, 0), thickness
+            result,
+            label,
+            (label_x + 2, label_y),
+            font,
+            font_scale,
+            (0, 0, 0),
+            thickness,
         )
 
     return result
@@ -260,8 +289,7 @@ def process_object(
     parts: list[str],
     sam_predictor: SAM2ImagePredictor,
 ) -> dict:
-    """
-    Process all renders of an object.
+    """Process all renders of an object.
 
     Args:
         object_dir: Path to object directory.
@@ -304,7 +332,7 @@ def process_object(
 
         # Detect bounding boxes with Qwen-VL
         print("    Detecting parts with Qwen-VL...")
-        boxes = detect_parts_qwen(str(img_path), parts, object_name)
+        boxes = detect_parts_qwen(str(img_path), parts, object_name, w, h)
 
         # Save image with bboxes drawn
         bbox_image = draw_bboxes_on_image(image, boxes)
@@ -367,15 +395,13 @@ def process_object(
 
 
 def parse_pag_file(pag_path: str) -> dict[str, list[str]]:
-    """
-    Parse PAG file to extract objects and their parts.
+    """Parse PAG file to extract objects and their parts.
 
     Args:
         pag_path: Path to PAG JSON file.
 
     Returns:
         Dictionary mapping object names to list of part names.
-        e.g., {"iron": ["handle", "soleplate"], "ironing board": ["surface", "support"]}
     """
     with open(pag_path) as f:
         pag = json.load(f)
