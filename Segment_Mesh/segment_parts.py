@@ -400,7 +400,7 @@ def main():
     parser.add_argument(
         "--pag_file",
         type=str,
-        default=None,
+        default="../Generate_PAG/output_pag_deepseek_r1_32b.json",
         help="PAG JSON file to extract all objects and parts automatically.",
     )
     parser.add_argument(
