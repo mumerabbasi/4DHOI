@@ -80,16 +80,7 @@ def segment_with_sam3(
         Tuple of (mask, bbox, score) or (None, None, None) if not detected.
     """
     inference_state = processor.set_image(image)
-
-    # Create descriptive prompt for better detection
-    if object_name.lower() == "iron":
-        prompt = "clothes iron appliance"
-    elif object_name.lower() == "ironing board":
-        prompt = "ironing board furniture"
-    else:
-        prompt = object_name
-
-    output = processor.set_text_prompt(state=inference_state, prompt=prompt)
+    output = processor.set_text_prompt(state=inference_state, prompt=object_name)
 
     masks = output.get("masks")
     boxes = output.get("boxes")
@@ -228,7 +219,6 @@ def main():
     print(f"Source frame: {frame_name}")
 
     # Load SAM3 model
-    print(f"\nLoading SAM3 on {args.device}...")
     _, sam3_processor = load_sam3_model(
         confidence_threshold=args.confidence,
         device=args.device,
