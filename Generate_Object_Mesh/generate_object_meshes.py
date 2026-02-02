@@ -8,9 +8,7 @@ Run this script with the sam3d-objects environment.
 Pipeline:
     1. Read segmentation masks from objects/<object_name>/mask/
     2. Use SAM 3D Objects to generate 3D mesh from each mask
-    3. Bake SAM3D pose/layout transform (scale/rotation/translation) into mesh
-    4. Save output to:
-       - objects/<object_name>/mesh.glb   (3D mesh)
+    3. Save output to objects/<object_name>/mesh.glb
 
 Usage:
     conda activate sam3d-objects
@@ -37,16 +35,11 @@ def load_sam3d():
     if str(notebook_path) not in sys.path:
         sys.path.insert(0, str(notebook_path))
 
-    from inference import Inference  # noqa: E402
+    from inference import Inference
 
-    # Try different checkpoint locations
     possible_paths = [
         Path(SAM3D_PATH) / "checkpoints" / "hf" / "pipeline.yaml",
-        Path(SAM3D_PATH)
-        / "checkpoints"
-        / "hf-download"
-        / "checkpoints"
-        / "pipeline.yaml",
+        Path(SAM3D_PATH) / "checkpoints" / "hf-download" / "checkpoints" / "pipeline.yaml",
     ]
 
     config_path = None
@@ -63,97 +56,41 @@ def load_sam3d():
     return Inference(str(config_path), compile=False)
 
 
-def _to_numpy(x):
-    """Convert torch tensors / lists to numpy."""
-    try:
-        import torch  # local import, optional
+def apply_scale_transform(glb_obj, scale_val: float):
+    """Apply uniform scale to mesh.
 
-        if isinstance(x, torch.Tensor):
-            return x.detach().cpu().numpy()
-    except Exception:
-        pass
+    Args:
+        glb_obj: trimesh.Trimesh or trimesh.Scene object
+        scale_val: Uniform scale value
 
-    return np.asarray(x)
-
-
-def _rotation_to_matrix(rot) -> np.ndarray:
-    """Convert rotation into a 3x3 matrix.
-
-    Supported:
-        - 3x3 rotation matrix
-        - 4-vector quaternion (assumed [w, x, y, z])
-
-    Note:
-        If your repo outputs quaternion as [x, y, z, w], swap ordering here.
+    Returns:
+        Transformed mesh object
     """
-    r = _to_numpy(rot).squeeze()
+    scale_matrix = np.eye(4)
+    scale_matrix[:3, :3] *= scale_val
 
-    if r.shape == (3, 3):
-        return r.astype(np.float64)
-
-    if r.shape == (4,):
-        wxyz = r.astype(np.float64)
-        # If quaternion is [x, y, z, w], change to:
-        # wxyz = np.array([r[3], r[0], r[1], r[2]], dtype=np.float64)
-
-        mat = trimesh.transformations.quaternion_matrix(wxyz)
-        return mat[:3, :3].astype(np.float64)
-
-    raise ValueError(f"Unrecognized rotation format/shape: {r.shape}")
-
-
-def make_pose_transform(output: dict) -> np.ndarray:
-    """Build a 4x4 transform matrix from SAM3D pose fields.
-
-    Assumes output contains:
-        - scale
-        - rotation
-        - translation
-        - optional translation_scale
-
-    Convention:
-        v_world = (R * S) * v_obj + t
-    """
-    scale = _to_numpy(output["scale"]).squeeze()
-    rotation = output["rotation"]
-    translation = _to_numpy(output["translation"]).squeeze()
-
-    if "translation_scale" in output and output["translation_scale"] is not None:
-        t_scale = float(_to_numpy(output["translation_scale"]).squeeze())
-        translation = translation * t_scale
-
-    r_mat = _rotation_to_matrix(rotation)
-
-    if np.ndim(scale) == 0:
-        s_mat = np.eye(3) * float(scale)
-    else:
-        scale = np.asarray(scale, dtype=np.float64).reshape(-1)
-        if scale.shape[0] != 3:
-            raise ValueError(f"Unexpected scale shape: {scale.shape}")
-        s_mat = np.diag(scale)
-
-    m = np.eye(4, dtype=np.float64)
-    m[:3, :3] = r_mat @ s_mat
-    m[:3, 3] = np.asarray(translation, dtype=np.float64).reshape(3)
-    return m
-
-
-def apply_transform_to_glb(glb_obj, transform: np.ndarray):
-    """Apply a 4x4 transform to a trimesh.Trimesh or trimesh.Scene."""
     if isinstance(glb_obj, trimesh.Scene):
-        for _, geom in glb_obj.geometry.items():
-            geom.apply_transform(transform)
-        return glb_obj
+        for geom in glb_obj.geometry.values():
+            geom.apply_transform(scale_matrix)
+    elif isinstance(glb_obj, trimesh.Trimesh):
+        glb_obj.apply_transform(scale_matrix)
+    else:
+        raise TypeError(f"Unexpected glb type: {type(glb_obj)}")
 
-    if isinstance(glb_obj, trimesh.Trimesh):
-        glb_obj.apply_transform(transform)
-        return glb_obj
-
-    raise TypeError(f"Unexpected glb type: {type(glb_obj)}")
+    return glb_obj
 
 
 def generate_mesh(inference, image: np.ndarray, mask: np.ndarray) -> dict:
-    """Generate 3D mesh using SAM 3D Objects."""
+    """Generate 3D mesh using SAM 3D Objects.
+
+    Args:
+        inference: SAM3D Inference instance
+        image: RGB image as numpy array
+        mask: Binary mask as numpy array
+
+    Returns:
+        Output dictionary with glb, scale, rotation, translation
+    """
     if image.dtype != np.uint8:
         image = (image * 255).astype(np.uint8)
     if mask.dtype != bool:
@@ -163,10 +100,11 @@ def generate_mesh(inference, image: np.ndarray, mask: np.ndarray) -> dict:
 
 
 def save_outputs(output: dict, output_dir: Path) -> None:
-    """Save mesh output with standardized name.
+    """Save mesh and pose data.
 
     Saves:
-        - output_dir/mesh.glb (3D mesh)
+        - output_dir/mesh.glb (scaled mesh)
+        - output_dir/pose.json (scale/rotation/translation)
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -176,6 +114,16 @@ def save_outputs(output: dict, output_dir: Path) -> None:
     glb_path = output_dir / "mesh.glb"
     output["glb"].export(str(glb_path))
     print("    Saved: mesh.glb")
+
+    pose_data = {
+        "scale": float(output["scale"][0, 0].cpu().item()),
+        "rotation": output["rotation"][0].cpu().tolist(),
+        "translation": output["translation"][0].cpu().tolist(),
+    }
+    pose_path = output_dir / "pose.json"
+    with open(pose_path, "w") as f:
+        json.dump(pose_data, f, indent=2)
+    print("    Saved: pose.json")
 
 
 def process_from_summary(summary_path: Path, sam3d) -> None:
@@ -189,7 +137,6 @@ def process_from_summary(summary_path: Path, sam3d) -> None:
     print(f"Processing frame: {frame_name}")
     print(f"Source image: {source_image_path}")
 
-    # Load source image
     image_bgr = cv2.imread(source_image_path)
     if image_bgr is None:
         print(f"Error: Could not load source image: {source_image_path}")
@@ -203,12 +150,11 @@ def process_from_summary(summary_path: Path, sam3d) -> None:
 
         obj_name = obj_info["object"]
         output_dir = Path(obj_info["output_dir"])
-        mask_file = obj_info["mask_file"]  # "mask/frame_xx.png"
+        mask_file = obj_info["mask_file"]
 
         print(f"\n{'=' * 50}")
         print(f"Processing: {obj_name}")
 
-        # Load mask from mask/ subdirectory
         mask_path = output_dir / mask_file
         if not mask_path.exists():
             print(f"  Error: Mask not found: {mask_path}")
@@ -222,14 +168,17 @@ def process_from_summary(summary_path: Path, sam3d) -> None:
         mask = (mask > 127).astype(np.uint8)
         print(f"  Loaded mask: {mask_file}")
 
-        # Generate mesh
         print("  Generating mesh...")
         try:
             output = generate_mesh(sam3d, image_rgb, mask)
 
-            transform = make_pose_transform(output)
-            output["glb"] = apply_transform_to_glb(output["glb"], transform)
-            print("    Baked pose into mesh (glb)")
+            scale_val = output["scale"][0, 0].item()
+            trans_val = output["translation"][0].cpu().numpy()
+            print(f"    Scale: {scale_val:.4f}")
+            print(f"    Translation: [{trans_val[0]:.4f}, {trans_val[1]:.4f}, {trans_val[2]:.4f}]")
+
+            output["glb"] = apply_scale_transform(output["glb"], scale_val)
+            print("    Applied scale transform")
 
             save_outputs(output, output_dir)
         except Exception as e:
@@ -238,7 +187,6 @@ def process_from_summary(summary_path: Path, sam3d) -> None:
 
 def process_single_object(object_dir: Path, frame_name: str, sam3d) -> None:
     """Process a single object directory."""
-    # Find bbox metadata file (contains source_image info)
     bbox_metadata_path = object_dir / "bbox" / f"{frame_name}.json"
     if not bbox_metadata_path.exists():
         print(f"Error: Bbox metadata not found: {bbox_metadata_path}")
@@ -253,14 +201,12 @@ def process_single_object(object_dir: Path, frame_name: str, sam3d) -> None:
     print(f"Processing: {obj_name}")
     print(f"Source image: {source_image}")
 
-    # Load source image
     image_bgr = cv2.imread(source_image)
     if image_bgr is None:
         print(f"Error: Could not load source image: {source_image}")
         return
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
 
-    # Load mask from mask/ subdirectory
     mask_path = object_dir / "mask" / f"{frame_name}.png"
     if not mask_path.exists():
         print(f"Error: Mask not found: {mask_path}")
@@ -274,14 +220,13 @@ def process_single_object(object_dir: Path, frame_name: str, sam3d) -> None:
     mask = (mask > 127).astype(np.uint8)
     print(f"  Loaded mask: mask/{frame_name}.png")
 
-    # Generate mesh
     print("  Generating mesh...")
     try:
         output = generate_mesh(sam3d, image_rgb, mask)
 
-        transform = make_pose_transform(output)
-        output["glb"] = apply_transform_to_glb(output["glb"], transform)
-        print("    Baked pose into mesh (glb)")
+        scale_val = output["scale"][0, 0].item()
+        output["glb"] = apply_scale_transform(output["glb"], scale_val)
+        print("    Applied scale transform")
 
         save_outputs(output, object_dir)
     except Exception as e:
@@ -289,6 +234,7 @@ def process_single_object(object_dir: Path, frame_name: str, sam3d) -> None:
 
 
 def main():
+    """Main entry point."""
     parser = argparse.ArgumentParser(
         description="Generate 3D meshes from masks (run with sam3d-objects env)."
     )
@@ -326,13 +272,11 @@ def main():
         print(f"Error: Objects directory not found: {objects_dir}")
         return
 
-    # Load SAM 3D Objects
     print("Loading SAM 3D Objects...")
     sam3d = load_sam3d()
     print("SAM 3D Objects loaded successfully\n")
 
     if args.summary:
-        # Process from explicit summary file
         summary_path = Path(args.summary)
         if not summary_path.exists():
             print(f"Error: Summary file not found: {summary_path}")
@@ -340,7 +284,6 @@ def main():
         process_from_summary(summary_path, sam3d)
 
     elif args.object:
-        # Process single object
         object_dir = objects_dir / args.object.replace(" ", "_")
         if not object_dir.exists():
             print(f"Error: Object directory not found: {object_dir}")
@@ -348,12 +291,10 @@ def main():
         process_single_object(object_dir, args.frame, sam3d)
 
     else:
-        # Try to find summary file
         summary_path = objects_dir / f"{args.frame}_segmentation_summary.json"
         if summary_path.exists():
             process_from_summary(summary_path, sam3d)
         else:
-            # Process all object directories that have the frame's mask
             print(f"No summary file found, scanning for {args.frame} masks...")
             processed = False
 

@@ -1,0 +1,473 @@
+{
+  "object_name": "ironing_board",
+  "parts": [
+    "surface",
+    "support"
+  ],
+  "views": [
+    {
+      "image": "az010_el+25.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            124,
+            202,
+            916,
+            358
+          ],
+          "mask_file": "az010_el+25_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            186,
+            314,
+            777,
+            846
+          ],
+          "mask_file": "az010_el+25_support.png"
+        }
+      }
+    },
+    {
+      "image": "az010_el+45.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            102,
+            171,
+            931,
+            494
+          ],
+          "mask_file": "az010_el+45_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            203,
+            414,
+            768,
+            826
+          ],
+          "mask_file": "az010_el+45_support.png"
+        }
+      }
+    },
+    {
+      "image": "az010_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            167,
+            166,
+            865,
+            350
+          ],
+          "mask_file": "az010_el-15_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            143,
+            227,
+            811,
+            793
+          ],
+          "mask_file": "az010_el-15_support.png"
+        }
+      }
+    },
+    {
+      "image": "az010_el-30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            181,
+            160,
+            844,
+            427
+          ],
+          "mask_file": "az010_el-30_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            129,
+            227,
+            819,
+            827
+          ],
+          "mask_file": "az010_el-30_support.png"
+        }
+      }
+    },
+    {
+      "image": "az100_el+25.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            209,
+            176,
+            710,
+            430
+          ],
+          "mask_file": "az100_el+25_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            286,
+            414,
+            680,
+            911
+          ],
+          "mask_file": "az100_el+25_support.png"
+        }
+      }
+    },
+    {
+      "image": "az100_el+45.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            204,
+            99,
+            727,
+            640
+          ],
+          "mask_file": "az100_el+45_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            304,
+            619,
+            619,
+            908
+          ],
+          "mask_file": "az100_el+45_support.png"
+        }
+      }
+    },
+    {
+      "image": "az100_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            252,
+            75,
+            688,
+            391
+          ],
+          "mask_file": "az100_el-15_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            250,
+            191,
+            696,
+            797
+          ],
+          "mask_file": "az100_el-15_support.png"
+        }
+      }
+    },
+    {
+      "image": "az100_el-30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            271,
+            37,
+            686,
+            490
+          ],
+          "mask_file": "az100_el-30_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            240,
+            186,
+            706,
+            859
+          ],
+          "mask_file": "az100_el-30_support.png"
+        }
+      }
+    },
+    {
+      "image": "az190_el+25.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            89,
+            199,
+            906,
+            350
+          ],
+          "mask_file": "az190_el+25_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            204,
+            319,
+            803,
+            851
+          ],
+          "mask_file": "az190_el+25_support.png"
+        }
+      }
+    },
+    {
+      "image": "az190_el+45.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            69,
+            162,
+            928,
+            486
+          ],
+          "mask_file": "az190_el+45_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            230,
+            421,
+            788,
+            831
+          ],
+          "mask_file": "az190_el+45_support.png"
+        }
+      }
+    },
+    {
+      "image": "az190_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            140,
+            176,
+            862,
+            370
+          ],
+          "mask_file": "az190_el-15_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            168,
+            217,
+            844,
+            783
+          ],
+          "mask_file": "az190_el-15_support.png"
+        }
+      }
+    },
+    {
+      "image": "az190_el-30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            157,
+            171,
+            846,
+            435
+          ],
+          "mask_file": "az190_el-30_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            159,
+            217,
+            857,
+            823
+          ],
+          "mask_file": "az190_el-30_support.png"
+        }
+      }
+    },
+    {
+      "image": "az280_el+25.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            235,
+            172,
+            711,
+            414
+          ],
+          "mask_file": "az280_el+25_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            278,
+            396,
+            683,
+            936
+          ],
+          "mask_file": "az280_el+25_support.png"
+        }
+      }
+    },
+    {
+      "image": "az280_el+45.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            227,
+            89,
+            729,
+            626
+          ],
+          "mask_file": "az280_el+45_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            301,
+            601,
+            621,
+            935
+          ],
+          "mask_file": "az280_el+45_support.png"
+        }
+      }
+    },
+    {
+      "image": "az280_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            270,
+            91,
+            688,
+            406
+          ],
+          "mask_file": "az280_el-15_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            239,
+            171,
+            698,
+            791
+          ],
+          "mask_file": "az280_el-15_support.png"
+        }
+      }
+    },
+    {
+      "image": "az280_el-30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            285,
+            55,
+            686,
+            486
+          ],
+          "mask_file": "az280_el-30_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            230,
+            150,
+            706,
+            848
+          ],
+          "mask_file": "az280_el-30_support.png"
+        }
+      }
+    }
+  ]
+}

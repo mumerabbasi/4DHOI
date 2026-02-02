@@ -1,8 +1,8 @@
 """
-Blender 4.2 script to render 8 views of a GLB mesh with camera matrices.
+Blender 4.2 script to render multiple views of a GLB mesh with camera matrices.
 
 Usage:
-    blender --background --python render_8views_blender.py
+    blender --background --python render_views_blender.py
         --input objects/iron/mesh.glb --resolution 1024
 """
 
@@ -18,9 +18,9 @@ from mathutils import Matrix, Vector
 
 
 # Camera configuration
-AZIMUTHS = [20, 110, 200, 290]  # degrees
-ELEVATIONS = [- 45, -25, 25, 45]  # degrees
-DEFAULT_CAMERA_DISTANCE = 3.0
+AZIMUTHS = [10, 100, 190, 280]  # degrees
+ELEVATIONS = [-30, -15, 25, 45]  # degrees
+DEFAULT_CAMERA_DISTANCE = 1
 DEFAULT_RESOLUTION = 1024
 
 
@@ -33,7 +33,7 @@ def parse_arguments() -> argparse.Namespace:
         argv = []
 
     parser = argparse.ArgumentParser(
-        description="Render 8 views of a GLB mesh from different angles."
+        description="Render multiple views of a GLB mesh from different angles."
     )
     parser.add_argument(
         "--input",
@@ -111,6 +111,96 @@ def import_glb(filepath: str) -> list[bpy.types.Object]:
             print(f"  {obj.name}: location=({loc.x:.4f}, {loc.y:.4f}, {loc.z:.4f})")
 
     return new_objects
+
+
+def setup_vertex_color_materials(objects: list[bpy.types.Object]) -> None:
+    """
+    Set up materials to display vertex colors for meshes that use them.
+
+    SAM3D exports meshes with vertex colors instead of texture maps.
+    Blender's Cycles renderer requires explicit material node setup
+    to display vertex colors.
+
+    Args:
+        objects: List of imported Blender objects.
+    """
+    for obj in objects:
+        if obj.type != "MESH":
+            continue
+
+        mesh = obj.data
+
+        # Check if mesh has vertex colors (color attributes)
+        has_vertex_colors = False
+        color_attr_name = None
+
+        # Check for color attributes (Blender 3.2+)
+        if hasattr(mesh, "color_attributes") and len(mesh.color_attributes) > 0:
+            has_vertex_colors = True
+            color_attr_name = mesh.color_attributes[0].name
+            print(f"  {obj.name}: Found color attribute '{color_attr_name}'")
+        # Fallback: check legacy vertex_colors (older Blender versions)
+        elif hasattr(mesh, "vertex_colors") and len(mesh.vertex_colors) > 0:
+            has_vertex_colors = True
+            color_attr_name = mesh.vertex_colors[0].name
+            print(f"  {obj.name}: Found legacy vertex colors '{color_attr_name}'")
+
+        if not has_vertex_colors:
+            print(f"  {obj.name}: No vertex colors found, skipping material setup")
+            continue
+
+        # Check if the object already has a material with a texture
+        has_texture_material = False
+        if obj.data.materials:
+            for mat in obj.data.materials:
+                if mat and mat.use_nodes:
+                    for node in mat.node_tree.nodes:
+                        if node.type == "TEX_IMAGE" and node.image:
+                            has_texture_material = True
+                            print(f"  {obj.name}: Has texture material, keeping it")
+                            break
+                if has_texture_material:
+                    break
+
+        if has_texture_material:
+            continue
+
+        # Create or modify material to use vertex colors
+        mat_name = f"{obj.name}_VertexColorMat"
+        mat = bpy.data.materials.new(name=mat_name)
+        mat.use_nodes = True
+
+        nodes = mat.node_tree.nodes
+        links = mat.node_tree.links
+
+        # Clear default nodes
+        nodes.clear()
+
+        # Create nodes for vertex color material
+        # Output node
+        output_node = nodes.new(type="ShaderNodeOutputMaterial")
+        output_node.location = (400, 0)
+
+        # Principled BSDF shader
+        bsdf_node = nodes.new(type="ShaderNodeBsdfPrincipled")
+        bsdf_node.location = (100, 0)
+
+        # Vertex Color (Color Attribute) node
+        color_attr_node = nodes.new(type="ShaderNodeVertexColor")
+        color_attr_node.location = (-200, 0)
+        color_attr_node.layer_name = color_attr_name
+
+        # Connect nodes
+        links.new(color_attr_node.outputs["Color"], bsdf_node.inputs["Base Color"])
+        links.new(bsdf_node.outputs["BSDF"], output_node.inputs["Surface"])
+
+        # Assign material to object
+        if obj.data.materials:
+            obj.data.materials[0] = mat
+        else:
+            obj.data.materials.append(mat)
+
+        print(f"  {obj.name}: Created vertex color material '{mat_name}'")
 
 
 def get_scene_bounding_box(
@@ -386,7 +476,7 @@ def setup_lighting() -> None:
     """Set up three-point lighting."""
     # Key light
     key_light_data = bpy.data.lights.new(name="KeyLight", type="SUN")
-    key_light_data.energy = 3.0
+    key_light_data.energy = 2.0
     key_light = bpy.data.objects.new("KeyLight", key_light_data)
     bpy.context.scene.collection.objects.link(key_light)
     key_light.location = (5, -5, 8)
@@ -453,7 +543,7 @@ def setup_render_settings(
         world.use_nodes = True
         bg_node = world.node_tree.nodes.get("Background")
         if bg_node:
-            bg_node.inputs["Color"].default_value = (0.8, 0.8, 0.8, 1.0)
+            bg_node.inputs["Color"].default_value = (0.5, 0.5, 0.5, 1.0)
 
     # Enable depth output via compositor
     scene.use_nodes = True
@@ -511,20 +601,28 @@ def render_view(
     # Setup compositor for depth output
     scene = bpy.context.scene
     tree = scene.node_tree
-    
+
     # Clear existing nodes
     for node in tree.nodes:
         tree.nodes.remove(node)
-    
+
     # Create nodes
     render_layers = tree.nodes.new(type="CompositorNodeRLayers")
     render_layers.location = (0, 0)
-    
+
+    # Color correction for better contrast
+    color_correct = tree.nodes.new(type="CompositorNodeColorCorrection")
+    color_correct.location = (200, 0)
+    color_correct.master_saturation = 1.05
+    color_correct.master_contrast = 1.05
+    color_correct.master_gain = 0.95
+    tree.links.new(render_layers.outputs["Image"], color_correct.inputs["Image"])
+
     # RGB output
     composite = tree.nodes.new(type="CompositorNodeComposite")
-    composite.location = (400, 0)
-    tree.links.new(render_layers.outputs["Image"], composite.inputs["Image"])
-    
+    composite.location = (500, 0)
+    tree.links.new(color_correct.outputs["Image"], composite.inputs["Image"])
+
     # Depth output - save as EXR for full precision
     depth_output = tree.nodes.new(type="CompositorNodeOutputFile")
     depth_output.location = (400, -200)
@@ -532,17 +630,17 @@ def render_view(
     depth_output.format.file_format = "OPEN_EXR"
     depth_output.format.color_depth = "32"
     depth_output.format.color_mode = "RGB"  # Will be grayscale but stored as RGB
-    
+
     # Set output filename (without extension, Blender adds it)
     depth_output.file_slots[0].path = depth_filename
-    
+
     tree.links.new(render_layers.outputs["Depth"], depth_output.inputs[0])
 
     # Render
     bpy.context.scene.render.filepath = rgb_path
     bpy.ops.render.render(write_still=True)
     print(f"Rendered: {rgb_path}")
-    
+
     # Add depth path to camera info
     # Note: Blender appends frame number
     camera_info["depth_path"] = f"depth/{depth_filename}0001.exr"
@@ -635,6 +733,11 @@ def main() -> None:
     print(f"Importing: {input_path}")
     imported_objects = import_glb(str(input_path))
     print(f"Imported {len(imported_objects)} objects")
+
+    # Setup vertex color materials for SAM3D meshes
+    # SAM3D exports meshes with vertex colors instead of textures
+    print("\n=== Setting up vertex color materials ===")
+    setup_vertex_color_materials(imported_objects)
 
     # Calculate scene info without modifying objects
     auto_distance, scene_center = calculate_scene_info(imported_objects)
