@@ -8,6 +8,19 @@ import torch
 from PIL import Image
 from diffusers.utils import export_to_video
 
+# Always-on camera lock prompt additions
+CAMERA_LOCK_SUFFIX = (
+    "Static locked-off camera on a tripod. "
+    "No camera movement. No pan, tilt, zoom, dolly, orbit, or roll. "
+    "No handheld shake. Fixed framing and fixed perspective. "
+)
+
+CAMERA_LOCK_NEGATIVE = (
+    "camera movement, moving camera, pan, panning, tilt, tilting, zoom, zooming, "
+    "dolly, dolly-in, dolly-out, tracking shot, orbit, rotation, roll, "
+    "handheld, shaky cam, camera shake, jitter, parallax, perspective shift"
+)
+
 
 def model_suffix(model: str) -> str:
     return (
@@ -72,6 +85,7 @@ def load_pipeline(model: str, device: str, dtype: torch.dtype):
 def generate_video_cogvideo(
     pipe,
     prompt: str,
+    negative_prompt: str,
     image: Image.Image,
     width: int,
     height: int,
@@ -83,6 +97,7 @@ def generate_video_cogvideo(
     """Generate video using CogVideoX pipeline."""
     return pipe(
         prompt=prompt,
+        negative_prompt=negative_prompt,
         image=image,
         width=width,
         height=height,
@@ -96,6 +111,7 @@ def generate_video_cogvideo(
 def generate_video_wan(
     pipe,
     prompt: str,
+    negative_prompt: str,
     image: Image.Image,
     width: int,
     height: int,
@@ -107,6 +123,7 @@ def generate_video_wan(
     """Generate video using Wan pipeline."""
     return pipe(
         prompt=prompt,
+        negative_prompt=negative_prompt,
         image=image,
         width=width,
         height=height,
@@ -132,7 +149,7 @@ def main() -> None:
     parser.add_argument("--num_frames", type=int, default=81)
     parser.add_argument("--steps", type=int, default=50)
     parser.add_argument("--guidance_scale", type=float, default=6.0)
-    parser.add_argument("--fps", type=int, default=16)
+    parser.add_argument("--fps", type=int, default=24)
     args = parser.parse_args()
 
     outdir = Path(args.outdir)
@@ -140,6 +157,11 @@ def main() -> None:
 
     frame_path = Path(args.frame)
     prompt = load_pag_prompt(Path(args.pag))
+
+    # Always-on camera lock
+    prompt = prompt.rstrip() + "\n\n" + CAMERA_LOCK_SUFFIX
+    negative_prompt = CAMERA_LOCK_NEGATIVE
+
     image = load_and_prepare_image(frame_path, args.width, args.height)
 
     dtype = torch.bfloat16 if args.device.startswith("cuda") else torch.float32
@@ -151,6 +173,7 @@ def main() -> None:
         frames = generate_video_wan(
             pipe,
             prompt,
+            negative_prompt,
             image,
             args.width,
             args.height,
@@ -163,6 +186,7 @@ def main() -> None:
         frames = generate_video_cogvideo(
             pipe,
             prompt,
+            negative_prompt,
             image,
             args.width,
             args.height,
