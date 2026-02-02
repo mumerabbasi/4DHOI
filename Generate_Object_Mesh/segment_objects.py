@@ -173,7 +173,7 @@ def main():
     parser.add_argument(
         "--image",
         type=str,
-        default="../Generate_Video/first_frames/frame_00.png",
+        default="../Generate_Video/first_frames_hi_res/frame_00.png",
         help="Input image path.",
     )
     parser.add_argument(
@@ -268,14 +268,14 @@ def main():
         # Save mask to mask/ subdir
         mask_filename = f"{frame_name}.png"
         save_mask_image(mask, mask_dir / mask_filename)
-        print(f"    Saved: mask/{mask_filename}")
+        print(f"Saved: mask/{mask_filename}")
 
         # Save bbox visualization to bbox/ subdir
         bbox_img_filename = None
         if bbox is not None:
             bbox_img_filename = f"{frame_name}.png"
             save_bbox_image(image_rgb, bbox, obj_name, bbox_dir / bbox_img_filename)
-            print(f"    Saved: bbox/{bbox_img_filename}")
+            print(f"Saved: bbox/{bbox_img_filename}")
 
             # Save bbox metadata JSON to bbox/ subdir
             bbox_metadata = {
