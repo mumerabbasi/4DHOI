@@ -126,19 +126,19 @@ def main():
         description="Convert mesh to point cloud by surface sampling."
     )
     parser.add_argument(
-        "--input", "-i",
+        "--input",
         type=str,
         required=True,
         help="Path to input mesh file (GLB, OBJ, PLY, etc.).",
     )
     parser.add_argument(
-        "--output_dir", "-o",
+        "--output_dir",
         type=str,
         default=None,
         help="Output directory (default: same as input mesh directory).",
     )
     parser.add_argument(
-        "--num_points", "-n",
+        "--num_points",
         type=int,
         default=100000,
         help="Number of points to sample (default: 100000).",

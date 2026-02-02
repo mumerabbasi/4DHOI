@@ -10,7 +10,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--video",
-        default="../Generate_Video/videos/frame_00_video_THUDM_CogVideoX_5b_I2V.mp4"
+        default="../Generate_Video/videos/iron_frame_00_video_Wan_AI_Wan2_2_I2V_A14B_Diffusers.mp4"
     )
     parser.add_argument("--outdir", default="./output_human_motion")
     parser.add_argument(

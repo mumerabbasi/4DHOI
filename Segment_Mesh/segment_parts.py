@@ -284,6 +284,78 @@ def draw_bboxes_on_image(
     return result
 
 
+def draw_masks_on_image(
+    image: np.ndarray,
+    masks: dict[str, np.ndarray | None],
+) -> np.ndarray:
+    """Draw segmentation masks on image with labels.
+
+    Args:
+        image: BGR image as numpy array.
+        masks: Dictionary mapping part names to masks or None.
+
+    Returns:
+        Image with masks overlaid.
+    """
+    result = image.copy()
+
+    # Color palette for different parts
+    colors = [
+        (0, 255, 0),    # Green
+        (255, 0, 0),    # Blue
+        (0, 0, 255),    # Red
+        (255, 255, 0),  # Cyan
+        (255, 0, 255),  # Magenta
+        (0, 255, 255),  # Yellow
+        (128, 255, 0),  # Light green
+        (255, 128, 0),  # Light blue
+    ]
+
+    for i, (part_name, mask) in enumerate(masks.items()):
+        if mask is None:
+            continue
+
+        color = colors[i % len(colors)]
+
+        # Create colored overlay
+        overlay = result.copy()
+        overlay[mask > 0] = color
+
+        # Blend with original
+        alpha = 0.4
+        result = cv2.addWeighted(overlay, alpha, result, 1 - alpha, 0)
+
+        # Find centroid for label placement
+        ys, xs = np.where(mask > 0)
+        if len(xs) > 0 and len(ys) > 0:
+            cx, cy = int(np.mean(xs)), int(np.mean(ys))
+
+            # Draw label
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 0.6
+            thickness = 2
+            (text_w, text_h), baseline = cv2.getTextSize(
+                part_name, font, font_scale, thickness
+            )
+
+            # Draw text background
+            cv2.rectangle(
+                result,
+                (cx - 2, cy - text_h - 4),
+                (cx + text_w + 4, cy + 4),
+                color,
+                -1
+            )
+
+            # Draw text
+            cv2.putText(
+                result, part_name, (cx, cy),
+                font, font_scale, (0, 0, 0), thickness
+            )
+
+    return result
+
+
 def process_object(
     object_dir: Path,
     parts: list[str],
@@ -300,17 +372,23 @@ def process_object(
         Dictionary with segmentation results.
     """
     renders_dir = object_dir / "renders"
+    rgb_dir = renders_dir / "rgb"
     masks_dir = object_dir / "masks"
     bboxes_dir = object_dir / "bboxes"
+    viz_dir = object_dir / "visualizations"
     masks_dir.mkdir(exist_ok=True)
     bboxes_dir.mkdir(exist_ok=True)
+    viz_dir.mkdir(exist_ok=True)
 
     object_name = object_dir.name
 
-    # Get all render images
-    image_files = sorted(renders_dir.glob("rgb_*.png"))
+    # Get all render images (try new structure first, then old)
+    if rgb_dir.exists():
+        image_files = sorted(rgb_dir.glob("*.png"))
+    else:
+        image_files = sorted(renders_dir.glob("rgb_*.png"))
     if not image_files:
-        print(f"No render images found in {renders_dir}")
+        print(f"No render images found in {rgb_dir} or {renders_dir}")
         return {}
 
     print(f"\nProcessing {object_name} with parts: {parts}")
@@ -347,6 +425,9 @@ def process_object(
             "parts": {}
         }
 
+        # Dictionary to collect masks for visualization
+        all_masks = {}
+
         # Segment each detected part
         for part_name, bbox in boxes.items():
             if bbox is None:
@@ -371,6 +452,9 @@ def process_object(
             # Segment with SAM2
             mask = segment_with_sam2(sam_predictor, image_rgb, bbox)
 
+            # Collect mask for visualization
+            all_masks[part_name] = mask
+
             # Save mask
             mask_filename = f"{img_path.stem}_{part_name.replace(' ', '_')}.png"
             mask_path = masks_dir / mask_filename
@@ -382,6 +466,14 @@ def process_object(
                 "bbox": bbox,
                 "mask_file": mask_filename
             }
+
+        # Save visualization with masks overlaid
+        if all_masks:
+            viz_image = draw_masks_on_image(image, all_masks)
+            viz_filename = f"{img_path.stem}_segmented.png"
+            viz_path = viz_dir / viz_filename
+            cv2.imwrite(str(viz_path), viz_image)
+            print(f"    Saved visualization: {viz_filename}")
 
         results["views"].append(view_result)
 

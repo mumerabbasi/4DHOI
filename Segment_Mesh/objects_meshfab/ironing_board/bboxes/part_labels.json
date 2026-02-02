@@ -1,0 +1,473 @@
+{
+  "object_name": "ironing_board",
+  "parts": [
+    "surface",
+    "support"
+  ],
+  "views": [
+    {
+      "image": "az020_el+25.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            326,
+            245,
+            698,
+            500
+          ],
+          "mask_file": "az020_el+25_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            373,
+            437,
+            626,
+            756
+          ],
+          "mask_file": "az020_el+25_support.png"
+        }
+      }
+    },
+    {
+      "image": "az020_el+45.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            326,
+            167,
+            710,
+            670
+          ],
+          "mask_file": "az020_el+45_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            380,
+            519,
+            624,
+            757
+          ],
+          "mask_file": "az020_el+45_support.png"
+        }
+      }
+    },
+    {
+      "image": "az020_el-25.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            345,
+            161,
+            680,
+            508
+          ],
+          "mask_file": "az020_el-25_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            357,
+            302,
+            636,
+            729
+          ],
+          "mask_file": "az020_el-25_support.png"
+        }
+      }
+    },
+    {
+      "image": "az020_el-45.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            355,
+            128,
+            683,
+            619
+          ],
+          "mask_file": "az020_el-45_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            356,
+            312,
+            642,
+            746
+          ],
+          "mask_file": "az020_el-45_support.png"
+        }
+      }
+    },
+    {
+      "image": "az110_el+25.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            186,
+            291,
+            892,
+            437
+          ],
+          "mask_file": "az110_el+25_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            339,
+            386,
+            660,
+            732
+          ],
+          "mask_file": "az110_el+25_support.png"
+        }
+      }
+    },
+    {
+      "image": "az110_el+45.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            171,
+            274,
+            905,
+            552
+          ],
+          "mask_file": "az110_el+45_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            345,
+            456,
+            655,
+            720
+          ],
+          "mask_file": "az110_el+45_support.png"
+        }
+      }
+    },
+    {
+      "image": "az110_el-25.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            214,
+            240,
+            859,
+            440
+          ],
+          "mask_file": "az110_el-25_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            324,
+            332,
+            677,
+            721
+          ],
+          "mask_file": "az110_el-25_support.png"
+        }
+      }
+    },
+    {
+      "image": "az110_el-45.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            217,
+            234,
+            846,
+            508
+          ],
+          "mask_file": "az110_el-45_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            314,
+            355,
+            683,
+            735
+          ],
+          "mask_file": "az110_el-45_support.png"
+        }
+      }
+    },
+    {
+      "image": "az200_el+25.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            242,
+            250,
+            657,
+            515
+          ],
+          "mask_file": "az200_el+25_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            380,
+            437,
+            631,
+            746
+          ],
+          "mask_file": "az200_el+25_support.png"
+        }
+      }
+    },
+    {
+      "image": "az200_el+45.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            244,
+            179,
+            665,
+            691
+          ],
+          "mask_file": "az200_el+45_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            386,
+            519,
+            629,
+            742
+          ],
+          "mask_file": "az200_el+45_support.png"
+        }
+      }
+    },
+    {
+      "image": "az200_el-25.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            274,
+            140,
+            645,
+            506
+          ],
+          "mask_file": "az200_el-25_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            367,
+            319,
+            642,
+            731
+          ],
+          "mask_file": "az200_el-25_support.png"
+        }
+      }
+    },
+    {
+      "image": "az200_el-45.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            291,
+            102,
+            645,
+            609
+          ],
+          "mask_file": "az200_el-45_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            363,
+            332,
+            645,
+            757
+          ],
+          "mask_file": "az200_el-45_support.png"
+        }
+      }
+    },
+    {
+      "image": "az290_el+25.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            150,
+            279,
+            885,
+            412
+          ],
+          "mask_file": "az290_el+25_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            358,
+            391,
+            677,
+            734
+          ],
+          "mask_file": "az290_el+25_support.png"
+        }
+      }
+    },
+    {
+      "image": "az290_el+45.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            135,
+            240,
+            892,
+            498
+          ],
+          "mask_file": "az290_el+45_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            361,
+            464,
+            671,
+            724
+          ],
+          "mask_file": "az290_el+45_support.png"
+        }
+      }
+    },
+    {
+      "image": "az290_el-25.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            183,
+            275,
+            849,
+            460
+          ],
+          "mask_file": "az290_el-25_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            339,
+            324,
+            693,
+            719
+          ],
+          "mask_file": "az290_el-25_support.png"
+        }
+      }
+    },
+    {
+      "image": "az290_el-45.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "surface": {
+          "detected": true,
+          "bbox": [
+            189,
+            281,
+            831,
+            540
+          ],
+          "mask_file": "az290_el-45_surface.png"
+        },
+        "support": {
+          "detected": true,
+          "bbox": [
+            334,
+            344,
+            701,
+            731
+          ],
+          "mask_file": "az290_el-45_support.png"
+        }
+      }
+    }
+  ]
+}

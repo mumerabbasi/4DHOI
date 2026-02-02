@@ -18,8 +18,8 @@ from mathutils import Matrix, Vector
 
 
 # Camera configuration
-AZIMUTHS = [0, 90, 180, 270]  # degrees
-ELEVATIONS = [20, 60]  # degrees
+AZIMUTHS = [20, 110, 200, 290]  # degrees
+ELEVATIONS = [- 45, -25, 25, 45]  # degrees
 DEFAULT_CAMERA_DISTANCE = 3.0
 DEFAULT_RESOLUTION = 1024
 
@@ -455,6 +455,10 @@ def setup_render_settings(
         if bg_node:
             bg_node.inputs["Color"].default_value = (0.8, 0.8, 0.8, 1.0)
 
+    # Enable depth output via compositor
+    scene.use_nodes = True
+    scene.view_layers["ViewLayer"].use_pass_z = True
+
 
 def render_view(
     camera: bpy.types.Object,
@@ -462,7 +466,8 @@ def render_view(
     elevation: float,
     distance: float,
     target: tuple[float, float, float],
-    output_path: str,
+    output_dir: str,
+    view_name: str,
     resolution: int,
 ) -> dict:
     """
@@ -474,7 +479,8 @@ def render_view(
         elevation: Elevation angle in degrees.
         distance: Camera distance from target.
         target: Point to look at.
-        output_path: Path to save rendered image.
+        output_dir: Base output directory (renders/).
+        view_name: View identifier (e.g., "az020_el-45").
         resolution: Image resolution.
 
     Returns:
@@ -485,18 +491,61 @@ def render_view(
     # Update scene to ensure matrix is computed
     bpy.context.view_layer.update()
 
+    # Setup paths for rgb and depth subdirectories
+    rgb_dir = os.path.join(output_dir, "rgb")
+    depth_dir = os.path.join(output_dir, "depth")
+    os.makedirs(rgb_dir, exist_ok=True)
+    os.makedirs(depth_dir, exist_ok=True)
+
+    rgb_path = os.path.join(rgb_dir, f"{view_name}.png")
+    depth_filename = view_name  # Without extension
+
     # Extract camera matrices BEFORE rendering
     camera_info = get_camera_matrices(camera, resolution, resolution)
     camera_info["azimuth_deg"] = azimuth
     camera_info["elevation_deg"] = elevation
     camera_info["target"] = list(target)
     camera_info["distance"] = distance
-    camera_info["image_path"] = os.path.basename(output_path)
+    camera_info["image_path"] = f"rgb/{view_name}.png"
+
+    # Setup compositor for depth output
+    scene = bpy.context.scene
+    tree = scene.node_tree
+    
+    # Clear existing nodes
+    for node in tree.nodes:
+        tree.nodes.remove(node)
+    
+    # Create nodes
+    render_layers = tree.nodes.new(type="CompositorNodeRLayers")
+    render_layers.location = (0, 0)
+    
+    # RGB output
+    composite = tree.nodes.new(type="CompositorNodeComposite")
+    composite.location = (400, 0)
+    tree.links.new(render_layers.outputs["Image"], composite.inputs["Image"])
+    
+    # Depth output - save as EXR for full precision
+    depth_output = tree.nodes.new(type="CompositorNodeOutputFile")
+    depth_output.location = (400, -200)
+    depth_output.base_path = depth_dir
+    depth_output.format.file_format = "OPEN_EXR"
+    depth_output.format.color_depth = "32"
+    depth_output.format.color_mode = "RGB"  # Will be grayscale but stored as RGB
+    
+    # Set output filename (without extension, Blender adds it)
+    depth_output.file_slots[0].path = depth_filename
+    
+    tree.links.new(render_layers.outputs["Depth"], depth_output.inputs[0])
 
     # Render
-    bpy.context.scene.render.filepath = output_path
+    bpy.context.scene.render.filepath = rgb_path
     bpy.ops.render.render(write_still=True)
-    print(f"Rendered: {output_path}")
+    print(f"Rendered: {rgb_path}")
+    
+    # Add depth path to camera info
+    # Note: Blender appends frame number
+    camera_info["depth_path"] = f"depth/{depth_filename}0001.exr"
 
     return camera_info
 
@@ -533,11 +582,11 @@ def render_all_views(
 
     for elevation in ELEVATIONS:
         for azimuth in AZIMUTHS:
-            filename = f"rgb_az{azimuth:03d}_el{elevation:02d}.png"
-            output_path = os.path.join(output_dir, filename)
+            view_name = f"az{azimuth:03d}_el{elevation:+03d}"
 
             camera_info = render_view(
-                camera, azimuth, elevation, distance, target, output_path, resolution
+                camera, azimuth, elevation, distance, target,
+                output_dir, view_name, resolution
             )
             all_cameras["views"].append(camera_info)
 
@@ -614,7 +663,8 @@ def main() -> None:
 
     print(f"\n{'='*60}")
     print("Completed!")
-    print(f"  - 8 images saved to: {output_dir}")
+    print(f"  - RGB images saved to: {output_dir}/rgb/")
+    print(f"  - Depth maps saved to: {output_dir}/depth/")
     print(f"  - Camera matrices saved to: {cameras_json_path}")
     print(f"{'='*60}\n")
 
