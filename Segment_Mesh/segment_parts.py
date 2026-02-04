@@ -518,14 +518,14 @@ def main():
     parser.add_argument(
         "--pag_file",
         type=str,
-        default="../Generate_PAG/output_pag_deepseek_r1_32b.json",
+        default="../Generate_PAG/pags/pag_01/output_pag_deepseek_r1_32b.json",
         help="PAG JSON file to extract all objects and parts automatically.",
     )
     parser.add_argument(
         "--objects_root",
         type=str,
-        default="objects",
-        help="Root directory containing object folders (default: objects).",
+        default="objects/video_01",
+        help="Root directory containing object folders (default: objects/video_01).",
     )
     parser.add_argument(
         "--object_dir",

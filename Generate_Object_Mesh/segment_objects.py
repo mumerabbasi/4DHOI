@@ -167,7 +167,7 @@ def main():
     parser.add_argument(
         "--pag_file",
         type=str,
-        default="../Generate_PAG/pags/pag_01/output_pag_deepseek_r1_32b.json",
+        default="../Generate_PAG/pags/video_01/output_pag_deepseek_r1_32b.json",
         help="PAG JSON file.",
     )
     parser.add_argument(

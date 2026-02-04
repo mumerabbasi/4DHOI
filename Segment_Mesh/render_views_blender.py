@@ -19,8 +19,8 @@ from mathutils import Matrix, Vector
 
 # Camera configuration
 AZIMUTHS = [10, 100, 190, 280]  # degrees
-ELEVATIONS = [-30, -15, 25, 45]  # degrees
-DEFAULT_CAMERA_DISTANCE = 1
+ELEVATIONS = [-15, 25, 45]  # degrees
+DEFAULT_CAMERA_DISTANCE = 3
 DEFAULT_RESOLUTION = 1024
 
 
@@ -38,7 +38,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--input",
         type=str,
-        required=True,
+        default="./objects/video_01/iron/mesh.glb",
         help="Path to input GLB mesh file.",
     )
     parser.add_argument(
