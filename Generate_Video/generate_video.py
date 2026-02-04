@@ -139,10 +139,10 @@ def main() -> None:
     parser.add_argument(
         "--pag", default="../Generate_PAG/output_pag_deepseek_r1_32b.json"
     )
-    parser.add_argument("--frame", default="./first_frames_hi_res/frame_00.png")
-    parser.add_argument("--outdir", default="./videos")
+    parser.add_argument("--frame", default="./videos/video_02/first_frames/frame_00.png")
+    parser.add_argument("--outdir", default="./videos/video_02")
     parser.add_argument("--model", default="Wan-AI/Wan2.2-I2V-A14B-Diffusers")
-    parser.add_argument("--device", default="cuda:4")
+    parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--seed", type=int, default=72)
     parser.add_argument("--height", type=int, default=720)
     parser.add_argument("--width", type=int, default=1280)

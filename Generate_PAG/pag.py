@@ -40,9 +40,9 @@ def main() -> None:
     parser.add_argument("--host", default="http://localhost:11434/v1")
     parser.add_argument("--model", default="deepseek-r1:32b")
     parser.add_argument("--system-prompt", default="sys_prompt_pag.md")
-    parser.add_argument("--input", default="input_pag.json")
+    parser.add_argument("--input", default="./pags/pag_00/input_pag.json")
     parser.add_argument("--temperature", type=float, default=0.0)
-    parser.add_argument("--output-dir", default=".")
+    parser.add_argument("--output-dir", default="./pags/pag_00")
     args = parser.parse_args()
 
     system_prompt = load_text(Path(args.system_prompt))
