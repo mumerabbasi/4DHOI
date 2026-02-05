@@ -86,6 +86,8 @@ R_Z_UP_TO_Y_UP = np.array([
     [0, -1, 0],
 ], dtype=np.float32)
 
+SENSOR_WIDTH_MM = 36.0  # Full-frame sensor width for focal length conversion
+
 
 def render_posed_mesh_overlay(
     image: np.ndarray,
@@ -132,8 +134,7 @@ def render_posed_mesh_overlay(
     # Perspective projection parameters
     # Convert focal length from mm to pixels
     # Assuming full-frame sensor (36mm width) as reference
-    sensor_width_mm = 36.0
-    focal_length = focal_length_mm * w / sensor_width_mm
+    focal_length = focal_length_mm * w / SENSOR_WIDTH_MM
     cx, cy = w / 2, h / 2
 
     # Filter points behind camera (z > 0.1)
