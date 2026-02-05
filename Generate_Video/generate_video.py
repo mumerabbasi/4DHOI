@@ -1,0 +1,205 @@
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+import torch
+from PIL import Image
+from diffusers.utils import export_to_video
+
+# Always-on camera lock prompt additions
+CAMERA_LOCK_SUFFIX = (
+    "Static locked-off camera on a tripod. "
+    "No camera movement. No pan, tilt, zoom, dolly, orbit, or roll. "
+    "No handheld shake. Fixed framing and fixed perspective. "
+)
+
+CAMERA_LOCK_NEGATIVE = (
+    "camera movement, moving camera, pan, panning, tilt, tilting, zoom, zooming, "
+    "dolly, dolly-in, dolly-out, tracking shot, orbit, rotation, roll, "
+    "handheld, shaky cam, camera shake, jitter, parallax, perspective shift"
+)
+
+
+def model_suffix(model: str) -> str:
+    return (
+        model.replace("/", "_")
+        .replace(":", "_")
+        .replace("-", "_")
+        .replace(".", "_")
+    )
+
+
+def load_pag_prompt(path: Path) -> str:
+    pag = json.loads(path.read_text(encoding="utf-8"))
+    return pag["interaction"]
+
+
+def load_and_prepare_image(path: Path, width: int, height: int) -> Image.Image:
+    img = Image.open(path).convert("RGB")
+    src_w, src_h = img.size
+
+    target_ratio = width / height
+    src_ratio = src_w / src_h
+
+    if src_ratio > target_ratio:
+        new_w = int(src_h * target_ratio)
+        left = (src_w - new_w) // 2
+        img = img.crop((left, 0, left + new_w, src_h))
+    else:
+        new_h = int(src_w / target_ratio)
+        top = (src_h - new_h) // 2
+        img = img.crop((0, top, src_w, top + new_h))
+
+    return img.resize((width, height), resample=Image.BICUBIC)
+
+
+def load_pipeline(model: str, device: str, dtype: torch.dtype):
+    """Load the appropriate pipeline based on model name."""
+    model_lower = model.lower()
+
+    if "wan" in model_lower:
+        from diffusers import WanImageToVideoPipeline
+
+        pipe = WanImageToVideoPipeline.from_pretrained(
+            model,
+            torch_dtype=dtype,
+        )
+        pipe.enable_model_cpu_offload(device=device)
+        pipe.vae.enable_tiling()
+        pipe.vae.enable_slicing()
+        return pipe, "wan"
+    else:
+        from diffusers import CogVideoXImageToVideoPipeline
+
+        pipe = CogVideoXImageToVideoPipeline.from_pretrained(
+            model,
+            torch_dtype=dtype,
+        ).to(device)
+        pipe.vae.enable_tiling()
+        pipe.vae.enable_slicing()
+        return pipe, "cogvideo"
+
+
+def generate_video_cogvideo(
+    pipe,
+    prompt: str,
+    negative_prompt: str,
+    image: Image.Image,
+    width: int,
+    height: int,
+    num_frames: int,
+    steps: int,
+    guidance_scale: float,
+    generator: torch.Generator,
+) -> list:
+    """Generate video using CogVideoX pipeline."""
+    return pipe(
+        prompt=prompt,
+        negative_prompt=negative_prompt,
+        image=image,
+        width=width,
+        height=height,
+        num_frames=num_frames,
+        num_inference_steps=steps,
+        guidance_scale=guidance_scale,
+        generator=generator,
+    ).frames[0]
+
+
+def generate_video_wan(
+    pipe,
+    prompt: str,
+    negative_prompt: str,
+    image: Image.Image,
+    width: int,
+    height: int,
+    num_frames: int,
+    steps: int,
+    guidance_scale: float,
+    generator: torch.Generator,
+) -> list:
+    """Generate video using Wan pipeline."""
+    return pipe(
+        prompt=prompt,
+        negative_prompt=negative_prompt,
+        image=image,
+        width=width,
+        height=height,
+        num_frames=num_frames,
+        num_inference_steps=steps,
+        guidance_scale=guidance_scale,
+        generator=generator,
+    ).frames[0]
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--pag", default="../Generate_PAG/output_pag_deepseek_r1_32b.json"
+    )
+    parser.add_argument("--frame", default="./videos/video_02/first_frames/frame_00.png")
+    parser.add_argument("--outdir", default="./videos/video_02")
+    parser.add_argument("--model", default="Wan-AI/Wan2.2-I2V-A14B-Diffusers")
+    parser.add_argument("--device", default="cuda:0")
+    parser.add_argument("--seed", type=int, default=72)
+    parser.add_argument("--height", type=int, default=720)
+    parser.add_argument("--width", type=int, default=1280)
+    parser.add_argument("--num_frames", type=int, default=81)
+    parser.add_argument("--steps", type=int, default=50)
+    parser.add_argument("--guidance_scale", type=float, default=6.0)
+    parser.add_argument("--fps", type=int, default=24)
+    args = parser.parse_args()
+
+    outdir = Path(args.outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    frame_path = Path(args.frame)
+    prompt = load_pag_prompt(Path(args.pag))
+
+    # Always-on camera lock
+    prompt = prompt.rstrip() + "\n\n" + CAMERA_LOCK_SUFFIX
+    negative_prompt = CAMERA_LOCK_NEGATIVE
+
+    image = load_and_prepare_image(frame_path, args.width, args.height)
+
+    dtype = torch.bfloat16 if args.device.startswith("cuda") else torch.float32
+    pipe, model_type = load_pipeline(args.model, args.device, dtype)
+
+    generator = torch.Generator(device=args.device).manual_seed(args.seed)
+
+    if model_type == "wan":
+        frames = generate_video_wan(
+            pipe,
+            prompt,
+            negative_prompt,
+            image,
+            args.width,
+            args.height,
+            args.num_frames,
+            args.steps,
+            args.guidance_scale,
+            generator,
+        )
+    else:
+        frames = generate_video_cogvideo(
+            pipe,
+            prompt,
+            negative_prompt,
+            image,
+            args.width,
+            args.height,
+            args.num_frames,
+            args.steps,
+            args.guidance_scale,
+            generator,
+        )
+
+    out_path = outdir / f"{frame_path.stem}_video_{model_suffix(args.model)}.mp4"
+    export_to_video(frames, out_path.as_posix(), fps=args.fps)
+    print(out_path)
+
+
+if __name__ == "__main__":
+    main()

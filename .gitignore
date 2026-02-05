@@ -1,0 +1,78 @@
+# --- Python & Caches ---
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.cache/
+
+# --- Environment & Variables ---
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# --- VS Code & IDE Configs ---
+.vscode/
+*.code-workspace
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# --- Linter & Formatters ---
+.flake8
+.pylintrc
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# --- Generated Media (Images & Videos) ---
+# Prevent accidental commit of thousands of generated frames
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+*.exr
+
+# --- 3D Media (Meshes & Point Clouds) ---
+*.obj
+*.fbx
+*.glb
+*.gltf
+*.ply
+*.stl
+*.pcd
+*.las
+*.laz
+*.npy
+
+# --- Output Directories ---
+# Ignore specific output folders you are creating
+first_frames/
+generated_videos/
+output/
+checkpoints/
+logs/
+
+# --- Model Weights (Large Files) ---
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.bin
+*.onnx
+*.obj
+
+# --- OS Specific ---
+.DS_Store
+Thumbs.db
