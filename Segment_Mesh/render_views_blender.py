@@ -22,7 +22,7 @@ from mathutils import Matrix, Vector
 # Camera configuration
 AZIMUTHS = [10, 100, 190, 280]  # degrees
 ELEVATIONS = [-15, 25, 45]  # degrees
-DEFAULT_CAMERA_DISTANCE = 3.0
+DEFAULT_CAMERA_DISTANCE = 0.5
 DEFAULT_RESOLUTION = 1024
 
 # Face ID attribute/AOV names

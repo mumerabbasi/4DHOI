@@ -463,7 +463,7 @@ def main():
     parser.add_argument(
         "--mesh_dir",
         type=str,
-        default="./objects/video_01/iron",
+        default="./objects/video_01/ironing_board",
         help="Directory containing mesh.glb, renders/, and masks/",
     )
     parser.add_argument(
@@ -485,15 +485,15 @@ def main():
         help="Minimum vote fraction for winner (0-1, default: 0.6)",
     )
     parser.add_argument(
-        "--smooth",
+        "--not_smooth",
         action="store_true",
-        help="Enable KNN-based label smoothing post-processing",
+        help="Disable KNN-based label smoothing post-processing",
     )
     parser.add_argument(
         "--k_neighbors",
         type=int,
-        default=50,
-        help="Number of neighbors for smoothing (default: 50)",
+        default=100,
+        help="Number of neighbors for smoothing (default: 100)",
     )
 
     args = parser.parse_args()
@@ -502,7 +502,7 @@ def main():
         num_points=args.num_points,
         min_votes=args.min_votes,
         min_margin=args.min_margin,
-        smooth=args.smooth,
+        smooth=not args.not_smooth,
         k_neighbors=args.k_neighbors,
     )
 

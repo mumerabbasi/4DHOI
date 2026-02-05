@@ -15,20 +15,20 @@
         "surface": {
           "detected": true,
           "bbox": [
-            261,
-            301,
-            764,
-            416
+            688,
+            304,
+            793,
+            854
           ],
           "mask_file": "az010_el+25_surface.png"
         },
         "support": {
           "detected": true,
           "bbox": [
-            293,
-            391,
-            693,
-            732
+            160,
+            244,
+            759,
+            783
           ],
           "mask_file": "az010_el+25_support.png"
         }
@@ -44,20 +44,20 @@
         "surface": {
           "detected": true,
           "bbox": [
-            252,
-            285,
-            774,
-            500
+            669,
+            249,
+            804,
+            897
           ],
           "mask_file": "az010_el+45_surface.png"
         },
         "support": {
           "detected": true,
           "bbox": [
-            304,
-            450,
-            693,
-            727
+            168,
+            186,
+            762,
+            814
           ],
           "mask_file": "az010_el+45_support.png"
         }
@@ -73,20 +73,20 @@
         "surface": {
           "detected": true,
           "bbox": [
-            281,
-            291,
-            745,
-            404
+            716,
+            273,
+            780,
+            719
           ],
           "mask_file": "az010_el-15_surface.png"
         },
         "support": {
           "detected": true,
           "bbox": [
-            276,
-            327,
-            706,
-            701
+            132,
+            230,
+            749,
+            665
           ],
           "mask_file": "az010_el-15_support.png"
         }
@@ -102,20 +102,20 @@
         "surface": {
           "detected": true,
           "bbox": [
-            335,
-            276,
-            645,
-            463
+            87,
+            481,
+            865,
+            814
           ],
           "mask_file": "az100_el+25_surface.png"
         },
         "support": {
           "detected": true,
           "bbox": [
-            365,
-            455,
-            631,
-            765
+            273,
+            263,
+            780,
+            506
           ],
           "mask_file": "az100_el+25_support.png"
         }
@@ -131,20 +131,20 @@
         "surface": {
           "detected": true,
           "bbox": [
-            333,
-            230,
-            652,
-            588
+            97,
+            580,
+            860,
+            836
           ],
           "mask_file": "az100_el+45_surface.png"
         },
         "support": {
           "detected": true,
           "bbox": [
-            373,
-            575,
-            582,
-            773
+            261,
+            206,
+            795,
+            631
           ],
           "mask_file": "az100_el+45_support.png"
         }
@@ -160,22 +160,17 @@
         "surface": {
           "detected": true,
           "bbox": [
-            353,
-            240,
-            634,
-            424
+            83,
+            247,
+            881,
+            680
           ],
           "mask_file": "az100_el-15_surface.png"
         },
         "support": {
-          "detected": true,
-          "bbox": [
-            353,
-            302,
-            640,
-            711
-          ],
-          "mask_file": "az100_el-15_support.png"
+          "detected": false,
+          "bbox": null,
+          "mask_file": null
         }
       }
     },
@@ -189,20 +184,20 @@
         "surface": {
           "detected": true,
           "bbox": [
-            242,
-            299,
-            763,
-            406
+            117,
+            307,
+            391,
+            822
           ],
           "mask_file": "az190_el+25_surface.png"
         },
         "support": {
           "detected": true,
           "bbox": [
-            314,
-            391,
-            708,
-            734
+            220,
+            265,
+            775,
+            771
           ],
           "mask_file": "az190_el+25_support.png"
         }
@@ -218,20 +213,20 @@
         "surface": {
           "detected": true,
           "bbox": [
-            232,
-            278,
-            773,
-            494
+            125,
+            235,
+            391,
+            846
           ],
           "mask_file": "az190_el+45_surface.png"
         },
         "support": {
           "detected": true,
           "bbox": [
-            321,
-            455,
-            708,
-            729
+            220,
+            211,
+            780,
+            822
           ],
           "mask_file": "az190_el+45_support.png"
         }
@@ -247,20 +242,20 @@
         "surface": {
           "detected": true,
           "bbox": [
-            263,
-            291,
-            745,
-            409
+            137,
+            279,
+            384,
+            739
           ],
           "mask_file": "az190_el-15_surface.png"
         },
         "support": {
           "detected": true,
           "bbox": [
-            293,
-            319,
-            727,
-            700
+            237,
+            199,
+            788,
+            691
           ],
           "mask_file": "az190_el-15_support.png"
         }
@@ -276,20 +271,20 @@
         "surface": {
           "detected": true,
           "bbox": [
-            346,
-            272,
-            647,
-            452
+            263,
+            290,
+            846,
+            606
           ],
           "mask_file": "az280_el+25_surface.png"
         },
         "support": {
           "detected": true,
           "bbox": [
-            362,
-            442,
-            628,
-            782
+            171,
+            345,
+            844,
+            796
           ],
           "mask_file": "az280_el+25_support.png"
         }
@@ -305,20 +300,20 @@
         "surface": {
           "detected": true,
           "bbox": [
-            345,
-            222,
-            655,
-            580
+            252,
+            219,
+            855,
+            534
           ],
           "mask_file": "az280_el+45_surface.png"
         },
         "support": {
           "detected": true,
           "bbox": [
-            372,
-            560,
-            592,
-            792
+            168,
+            285,
+            841,
+            844
           ],
           "mask_file": "az280_el+45_support.png"
         }
@@ -334,20 +329,20 @@
         "surface": {
           "detected": true,
           "bbox": [
-            358,
-            245,
-            634,
-            424
+            250,
+            450,
+            846,
+            727
           ],
           "mask_file": "az280_el-15_surface.png"
         },
         "support": {
           "detected": true,
           "bbox": [
-            348,
-            291,
-            640,
-            706
+            151,
+            225,
+            816,
+            680
           ],
           "mask_file": "az280_el-15_support.png"
         }
