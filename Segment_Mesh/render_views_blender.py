@@ -1,8 +1,11 @@
 """
 Blender 4.2 script to render multiple views of a GLB mesh with camera matrices.
 
+Renders RGB images and per-pixel face ID maps from multiple viewpoints.
+Face IDs are stored as raw float values in EXR format for exact integer recovery.
+
 Usage:
-    blender --background --python render_views_blender.py
+    blender --background --python render_views_blender.py -- \\
         --input objects/iron/mesh.glb --resolution 1024
 """
 
@@ -16,12 +19,15 @@ from pathlib import Path
 import bpy
 from mathutils import Matrix, Vector
 
-
 # Camera configuration
 AZIMUTHS = [10, 100, 190, 280]  # degrees
 ELEVATIONS = [-15, 25, 45]  # degrees
-DEFAULT_CAMERA_DISTANCE = 3
+DEFAULT_CAMERA_DISTANCE = 3.0
 DEFAULT_RESOLUTION = 1024
+
+# Face ID attribute/AOV names
+FACE_ID_ATTR = "face_id"
+FACE_ID_AOV = "face_id"
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -67,59 +73,55 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--samples",
         type=int,
-        default=128,
-        help="Number of render samples (default: 128).",
+        default=1,
+        help="Number of render samples (default: 1 for accurate face IDs).",
     )
 
     return parser.parse_args(argv)
 
 
 def clear_scene() -> None:
-    """Remove all default objects from the scene (not imported meshes)."""
+    """Remove all objects from the scene and purge orphan data."""
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
-
-    # Clear orphan data blocks using Blender's built-in purge
     bpy.ops.outliner.orphans_purge(do_recursive=True)
 
 
 def import_glb(filepath: str) -> list[bpy.types.Object]:
     """
-    Import a GLB file WITHOUT modifying any transforms.
+    Import a GLB file preserving original transforms.
 
     Args:
         filepath: Path to the GLB file.
 
     Returns:
         List of imported objects.
+
+    Raises:
+        FileNotFoundError: If the GLB file doesn't exist.
     """
     if not os.path.exists(filepath):
         raise FileNotFoundError(f"GLB file not found: {filepath}")
 
-    existing_objects = set(bpy.data.objects)
-
-    # Import GLB - this preserves original transforms
+    existing = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=filepath)
+    new_objects = [obj for obj in bpy.data.objects if obj not in existing]
 
-    new_objects = [obj for obj in bpy.data.objects if obj not in existing_objects]
-
-    # VERIFICATION: Print object transforms to confirm they're unchanged
-    print("\n=== Object Transforms (UNCHANGED from GLB) ===")
+    print("\n=== Imported Objects ===")
     for obj in new_objects:
         if obj.type == "MESH":
             loc = obj.location
-            print(f"  {obj.name}: location=({loc.x:.4f}, {loc.y:.4f}, {loc.z:.4f})")
+            print(f"  {obj.name}: loc=({loc.x:.4f}, {loc.y:.4f}, {loc.z:.4f})")
 
     return new_objects
 
 
 def setup_vertex_color_materials(objects: list[bpy.types.Object]) -> None:
     """
-    Set up materials to display vertex colors for meshes that use them.
+    Configure materials to display vertex colors for SAM3D-exported meshes.
 
     SAM3D exports meshes with vertex colors instead of texture maps.
-    Blender's Cycles renderer requires explicit material node setup
-    to display vertex colors.
+    This function creates appropriate material node setups.
 
     Args:
         objects: List of imported Blender objects.
@@ -129,171 +131,254 @@ def setup_vertex_color_materials(objects: list[bpy.types.Object]) -> None:
             continue
 
         mesh = obj.data
+        color_attr_name = _get_color_attribute_name(mesh)
 
-        # Check if mesh has vertex colors (color attributes)
-        has_vertex_colors = False
-        color_attr_name = None
-
-        # Check for color attributes (Blender 3.2+)
-        if hasattr(mesh, "color_attributes") and len(mesh.color_attributes) > 0:
-            has_vertex_colors = True
-            color_attr_name = mesh.color_attributes[0].name
-            print(f"  {obj.name}: Found color attribute '{color_attr_name}'")
-        # Fallback: check legacy vertex_colors (older Blender versions)
-        elif hasattr(mesh, "vertex_colors") and len(mesh.vertex_colors) > 0:
-            has_vertex_colors = True
-            color_attr_name = mesh.vertex_colors[0].name
-            print(f"  {obj.name}: Found legacy vertex colors '{color_attr_name}'")
-
-        if not has_vertex_colors:
-            print(f"  {obj.name}: No vertex colors found, skipping material setup")
+        if not color_attr_name:
+            print(f"  {obj.name}: No vertex colors, skipping")
             continue
 
-        # Check if the object already has a material with a texture
-        has_texture_material = False
-        if obj.data.materials:
-            for mat in obj.data.materials:
-                if mat and mat.use_nodes:
-                    for node in mat.node_tree.nodes:
-                        if node.type == "TEX_IMAGE" and node.image:
-                            has_texture_material = True
-                            print(f"  {obj.name}: Has texture material, keeping it")
-                            break
-                if has_texture_material:
-                    break
-
-        if has_texture_material:
+        if _has_texture_material(obj):
+            print(f"  {obj.name}: Has texture material, keeping")
             continue
 
-        # Create or modify material to use vertex colors
-        mat_name = f"{obj.name}_VertexColorMat"
-        mat = bpy.data.materials.new(name=mat_name)
+        _create_vertex_color_material(obj, color_attr_name)
+
+
+def _get_color_attribute_name(mesh: bpy.types.Mesh) -> str | None:
+    """Get the name of the first color attribute on a mesh."""
+    if hasattr(mesh, "color_attributes") and mesh.color_attributes:
+        return mesh.color_attributes[0].name
+    if hasattr(mesh, "vertex_colors") and mesh.vertex_colors:
+        return mesh.vertex_colors[0].name
+    return None
+
+
+def _has_texture_material(obj: bpy.types.Object) -> bool:
+    """Check if object has a material with a texture image."""
+    for mat in obj.data.materials or []:
+        if mat and mat.use_nodes:
+            for node in mat.node_tree.nodes:
+                if node.type == "TEX_IMAGE" and node.image:
+                    return True
+    return False
+
+
+def _create_vertex_color_material(
+    obj: bpy.types.Object, color_attr_name: str
+) -> None:
+    """Create a material that displays vertex colors."""
+    mat = bpy.data.materials.new(name=f"{obj.name}_VertexColorMat")
+    mat.use_nodes = True
+
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    nodes.clear()
+
+    # Create shader nodes
+    output = nodes.new(type="ShaderNodeOutputMaterial")
+    output.location = (400, 0)
+
+    bsdf = nodes.new(type="ShaderNodeBsdfPrincipled")
+    bsdf.location = (100, 0)
+
+    vertex_color = nodes.new(type="ShaderNodeVertexColor")
+    vertex_color.location = (-200, 0)
+    vertex_color.layer_name = color_attr_name
+
+    # Connect nodes
+    links.new(vertex_color.outputs["Color"], bsdf.inputs["Base Color"])
+    links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
+
+    # Assign material
+    if obj.data.materials:
+        obj.data.materials[0] = mat
+    else:
+        obj.data.materials.append(mat)
+
+    print(f"  {obj.name}: Created vertex color material")
+
+
+def add_face_id_attribute(objects: list[bpy.types.Object]) -> None:
+    """
+    Add per-corner color attribute encoding polygon indices.
+
+    Face IDs are stored as raw float values in the R channel of a FLOAT_COLOR
+    attribute. This allows exact integer recovery up to 2^24 (~16M faces)
+    when saved to 32-bit EXR.
+
+    Args:
+        objects: List of mesh objects to process.
+    """
+    print("\n=== Creating face_id attributes ===")
+
+    for obj in objects:
+        if obj.type != "MESH":
+            continue
+
+        mesh = obj.data
+        _remove_existing_color_attr(mesh, FACE_ID_ATTR)
+
+        # Create FLOAT_COLOR attribute (CORNER domain for per-loop storage)
+        color_attr = mesh.color_attributes.new(
+            name=FACE_ID_ATTR,
+            type="FLOAT_COLOR",
+            domain="CORNER",
+        )
+
+        # Fill each corner with its polygon's index
+        for poly in mesh.polygons:
+            face_id = float(poly.index)
+            loop_end = poly.loop_start + poly.loop_total
+            for loop_idx in range(poly.loop_start, loop_end):
+                # Store face_id in R channel; G,B unused, A=1
+                color_attr.data[loop_idx].color = (face_id, 0.0, 0.0, 1.0)
+
+        poly_count = len(mesh.polygons)
+        loop_count = len(mesh.loops)
+        print(f"  {obj.name}: {poly_count} faces, {loop_count} corners")
+
+
+def _remove_existing_color_attr(mesh: bpy.types.Mesh, name: str) -> None:
+    """Remove a color attribute if it exists."""
+    if hasattr(mesh, "color_attributes"):
+        for attr in list(mesh.color_attributes):
+            if attr.name == name:
+                mesh.color_attributes.remove(attr)
+                break
+
+
+def setup_face_id_aov(objects: list[bpy.types.Object]) -> None:
+    """
+    Configure AOV output for face IDs.
+
+    Creates a ViewLayer AOV and connects each material to output face IDs.
+
+    Args:
+        objects: List of mesh objects with face_id attributes.
+    """
+    # Add AOV to ViewLayer
+    view_layer = bpy.context.scene.view_layers["ViewLayer"]
+    if not any(aov.name == FACE_ID_AOV for aov in view_layer.aovs):
+        aov = view_layer.aovs.add()
+        aov.name = FACE_ID_AOV
+        print(f"\n=== Added AOV: '{FACE_ID_AOV}' ===")
+
+    # Attach AOV output to each material
+    print("\n=== Configuring material AOV outputs ===")
+    processed = set()
+
+    for obj in objects:
+        if obj.type != "MESH":
+            continue
+
+        for mat in obj.data.materials or []:
+            if mat and mat.name not in processed:
+                _attach_face_id_aov(mat)
+                processed.add(mat.name)
+                print(f"  Material '{mat.name}': AOV configured")
+
+
+def _attach_face_id_aov(mat: bpy.types.Material) -> None:
+    """Add AOV output nodes to a material for face_id output."""
+    if not mat:
+        return
+
+    if not mat.use_nodes:
         mat.use_nodes = True
 
-        nodes = mat.node_tree.nodes
-        links = mat.node_tree.links
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
 
-        # Clear default nodes
-        nodes.clear()
+    # Skip if already configured
+    for node in nodes:
+        if node.type == "OUTPUT_AOV":
+            if getattr(node, "aov_name", "") == FACE_ID_AOV:
+                return
 
-        # Create nodes for vertex color material
-        # Output node
-        output_node = nodes.new(type="ShaderNodeOutputMaterial")
-        output_node.location = (400, 0)
+    # Read face_id from vertex color attribute
+    vc_node = nodes.new(type="ShaderNodeVertexColor")
+    vc_node.location = (200, -200)
+    vc_node.layer_name = FACE_ID_ATTR
 
-        # Principled BSDF shader
-        bsdf_node = nodes.new(type="ShaderNodeBsdfPrincipled")
-        bsdf_node.location = (100, 0)
+    # Output to AOV
+    aov_node = nodes.new(type="ShaderNodeOutputAOV")
+    aov_node.location = (500, -200)
+    aov_node.aov_name = FACE_ID_AOV
 
-        # Vertex Color (Color Attribute) node
-        color_attr_node = nodes.new(type="ShaderNodeVertexColor")
-        color_attr_node.location = (-200, 0)
-        color_attr_node.layer_name = color_attr_name
-
-        # Connect nodes
-        links.new(color_attr_node.outputs["Color"], bsdf_node.inputs["Base Color"])
-        links.new(bsdf_node.outputs["BSDF"], output_node.inputs["Surface"])
-
-        # Assign material to object
-        if obj.data.materials:
-            obj.data.materials[0] = mat
-        else:
-            obj.data.materials.append(mat)
-
-        print(f"  {obj.name}: Created vertex color material '{mat_name}'")
+    # Connect Color output (face_id is in R channel)
+    if "Color" in aov_node.inputs:
+        links.new(vc_node.outputs["Color"], aov_node.inputs["Color"])
 
 
-def get_scene_bounding_box(
+def get_scene_bounds(
     objects: list[bpy.types.Object],
-) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+) -> tuple[Vector, Vector]:
     """
-    Calculate bounding box of all mesh objects in WORLD coordinates.
-
-    Does NOT modify any object transforms.
+    Calculate world-space bounding box of all mesh objects.
 
     Args:
         objects: List of Blender objects.
 
     Returns:
-        Tuple of (min_corner, max_corner) as 3D coordinates.
+        Tuple of (min_corner, max_corner) vectors.
     """
     min_vec = Vector((float("inf"),) * 3)
     max_vec = Vector((float("-inf"),) * 3)
-    found_mesh = False
 
     for obj in objects:
-        if obj.type == "MESH":
-            found_mesh = True
-            # Transform bound_box corners from local to world coordinates
-            for corner in obj.bound_box:
-                world_coord = obj.matrix_world @ Vector(corner)
-                # Element-wise min/max using Vector operations
-                min_vec = Vector((min(min_vec[i], world_coord[i]) for i in range(3)))
-                max_vec = Vector((max(max_vec[i], world_coord[i]) for i in range(3)))
+        if obj.type != "MESH":
+            continue
 
-    if not found_mesh:
-        return (0, 0, 0), (0, 0, 0)
+        for corner in obj.bound_box:
+            world_coord = obj.matrix_world @ Vector(corner)
+            for i in range(3):
+                min_vec[i] = min(min_vec[i], world_coord[i])
+                max_vec[i] = max(max_vec[i], world_coord[i])
 
-    return tuple(min_vec), tuple(max_vec)
+    if min_vec[0] == float("inf"):
+        return Vector((0, 0, 0)), Vector((0, 0, 0))
+
+    return min_vec, max_vec
 
 
-def calculate_scene_info(
+def calculate_camera_params(
     objects: list[bpy.types.Object],
 ) -> tuple[float, tuple[float, float, float]]:
     """
-    Calculate scene center and recommended camera distance.
-
-    Does NOT modify any object transforms.
+    Calculate optimal camera distance and scene center.
 
     Args:
         objects: List of Blender objects.
 
     Returns:
-        Tuple of (recommended_distance, scene_center).
+        Tuple of (camera_distance, scene_center).
     """
-    min_corner, max_corner = get_scene_bounding_box(objects)
-    min_vec, max_vec = Vector(min_corner), Vector(max_corner)
-
-    center = (min_vec + max_vec) / 2
-    diagonal = (max_vec - min_vec).length
-
-    # 1.5x diagonal ensures object fits well in frame
+    min_corner, max_corner = get_scene_bounds(objects)
+    center = (min_corner + max_corner) / 2
+    diagonal = (max_corner - min_corner).length
     distance = max(diagonal * 1.5, DEFAULT_CAMERA_DISTANCE)
     return distance, tuple(center)
 
 
 def spherical_to_cartesian(
-    azimuth_deg: float,
-    elevation_deg: float,
-    radius: float,
+    azimuth_deg: float, elevation_deg: float, radius: float
 ) -> tuple[float, float, float]:
     """
-    Convert spherical coordinates to Cartesian.
+    Convert spherical to Cartesian coordinates.
 
-    Convention:
-    - Azimuth 0° = +X axis, 90° = +Y axis
-    - Elevation 0° = XY plane, 90° = +Z axis
-
-    Args:
-        azimuth_deg: Azimuth angle in degrees.
-        elevation_deg: Elevation angle in degrees.
-        radius: Distance from origin.
-
-    Returns:
-        Tuple of (x, y, z) Cartesian coordinates.
+    Convention: azimuth 0° = +X, 90° = +Y; elevation 0° = XY plane, 90° = +Z.
     """
-    azimuth_rad = math.radians(azimuth_deg)
-    elevation_rad = math.radians(elevation_deg)
-
-    x = radius * math.cos(elevation_rad) * math.cos(azimuth_rad)
-    y = radius * math.cos(elevation_rad) * math.sin(azimuth_rad)
-    z = radius * math.sin(elevation_rad)
-
-    return (x, y, z)
+    az = math.radians(azimuth_deg)
+    el = math.radians(elevation_deg)
+    return (
+        radius * math.cos(el) * math.cos(az),
+        radius * math.cos(el) * math.sin(az),
+        radius * math.sin(el),
+    )
 
 
 def create_camera() -> bpy.types.Object:
-    """Create a camera object."""
+    """Create and register the render camera."""
     camera_data = bpy.data.cameras.new(name="RenderCamera")
     camera_obj = bpy.data.objects.new("RenderCamera", camera_data)
     bpy.context.scene.collection.objects.link(camera_obj)
@@ -301,215 +386,96 @@ def create_camera() -> bpy.types.Object:
     return camera_obj
 
 
-def look_at(
-    camera_pos: tuple[float, float, float],
-    target_pos: tuple[float, float, float],
-) -> Matrix:
-    """
-    Compute a camera-to-world matrix that looks at target from camera_pos.
-
-    Uses Blender's built-in Vector.to_track_quat() for robust orientation.
-    Camera convention: looks down -Z axis, Y is up.
-
-    Args:
-        camera_pos: Camera position in world coordinates.
-        target_pos: Target position to look at.
-
-    Returns:
-        4x4 camera-to-world transformation matrix.
-    """
-    cam_pos = Vector(camera_pos)
-    direction = (Vector(target_pos) - cam_pos).normalized()
-
-    # Blender camera looks down -Z, Y is up
-    rot_quat = direction.to_track_quat('-Z', 'Y')
-
-    return Matrix.Translation(cam_pos) @ rot_quat.to_matrix().to_4x4()
-
-
 def position_camera(
     camera: bpy.types.Object,
-    azimuth_deg: float,
-    elevation_deg: float,
+    azimuth: float,
+    elevation: float,
     distance: float,
     target: tuple[float, float, float],
 ) -> None:
-    """
-    Position camera on a sphere looking at target.
+    """Position camera on a sphere looking at target."""
+    offset = Vector(spherical_to_cartesian(azimuth, elevation, distance))
+    cam_pos = offset + Vector(target)
 
-    Uses direct matrix assignment (no constraints) for reliable matrix extraction.
-
-    Args:
-        camera: Camera object.
-        azimuth_deg: Azimuth angle in degrees.
-        elevation_deg: Elevation angle in degrees.
-        distance: Distance from target.
-        target: Point to look at.
-    """
-    # Calculate camera position on sphere centered at target
-    offset = Vector(spherical_to_cartesian(azimuth_deg, elevation_deg, distance))
-    camera_pos = offset + Vector(target)
-
-    # Set camera transform directly (no constraints needed)
-    camera.matrix_world = look_at(tuple(camera_pos), target)
+    # Compute look-at matrix
+    direction = (Vector(target) - cam_pos).normalized()
+    rot_quat = direction.to_track_quat("-Z", "Y")
+    camera.matrix_world = Matrix.Translation(cam_pos) @ rot_quat.to_matrix().to_4x4()
 
 
-def get_camera_intrinsic_matrix(
-    camera: bpy.types.Object,
-    resolution_x: int,
-    resolution_y: int,
+def get_camera_intrinsics(
+    camera: bpy.types.Object, resolution: int
 ) -> list[list[float]]:
     """
-    Compute the 3x3 camera intrinsic matrix K.
+    Compute 3x3 camera intrinsic matrix K.
 
-    K = [[fx,  0, cx],
-         [ 0, fy, cy],
-         [ 0,  0,  1]]
-
-    Args:
-        camera: Camera object.
-        resolution_x: Image width in pixels.
-        resolution_y: Image height in pixels.
-
-    Returns:
-        3x3 intrinsic matrix as nested list.
+    K = [[fx, 0, cx], [0, fy, cy], [0, 0, 1]]
     """
-    cam_data = camera.data
+    cam = camera.data
+    sensor_fit = cam.sensor_fit
 
-    # Focal length in mm
-    focal_length_mm = cam_data.lens
+    if sensor_fit == "AUTO":
+        sensor_fit = "HORIZONTAL"  # Square images
 
-    # Sensor size in mm
-    sensor_width_mm = cam_data.sensor_width
-    sensor_height_mm = cam_data.sensor_height
-
-    # Handle sensor fit mode
-    if cam_data.sensor_fit == "AUTO":
-        if resolution_x >= resolution_y:
-            sensor_fit = "HORIZONTAL"
-        else:
-            sensor_fit = "VERTICAL"
-    else:
-        sensor_fit = cam_data.sensor_fit
-
-    # Compute focal length in pixels
     if sensor_fit == "HORIZONTAL":
-        fx = focal_length_mm * resolution_x / sensor_width_mm
-        fy = fx  # Square pixels
+        focal_px = cam.lens * resolution / cam.sensor_width
     else:
-        fy = focal_length_mm * resolution_y / sensor_height_mm
-        fx = fy  # Square pixels
+        focal_px = cam.lens * resolution / cam.sensor_height
 
-    # Principal point (image center)
-    cx = resolution_x / 2.0
-    cy = resolution_y / 2.0
-
-    # Handle principal point shift if set
-    shift_x = cam_data.shift_x
-    shift_y = cam_data.shift_y
-    cx += shift_x * resolution_x
-    cy += shift_y * resolution_y
+    cx = resolution / 2.0 + cam.shift_x * resolution
+    cy = resolution / 2.0 + cam.shift_y * resolution
 
     return [
-        [fx, 0.0, cx],
-        [0.0, fy, cy],
+        [focal_px, 0.0, cx],
+        [0.0, focal_px, cy],
         [0.0, 0.0, 1.0],
     ]
 
 
-def get_camera_matrices(
-    camera: bpy.types.Object,
-    resolution_x: int,
-    resolution_y: int,
-) -> dict:
-    """
-    Extract all camera matrices needed for 3D-to-2D projection.
+def get_camera_matrices(camera: bpy.types.Object, resolution: int) -> dict:
+    """Extract camera matrices for 3D-to-2D projection."""
+    c2w = camera.matrix_world.copy()
+    w2c = c2w.inverted()
 
-    For projecting a 3D world point p_world to 2D image coordinates:
-
-    1. Transform to camera space:
-       p_cam = world_to_camera @ [p_world, 1]  (homogeneous)
-
-    2. Project to 2D (using intrinsic matrix K):
-       p_2d_hom = K @ p_cam[:3]
-       u = p_2d_hom[0] / p_2d_hom[2]
-       v = p_2d_hom[1] / p_2d_hom[2]
-
-    Note: v is from top of image. For bottom-up, use: v = resolution_y - v
-
-    Args:
-        camera: Camera object.
-        resolution_x: Image width.
-        resolution_y: Image height.
-
-    Returns:
-        Dictionary with camera matrices.
-    """
-    # Camera-to-world (4x4) - where camera is in world
-    camera_to_world = camera.matrix_world.copy()
-
-    # World-to-camera (4x4) - extrinsic matrix
-    world_to_camera = camera_to_world.inverted()
-
-    # Intrinsic matrix (3x3)
-    intrinsic = get_camera_intrinsic_matrix(camera, resolution_x, resolution_y)
-
-    # Camera position in world coordinates
-    camera_position = list(camera.matrix_world.translation)
-
-    # Convert Blender matrices to nested lists for JSON
-    def matrix_to_list(mat):
+    def to_list(mat):
         return [list(row) for row in mat]
 
     return {
-        "camera_to_world": matrix_to_list(camera_to_world),
-        "world_to_camera": matrix_to_list(world_to_camera),
-        "intrinsic_matrix": intrinsic,
-        "camera_position": camera_position,
-        "resolution": [resolution_x, resolution_y],
+        "camera_to_world": to_list(c2w),
+        "world_to_camera": to_list(w2c),
+        "intrinsic_matrix": get_camera_intrinsics(camera, resolution),
+        "camera_position": list(camera.matrix_world.translation),
+        "resolution": [resolution, resolution],
         "focal_length_mm": camera.data.lens,
         "sensor_width_mm": camera.data.sensor_width,
     }
 
 
 def setup_lighting() -> None:
-    """Set up three-point lighting."""
-    # Key light
-    key_light_data = bpy.data.lights.new(name="KeyLight", type="SUN")
-    key_light_data.energy = 2.0
-    key_light = bpy.data.objects.new("KeyLight", key_light_data)
-    bpy.context.scene.collection.objects.link(key_light)
-    key_light.location = (5, -5, 8)
-    key_light.rotation_euler = (math.radians(45), math.radians(15), math.radians(45))
+    """Configure three-point lighting."""
+    lights = [
+        ("KeyLight", "SUN", 2.0, (5, -5, 8), (45, 15, 45)),
+        ("FillLight", "SUN", 1.5, (-5, 5, 4), (60, -15, -45)),
+        ("RimLight", "SUN", 2.0, (0, 5, 6), (30, 0, 180)),
+    ]
 
-    # Fill light
-    fill_light_data = bpy.data.lights.new(name="FillLight", type="SUN")
-    fill_light_data.energy = 1.5
-    fill_light = bpy.data.objects.new("FillLight", fill_light_data)
-    bpy.context.scene.collection.objects.link(fill_light)
-    fill_light.location = (-5, 5, 4)
-    fill_light.rotation_euler = (math.radians(60), math.radians(-15), math.radians(-45))
-
-    # Rim light
-    rim_light_data = bpy.data.lights.new(name="RimLight", type="SUN")
-    rim_light_data.energy = 2.0
-    rim_light = bpy.data.objects.new("RimLight", rim_light_data)
-    bpy.context.scene.collection.objects.link(rim_light)
-    rim_light.location = (0, 5, 6)
-    rim_light.rotation_euler = (math.radians(30), 0, math.radians(180))
+    for name, light_type, energy, location, rotation_deg in lights:
+        light_data = bpy.data.lights.new(name=name, type=light_type)
+        light_data.energy = energy
+        light_obj = bpy.data.objects.new(name, light_data)
+        bpy.context.scene.collection.objects.link(light_obj)
+        light_obj.location = location
+        light_obj.rotation_euler = tuple(math.radians(r) for r in rotation_deg)
 
 
 def setup_render_settings(
-    resolution: int,
-    samples: int,
-    transparent: bool,
+    resolution: int, samples: int, transparent: bool
 ) -> None:
-    """Configure render settings."""
+    """Configure Cycles render settings."""
     scene = bpy.context.scene
-
     scene.render.engine = "CYCLES"
 
-    # GPU rendering
+    # Try GPU rendering
     try:
         prefs = bpy.context.preferences.addons["cycles"].preferences
         prefs.compute_device_type = "CUDA"
@@ -524,6 +490,11 @@ def setup_render_settings(
     scene.cycles.samples = samples
     scene.cycles.use_denoising = True
 
+    # Use BOX filter with minimal width to prevent face ID interpolation
+    # This prevents anti-aliasing from blending face IDs at triangle edges
+    scene.cycles.pixel_filter_type = 'BOX'
+    scene.cycles.filter_width = 0.01  # Minimal filter width
+
     scene.render.resolution_x = resolution
     scene.render.resolution_y = resolution
     scene.render.resolution_percentage = 100
@@ -532,22 +503,88 @@ def setup_render_settings(
     scene.render.image_settings.color_mode = "RGBA" if transparent else "RGB"
     scene.render.image_settings.color_depth = "8"
 
-    if transparent:
-        scene.render.film_transparent = True
-    else:
-        scene.render.film_transparent = False
-        world = bpy.data.worlds.get("World")
-        if world is None:
-            world = bpy.data.worlds.new("World")
-        scene.world = world
-        world.use_nodes = True
-        bg_node = world.node_tree.nodes.get("Background")
-        if bg_node:
-            bg_node.inputs["Color"].default_value = (0.5, 0.5, 0.5, 1.0)
+    scene.render.film_transparent = transparent
 
-    # Enable depth output via compositor
+    if not transparent:
+        _setup_background()
+
     scene.use_nodes = True
-    scene.view_layers["ViewLayer"].use_pass_z = True
+
+
+def _setup_background() -> None:
+    """Set up gray world background."""
+    scene = bpy.context.scene
+    world = bpy.data.worlds.get("World") or bpy.data.worlds.new("World")
+    scene.world = world
+    world.use_nodes = True
+
+    bg_node = world.node_tree.nodes.get("Background")
+    if bg_node:
+        bg_node.inputs["Color"].default_value = (0.5, 0.5, 0.5, 1.0)
+
+
+def _find_aov_socket(
+    render_layers: bpy.types.Node, aov_name: str
+) -> bpy.types.NodeSocket:
+    """Find the compositor socket for an AOV output."""
+    for name in [aov_name, f"AOV {aov_name}"]:
+        if name in render_layers.outputs:
+            return render_layers.outputs[name]
+
+    # Fallback: substring search
+    for socket in render_layers.outputs:
+        if aov_name in socket.name:
+            return socket
+
+    available = [s.name for s in render_layers.outputs]
+    raise KeyError(f"AOV '{aov_name}' not found. Available: {available}")
+
+
+def setup_compositor(output_dir: str, view_name: str) -> None:
+    """
+    Configure compositor for RGB and face_id output.
+
+    Args:
+        output_dir: Base output directory.
+        view_name: Name for output files.
+    """
+    scene = bpy.context.scene
+    tree = scene.node_tree
+
+    # Clear existing nodes
+    tree.nodes.clear()
+
+    # Render Layers
+    rl = tree.nodes.new(type="CompositorNodeRLayers")
+    rl.location = (0, 0)
+
+    # Color correction
+    cc = tree.nodes.new(type="CompositorNodeColorCorrection")
+    cc.location = (200, 0)
+    cc.master_saturation = 1.05
+    cc.master_contrast = 1.05
+    cc.master_gain = 0.95
+    tree.links.new(rl.outputs["Image"], cc.inputs["Image"])
+
+    # Composite output (RGB)
+    comp = tree.nodes.new(type="CompositorNodeComposite")
+    comp.location = (500, 0)
+    tree.links.new(cc.outputs["Image"], comp.inputs["Image"])
+
+    # Face ID file output (EXR)
+    face_id_dir = os.path.join(output_dir, "face_id")
+    os.makedirs(face_id_dir, exist_ok=True)
+
+    file_out = tree.nodes.new(type="CompositorNodeOutputFile")
+    file_out.location = (400, -200)
+    file_out.base_path = face_id_dir
+    file_out.format.file_format = "OPEN_EXR"
+    file_out.format.color_depth = "32"
+    file_out.format.color_mode = "RGB"
+    file_out.file_slots[0].path = view_name
+
+    aov_socket = _find_aov_socket(rl, FACE_ID_AOV)
+    tree.links.new(aov_socket, file_out.inputs[0])
 
 
 def render_view(
@@ -561,89 +598,37 @@ def render_view(
     resolution: int,
 ) -> dict:
     """
-    Render a single view and return camera matrices.
-
-    Args:
-        camera: Camera object.
-        azimuth: Azimuth angle in degrees.
-        elevation: Elevation angle in degrees.
-        distance: Camera distance from target.
-        target: Point to look at.
-        output_dir: Base output directory (renders/).
-        view_name: View identifier (e.g., "az020_el-45").
-        resolution: Image resolution.
+    Render a single view and return camera metadata.
 
     Returns:
-        Camera matrices dictionary.
+        Dictionary with camera matrices and file paths.
     """
     position_camera(camera, azimuth, elevation, distance, target)
-
-    # Update scene to ensure matrix is computed
     bpy.context.view_layer.update()
 
-    # Setup paths for rgb and depth subdirectories
+    # Setup output paths
     rgb_dir = os.path.join(output_dir, "rgb")
-    depth_dir = os.path.join(output_dir, "depth")
     os.makedirs(rgb_dir, exist_ok=True)
-    os.makedirs(depth_dir, exist_ok=True)
-
     rgb_path = os.path.join(rgb_dir, f"{view_name}.png")
-    depth_filename = view_name  # Without extension
 
-    # Extract camera matrices BEFORE rendering
-    camera_info = get_camera_matrices(camera, resolution, resolution)
-    camera_info["azimuth_deg"] = azimuth
-    camera_info["elevation_deg"] = elevation
-    camera_info["target"] = list(target)
-    camera_info["distance"] = distance
-    camera_info["image_path"] = f"rgb/{view_name}.png"
+    # Configure compositor
+    setup_compositor(output_dir, view_name)
 
-    # Setup compositor for depth output
-    scene = bpy.context.scene
-    tree = scene.node_tree
-
-    # Clear existing nodes
-    for node in tree.nodes:
-        tree.nodes.remove(node)
-
-    # Create nodes
-    render_layers = tree.nodes.new(type="CompositorNodeRLayers")
-    render_layers.location = (0, 0)
-
-    # Color correction for better contrast
-    color_correct = tree.nodes.new(type="CompositorNodeColorCorrection")
-    color_correct.location = (200, 0)
-    color_correct.master_saturation = 1.05
-    color_correct.master_contrast = 1.05
-    color_correct.master_gain = 0.95
-    tree.links.new(render_layers.outputs["Image"], color_correct.inputs["Image"])
-
-    # RGB output
-    composite = tree.nodes.new(type="CompositorNodeComposite")
-    composite.location = (500, 0)
-    tree.links.new(color_correct.outputs["Image"], composite.inputs["Image"])
-
-    # Depth output - save as EXR for full precision
-    depth_output = tree.nodes.new(type="CompositorNodeOutputFile")
-    depth_output.location = (400, -200)
-    depth_output.base_path = depth_dir
-    depth_output.format.file_format = "OPEN_EXR"
-    depth_output.format.color_depth = "32"
-    depth_output.format.color_mode = "RGB"  # Will be grayscale but stored as RGB
-
-    # Set output filename (without extension, Blender adds it)
-    depth_output.file_slots[0].path = depth_filename
-
-    tree.links.new(render_layers.outputs["Depth"], depth_output.inputs[0])
+    # Collect camera info
+    camera_info = get_camera_matrices(camera, resolution)
+    camera_info.update({
+        "azimuth_deg": azimuth,
+        "elevation_deg": elevation,
+        "target": list(target),
+        "distance": distance,
+        "image_path": f"rgb/{view_name}.png",
+        "face_id_path": f"face_id/{view_name}0001.exr",
+    })
 
     # Render
     bpy.context.scene.render.filepath = rgb_path
     bpy.ops.render.render(write_still=True)
-    print(f"Rendered: {rgb_path}")
-
-    # Add depth path to camera info
-    # Note: Blender appends frame number
-    camera_info["depth_path"] = f"depth/{depth_filename}0001.exr"
+    print(f"Rendered: {view_name}")
 
     return camera_info
 
@@ -656,21 +641,8 @@ def render_all_views(
     mesh_name: str,
     resolution: int,
 ) -> dict:
-    """
-    Render all 8 views and save camera matrices.
-
-    Args:
-        camera: Camera object.
-        distance: Camera distance from target.
-        target: Scene center (what camera looks at).
-        output_dir: Directory for outputs.
-        mesh_name: Base name for files.
-        resolution: Image resolution.
-
-    Returns:
-        Dictionary with all camera information.
-    """
-    all_cameras = {
+    """Render all configured views and collect camera metadata."""
+    result = {
         "mesh_name": mesh_name,
         "scene_center": list(target),
         "camera_distance": distance,
@@ -681,21 +653,13 @@ def render_all_views(
     for elevation in ELEVATIONS:
         for azimuth in AZIMUTHS:
             view_name = f"az{azimuth:03d}_el{elevation:+03d}"
-
             camera_info = render_view(
                 camera, azimuth, elevation, distance, target,
                 output_dir, view_name, resolution
             )
-            all_cameras["views"].append(camera_info)
+            result["views"].append(camera_info)
 
-    return all_cameras
-
-
-def save_camera_matrices(camera_data: dict, output_path: str) -> None:
-    """Save camera matrices to JSON file."""
-    with open(output_path, "w") as f:
-        json.dump(camera_data, f, indent=2)
-    print(f"Camera matrices saved to: {output_path}")
+    return result
 
 
 def main() -> None:
@@ -707,69 +671,65 @@ def main() -> None:
         print(f"Error: Input file not found: {input_path}")
         sys.exit(1)
 
-    # Object name is the parent directory name (e.g., objects/iron/mesh.glb -> iron)
     object_dir = input_path.parent
     mesh_name = object_dir.name
 
-    # Output to <object_dir>/renders/ by default
-    if args.output_dir is None:
-        output_dir = object_dir / "renders"
-    else:
-        output_dir = Path(args.output_dir).resolve()
+    output_dir = (
+        Path(args.output_dir).resolve()
+        if args.output_dir
+        else object_dir / "renders"
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Input: {input_path}")
-    print(f"Output directory: {output_dir}")
+    print(f"Output: {output_dir}")
     print(f"Resolution: {args.resolution}x{args.resolution}")
     print(f"Samples: {args.samples}")
-    print(f"Transparent: {args.transparent}")
-    print(f"{'='*60}\n")
-
-    # Clear default scene objects
-    clear_scene()
-
-    # Import mesh - NO TRANSFORMS MODIFIED
-    print(f"Importing: {input_path}")
-    imported_objects = import_glb(str(input_path))
-    print(f"Imported {len(imported_objects)} objects")
-
-    # Setup vertex color materials for SAM3D meshes
-    # SAM3D exports meshes with vertex colors instead of textures
-    print("\n=== Setting up vertex color materials ===")
-    setup_vertex_color_materials(imported_objects)
-
-    # Calculate scene info without modifying objects
-    auto_distance, scene_center = calculate_scene_info(imported_objects)
-    camera_distance = args.camera_distance if args.camera_distance else auto_distance
-
-    print("\n=== Scene Info ===")
-    print(f"Scene center: ({scene_center[0]:.4f}, {scene_center[1]:.4f}, {scene_center[2]:.4f})")
-    print(f"Camera distance: {camera_distance:.4f}")
+    print(f"{'=' * 60}")
 
     # Setup scene
+    clear_scene()
+    imported = import_glb(str(input_path))
+    print(f"Imported {len(imported)} objects")
+
+    print("\n=== Setting up materials ===")
+    setup_vertex_color_materials(imported)
+
+    # Add face IDs
+    add_face_id_attribute(imported)
+    setup_face_id_aov(imported)
+
+    # Calculate camera parameters
+    auto_dist, center = calculate_camera_params(imported)
+    cam_dist = args.camera_distance or auto_dist
+
+    print("\n=== Scene Info ===")
+    print(f"Center: ({center[0]:.4f}, {center[1]:.4f}, {center[2]:.4f})")
+    print(f"Camera distance: {cam_dist:.4f}")
+
+    # Setup rendering
     setup_lighting()
     setup_render_settings(args.resolution, args.samples, args.transparent)
-
-    # Create camera
     camera = create_camera()
 
-    # Render all views and collect camera matrices
-    print("\n=== Rendering 8 views ===")
+    # Render
+    print(f"\n=== Rendering {len(AZIMUTHS) * len(ELEVATIONS)} views ===")
     camera_data = render_all_views(
-        camera, camera_distance, scene_center, str(output_dir), mesh_name, args.resolution
+        camera, cam_dist, center, str(output_dir), mesh_name, args.resolution
     )
 
-    # Save camera matrices
-    cameras_json_path = os.path.join(str(output_dir), "cameras.json")
-    save_camera_matrices(camera_data, cameras_json_path)
+    # Save metadata
+    cameras_path = output_dir / "cameras.json"
+    with open(cameras_path, "w") as f:
+        json.dump(camera_data, f, indent=2)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("Completed!")
-    print(f"  - RGB images saved to: {output_dir}/rgb/")
-    print(f"  - Depth maps saved to: {output_dir}/depth/")
-    print(f"  - Camera matrices saved to: {cameras_json_path}")
-    print(f"{'='*60}\n")
+    print(f"  RGB: {output_dir}/rgb/")
+    print(f"  Face IDs: {output_dir}/face_id/")
+    print(f"  Cameras: {cameras_path}")
+    print(f"{'=' * 60}\n")
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@
     -3.497302532196045e-05,
     -0.0004806816577911377
   ],
-  "camera_distance": 3,
+  "camera_distance": 3.0,
   "resolution": [
     1024,
     1024
@@ -99,9 +99,9 @@
         -3.497302532196045e-05,
         -0.0004806816577911377
       ],
-      "distance": 3,
+      "distance": 3.0,
       "image_path": "rgb/az010_el-15.png",
-      "depth_path": "depth/az010_el-150001.exr"
+      "face_id_path": "face_id/az010_el-150001.exr"
     },
     {
       "camera_to_world": [
@@ -191,9 +191,9 @@
         -3.497302532196045e-05,
         -0.0004806816577911377
       ],
-      "distance": 3,
+      "distance": 3.0,
       "image_path": "rgb/az100_el-15.png",
-      "depth_path": "depth/az100_el-150001.exr"
+      "face_id_path": "face_id/az100_el-150001.exr"
     },
     {
       "camera_to_world": [
@@ -283,9 +283,9 @@
         -3.497302532196045e-05,
         -0.0004806816577911377
       ],
-      "distance": 3,
+      "distance": 3.0,
       "image_path": "rgb/az190_el-15.png",
-      "depth_path": "depth/az190_el-150001.exr"
+      "face_id_path": "face_id/az190_el-150001.exr"
     },
     {
       "camera_to_world": [
@@ -375,9 +375,9 @@
         -3.497302532196045e-05,
         -0.0004806816577911377
       ],
-      "distance": 3,
+      "distance": 3.0,
       "image_path": "rgb/az280_el-15.png",
-      "depth_path": "depth/az280_el-150001.exr"
+      "face_id_path": "face_id/az280_el-150001.exr"
     },
     {
       "camera_to_world": [
@@ -467,9 +467,9 @@
         -3.497302532196045e-05,
         -0.0004806816577911377
       ],
-      "distance": 3,
+      "distance": 3.0,
       "image_path": "rgb/az010_el+25.png",
-      "depth_path": "depth/az010_el+250001.exr"
+      "face_id_path": "face_id/az010_el+250001.exr"
     },
     {
       "camera_to_world": [
@@ -559,9 +559,9 @@
         -3.497302532196045e-05,
         -0.0004806816577911377
       ],
-      "distance": 3,
+      "distance": 3.0,
       "image_path": "rgb/az100_el+25.png",
-      "depth_path": "depth/az100_el+250001.exr"
+      "face_id_path": "face_id/az100_el+250001.exr"
     },
     {
       "camera_to_world": [
@@ -651,9 +651,9 @@
         -3.497302532196045e-05,
         -0.0004806816577911377
       ],
-      "distance": 3,
+      "distance": 3.0,
       "image_path": "rgb/az190_el+25.png",
-      "depth_path": "depth/az190_el+250001.exr"
+      "face_id_path": "face_id/az190_el+250001.exr"
     },
     {
       "camera_to_world": [
@@ -743,9 +743,9 @@
         -3.497302532196045e-05,
         -0.0004806816577911377
       ],
-      "distance": 3,
+      "distance": 3.0,
       "image_path": "rgb/az280_el+25.png",
-      "depth_path": "depth/az280_el+250001.exr"
+      "face_id_path": "face_id/az280_el+250001.exr"
     },
     {
       "camera_to_world": [
@@ -835,9 +835,9 @@
         -3.497302532196045e-05,
         -0.0004806816577911377
       ],
-      "distance": 3,
+      "distance": 3.0,
       "image_path": "rgb/az010_el+45.png",
-      "depth_path": "depth/az010_el+450001.exr"
+      "face_id_path": "face_id/az010_el+450001.exr"
     },
     {
       "camera_to_world": [
@@ -927,9 +927,9 @@
         -3.497302532196045e-05,
         -0.0004806816577911377
       ],
-      "distance": 3,
+      "distance": 3.0,
       "image_path": "rgb/az100_el+45.png",
-      "depth_path": "depth/az100_el+450001.exr"
+      "face_id_path": "face_id/az100_el+450001.exr"
     },
     {
       "camera_to_world": [
@@ -1019,9 +1019,9 @@
         -3.497302532196045e-05,
         -0.0004806816577911377
       ],
-      "distance": 3,
+      "distance": 3.0,
       "image_path": "rgb/az190_el+45.png",
-      "depth_path": "depth/az190_el+450001.exr"
+      "face_id_path": "face_id/az190_el+450001.exr"
     },
     {
       "camera_to_world": [
@@ -1111,9 +1111,9 @@
         -3.497302532196045e-05,
         -0.0004806816577911377
       ],
-      "distance": 3,
+      "distance": 3.0,
       "image_path": "rgb/az280_el+45.png",
-      "depth_path": "depth/az280_el+450001.exr"
+      "face_id_path": "face_id/az280_el+450001.exr"
     }
   ]
 }
