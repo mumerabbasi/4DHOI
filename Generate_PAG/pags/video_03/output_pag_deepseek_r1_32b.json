@@ -1,0 +1,101 @@
+{
+  "object part nodes": [
+    "canoe, hull",
+    "canoe, gunwales"
+  ],
+  "body part nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, left shoulder",
+    "person 1, right shoulder",
+    "person 2, left hand",
+    "person 2, right hand",
+    "person 2, left shoulder",
+    "person 2, right shoulder"
+  ],
+  "interaction edges": [
+    {
+      "nodes": [
+        "canoe, gunwales",
+        "person 1, left hand"
+      ],
+      "is_rel_static": false,
+      "is_continuous": true
+    },
+    {
+      "nodes": [
+        "canoe, gunwales",
+        "person 1, right hand"
+      ],
+      "is_rel_static": false,
+      "is_continuous": true
+    },
+    {
+      "nodes": [
+        "canoe, gunwales",
+        "person 2, left hand"
+      ],
+      "is_rel_static": false,
+      "is_continuous": true
+    },
+    {
+      "nodes": [
+        "canoe, gunwales",
+        "person 2, right hand"
+      ],
+      "is_rel_static": false,
+      "is_continuous": true
+    },
+    {
+      "nodes": [
+        "canoe, hull",
+        "person 1, left shoulder"
+      ],
+      "is_rel_static": true,
+      "is_continuous": true
+    },
+    {
+      "nodes": [
+        "canoe, hull",
+        "person 1, right shoulder"
+      ],
+      "is_rel_static": true,
+      "is_continuous": true
+    },
+    {
+      "nodes": [
+        "canoe, hull",
+        "person 2, left shoulder"
+      ],
+      "is_rel_static": true,
+      "is_continuous": true
+    },
+    {
+      "nodes": [
+        "canoe, hull",
+        "person 2, right shoulder"
+      ],
+      "is_rel_static": true,
+      "is_continuous": true
+    }
+  ],
+  "interaction": "Two persons are lifting and carrying a single canoe over their heads together. Person 1 is in the front, holding the gunwales with both hands, while person 2 is at the back, also gripping the gunwales. Both individuals support the hull of the canoe with their shoulders. The scene takes place in a clean, spacious indoor area with white walls and a wooden floor. Person 1 has short black hair and a focused facial expression, wearing a blue t-shirt, khaki shorts, and brown boots. Person 2 has medium-length brown hair and a determined facial expression, wearing a green t-shirt, denim jeans, and black sneakers. The canoe is being carried slowly and steadily over their heads.",
+  "object states": [
+    {
+      "name": "canoe",
+      "is_translational": true,
+      "is_rotational": false,
+      "description": "the canoe being lifted and carried over the heads of two persons"
+    }
+  ],
+  "human states": [
+    {
+      "name": "person 1",
+      "description": "a person with short black hair wearing a blue t-shirt, khaki shorts, and brown boots, holding the gunwales of the canoe"
+    },
+    {
+      "name": "person 2",
+      "description": "a person with medium-length brown hair wearing a green t-shirt, denim jeans, and black sneakers, supporting the canoe's hull with their shoulders"
+    }
+  ]
+}
