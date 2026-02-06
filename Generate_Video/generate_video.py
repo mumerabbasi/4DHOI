@@ -137,10 +137,10 @@ def generate_video_wan(
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--pag", default="../Generate_PAG/output_pag_deepseek_r1_32b.json"
+        "--pag", default="../Generate_PAG/pags/video_03/output_pag_deepseek_r1_32b.json"
     )
-    parser.add_argument("--frame", default="./videos/video_02/first_frames/frame_00.png")
-    parser.add_argument("--outdir", default="./videos/video_02")
+    parser.add_argument("--frame", default="./videos/video_03/first_frames/frame_00.png")
+    parser.add_argument("--outdir", default="./videos/video_03")
     parser.add_argument("--model", default="Wan-AI/Wan2.2-I2V-A14B-Diffusers")
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--seed", type=int, default=72)

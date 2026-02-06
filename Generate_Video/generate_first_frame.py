@@ -12,13 +12,16 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Sample FLUX.1-dev first-frame images from a PAG JSON.",
     )
-    parser.add_argument("--pag", default="../Generate_PAG/output_pag_deepseek_r1_32b.json")
-    parser.add_argument("--outdir", default="./videos/video_02")
+    parser.add_argument(
+        "--pag",
+        default="../Generate_PAG/pags/video_03/output_pag_deepseek_r1_32b.json"
+    )
+    parser.add_argument("--outdir", default="./videos/video_03/first_frames")
     parser.add_argument("--n", type=int, default=5)
     parser.add_argument("--seed", type=int, default=72)
     parser.add_argument("--height", type=int, default=720)
     parser.add_argument("--width", type=int, default=1280)
-    parser.add_argument("--device", default="cuda:7")
+    parser.add_argument("--device", default="cuda:0")
     args = parser.parse_args()
 
     outdir = Path(args.outdir)

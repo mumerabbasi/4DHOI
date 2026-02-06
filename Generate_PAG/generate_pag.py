@@ -39,14 +39,15 @@ def main() -> None:
     )
     parser.add_argument("--host", default="http://localhost:11434/v1")
     parser.add_argument("--model", default="deepseek-r1:32b")
-    parser.add_argument("--system-prompt", default="sys_prompt_pag.md")
-    parser.add_argument("--input", default="./pags/pag_00/input_pag.json")
+    parser.add_argument("--system-prompt", default="./system_prompt_pag.md")
+    parser.add_argument("--input-dir", default="./pags/video_02")
     parser.add_argument("--temperature", type=float, default=0.0)
-    parser.add_argument("--output-dir", default="./pags/pag_00")
     args = parser.parse_args()
 
     system_prompt = load_text(Path(args.system_prompt))
-    user_payload = load_json(Path(args.input))
+
+    input_dir = Path(args.input_dir)
+    user_payload = load_json(input_dir / "input_pag.json")
 
     client = OpenAI(base_url=args.host, api_key="ollama")
 
@@ -56,13 +57,13 @@ def main() -> None:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
         ],
-        temperature=args.temperature
+        temperature=args.temperature,
     )
 
     output_text = strip_json_fence(response.choices[0].message.content)
     output_obj = json.loads(output_text)
 
-    out_path = Path(args.output_dir) / f"output_pag_{model_suffix(args.model)}.json"
+    out_path = input_dir / f"output_pag_{model_suffix(args.model)}.json"
     out_path.write_text(
         json.dumps(output_obj, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
