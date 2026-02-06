@@ -54,7 +54,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--input_dir",
-        default="../Generate_Video/videos/video_01",
+        default="../Generate_Video/videos/video_02",
         type=str,
         help="Path to a directory like */videos/video_xx containing an .mp4.",
     )
