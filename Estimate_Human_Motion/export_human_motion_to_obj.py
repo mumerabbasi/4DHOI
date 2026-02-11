@@ -1,63 +1,72 @@
-import os
 import argparse
-import torch
+from pathlib import Path
+
 import smplx
+import torch
 from tqdm import tqdm
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--result_path",
         type=str,
-        default="output_human_motion/bori_1/hmr4d_results.pt"
+        default="output_human_motion/video_01/hmr4d_results.pt",
     )
     parser.add_argument(
         "--smpl_folder",
         type=str,
-        default="../../GVHMR/inputs/checkpoints/body_models/"
+        default="../../GVHMR/inputs/checkpoints/body_models/",
     )
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="output_human_motion/bori_1/output_objs"
+        default=None,
+        help=(
+            "Directory to save exported OBJ files. If not provided, defaults to "
+            "<result_path parent>/output_objs."
+        ),
     )
     parser.add_argument(
         "--smplx2smpl_path",
         type=str,
         default="../../GVHMR/hmr4d/utils/body_model/smplx2smpl_sparse.pt",
-        help="Path to the smplx2smpl sparse matrix from GVHMR."
+        help="Path to the smplx2smpl sparse matrix from GVHMR.",
     )
     args = parser.parse_args()
 
+    result_path = Path(args.result_path).resolve()
+    smpl_folder = Path(args.smpl_folder).resolve()
+    smplx2smpl_path = Path(args.smplx2smpl_path).resolve()
+
+    if args.output_dir is None:
+        output_dir = result_path.parent / "output_objs"
+    else:
+        output_dir = Path(args.output_dir).resolve()
+
     # 1. Load Data
-    print(f"Loading data from {args.result_path}...")
-    data = torch.load(args.result_path)
+    print(f"Loading data from {result_path}...")
+    data = torch.load(result_path)
 
     # Use smpl_params_incam so the human is in camera-frame coordinates,
     # matching other camera-frame assets (e.g. object meshes from sam3d).
-    # Previously used smpl_params_global which places the human in a
-    # gravity-aligned world frame (centered at origin, wrong for compositing).
-    params = data['smpl_params_incam']
+    params = data["smpl_params_incam"]
 
-    body_pose = params['body_pose']
-    betas = params['betas']
-    global_orient = params['global_orient']
-    transl = params['transl']
+    body_pose = params["body_pose"]
+    betas = params["betas"]
+    global_orient = params["global_orient"]
+    transl = params["transl"].clone()
 
     num_frames = body_pose.shape[0]
     print(f"Found {num_frames} frames.")
     print(f"Input Pose Shape: {body_pose.shape}")
 
-    # 2. Setup SMPL-X model (matching GVHMR's "supermotion" config)
-    # GVHMR outputs SMPL-X parameters (body_pose dim=63 for 21 joints).
-    # We must use the same SMPL-X model, then convert vertices to SMPL
-    # topology via the smplx2smpl sparse matrix for correct mesh output.
-    print(f"Loading SMPL-X from {args.smpl_folder}...")
+    # 3. Setup SMPL-X model (matching GVHMR's "supermotion" config)
+    print(f"Loading SMPL-X from {smpl_folder}...")
     smplx_layer = smplx.create(
-        args.smpl_folder,
-        model_type='smplx',
-        gender='neutral',
+        str(smpl_folder),
+        model_type="smplx",
+        gender="neutral",
         num_pca_comps=12,
         flat_hand_mean=False,
         create_body_pose=False,
@@ -67,34 +76,30 @@ def main():
     )
 
     # Load the SMPL-X to SMPL vertex conversion matrix (6890 x 10475)
-    # and the SMPL face topology for OBJ export.
-    print(f"Loading smplx2smpl matrix from {args.smplx2smpl_path}...")
-    smplx2smpl = torch.load(args.smplx2smpl_path)
+    print(f"Loading smplx2smpl matrix from {smplx2smpl_path}...")
+    smplx2smpl = torch.load(smplx2smpl_path)
 
     smpl_layer_for_faces = smplx.create(
-        args.smpl_folder,
-        model_type='smpl',
-        gender='neutral',
+        str(smpl_folder),
+        model_type="smpl",
+        gender="neutral",
     )
     faces_smpl = smpl_layer_for_faces.faces
 
-    # 3. Create Output Directory
-    os.makedirs(args.output_dir, exist_ok=True)
+    # 4. Create Output Directory
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 4. Loop through frames
+    # 5. Loop through frames
     print("Exporting frames to .obj...")
     for i in tqdm(range(num_frames)):
         # Handle shape parameters (repeat or slice)
-        if betas.shape[0] > 1:
-            curr_betas = betas[i:i + 1]
-        else:
-            curr_betas = betas[:1]
+        curr_betas = betas[i: i + 1] if betas.shape[0] > 1 else betas[:1]
 
         output = smplx_layer(
             betas=curr_betas,
-            body_pose=body_pose[i:i + 1],
-            global_orient=global_orient[i:i + 1],
-            transl=transl[i:i + 1],
+            body_pose=body_pose[i: i + 1],
+            global_orient=global_orient[i: i + 1],
+            transl=transl[i: i + 1],
         )
 
         # Convert SMPL-X vertices (10475) to SMPL vertices (6890)
@@ -102,15 +107,15 @@ def main():
         smpl_verts = torch.matmul(smplx2smpl, smplx_verts)  # (6890, 3)
         vertices = smpl_verts.detach().cpu().numpy()
 
-        filename = os.path.join(args.output_dir, f"frame_{i:04d}.obj")
-        with open(filename, 'w') as f:
+        filename = output_dir / f"frame_{i:04d}.obj"
+        with filename.open("w") as f:
             for v in vertices:
                 f.write(f"v {v[0]} {v[1]} {v[2]}\n")
             for face in faces_smpl:
                 # OBJ indices start at 1
                 f.write(f"f {face[0] + 1} {face[1] + 1} {face[2] + 1}\n")
 
-    print(f"\nDone! Files saved in: {os.path.abspath(args.output_dir)}")
+    print(f"\nDone! Files saved in: {output_dir}")
 
 
 if __name__ == "__main__":
