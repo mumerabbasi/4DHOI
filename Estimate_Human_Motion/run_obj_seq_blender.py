@@ -1,5 +1,6 @@
 import bpy
 import os
+import math
 
 OBJ_FOLDER = r"C:\Users\umerh\Desktop\Thesis Temp\video_01_f_20\output_objs"
 
@@ -30,12 +31,16 @@ def import_obj_sequence():
     for i, filename in enumerate(files):
         filepath = os.path.join(OBJ_FOLDER, filename)
 
-        # Import: We force the axes here
+        # We force the axes here
         bpy.ops.wm.obj_import(filepath=filepath, forward_axis='Y', up_axis='Z')
 
         # Get the imported object
         obj = bpy.context.selected_objects[0]
         obj.name = f"Frame_{i:04d}"
+
+        # Rotate 180 degrees on Z-axis to convert it from OpenCV camera to PyTorch 3D camera.
+        # To match with SAM3D-Objects meshes.
+        obj.rotation_euler = (0, 0, math.radians(180))
 
         # Link to collection
         for col in obj.users_collection:

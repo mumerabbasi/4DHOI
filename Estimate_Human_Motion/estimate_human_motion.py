@@ -23,7 +23,7 @@ def main() -> None:
     parser.add_argument(
         "--f_mm",
         type=float,
-        default=None,
+        default=20,
         help="Focal length in millimeters passed to GVHMR (--f_mm).",
     )
     args = parser.parse_args()
