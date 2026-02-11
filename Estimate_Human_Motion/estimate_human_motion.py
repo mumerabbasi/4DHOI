@@ -11,7 +11,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--video",
-        default="../Generate_Video/videos/video_01",
+        default="../Generate_Video/videos/video_02",
     )
     parser.add_argument("--outdir", default="./output_human_motion")
     parser.add_argument(
@@ -23,7 +23,7 @@ def main() -> None:
     parser.add_argument(
         "--f_mm",
         type=float,
-        default=20,
+        default=24,
         help="Focal length in millimeters passed to GVHMR (--f_mm).",
     )
     args = parser.parse_args()

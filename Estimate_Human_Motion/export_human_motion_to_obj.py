@@ -11,7 +11,7 @@ def main() -> None:
     parser.add_argument(
         "--result_path",
         type=str,
-        default="output_human_motion/video_01/hmr4d_results.pt",
+        default="output_human_motion/video_02/hmr4d_results.pt",
     )
     parser.add_argument(
         "--smpl_folder",
