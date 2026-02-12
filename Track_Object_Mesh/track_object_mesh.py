@@ -1,20 +1,14 @@
 #!/usr/bin/env python3
 """
-Bare-minimum rigid 4D tracking (no flow gating / no track pruning).
+Rigid 4D tracking (MVP + Improvement 1 + Improvement 2).
 
 Key conventions (consistent everywhere):
   - Internal camera/object coordinates follow your PyTorch3D-style convention:
       +X is left, +Y is up, +Z forward.
-  - Pixel projection uses the equivalent sign flip:
-      u = (-X * fx)/Z + cx
-      v = (-Y * fy)/Z + cy
-    which is identical to converting to OpenCV camera coords via:
-      X_cv = F * X_p3d, where F = diag([-1, -1, 1]),
-    and then using standard OpenCV projection.
-
-We will "stick with F" conceptually and use it explicitly in both places:
-  - For PnP: convert object points to OpenCV coords with F before calling OpenCV.
-  - For projection: convert camera points to OpenCV coords with F, then project.
+  - We "stick with F" everywhere:
+      F = diag([-1, -1, 1])
+    - For PnP: convert 3D points to OpenCV coords with F before solvePnP.
+    - For projection: convert camera points to OpenCV coords with F, then project.
 """
 
 from __future__ import annotations
@@ -213,7 +207,20 @@ def erode(mask: np.ndarray, px: int) -> np.ndarray:
     return cv2.erode(mask.astype(np.uint8), kernel, iterations=1)
 
 
-def stratified_sample(mask: np.ndarray, num_samples: int, grid: int, rng: np.random.Generator) -> np.ndarray:
+def dilate(mask: np.ndarray, px: int) -> np.ndarray:
+    if px <= 0:
+        return mask
+    k = 2 * px + 1
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
+    return cv2.dilate(mask.astype(np.uint8), kernel, iterations=1)
+
+
+def stratified_sample(
+    mask: np.ndarray,
+    num_samples: int,
+    grid: int,
+    rng: np.random.Generator,
+) -> np.ndarray:
     """Simple stratified sampling; no spacing constraints (MVP)."""
     h, w = mask.shape[:2]
     samples: List[Tuple[int, int]] = []
@@ -286,11 +293,7 @@ def apply_pose(verts: np.ndarray, r: np.ndarray, t: np.ndarray) -> np.ndarray:
 
 
 def project_points_via_f(pts_cam_p3d: np.ndarray, k: np.ndarray) -> np.ndarray:
-    """
-    Project using explicit conversion to OpenCV coords via F:
-      X_cv = F * X_p3d
-    then standard pinhole projection (no negation in the formula).
-    """
+    """Project by converting to OpenCV coords with F, then pinhole project."""
     pts_cv = (F_P3D_TO_CV @ pts_cam_p3d.T).T.astype(np.float32)
     fx = float(k[0, 0])
     fy = float(k[1, 1])
@@ -312,14 +315,10 @@ def estimate_pose_pnp_ransac(
     iters: int,
     min_inliers: int,
 ) -> Tuple[bool, np.ndarray, np.ndarray, int]:
-    """
-    Estimate object pose (R,t) in P3D camera coords, using OpenCV PnP by
-    converting 3D points to OpenCV coords with F.
-    """
+    """Estimate pose in P3D coords; internally uses OpenCV PnP with F conversion."""
     if len(x_obj_p3d) < 4:
         return False, np.eye(3, dtype=np.float32), np.zeros(3, dtype=np.float32), 0
 
-    # Convert object points from P3D coords to OpenCV coords
     x_obj_cv = (F_P3D_TO_CV @ x_obj_p3d.T).T.astype(np.float32)
     obj_pts = x_obj_cv.reshape(-1, 1, 3)
     img_pts = u_px.reshape(-1, 1, 2).astype(np.float32)
@@ -339,7 +338,6 @@ def estimate_pose_pnp_ransac(
 
     in_idx = inliers.reshape(-1).astype(np.int32)
 
-    # Refine
     rvec, tvec = cv2.solvePnPRefineLM(
         objectPoints=obj_pts[in_idx],
         imagePoints=img_pts[in_idx],
@@ -352,7 +350,6 @@ def estimate_pose_pnp_ransac(
     r_cv, _ = cv2.Rodrigues(rvec)
     t_cv = tvec.reshape(3).astype(np.float32)
 
-    # Convert back to P3D coords: R_p3d = F * R_cv * F, t_p3d = F * t_cv
     r_p3d = (F_P3D_TO_CV @ r_cv @ F_P3D_TO_CV).astype(np.float32)
     t_p3d = (F_P3D_TO_CV @ t_cv.reshape(3, 1)).reshape(3).astype(np.float32)
 
@@ -400,7 +397,7 @@ def save_pose_outputs(out_dir: Path, r_list: List[np.ndarray], t_list: List[np.n
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Bare-minimum rigid tracking + ffmpeg (no flow gating). Uses F=diag([-1,-1,1]) everywhere."
+        description="Rigid tracking + Improvement 1 + Improvement 2."
     )
 
     parser.add_argument(
@@ -424,9 +421,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--out_dir",
         type=str,
-        default="./track_out/video_01",
+        default="./track_out/video_01_imp_2",
         help="Output directory.",
     )
+
     parser.add_argument(
         "--focal_length_mm",
         type=float,
@@ -450,6 +448,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ransac_reproj_px", type=float, default=6.0)
     parser.add_argument("--ransac_iters", type=int, default=1000)
     parser.add_argument("--min_inliers", type=int, default=30)
+
+    # Improvement 2
+    parser.add_argument(
+        "--silhouette_dilate_px",
+        type=int,
+        default=3,
+        help="Dilate rendered silhouette by this many pixels before gating.",
+    )
 
     parser.add_argument("--overlay_max_verts", type=int, default=20000)
     parser.add_argument("--overlay_point_radius", type=int, default=1)
@@ -503,7 +509,7 @@ def main() -> None:
     mesh0_y = load_mesh_glb_y_up(mesh_path)
     v0_y = np.array(mesh0_y.vertices, dtype=np.float32)
     faces = np.array(mesh0_y.faces, dtype=np.int64)
-    v_obj = y_up_to_z_up(v0_y)  # object coords in Z-up, P3D camera convention
+    v_obj = y_up_to_z_up(v0_y)
 
     rasterizer = make_rasterizer(device=device, k=k, width=w, height=h, bin_size=int(args.bin_size))
     rng = np.random.default_rng(42)
@@ -529,6 +535,9 @@ def main() -> None:
     x_obj = x_seed.astype(np.float32)
     u = seed_px.astype(np.float32)
 
+    # Track validity mask (used by Improvement 1 and Improvement 2)
+    alive = np.ones(len(u), dtype=bool)
+
     # ffmpeg writer
     video_path = out_dir / "overlay.mp4"
     ffmpeg_writer = start_ffmpeg_writer(video_path, float(args.overlay_fps), (h, w))
@@ -540,8 +549,8 @@ def main() -> None:
         ffmpeg_writer.stdin.write(frame_bgr.tobytes())
 
     def save_mesh(frame_idx: int, r: np.ndarray, t: np.ndarray) -> None:
-        v_cam = apply_pose(v_obj, r, t)     # Z-up (P3D convention)
-        v_y = z_up_to_y_up(v_cam)           # back to Y-up for GLB export
+        v_cam = apply_pose(v_obj, r, t)
+        v_y = z_up_to_y_up(v_cam)
         m = mesh0_y.copy()
         m.vertices = v_y.astype(np.float32)
         m.export(str(meshes_dir / f"frame_{frame_idx:04d}.glb"))
@@ -562,20 +571,52 @@ def main() -> None:
     write_video_frame(overlay0)
 
     # Main loop
-    for t in range(start + 1, end + 1):
-        flow = np.load(str(flow_paths[t - 1])).astype(np.float32)
+    for frame_idx in range(start + 1, end + 1):
+        flow = np.load(str(flow_paths[frame_idx - 1])).astype(np.float32)
         if flow.shape[:2] != (h, w) or flow.shape[2] != 2:
-            raise ValueError(f"Bad flow shape {flow.shape} at {flow_paths[t - 1]}")
+            raise ValueError(f"Bad flow shape {flow.shape} at {flow_paths[frame_idx - 1]}")
 
-        # Raw flow propagation (no gating). Indices clipped to avoid crash.
-        x_idx = np.clip(np.round(u[:, 0]).astype(np.int32), 0, w - 1)
-        y_idx = np.clip(np.round(u[:, 1]).astype(np.int32), 0, h - 1)
-        d = flow[y_idx, x_idx]
-        u = u + d
+        # ---------------------------------------------------------------------
+        # Improvement 1: minimal validity filtering for flow propagation
+        #   - Kill tracks already out of bounds before sampling flow
+        #   - Kill tracks with NaN/Inf flow
+        #   - Kill tracks that go out of bounds after u = u + d
+        # ---------------------------------------------------------------------
+        in_bounds_before = (
+            (u[:, 0] >= 0.0) & (u[:, 0] <= (w - 1)) &
+            (u[:, 1] >= 0.0) & (u[:, 1] <= (h - 1))
+        )
+        alive &= in_bounds_before
 
+        idx_alive = np.where(alive)[0]
+        if len(idx_alive) > 0:
+            x_idx = np.round(u[idx_alive, 0]).astype(np.int32)
+            y_idx = np.round(u[idx_alive, 1]).astype(np.int32)
+
+            # indices are safe because idx_alive are in-bounds already;
+            # clipping here is only defensive.
+            x_idx = np.clip(x_idx, 0, w - 1)
+            y_idx = np.clip(y_idx, 0, h - 1)
+
+            d = flow[y_idx, x_idx]
+
+            finite = np.isfinite(d[:, 0]) & np.isfinite(d[:, 1])
+            alive[idx_alive[~finite]] = False
+
+            idx_valid = idx_alive[finite]
+            u[idx_valid] = u[idx_valid] + d[finite]
+
+        in_bounds_after = (
+            (u[:, 0] >= 0.0) & (u[:, 0] <= (w - 1)) &
+            (u[:, 1] >= 0.0) & (u[:, 1] <= (h - 1))
+        )
+        alive &= in_bounds_after
+
+        # First pose estimate (same PnP as MVP, but using alive subset)
+        idx_alive = np.where(alive)[0]
         ok_pose, r_curr, t_curr, inliers = estimate_pose_pnp_ransac(
-            x_obj_p3d=x_obj,
-            u_px=u,
+            x_obj_p3d=x_obj[idx_alive],
+            u_px=u[idx_alive],
             k=k,
             reproj_px=float(args.ransac_reproj_px),
             iters=int(args.ransac_iters),
@@ -584,15 +625,51 @@ def main() -> None:
         if not ok_pose:
             r_curr, t_curr = r_prev.copy(), t_prev.copy()
 
+        # ---------------------------------------------------------------------
+        # Improvement 2: rendered-silhouette gating (after first pose estimate)
+        #   - Render silhouette of mesh at predicted pose
+        #   - Keep only tracks whose u lies inside (optionally dilated)
+        #   - Re-run PnP on gated subset
+        # ---------------------------------------------------------------------
+        v_cam_pred = apply_pose(v_obj, r_curr, t_curr)
+        _, _, sil_pred = rasterize_gbuffer(rasterizer, v_cam_pred, faces, device)
+        sil_pred = dilate(sil_pred, int(args.silhouette_dilate_px))
+
+        idx_alive = np.where(alive)[0]
+        if len(idx_alive) > 0:
+            xs = np.round(u[idx_alive, 0]).astype(np.int32)
+            ys = np.round(u[idx_alive, 1]).astype(np.int32)
+            xs = np.clip(xs, 0, w - 1)
+            ys = np.clip(ys, 0, h - 1)
+            keep = sil_pred[ys, xs] > 0
+            alive[idx_alive[~keep]] = False
+
+        idx_alive = np.where(alive)[0]
+        ok_pose2, r_ref, t_ref, inliers2 = estimate_pose_pnp_ransac(
+            x_obj_p3d=x_obj[idx_alive],
+            u_px=u[idx_alive],
+            k=k,
+            reproj_px=float(args.ransac_reproj_px),
+            iters=int(args.ransac_iters),
+            min_inliers=int(args.min_inliers),
+        )
+        if ok_pose2:
+            r_curr, t_curr = r_ref, t_ref
+            ok_pose = True
+            inliers = inliers2
+
+        # Commit pose
         r_prev, t_prev = r_curr.copy(), t_curr.copy()
         r_list.append(r_prev.copy())
         t_list.append(t_prev.copy())
 
-        save_mesh(t, r_prev, t_prev)
+        # Save posed mesh
+        save_mesh(frame_idx, r_prev, t_prev)
 
-        frame = cv2.imread(str(frame_paths[t]))
+        # Overlay + video
+        frame = cv2.imread(str(frame_paths[frame_idx]))
         if frame is None:
-            raise FileNotFoundError(f"Failed to read: {frame_paths[t]}")
+            raise FileNotFoundError(f"Failed to read: {frame_paths[frame_idx]}")
 
         overlay = draw_overlay(
             frame,
@@ -601,15 +678,13 @@ def main() -> None:
             int(args.overlay_max_verts),
             int(args.overlay_point_radius),
         )
-        cv2.imwrite(str(overlays_dir / f"overlay_{t:04d}.png"), overlay)
+        cv2.imwrite(str(overlays_dir / f"overlay_{frame_idx:04d}.png"), overlay)
         write_video_frame(overlay)
 
         if args.verbose:
-            mean_flow = float(np.linalg.norm(d, axis=1).mean())
             print(
-                f"[frame {t:04d}] ok_pose={ok_pose} inliers={inliers} "
-                f"mean|flow|={mean_flow:.3f} "
-                f"t=({t_prev[0]:+.3f},{t_prev[1]:+.3f},{t_prev[2]:+.3f})"
+                f"[frame {frame_idx:04d}] ok_pose={ok_pose} inliers={inliers} "
+                f"alive={int(alive.sum())}"
             )
 
     close_ffmpeg(ffmpeg_writer)
