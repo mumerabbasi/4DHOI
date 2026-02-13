@@ -293,7 +293,7 @@ def extract_video_frames(video_path: str, output_dir: Path) -> tuple[list[Path],
         if not ret:
             break
 
-        frame_path = output_dir / f"{frame_idx:05d}.jpg"
+        frame_path = output_dir / f"frame_{frame_idx:04d}.png"
         cv2.imwrite(str(frame_path), frame)
         frame_paths.append(frame_path)
         frame_idx += 1
@@ -435,7 +435,7 @@ def track_with_sam2(
     results = {"tracked": True, "items": {}, "num_frames": num_frames}
 
     # Get frame file list for visualization
-    frame_files = sorted(frames_dir.glob("*.jpg"))
+    frame_files = sorted(frames_dir.glob("*.png"))
 
     for frame_idx, obj_ids, video_res_masks in predictor.propagate_in_video(inference_state):
         # video_res_masks shape: (num_objects, 1, H, W)
@@ -457,7 +457,7 @@ def track_with_sam2(
                 item_mask_dir = output_masks_dir
 
             # Save mask
-            mask_filename = f"frame_{frame_idx:05d}.png"
+            mask_filename = f"frame_{frame_idx:04d}.png"
             save_mask(mask, str(item_mask_dir / mask_filename))
 
             # Store in results
@@ -469,7 +469,7 @@ def track_with_sam2(
         if frame_idx < len(frame_files):
             frame = cv2.imread(str(frame_files[frame_idx]))
             viz = create_visualization(frame, masks_dict)
-            viz_filename = f"frame_{frame_idx:05d}.jpg"
+            viz_filename = f"frame_{frame_idx:04d}.png"
             cv2.imwrite(str(output_viz_dir / viz_filename), viz)
 
     # Reset state for next use
@@ -532,16 +532,16 @@ def process_video(
 
     # Extract frames
     frames_dir = output_root / "_frames"
-    if not frames_dir.exists() or not list(frames_dir.glob("*.jpg")):
+    if not frames_dir.exists() or not list(frames_dir.glob("*.png")):
         frame_paths, width, height = extract_video_frames(str(video_path), frames_dir)
     else:
-        frame_paths = sorted(frames_dir.glob("*.jpg"))
+        frame_paths = sorted(frames_dir.glob("*.png"))
         first_frame = cv2.imread(str(frame_paths[0]))
         height, width = first_frame.shape[:2]
         print(f"Using existing {len(frame_paths)} frames from {frames_dir}")
 
     # Load first frame for detection
-    first_frame = cv2.imread(str(frames_dir / "00000.jpg"))
+    first_frame = cv2.imread(str(frames_dir / "frame_0000.png"))
     if first_frame is None:
         print("Error: Could not load first frame")
         return

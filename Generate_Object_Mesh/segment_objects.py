@@ -167,19 +167,19 @@ def main():
     parser.add_argument(
         "--pag_file",
         type=str,
-        default="../Generate_PAG/pags/video_01/output_pag_deepseek_r1_32b.json",
+        default="../Generate_PAG/pags/video_02/output_pag_deepseek_r1_32b.json",
         help="PAG JSON file.",
     )
     parser.add_argument(
         "--image",
         type=str,
-        default="../Generate_Video/videos/video_01/first_frames/frame_00.png",
+        default="../Generate_Video/videos/video_02/first_frames/frame_00.png",
         help="Input image path.",
     )
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="objects/video_01",
+        default="objects/video_02",
         help="Output directory for masks.",
     )
     parser.add_argument(

@@ -697,21 +697,22 @@ def main():
         help="Path to segmentation summary JSON.",
     )
     parser.add_argument(
-        "--posed",
+        "--not_posed",
         action="store_true",
-        help="Also generate posed meshes in camera frame (mesh_posed.glb) with "
+        help="Do not generate posed meshes in camera frame (mesh_posed.glb) with "
         "overlay visualizations (mesh_posed_overlay.png per object, and "
         "<frame>_all_objects_overlay.png for combined view). "
-        "By default, only canonical mesh (mesh.glb) is generated.",
+        "By default, canonical + posed meshes are generated.",
     )
     parser.add_argument(
         "--focal_length",
         type=float,
-        default=50.0,
+        default=24.0,
         help="Focal length in mm for perspective projection in overlay rendering. "
         "Only used with --posed. Default: 50mm (assumes 36mm sensor width).",
     )
     args = parser.parse_args()
+    args.posed = not args.not_posed
 
     summary_path = Path(args.summary)
     if not summary_path.exists():

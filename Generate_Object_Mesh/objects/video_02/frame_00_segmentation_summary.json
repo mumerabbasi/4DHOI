@@ -1,0 +1,23 @@
+{
+  "source_frame": "frame_00",
+  "source_image": "/my_workspace/4DHHOI/4DHOI/Generate_Video/videos/video_02/first_frames/frame_00.png",
+  "pag_file": "/my_workspace/4DHHOI/4DHOI/Generate_PAG/pags/video_02/output_pag_deepseek_r1_32b.json",
+  "objects": [
+    {
+      "object": "dumbbell (left hand)",
+      "success": true,
+      "output_dir": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/objects/video_02/dumbbell_(left_hand)",
+      "mask_file": "mask/frame_00.png",
+      "bbox_file": "bbox/frame_00.png",
+      "bbox_json": "bbox/frame_00.json"
+    },
+    {
+      "object": "dumbbell (right hand)",
+      "success": true,
+      "output_dir": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/objects/video_02/dumbbell_(right_hand)",
+      "mask_file": "mask/frame_00.png",
+      "bbox_file": "bbox/frame_00.png",
+      "bbox_json": "bbox/frame_00.json"
+    }
+  ]
+}
