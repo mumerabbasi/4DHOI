@@ -3,7 +3,7 @@
 Rigid 4D tracking (MVP + Improvement 1 + Improvement 2).
 
 Key conventions (consistent everywhere):
-  - Internal camera/object coordinates follow your PyTorch3D-style convention:
+  - Internal camera/object coordinates follow PyTorch3D-style convention:
       +X is left, +Y is up, +Z forward.
   - We "stick with F" everywhere:
       F = diag([-1, -1, 1])
@@ -421,7 +421,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--out_dir",
         type=str,
-        default="./track_out/video_01_imp_2",
+        default="./track_out/video_01/ironing board",
         help="Output directory.",
     )
 
