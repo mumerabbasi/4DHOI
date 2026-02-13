@@ -8,13 +8,13 @@ Run this script with the sam3d-objects environment.
 
 Pipeline:
     1. Read segmentation summary JSON
-    2. Use SAM 3D Objects to generate canonical 3D mesh from each mask
+    2. Use SAM 3D Objects to generate 3D mesh from each mask
     3. Save output to each object's output_dir:
         - mesh.glb (canonical mesh, Y-up coordinate system)
         - pose.json (transform keys: rotation, translation, scale)
-        - mesh_posed.glb (optional: mesh transformed to camera frame, Y-up)
-        - mesh_posed_overlay.png (optional: posed mesh overlaid on source image)
-    4. Save combined overlay (optional):
+        - mesh_posed.glb (mesh transformed to camera frame, Y-up)
+        - mesh_posed_overlay.png (posed mesh overlaid on source image)
+    4. Save combined overlay:
         - <frame_name>_all_objects_overlay.png (all posed objects on source image)
 
 Coordinate System Notes:
@@ -29,17 +29,14 @@ Coordinate System Notes:
 Rendering Notes (from render_posed_mesh.py):
     - PyTorch3D uses: +X is left, +Y is up
     - Screen space uses: +X is right, +Y is down
-    - We negate both x and y during perspective projection
+    - Convert coordinates with F_P3D_TO_CV before projection
     - Source: https://github.com/facebookresearch/sam-3d-objects/issues/56
 
 Usage:
     conda activate sam3d-objects
 
-    # Generate canonical mesh only (default)
+    # Generate canonical + posed meshes and overlays
     python generate_object_meshes.py --summary path/to/frame_00_segmentation_summary.json
-
-    # Generate both canonical and posed meshes with overlay visualizations
-    python generate_object_meshes.py --summary path/to/frame_00_segmentation_summary.json --posed
 """
 
 import argparse
@@ -86,6 +83,9 @@ R_Z_UP_TO_Y_UP = np.array([
     [0, -1, 0],
 ], dtype=np.float32)
 
+# P3D camera coords (+X left, +Y up, +Z forward) to OpenCV (+X right, +Y down, +Z forward)
+F_P3D_TO_CV = np.diag([-1.0, -1.0, 1.0]).astype(np.float32)
+
 SENSOR_WIDTH_MM = 36.0  # Full-frame sensor width for focal length conversion
 
 
@@ -98,11 +98,9 @@ def render_posed_mesh_overlay(
 ) -> np.ndarray:
     """Render posed mesh vertices overlaid on an image.
 
-    Perspective Projection with PyTorch3D Conventions:
-        - PyTorch3D uses: +X is left, +Y is up
-        - Screen space uses: +X is right, +Y is down
-        - Therefore, we negate both x and y during projection
-        - Source: https://github.com/facebookresearch/sam-3d-objects/issues/56
+    Perspective projection uses a coordinate conversion matrix:
+        P3D (+X left, +Y up, +Z forward) to OpenCV
+        (+X right, +Y down, +Z forward).
 
     Args:
         image: RGB image as numpy array (H, W, 3).
@@ -141,17 +139,15 @@ def render_posed_mesh_overlay(
     z = vertices_z_up[:, 2]
     valid_mask = z > 0.1
     pts_valid = vertices_z_up[valid_mask]
-    z_valid = pts_valid[:, 2]
+    pts_valid_cv = pts_valid @ F_P3D_TO_CV.T
+    z_valid = pts_valid_cv[:, 2]
 
     if len(pts_valid) == 0:
         return result
 
-    # Project to 2D with PyTorch3D coordinate flip
-    # In PyTorch3D: +X is left, +Y is up
-    # In Screen: +X is right, +Y is down
-    # Therefore negate both x and y
-    u = ((-pts_valid[:, 0] * focal_length) / z_valid + cx).astype(int)
-    v = ((-pts_valid[:, 1] * focal_length) / z_valid + cy).astype(int)
+    # Project to 2D in OpenCV camera coordinates.
+    u = ((pts_valid_cv[:, 0] * focal_length) / z_valid + cx).astype(int)
+    v = ((pts_valid_cv[:, 1] * focal_length) / z_valid + cy).astype(int)
 
     # Filter points within image bounds
     in_view = (u >= 0) & (u < w) & (v >= 0) & (v < h)
@@ -231,14 +227,15 @@ def render_all_posed_meshes_overlay(
         z = vertices_z_up[:, 2]
         valid_mask = z > 0.1
         pts_valid = vertices_z_up[valid_mask]
-        z_valid = pts_valid[:, 2]
+        pts_valid_cv = pts_valid @ F_P3D_TO_CV.T
+        z_valid = pts_valid_cv[:, 2]
 
         if len(pts_valid) == 0:
             continue
 
-        # Project with PyTorch3D flip
-        u = ((-pts_valid[:, 0] * focal_length) / z_valid + cx).astype(int)
-        v = ((-pts_valid[:, 1] * focal_length) / z_valid + cy).astype(int)
+        # Project in OpenCV camera coordinates.
+        u = ((pts_valid_cv[:, 0] * focal_length) / z_valid + cx).astype(int)
+        v = ((pts_valid_cv[:, 1] * focal_length) / z_valid + cy).astype(int)
 
         # Filter in view
         in_view = (u >= 0) & (u < w) & (v >= 0) & (v < h)
@@ -472,17 +469,16 @@ def _to_jsonable(value: Any) -> Any:
 def save_outputs(
     output: Dict[str, Any],
     output_dir: Path,
-    generate_posed: bool = False,
     image_rgb: np.ndarray = None,
     focal_length_mm: float = 50.0,
 ) -> trimesh.Trimesh | None:
-    """Save canonical mesh, optional posed mesh, and transform data.
+    """Save canonical mesh, posed mesh, and transform data.
 
     Saves:
         - output_dir/mesh.glb (canonical mesh in Y-up; NOT scaled/transformed)
         - output_dir/pose.json (transform keys from SAM 3D Objects output)
-        - output_dir/mesh_posed.glb (optional: mesh in camera frame, Y-up)
-        - output_dir/mesh_posed_overlay.png (optional: posed mesh overlaid on source image)
+        - output_dir/mesh_posed.glb (mesh in camera frame, Y-up)
+        - output_dir/mesh_posed_overlay.png (posed mesh overlaid on source image)
 
     Coordinate Notes:
         - Canonical mesh.glb is in Y-up (GLB convention)
@@ -493,13 +489,11 @@ def save_outputs(
     Args:
         output: SAM 3D Objects output dictionary.
         output_dir: Directory to save outputs.
-        generate_posed: If True, generate posed mesh and overlay.
         image_rgb: Source image for overlay rendering.
         focal_length_mm: Focal length in mm for perspective projection.
 
     Returns:
-        The posed mesh if generate_posed=True, else None.
-        Used for generating combined overlay image.
+        The posed mesh in Y-up coordinates.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -527,54 +521,58 @@ def save_outputs(
         json.dump(transform_data, f, indent=2)
     print("    Saved: pose.json")
 
-    # Generate posed mesh if requested
-    if generate_posed:
-        # Check required transform keys
-        if "rotation" not in output or "translation" not in output or "scale" not in output:
-            print("    Warning: Missing transform keys, cannot generate posed mesh")
-            return None
+    required_keys = {"rotation", "translation", "scale"}
+    missing_keys = sorted(required_keys.difference(output))
+    if missing_keys:
+        raise ValueError(f"Missing transform keys for posed mesh: {missing_keys}")
 
-        rotation_quat = np.array(_to_jsonable(output["rotation"]), dtype=np.float32).flatten()
-        translation = np.array(_to_jsonable(output["translation"]), dtype=np.float32).flatten()
-        scale = np.array(_to_jsonable(output["scale"]), dtype=np.float32).flatten()
+    rotation_quat = np.array(
+        _to_jsonable(output["rotation"]),
+        dtype=np.float32,
+    ).flatten()
+    translation = np.array(
+        _to_jsonable(output["translation"]),
+        dtype=np.float32,
+    ).flatten()
+    scale = np.array(
+        _to_jsonable(output["scale"]),
+        dtype=np.float32,
+    ).flatten()
 
-        print(f"    Rotation (quat): {rotation_quat}")
-        print(f"    Translation: {translation}")
-        print(f"    Scale: {scale}")
+    print(f"    Rotation (quat): {rotation_quat}")
+    print(f"    Translation: {translation}")
+    print(f"    Scale: {scale}")
 
-        # Create posed mesh (handles Y-up <-> Z-up conversions internally)
-        posed_mesh = create_posed_mesh(
-            canonical_mesh,
-            rotation_quat,
-            translation,
-            scale,
+    # Create posed mesh (handles Y-up <-> Z-up conversions internally)
+    posed_mesh = create_posed_mesh(
+        canonical_mesh,
+        rotation_quat,
+        translation,
+        scale,
+    )
+
+    # Save posed mesh (Y-up for GLB convention)
+    posed_glb_path = output_dir / "mesh_posed.glb"
+    posed_mesh.export(str(posed_glb_path))
+    print("    Saved: mesh_posed.glb (posed, Y-up, Blender auto-converts to Z-up)")
+
+    # Render individual overlay if image provided
+    if image_rgb is not None:
+        overlay = render_posed_mesh_overlay(
+            image_rgb,
+            posed_mesh,
+            focal_length_mm=focal_length_mm
         )
+        overlay_path = output_dir / "mesh_posed_overlay.png"
+        cv2.imwrite(str(overlay_path), overlay)
+        print("    Saved: mesh_posed_overlay.png")
 
-        # Save posed mesh (Y-up for GLB convention)
-        posed_glb_path = output_dir / "mesh_posed.glb"
-        posed_mesh.export(str(posed_glb_path))
-        print("    Saved: mesh_posed.glb (posed, Y-up, Blender auto-converts to Z-up)")
-
-        # Render individual overlay if image provided
-        if image_rgb is not None:
-            overlay = render_posed_mesh_overlay(
-                image_rgb,
-                posed_mesh,
-                focal_length_mm=focal_length_mm
-            )
-            overlay_path = output_dir / "mesh_posed_overlay.png"
-            cv2.imwrite(str(overlay_path), overlay)
-            print("    Saved: mesh_posed_overlay.png")
-
-        return posed_mesh
-
-    return None
+    return posed_mesh
 
 
 def process_from_summary(
     summary_path: Path,
     sam3d,
-    generate_posed: bool = False,
     focal_length_mm: float = 50.0,
 ) -> None:
     """Process all objects from a segmentation summary file.
@@ -582,10 +580,9 @@ def process_from_summary(
     Args:
         summary_path: Path to segmentation summary JSON.
         sam3d: SAM 3D Objects inference instance.
-        generate_posed: If True, also generate posed meshes in camera frame.
         focal_length_mm: Focal length in mm for overlay rendering.
 
-    When generate_posed=True, also saves:
+    Also saves:
         - Individual overlay per object: <object_dir>/mesh_posed_overlay.png
         - Combined overlay: <output_root>/<frame_name>_all_objects_overlay.png
     """
@@ -652,12 +649,11 @@ def process_from_summary(
                 except Exception:
                     pass
 
-            # Save canonical mesh (and optionally posed mesh with individual overlay)
+            # Save canonical and posed meshes with individual overlay.
             posed_mesh = save_outputs(
                 output,
                 output_dir,
-                generate_posed=generate_posed,
-                image_rgb=image_rgb if generate_posed else None,
+                image_rgb=image_rgb,
                 focal_length_mm=focal_length_mm,
             )
 
@@ -669,8 +665,8 @@ def process_from_summary(
         except Exception as e:
             print(f"  Mesh generation failed: {e}")
 
-    # Generate combined overlay with all posed objects
-    if generate_posed and len(posed_meshes) > 0:
+    # Generate combined overlay with all posed objects.
+    if posed_meshes:
         print(f"\n{'=' * 50}")
         print("Generating combined overlay with all posed objects...")
         combined_overlay = render_all_posed_meshes_overlay(
@@ -684,56 +680,66 @@ def process_from_summary(
         print(f"Saved: {combined_overlay_path}")
 
 
+def resolve_summary_path(input_dir: Path) -> Path:
+    """Resolve segmentation summary JSON from an input directory."""
+    if not input_dir.exists() or not input_dir.is_dir():
+        raise NotADirectoryError(f"Input directory not found: {input_dir}")
+
+    summary_files = sorted(input_dir.glob("*_segmentation_summary.json"))
+    if not summary_files:
+        raise FileNotFoundError(
+            "No segmentation summary JSON found in directory: "
+            f"{input_dir}. Expected '*_segmentation_summary.json'."
+        )
+    if len(summary_files) > 1:
+        raise ValueError(
+            "Multiple segmentation summary JSON files found in directory: "
+            f"{input_dir}. Found: {[str(p.name) for p in summary_files]}"
+        )
+
+    return summary_files[0]
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Generate canonical 3D meshes from a segmentation summary JSON "
+        description="Generate canonical and posed 3D meshes from a segmentation summary JSON "
         "(run with sam3d-objects env)."
     )
     parser.add_argument(
-        "--summary",
+        "--input_dir",
         type=str,
-        default="./objects/video_01/frame_00_segmentation_summary.json",
-        help="Path to segmentation summary JSON.",
-    )
-    parser.add_argument(
-        "--not_posed",
-        action="store_true",
-        help="Do not generate posed meshes in camera frame (mesh_posed.glb) with "
-        "overlay visualizations (mesh_posed_overlay.png per object, and "
-        "<frame>_all_objects_overlay.png for combined view). "
-        "By default, canonical + posed meshes are generated.",
+        default="./output/video_02",
+        help="Directory containing '*_segmentation_summary.json'.",
     )
     parser.add_argument(
         "--focal_length",
         type=float,
         default=24.0,
-        help="Focal length in mm for perspective projection in overlay rendering. "
-        "Only used with --posed. Default: 50mm (assumes 36mm sensor width).",
+        help=(
+            "Focal length in mm for perspective projection in overlay rendering. "
+            "Default: 24mm (assumes 36mm sensor width)."
+        ),
     )
     args = parser.parse_args()
-    args.posed = not args.not_posed
 
-    summary_path = Path(args.summary)
-    if not summary_path.exists():
-        print(f"Error: Summary file not found: {summary_path}")
-        return
+    input_dir = Path(args.input_dir)
+    if not input_dir.is_absolute():
+        input_dir = Path(__file__).parent / input_dir
+    input_dir = input_dir.resolve()
+    summary_path = resolve_summary_path(input_dir)
 
     print("Loading SAM 3D Objects...")
     sam3d = load_sam3d()
     print("SAM 3D Objects loaded successfully\n")
 
-    if args.posed:
-        print("Mode: Generating canonical + posed meshes")
-        print(f"Focal length: {args.focal_length}mm")
-    else:
-        print("Mode: Generating canonical meshes only")
+    print("Mode: Generating canonical + posed meshes")
+    print(f"Focal length: {args.focal_length}mm")
     print()
 
     process_from_summary(
         summary_path,
         sam3d,
-        generate_posed=args.posed,
         focal_length_mm=args.focal_length
     )
 

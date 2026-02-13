@@ -13,7 +13,7 @@ def main() -> None:
         "--video",
         default="../Generate_Video/videos/video_02",
     )
-    parser.add_argument("--outdir", default="./output_human_motion")
+    parser.add_argument("--outdir", default="./output")
     parser.add_argument(
         "--gvhmr_path",
         default="../../GVHMR",
