@@ -7,7 +7,7 @@ Input:
 - --input_dir: directory like */videos/video_xx containing exactly one .mp4
 
 Output (created under THIS script's directory):
-./videos/video_xx/
+./output/video_xx/
   |_ _frames/                   extracted frames (BGR PNGs)
   |_ _frames_visualization/     flow visualization PNGs
   |_ _frames_arrows/            arrow overlay PNGs on source frames
@@ -54,9 +54,18 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--input_dir",
-        default="../Generate_Video/videos/video_03",
+        default="../Generate_Video/videos/video_00",
         type=str,
         help="Path to a directory like */videos/video_xx containing an .mp4.",
+    )
+    parser.add_argument(
+        "--output_dir",
+        default=None,
+        type=str,
+        help=(
+            "Output directory for this video. "
+            "Default: <script_dir>/output/<video_xx>"
+        ),
     )
     parser.add_argument(
         "--waft_dir",
@@ -130,7 +139,14 @@ def build_paths(args: argparse.Namespace) -> Paths:
             "Pass --waft_dir to point to your WAFT clone."
         )
 
-    out_video_dir = script_dir / "videos" / video_name
+    if args.output_dir:
+        out_video_dir = Path(args.output_dir)
+        if not out_video_dir.is_absolute():
+            out_video_dir = script_dir / out_video_dir
+        out_video_dir = out_video_dir.resolve()
+    else:
+        out_video_dir = (script_dir / "output" / video_name).resolve()
+
     frames_dir = out_video_dir / "_frames"
     frames_vis_dir = out_video_dir / "_frames_visualization"
     arrows_vis_dir = out_video_dir / "_frames_arrows"
