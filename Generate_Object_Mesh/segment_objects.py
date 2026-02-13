@@ -1,14 +1,15 @@
 """Segment objects using SAM3 with text prompts.
 
 This script uses SAM3 (official Meta implementation) to segment objects
-from an image based on text prompts from a PAG file.
+from the first frame of a video based on text prompts from a PAG file.
 
 Run this script with the sam3 environment.
 
 Pipeline:
     1. Parse PAG file to get object names
-    2. Use SAM3 to segment each object with text prompts
-    3. Save outputs to:
+    2. Read the first frame from a video
+    3. Use SAM3 to segment each object with text prompts
+    4. Save outputs to:
        - objects/<object_name>/bbox/frame_xx.png  (bbox visualization)
        - objects/<object_name>/bbox/frame_xx.json (bbox metadata)
        - objects/<object_name>/mask/frame_xx.png  (binary mask)
@@ -160,27 +161,67 @@ def save_masked_image(
     cv2.imwrite(str(output_path), cv2.cvtColor(result, cv2.COLOR_RGB2BGR))
 
 
+def find_default_pag_file(video_name: str, script_dir: Path) -> Path | None:
+    """Find default PAG file for a video directory name."""
+    pag_dir = (script_dir.parent / "Generate_PAG" / "pags" / video_name).resolve()
+    if not pag_dir.exists():
+        return None
+
+    output_pag_files = sorted(pag_dir.glob("output_pag*.json"))
+    if output_pag_files:
+        return output_pag_files[0]
+
+    json_files = sorted(pag_dir.glob("*.json"))
+    if len(json_files) == 1:
+        return json_files[0]
+
+    return None
+
+
+def find_single_video(video_dir: Path) -> Path | None:
+    """Find the single MP4 in a video directory."""
+    mp4_files = sorted(video_dir.glob("*.mp4"))
+    if len(mp4_files) != 1:
+        return None
+    return mp4_files[0]
+
+
+def extract_first_frame(video_path: Path) -> np.ndarray | None:
+    """Read the first frame from a video as an RGB image."""
+    capture = cv2.VideoCapture(str(video_path))
+    ok, frame_bgr = capture.read()
+    capture.release()
+
+    if not ok or frame_bgr is None:
+        return None
+
+    return cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Segment objects using SAM3 (run with sam3 env)."
     )
     parser.add_argument(
-        "--pag_file",
+        "--video_dir",
         type=str,
-        default="../Generate_PAG/pags/video_02/output_pag_deepseek_r1_32b.json",
-        help="PAG JSON file.",
+        default="../Generate_Video/videos/video_02",
+        help="Directory containing exactly one MP4 (e.g., .../video_02).",
     )
     parser.add_argument(
-        "--image",
+        "--pag_file",
         type=str,
-        default="../Generate_Video/videos/video_02/first_frames/frame_00.png",
-        help="Input image path.",
+        default=None,
+        help=(
+            "PAG JSON file. Default: "
+            "../Generate_PAG/pags/<video_xx>/output_pag*.json"
+        ),
     )
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="objects/video_02",
-        help="Output directory for masks.",
+        default=None,
+        help="Output directory for masks. Default: ./output/<video_xx>.",
     )
     parser.add_argument(
         "--confidence",
@@ -196,38 +237,81 @@ def main():
     )
     args = parser.parse_args()
 
-    # Resolve paths
-    image_path = Path(args.image).resolve()
-    pag_path = Path(args.pag_file).resolve()
-    output_root = Path(args.output_dir)
-    if not output_root.is_absolute():
-        output_root = Path(__file__).parent / output_root
+    script_dir = Path(__file__).parent
+    video_dir = Path(args.video_dir)
+    if not video_dir.is_absolute():
+        video_dir = script_dir / video_dir
+    video_dir = video_dir.resolve()
+    video_name = video_dir.name
 
-    if not image_path.exists():
-        print(f"Error: Image not found: {image_path}")
+    if not video_dir.exists() or not video_dir.is_dir():
+        print(f"Error: Video directory not found: {video_dir}")
         return
+
+    video_path = find_single_video(video_dir)
+    if video_path is None:
+        mp4_files = sorted(video_dir.glob("*.mp4"))
+        print(
+            f"Error: Expected exactly one MP4 in {video_dir}, "
+            f"found {len(mp4_files)}."
+        )
+        return
+
+    if args.pag_file is not None:
+        pag_path = Path(args.pag_file)
+        if not pag_path.is_absolute():
+            pag_path = script_dir / pag_path
+        pag_path = pag_path.resolve()
+    else:
+        pag_path = find_default_pag_file(video_name, script_dir)
+        if pag_path is None:
+            print(
+                "Error: Could not resolve default PAG file. Expected one of:\n"
+                f"  1) ../Generate_PAG/pags/{video_name}/output_pag*.json\n"
+                f"  2) A single ../Generate_PAG/pags/{video_name}/*.json\n"
+                "Please pass --pag_file explicitly."
+            )
+            return
+
+    if args.output_dir is not None:
+        output_root = Path(args.output_dir)
+        if not output_root.is_absolute():
+            output_root = script_dir / output_root
+    else:
+        output_root = script_dir / "output" / video_name
+    output_root = output_root.resolve()
+
     if not pag_path.exists():
         print(f"Error: PAG file not found: {pag_path}")
         return
 
-    # Extract frame name from image path for reference
-    frame_name = image_path.stem  # e.g., "frame_00"
+    frame_name = "frame_00"
+    image_rgb = extract_first_frame(video_path)
+    if image_rgb is None:
+        print(f"Error: Could not read first frame from video: {video_path}")
+        return
+
+    output_root.mkdir(parents=True, exist_ok=True)
+    source_image_path = output_root / f"{frame_name}.png"
+    cv2.imwrite(
+        str(source_image_path),
+        cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR),
+    )
+    image_pil = Image.fromarray(image_rgb)
+    h, w = image_rgb.shape[:2]
 
     # Get objects from PAG
     objects = parse_pag_objects(str(pag_path))
     print(f"Objects to process: {objects}")
     print(f"Source frame: {frame_name}")
+    print(f"Source video: {video_path}")
+    print(f"Saved source frame: {source_image_path}")
 
     # Load SAM3 model
     _, sam3_processor = load_sam3_model(
         confidence_threshold=args.confidence,
         device=args.device,
     )
-
-    # Load image
-    image_pil = Image.open(str(image_path)).convert("RGB")
-    image_rgb = np.array(image_pil)
-    h, w = image_rgb.shape[:2]
 
     # Process each object
     results_summary = []
@@ -281,7 +365,8 @@ def main():
             bbox_metadata = {
                 "object": obj_name,
                 "source_frame": frame_name,
-                "source_image": str(image_path),
+                "source_image": str(source_image_path),
+                "source_video": str(video_path),
                 "image_size": [w, h],
                 "bbox": bbox,
                 "confidence": score,
@@ -305,7 +390,8 @@ def main():
     with open(summary_path, "w") as f:
         json.dump({
             "source_frame": frame_name,
-            "source_image": str(image_path),
+            "source_image": str(source_image_path),
+            "source_video": str(video_path),
             "pag_file": str(pag_path),
             "objects": results_summary,
         }, f, indent=2)
