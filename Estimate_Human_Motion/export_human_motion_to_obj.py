@@ -9,9 +9,10 @@ from tqdm import tqdm
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--result_path",
+        "--video_dir",
         type=str,
-        default="output_human_motion/video_02/hmr4d_results.pt",
+        default="output/video_02",
+        help="Directory containing hmr4d_results.pt.",
     )
     parser.add_argument(
         "--smpl_folder",
@@ -24,7 +25,7 @@ def main() -> None:
         default=None,
         help=(
             "Directory to save exported OBJ files. If not provided, defaults to "
-            "<result_path parent>/output_objs."
+            "<video_dir>/output_objs."
         ),
     )
     parser.add_argument(
@@ -35,12 +36,18 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    result_path = Path(args.result_path).resolve()
+    video_dir = Path(args.video_dir).resolve()
+    result_path = video_dir / "hmr4d_results.pt"
     smpl_folder = Path(args.smpl_folder).resolve()
     smplx2smpl_path = Path(args.smplx2smpl_path).resolve()
 
+    if not video_dir.exists() or not video_dir.is_dir():
+        raise NotADirectoryError(f"Video directory not found: {video_dir}")
+    if not result_path.exists():
+        raise FileNotFoundError(f"Could not find hmr4d_results.pt in: {video_dir}")
+
     if args.output_dir is None:
-        output_dir = result_path.parent / "output_objs"
+        output_dir = video_dir / "output_objs"
     else:
         output_dir = Path(args.output_dir).resolve()
 
