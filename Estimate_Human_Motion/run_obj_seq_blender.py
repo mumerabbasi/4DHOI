@@ -1,8 +1,7 @@
 import bpy
 import os
-import math
 
-OBJ_FOLDER = r"C:\Users\umerh\Desktop\Thesis Temp\video_01_f_20\output_objs"
+OBJ_FOLDER = r"C:\Users\umerh\Desktop\Thesis Temp\video_01_hm\output_objs"
 
 
 def import_obj_sequence():
@@ -40,7 +39,8 @@ def import_obj_sequence():
 
         # Rotate 180 degrees on Z-axis to convert it from OpenCV camera to PyTorch 3D camera.
         # To match with SAM3D-Objects meshes.
-        obj.rotation_euler = (0, 0, math.radians(180))
+        # Turning this off, as I'm converting sam3d objects into OpenCV camera coords for now.
+        # obj.rotation_euler = (0, 0, math.radians(180))
 
         # Link to collection
         for col in obj.users_collection:
