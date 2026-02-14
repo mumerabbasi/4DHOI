@@ -1,0 +1,15 @@
+{
+  "object": "ironing board",
+  "slug": "ironing_board",
+  "mask_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01/ironing_board/mask/frame_00.png",
+  "mask_area_px": 26540,
+  "track_point_density": 200.0,
+  "track_target_points": 5308,
+  "seed_points": 5308,
+  "num_frames": 81,
+  "tracks_file": "tracks.npy",
+  "visibility_file": "visibility.npy",
+  "trails_video": "trails.mp4",
+  "vis_point_percent": 2.5,
+  "vis_points_count": 133
+}

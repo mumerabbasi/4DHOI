@@ -7,24 +7,32 @@ Input:
 - --input_dir: directory like */videos/video_xx containing exactly one .mp4
 
 Output (created under THIS script's directory):
-./output/video_xx/
+./output_waft/video_xx/
   |_ _frames/                   extracted frames (BGR PNGs)
   |_ _frames_visualization/     flow visualization PNGs
   |_ _frames_arrows/            arrow overlay PNGs on source frames
   |_ optical_flow/              raw flow .npy files
   |_ visualization.mp4          flow visualization video (MP4)
   |_ arrows.mp4                 arrow overlay video (MP4)
+  |_ <object_name>/             per-object visualization from masks
+      |_ trails.mp4             colored points + trails over video
+      |_ seed_points_frame0.npy
+      |_ tracks.npy             [T, N, 2]
+      |_ visibility.npy         [T, N] bool
+      |_ metadata.json
+  |_ run_summary.json
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Optional, Sequence, Tuple
 
 import cv2
 import numpy as np
@@ -54,7 +62,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--input_dir",
-        default="../Generate_Video/videos/video_00",
+        default="../Generate_Video/videos/video_01",
         type=str,
         help="Path to a directory like */videos/video_xx containing an .mp4.",
     )
@@ -105,6 +113,57 @@ def parse_args() -> argparse.Namespace:
         default=1.0,
         type=float,
         help="Scale factor for arrow length in visualization (default 1.0).",
+    )
+    parser.add_argument(
+        "--object_mesh_dir",
+        default=None,
+        type=str,
+        help=(
+            "Path to Generate_Object_Mesh output for this video. "
+            "Default: ../Generate_Object_Mesh/output/<video_xx>"
+        ),
+    )
+    parser.add_argument(
+        "--track_point_density",
+        default=200.0,
+        type=float,
+        help="Tracking seed density: points per 1000 mask pixels.",
+    )
+    parser.add_argument(
+        "--mask_threshold",
+        default=127,
+        type=int,
+        help="Threshold applied to mask grayscale image.",
+    )
+    parser.add_argument(
+        "--mask_erode_px",
+        default=2,
+        type=int,
+        help="Erode mask by this many pixels before point sampling.",
+    )
+    parser.add_argument(
+        "--trail_length",
+        default=10,
+        type=int,
+        help="Number of recent frames kept in trail visualization.",
+    )
+    parser.add_argument(
+        "--trails_fps",
+        default=6.0,
+        type=float,
+        help="Per-object trails FPS. If <= 0, falls back to source video FPS.",
+    )
+    parser.add_argument(
+        "--vis_point_percent",
+        default=2.5,
+        type=float,
+        help="Percentage of tracked points to visualize in trails.mp4. Range: (0, 100].",
+    )
+    parser.add_argument(
+        "--vis_seed",
+        default=1234,
+        type=int,
+        help="Random seed used for visualization point subsampling.",
     )
     return parser.parse_args()
 
@@ -402,6 +461,398 @@ def _close_ffmpeg(writer: Optional[subprocess.Popen]) -> None:
         writer.wait()
 
 
+def resolve_path(path_str: str, base_dir: Path) -> Path:
+    """Resolve path against base_dir when relative."""
+    path = Path(path_str)
+    if not path.is_absolute():
+        path = base_dir / path
+    return path.resolve()
+
+
+def find_single_summary(object_mesh_dir: Path) -> Path:
+    """Find exactly one segmentation summary file in object_mesh_dir."""
+    files = sorted(object_mesh_dir.glob("*_segmentation_summary.json"))
+    if not files:
+        raise FileNotFoundError(
+            "No segmentation summary JSON found in object mesh dir: "
+            f"{object_mesh_dir}"
+        )
+    if len(files) > 1:
+        names = [p.name for p in files]
+        raise RuntimeError(
+            "Expected exactly one segmentation summary JSON in "
+            f"{object_mesh_dir}, found: {names}"
+        )
+    return files[0]
+
+
+def make_track_colors(num_points: int) -> np.ndarray:
+    """Create distinct BGR colors for each tracked point."""
+    if num_points <= 0:
+        return np.zeros((0, 3), dtype=np.uint8)
+
+    hsv = np.zeros((num_points, 1, 3), dtype=np.uint8)
+    for i in range(num_points):
+        hue = int((179 * i) / max(1, num_points))
+        hsv[i, 0] = (hue, 255, 255)
+    return cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)[:, 0, :]
+
+
+def sample_visualization_indices(
+    num_points: int,
+    percent: float,
+    seed: int,
+) -> np.ndarray:
+    """Uniformly sample point indices for visualization only."""
+    if num_points <= 0:
+        return np.zeros((0,), dtype=np.int32)
+
+    if percent <= 0 or percent > 100:
+        raise ValueError(f"--vis_point_percent must be in (0, 100], got {percent}")
+
+    keep = int(np.ceil(num_points * (percent / 100.0)))
+    keep = max(1, min(num_points, keep))
+
+    rng = np.random.default_rng(seed)
+    idx = rng.choice(num_points, size=keep, replace=False)
+    return np.sort(idx.astype(np.int32))
+
+
+def render_trails_video(
+    frames_bgr: Sequence[np.ndarray],
+    tracks: np.ndarray,
+    visibility: np.ndarray,
+    out_path: Path,
+    fps: float,
+    trail_length: int,
+    point_indices: Optional[np.ndarray] = None,
+) -> None:
+    """Render colored points and short trails from 2D tracks."""
+    if len(frames_bgr) == 0:
+        raise RuntimeError("No frames available for trail rendering")
+
+    if point_indices is not None:
+        tracks = tracks[:, point_indices]
+        visibility = visibility[:, point_indices]
+
+    h, w = frames_bgr[0].shape[:2]
+    num_frames, num_points = tracks.shape[:2]
+    colors = make_track_colors(num_points)
+    writer = start_ffmpeg_writer(out_path, fps, (h, w))
+    trail_len = max(1, int(trail_length))
+
+    def clamp_xy(xy: np.ndarray) -> Tuple[int, int]:
+        x = int(np.clip(np.round(xy[0]), 0, w - 1))
+        y = int(np.clip(np.round(xy[1]), 0, h - 1))
+        return x, y
+
+    for t in range(min(num_frames, len(frames_bgr))):
+        canvas = frames_bgr[t].copy()
+        t0 = max(0, t - trail_len + 1)
+
+        for p_idx in range(num_points):
+            color = tuple(int(v) for v in colors[p_idx])
+            prev = None
+            for k in range(t0, t + 1):
+                if not bool(visibility[k, p_idx]):
+                    prev = None
+                    continue
+                curr = clamp_xy(tracks[k, p_idx])
+                if prev is not None:
+                    alpha = (k - t0 + 1) / max(1, (t - t0 + 1))
+                    line_color = tuple(int(alpha * ch) for ch in color)
+                    cv2.line(canvas, prev, curr, line_color, 2)
+                prev = curr
+
+            if bool(visibility[t, p_idx]):
+                curr = clamp_xy(tracks[t, p_idx])
+                cv2.circle(canvas, curr, 2, color, -1)
+
+        if writer.stdin is None:
+            raise RuntimeError("ffmpeg stdin is closed")
+        writer.stdin.write(np.ascontiguousarray(canvas).tobytes())
+
+    _close_ffmpeg(writer)
+
+
+def erode_mask(mask: np.ndarray, erode_px: int) -> np.ndarray:
+    """Erode binary mask by erode_px pixels."""
+    if erode_px <= 0:
+        return mask
+    kernel_size = int(2 * erode_px + 1)
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+    return cv2.erode(mask.astype(np.uint8), kernel, iterations=1)
+
+
+def sample_points_from_mask(mask: np.ndarray, max_points: int, seed: int) -> np.ndarray:
+    """Randomly sample up to max_points (x, y) from a binary mask."""
+    ys, xs = np.where(mask > 0)
+    if len(xs) == 0:
+        return np.zeros((0, 2), dtype=np.float32)
+
+    rng = np.random.default_rng(seed)
+    idx = np.arange(len(xs))
+    rng.shuffle(idx)
+    idx = idx[: min(len(idx), int(max_points))]
+
+    points_xy = np.stack([xs[idx], ys[idx]], axis=1).astype(np.float32)
+    return points_xy
+
+
+def compute_target_track_points(
+    mask_area_px: int,
+    density_per_1kpx: float,
+) -> int:
+    """Compute target tracking points from mask area and density."""
+    if density_per_1kpx <= 0:
+        raise ValueError(f"--track_point_density must be > 0, got {density_per_1kpx}")
+
+    target = int(np.ceil((float(mask_area_px) * density_per_1kpx) / 1000.0))
+    return max(1, target)
+
+
+def normalize_slug(obj_info: dict[str, Any]) -> str:
+    """Resolve stable object slug from summary object entry."""
+    if "output_dir" in obj_info and obj_info["output_dir"]:
+        return Path(str(obj_info["output_dir"])).name
+    return str(obj_info.get("object", "object")).replace(" ", "_")
+
+
+def resolve_mask_path(object_mesh_dir: Path, obj_info: dict[str, Any]) -> Path:
+    """Resolve frame-0 mask path for one object."""
+    slug = normalize_slug(obj_info)
+
+    if "output_dir" in obj_info and obj_info["output_dir"]:
+        obj_dir = Path(str(obj_info["output_dir"]))
+    else:
+        obj_dir = object_mesh_dir / slug
+
+    mask_rel = str(obj_info.get("mask_file", "mask/frame_00.png"))
+    mask_path = obj_dir / mask_rel
+    if mask_path.exists():
+        return mask_path
+
+    return object_mesh_dir / slug / "mask" / "frame_00.png"
+
+
+def load_frames_bgr(frames_dir: Path, num_frames: int) -> list[np.ndarray]:
+    """Load extracted frames as BGR arrays."""
+    frames_bgr = []
+    for idx in range(num_frames):
+        frame_path = frames_dir / f"frame_{idx:04d}.png"
+        frame = cv2.imread(str(frame_path), cv2.IMREAD_COLOR)
+        if frame is None:
+            raise RuntimeError(f"Failed to read frame: {frame_path}")
+        frames_bgr.append(frame)
+    return frames_bgr
+
+
+def propagate_tracks_from_flow(
+    seed_xy: np.ndarray,
+    flow_dir: Path,
+    num_frames: int,
+    width: int,
+    height: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Propagate seed points using dense frame-to-frame optical flow."""
+    num_points = int(seed_xy.shape[0])
+    tracks = np.zeros((num_frames, num_points, 2), dtype=np.float32)
+    visibility = np.zeros((num_frames, num_points), dtype=np.bool_)
+    if num_points == 0:
+        return tracks, visibility
+
+    u = seed_xy.astype(np.float32).copy()
+    alive = np.ones(num_points, dtype=bool)
+    tracks[0] = u
+    visibility[0] = alive
+
+    for t in range(num_frames - 1):
+        flow_path = flow_dir / f"frame_{t:04d}.npy"
+        if not flow_path.exists():
+            raise FileNotFoundError(f"Missing flow file: {flow_path}")
+
+        flow = np.load(str(flow_path)).astype(np.float32)
+        if flow.shape[:2] != (height, width) or flow.shape[2] != 2:
+            raise ValueError(f"Bad flow shape {flow.shape} at {flow_path}")
+
+        idx_alive = np.where(alive)[0]
+        if len(idx_alive) > 0:
+            x_idx = np.round(u[idx_alive, 0]).astype(np.int32)
+            y_idx = np.round(u[idx_alive, 1]).astype(np.int32)
+
+            in_bounds_before = (
+                (x_idx >= 0)
+                & (x_idx <= (width - 1))
+                & (y_idx >= 0)
+                & (y_idx <= (height - 1))
+            )
+            alive[idx_alive[~in_bounds_before]] = False
+            idx_alive = idx_alive[in_bounds_before]
+            if len(idx_alive) > 0:
+                x_safe = np.clip(x_idx[in_bounds_before], 0, width - 1)
+                y_safe = np.clip(y_idx[in_bounds_before], 0, height - 1)
+                d = flow[y_safe, x_safe]
+                finite = np.isfinite(d[:, 0]) & np.isfinite(d[:, 1])
+                alive[idx_alive[~finite]] = False
+
+                idx_valid = idx_alive[finite]
+                if len(idx_valid) > 0:
+                    u[idx_valid] = u[idx_valid] + d[finite]
+
+        in_bounds_after = (
+            (u[:, 0] >= 0.0)
+            & (u[:, 0] <= (width - 1))
+            & (u[:, 1] >= 0.0)
+            & (u[:, 1] <= (height - 1))
+        )
+        alive &= in_bounds_after
+        tracks[t + 1] = u
+        visibility[t + 1] = alive
+
+    return tracks, visibility
+
+
+def generate_object_trails(
+    paths: Paths,
+    args: argparse.Namespace,
+    num_frames: int,
+    video_fps: float,
+) -> None:
+    """Generate per-object colored trails.mp4 using frame-0 masks."""
+    video_name = paths.input_dir.name
+    if args.object_mesh_dir is None:
+        object_mesh_dir = (
+            paths.script_dir.parent / "Generate_Object_Mesh" / "output" / video_name
+        ).resolve()
+    else:
+        object_mesh_dir = resolve_path(args.object_mesh_dir, paths.script_dir)
+
+    if not object_mesh_dir.exists() or not object_mesh_dir.is_dir():
+        raise NotADirectoryError(f"Object mesh dir not found: {object_mesh_dir}")
+
+    summary_path = find_single_summary(object_mesh_dir)
+    with summary_path.open("r", encoding="utf-8") as f:
+        summary = json.load(f)
+
+    objects = [obj for obj in summary.get("objects", []) if obj.get("success", False)]
+    if not objects:
+        print(f"[WARN] No successful objects found in summary: {summary_path}")
+        return
+
+    frames_bgr = load_frames_bgr(paths.frames_dir, num_frames)
+    height, width = frames_bgr[0].shape[:2]
+    trails_fps = float(video_fps) if float(args.trails_fps) <= 0 else float(args.trails_fps)
+
+    run_summary = {
+        "video_dir": str(paths.input_dir),
+        "video_file": str(paths.input_mp4),
+        "summary_path": str(summary_path),
+        "num_frames": int(num_frames),
+        "height": int(height),
+        "width": int(width),
+        "track_point_density": float(args.track_point_density),
+        "vis_point_percent": float(args.vis_point_percent),
+        "objects": [],
+    }
+
+    print(f"[INFO] object_mesh_dir: {object_mesh_dir}")
+    print(f"[INFO] summary: {summary_path.name}")
+
+    for obj_idx, obj_info in enumerate(objects):
+        obj_name = str(obj_info.get("object", f"object_{obj_idx}"))
+        slug = normalize_slug(obj_info)
+        mask_path = resolve_mask_path(object_mesh_dir, obj_info)
+
+        print(f"\n[OBJECT {obj_idx + 1}/{len(objects)}] {obj_name} ({slug})")
+
+        if not mask_path.exists():
+            print(f"[WARN] Mask not found, skipping: {mask_path}")
+            continue
+
+        mask_gray = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
+        if mask_gray is None:
+            print(f"[WARN] Failed to read mask, skipping: {mask_path}")
+            continue
+
+        if mask_gray.shape[:2] != (height, width):
+            mask_gray = cv2.resize(mask_gray, (width, height), interpolation=cv2.INTER_NEAREST)
+
+        mask_bin = (mask_gray > int(args.mask_threshold)).astype(np.uint8)
+        mask_bin = erode_mask(mask_bin, int(args.mask_erode_px))
+        mask_area_px = int(mask_bin.sum())
+        if mask_area_px <= 0:
+            print("[WARN] Empty mask area after threshold/erosion, skipping")
+            continue
+
+        target_track_points = compute_target_track_points(
+            mask_area_px=mask_area_px,
+            density_per_1kpx=float(args.track_point_density),
+        )
+
+        seed_xy = sample_points_from_mask(
+            mask=mask_bin,
+            max_points=target_track_points,
+            seed=42 + obj_idx,
+        )
+        if len(seed_xy) == 0:
+            print("[WARN] No valid seed points after mask filtering, skipping")
+            continue
+
+        tracks, visibility = propagate_tracks_from_flow(
+            seed_xy=seed_xy,
+            flow_dir=paths.flow_dir,
+            num_frames=num_frames,
+            width=width,
+            height=height,
+        )
+
+        vis_indices = sample_visualization_indices(
+            num_points=tracks.shape[1],
+            percent=float(args.vis_point_percent),
+            seed=int(args.vis_seed) + obj_idx,
+        )
+
+        obj_out = paths.out_video_dir / slug
+        clear_dir(obj_out)
+        np.save(str(obj_out / "seed_points_frame0.npy"), seed_xy.astype(np.float32))
+        np.save(str(obj_out / "tracks.npy"), tracks.astype(np.float32))
+        np.save(str(obj_out / "visibility.npy"), visibility.astype(np.bool_))
+
+        render_trails_video(
+            frames_bgr=frames_bgr,
+            tracks=tracks,
+            visibility=visibility,
+            out_path=obj_out / "trails.mp4",
+            fps=trails_fps,
+            trail_length=int(args.trail_length),
+            point_indices=vis_indices,
+        )
+
+        metadata = {
+            "object": obj_name,
+            "slug": slug,
+            "mask_path": str(mask_path),
+            "mask_area_px": mask_area_px,
+            "track_point_density": float(args.track_point_density),
+            "track_target_points": int(target_track_points),
+            "seed_points": int(len(seed_xy)),
+            "num_frames": int(tracks.shape[0]),
+            "tracks_file": "tracks.npy",
+            "visibility_file": "visibility.npy",
+            "trails_video": "trails.mp4",
+            "vis_point_percent": float(args.vis_point_percent),
+            "vis_points_count": int(len(vis_indices)),
+        }
+        with (obj_out / "metadata.json").open("w", encoding="utf-8") as f:
+            json.dump(metadata, f, indent=2)
+
+        run_summary["objects"].append(metadata)
+        print(f"[OK] Saved: {obj_out}")
+
+    with (paths.out_video_dir / "run_summary.json").open("w", encoding="utf-8") as f:
+        json.dump(run_summary, f, indent=2)
+
+
 def run_flow(
     wrapped_model,
     frames_dir: Path,
@@ -519,6 +970,14 @@ def main() -> None:
         fps=fps,
         arrow_scale=float(args.arrow_scale),
     )
+    print("[OK] Saved dense optical flow and global visualizations")
+
+    generate_object_trails(
+        paths=paths,
+        args=args,
+        num_frames=num_frames,
+        video_fps=fps,
+    )
 
     print(f"[OK] Saved frames -> {paths.frames_dir}")
     print(f"[OK] Saved flow PNGs -> {paths.frames_vis_dir}")
@@ -526,6 +985,7 @@ def main() -> None:
     print(f"[OK] Saved flows -> {paths.flow_dir}")
     print(f"[OK] Saved video -> {paths.vis_mp4_path}")
     print(f"[OK] Saved arrows video -> {paths.arrows_mp4_path}")
+    print(f"[OK] Saved object trails summary -> {paths.out_video_dir / 'run_summary.json'}")
 
 
 if __name__ == "__main__":
