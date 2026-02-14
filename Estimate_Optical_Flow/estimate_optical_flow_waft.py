@@ -64,7 +64,7 @@ def parse_args() -> argparse.Namespace:
         type=str,
         help=(
             "Output directory for this video. "
-            "Default: <script_dir>/output/<video_xx>"
+            "Default: <script_dir>/output_waft/<video_xx>"
         ),
     )
     parser.add_argument(
@@ -145,7 +145,7 @@ def build_paths(args: argparse.Namespace) -> Paths:
             out_video_dir = script_dir / out_video_dir
         out_video_dir = out_video_dir.resolve()
     else:
-        out_video_dir = (script_dir / "output" / video_name).resolve()
+        out_video_dir = (script_dir / "output_waft" / video_name).resolve()
 
     frames_dir = out_video_dir / "_frames"
     frames_vis_dir = out_video_dir / "_frames_visualization"

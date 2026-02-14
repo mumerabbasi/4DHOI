@@ -75,7 +75,7 @@ def import_glb_sequence():
         for obj in mesh_objs:
             obj.name = f"Frame_{i:04d}"
 
-            # Rotate 180 deg around Z (OpenCV camera convention in your Blender setup)
+            # Rotate 180 deg around Z (to convert to OpenCV camera convention)
             obj.rotation_mode = "XYZ"
             obj.rotation_euler = (0.0, 0.0, math.radians(180.0))
 
