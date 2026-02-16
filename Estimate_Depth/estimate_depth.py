@@ -174,7 +174,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--video_dir",
         type=str,
-        default="../Generate_Video/videos/video_01",
+        default="/my_workspace/4DHHOI/Scene-Flow-From-Diffusion/Videos/bori_01",
         help=(
             "Directory like */video_xx containing exactly one .mp4, "
             "or a direct path to an .mp4 file."
