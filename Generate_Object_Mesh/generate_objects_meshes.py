@@ -43,10 +43,11 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import cv2
 import numpy as np
+import torch
 import trimesh
 
 # Configuration
@@ -87,6 +88,106 @@ R_Z_UP_TO_Y_UP = np.array([
 F_P3D_TO_CV = np.diag([-1.0, -1.0, 1.0]).astype(np.float32)
 
 SENSOR_WIDTH_MM = 36.0  # Full-frame sensor width for focal length conversion
+SENSOR_HEIGHT_MM = 24.0  # Full-frame sensor height for focal length conversion
+DEFAULT_FOCAL_LENGTH_MM = 24.0
+
+
+def estimate_camera_intrinsics_from_moge(
+    sam3d: Any,
+    image_rgb: np.ndarray,
+    sensor_width_mm: float = SENSOR_WIDTH_MM,
+    sensor_height_mm: float = SENSOR_HEIGHT_MM,
+) -> Optional[Dict[str, Any]]:
+    """Estimate camera intrinsics from MoGe and derive focal lengths in mm."""
+    try:
+        pipeline = getattr(sam3d, "_pipeline", None)
+        if pipeline is None:
+            raise AttributeError("SAM3D inference object has no '_pipeline' attribute")
+
+        depth_model = getattr(pipeline, "depth_model", None)
+        if depth_model is None:
+            raise AttributeError("SAM3D pipeline has no 'depth_model' attribute")
+
+        h, w = image_rgb.shape[:2]
+        image_tensor = torch.from_numpy(image_rgb).permute(2, 0, 1).float() / 255.0
+
+        with torch.no_grad():
+            depth_output = depth_model(image_tensor)
+
+        intrinsics = depth_output.get("intrinsics", None)
+        if intrinsics is None:
+            raise ValueError("MoGe output did not contain 'intrinsics'")
+
+        if hasattr(intrinsics, "detach"):
+            intrinsics = intrinsics.detach().cpu().numpy()
+        else:
+            intrinsics = np.asarray(intrinsics)
+
+        if intrinsics.ndim == 3:
+            intrinsics = intrinsics[0]
+
+        # MoGe intrinsics are normalized to image size.
+        fx_px = float(intrinsics[0, 0]) * w
+        fy_px = float(intrinsics[1, 1]) * h
+        cx_px = float(intrinsics[0, 2]) * w
+        cy_px = float(intrinsics[1, 2]) * h
+
+        focal_mm_x = fx_px * sensor_width_mm / float(w)
+        focal_mm_y = fy_px * sensor_height_mm / float(h)
+
+        intrinsics_px = np.array(
+            [
+                [fx_px, 0.0, cx_px],
+                [0.0, fy_px, cy_px],
+                [0.0, 0.0, 1.0],
+            ],
+            dtype=np.float32,
+        )
+
+        # Recommended single lens value for Blender with sensor fit=HORIZONTAL.
+        focal_mm_recommended = focal_mm_x
+
+        camera_info = {
+            "source": "moge_from_sam3d_depth_model",
+            "image_size_px": {"width": int(w), "height": int(h)},
+            "intrinsics_normalized_3x3": intrinsics.tolist(),
+            "intrinsics_pixels_3x3": intrinsics_px.tolist(),
+            "fx_px": fx_px,
+            "fy_px": fy_px,
+            "cx_px": cx_px,
+            "cy_px": cy_px,
+            "sensor_width_mm_assumed": float(sensor_width_mm),
+            "sensor_height_mm_assumed": float(sensor_height_mm),
+            "focal_length_mm_x": float(focal_mm_x),
+            "focal_length_mm_y": float(focal_mm_y),
+            "focal_length_mm_recommended": float(focal_mm_recommended),
+            "blender_recommendation": {
+                "sensor_fit": "HORIZONTAL",
+                "lens_mm": float(focal_mm_recommended),
+                "sensor_width_mm": float(sensor_width_mm),
+                "sensor_height_mm": float(sensor_height_mm),
+                "note": "Lens uses fx with full-frame horizontal fit.",
+            },
+        }
+
+        print(
+            "Auto-estimated intrinsics from MoGe: "
+            f"fx={fx_px:.1f}px, fy={fy_px:.1f}px | "
+            f"lens={focal_mm_recommended:.2f}mm (recommended)"
+        )
+        return camera_info
+
+    except Exception as e:
+        print(f"Warning: failed to estimate intrinsics from MoGe ({e}).")
+        return None
+
+
+def save_camera_intrinsics_json(camera_info: Dict[str, Any], output_path: Path) -> None:
+    """Save camera intrinsics metadata to JSON."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w") as f:
+        json.dump(camera_info, f, indent=2)
+    print(f"Saved: {output_path}")
 
 
 def render_posed_mesh_overlay(
@@ -296,6 +397,29 @@ def quaternion_to_rotation_matrix(quat: np.ndarray) -> np.ndarray:
     return rot
 
 
+def quaternion_to_euler_xyz_degrees(quat: np.ndarray) -> np.ndarray:
+    """Convert quaternion (w, x, y, z) to Euler XYZ angles in degrees."""
+    w, x, y, z = quat
+
+    norm = np.sqrt(w * w + x * x + y * y + z * z)
+    w, x, y, z = w / norm, x / norm, y / norm, z / norm
+
+    # XYZ Tait-Bryan angles
+    t0 = 2.0 * (w * x + y * z)
+    t1 = 1.0 - 2.0 * (x * x + y * y)
+    roll_x = np.arctan2(t0, t1)
+
+    t2 = 2.0 * (w * y - z * x)
+    t2 = np.clip(t2, -1.0, 1.0)
+    pitch_y = np.arcsin(t2)
+
+    t3 = 2.0 * (w * z + x * y)
+    t4 = 1.0 - 2.0 * (y * y + z * z)
+    yaw_z = np.arctan2(t3, t4)
+
+    return np.degrees(np.array([roll_x, pitch_y, yaw_z], dtype=np.float32))
+
+
 def apply_transform_to_vertices(
     vertices: np.ndarray,
     scale: np.ndarray,
@@ -471,12 +595,13 @@ def save_outputs(
     output_dir: Path,
     image_rgb: np.ndarray = None,
     focal_length_mm: float = 50.0,
+    camera_intrinsics_json: Optional[Path] = None,
 ) -> trimesh.Trimesh | None:
     """Save canonical mesh, posed mesh, and transform data.
 
     Saves:
         - output_dir/mesh.glb (canonical mesh in Y-up; NOT scaled/transformed)
-        - output_dir/pose.json (transform keys from SAM 3D Objects output)
+        - output_dir/pose.json (transform keys + Euler XYZ degrees + camera json path)
         - output_dir/mesh_posed.glb (mesh in camera frame, Y-up)
         - output_dir/mesh_posed_overlay.png (posed mesh overlaid on source image)
 
@@ -491,6 +616,7 @@ def save_outputs(
         output_dir: Directory to save outputs.
         image_rgb: Source image for overlay rendering.
         focal_length_mm: Focal length in mm for perspective projection.
+        camera_intrinsics_json: Optional path to frame-level intrinsics JSON.
 
     Returns:
         The posed mesh in Y-up coordinates.
@@ -506,20 +632,6 @@ def save_outputs(
     glb_path = output_dir / "mesh.glb"
     canonical_mesh.export(str(glb_path))
     print("    Saved: mesh.glb (canonical, Y-up)")
-
-    # Build transform data for pose.json
-    transform_data: Dict[str, Any] = {}
-    for key in sorted(KEYS_TO_SAVE):
-        if key in output:
-            transform_data[key] = _to_jsonable(output[key])
-        else:
-            print(f"    Warning: key not found in output: {key}")
-
-    # Save pose.json (always saved)
-    pose_path = output_dir / "pose.json"
-    with open(pose_path, "w") as f:
-        json.dump(transform_data, f, indent=2)
-    print("    Saved: pose.json")
 
     required_keys = {"rotation", "translation", "scale"}
     missing_keys = sorted(required_keys.difference(output))
@@ -538,10 +650,32 @@ def save_outputs(
         _to_jsonable(output["scale"]),
         dtype=np.float32,
     ).flatten()
+    euler_xyz_deg = quaternion_to_euler_xyz_degrees(rotation_quat)
 
     print(f"    Rotation (quat): {rotation_quat}")
+    print(f"    Rotation (euler xyz deg): {euler_xyz_deg}")
     print(f"    Translation: {translation}")
     print(f"    Scale: {scale}")
+
+    # Build transform data for pose.json
+    transform_data: Dict[str, Any] = {}
+    for key in sorted(KEYS_TO_SAVE):
+        if key in output:
+            transform_data[key] = _to_jsonable(output[key])
+        else:
+            print(f"    Warning: key not found in output: {key}")
+    transform_data["rotation_quaternion_wxyz"] = rotation_quat.tolist()
+    transform_data["rotation_euler_xyz_degrees"] = euler_xyz_deg.tolist()
+    transform_data["rotation_euler_order"] = "XYZ"
+    transform_data["focal_length_mm_used_for_overlay"] = float(focal_length_mm)
+    if camera_intrinsics_json is not None:
+        transform_data["camera_intrinsics_json"] = str(camera_intrinsics_json)
+
+    # Save pose.json (always saved)
+    pose_path = output_dir / "pose.json"
+    with open(pose_path, "w") as f:
+        json.dump(transform_data, f, indent=2)
+    print("    Saved: pose.json")
 
     # Create posed mesh (handles Y-up <-> Z-up conversions internally)
     posed_mesh = create_posed_mesh(
@@ -573,7 +707,7 @@ def save_outputs(
 def process_from_summary(
     summary_path: Path,
     sam3d,
-    focal_length_mm: float = 50.0,
+    focal_length_mm: Optional[float] = None,
 ) -> None:
     """Process all objects from a segmentation summary file.
 
@@ -581,6 +715,7 @@ def process_from_summary(
         summary_path: Path to segmentation summary JSON.
         sam3d: SAM 3D Objects inference instance.
         focal_length_mm: Focal length in mm for overlay rendering.
+            If None, estimated from MoGe intrinsics.
 
     Also saves:
         - Individual overlay per object: <object_dir>/mesh_posed_overlay.png
@@ -601,6 +736,34 @@ def process_from_summary(
         print(f"Error: Could not load source image: {source_image_path}")
         return
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
+    camera_info = estimate_camera_intrinsics_from_moge(sam3d, image_rgb)
+
+    if camera_info is None:
+        h, w = image_rgb.shape[:2]
+        camera_info = {
+            "source": "fallback_default",
+            "image_size_px": {"width": int(w), "height": int(h)},
+            "sensor_width_mm_assumed": float(SENSOR_WIDTH_MM),
+            "sensor_height_mm_assumed": float(SENSOR_HEIGHT_MM),
+            "focal_length_mm_recommended": float(DEFAULT_FOCAL_LENGTH_MM),
+            "note": "MoGe intrinsics estimation failed; using default focal length.",
+        }
+
+    if focal_length_mm is None:
+        resolved_focal_length_mm = float(
+            camera_info.get("focal_length_mm_recommended", DEFAULT_FOCAL_LENGTH_MM)
+        )
+        print(f"Using auto focal length: {resolved_focal_length_mm:.2f}mm")
+    else:
+        resolved_focal_length_mm = float(focal_length_mm)
+        print(f"Using user-provided focal length: {resolved_focal_length_mm:.2f}mm")
+
+    camera_info["focal_length_mm_used_for_overlay"] = float(resolved_focal_length_mm)
+    if focal_length_mm is not None:
+        camera_info["focal_length_mm_user_override"] = float(focal_length_mm)
+
+    camera_intrinsics_json = output_root / "camera_intrinsics.json"
+    save_camera_intrinsics_json(camera_info, camera_intrinsics_json)
 
     # Collect posed meshes for combined overlay
     posed_meshes = []
@@ -654,7 +817,8 @@ def process_from_summary(
                 output,
                 output_dir,
                 image_rgb=image_rgb,
-                focal_length_mm=focal_length_mm,
+                focal_length_mm=resolved_focal_length_mm,
+                camera_intrinsics_json=camera_intrinsics_json,
             )
 
             # Collect for combined overlay
@@ -673,7 +837,7 @@ def process_from_summary(
             image_rgb,
             posed_meshes,
             object_names,
-            focal_length_mm=focal_length_mm,
+            focal_length_mm=resolved_focal_length_mm,
         )
         combined_overlay_path = output_root / f"{frame_name}_all_objects_overlay.png"
         cv2.imwrite(str(combined_overlay_path), combined_overlay)
@@ -709,16 +873,16 @@ def main():
     parser.add_argument(
         "--input_dir",
         type=str,
-        default="./output/video_02",
+        default="./output/video_01",
         help="Directory containing '*_segmentation_summary.json'.",
     )
     parser.add_argument(
         "--focal_length",
         type=float,
-        default=24.0,
+        default=None,
         help=(
             "Focal length in mm for perspective projection in overlay rendering. "
-            "Default: 24mm (assumes 36mm sensor width)."
+            "If omitted, estimate from MoGe intrinsics."
         ),
     )
     args = parser.parse_args()
@@ -734,7 +898,10 @@ def main():
     print("SAM 3D Objects loaded successfully\n")
 
     print("Mode: Generating canonical + posed meshes")
-    print(f"Focal length: {args.focal_length}mm")
+    if args.focal_length is None:
+        print("Focal length: auto (MoGe intrinsics)")
+    else:
+        print(f"Focal length: {args.focal_length}mm")
     print()
 
     process_from_summary(
