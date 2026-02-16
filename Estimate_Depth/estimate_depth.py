@@ -121,6 +121,32 @@ def save_depth_artifacts(
     }
 
 
+def compute_focal_length_mm_from_intrinsics(
+    intrinsics: np.ndarray,
+    image_width_px: int,
+    sensor_width_mm: float = 36.0,
+) -> dict[str, Any]:
+    """Compute focal length in mm from fx (pixels) and sensor width."""
+    if image_width_px <= 0:
+        raise ValueError(f"image_width_px must be > 0, got: {image_width_px}")
+    if sensor_width_mm <= 0:
+        raise ValueError(f"sensor_width_mm must be > 0, got: {sensor_width_mm}")
+
+    k = np.asarray(intrinsics, dtype=np.float32)
+    if k.ndim != 3 or k.shape[1:] != (3, 3):
+        raise ValueError(f"Expected intrinsics shape (N,3,3), got: {k.shape}")
+
+    fx_px = k[:, 0, 0].astype(np.float64)
+    focal_mm = fx_px * (float(sensor_width_mm) / float(image_width_px))
+    return {
+        "sensor_width_mm_assumed": float(sensor_width_mm),
+        "image_width_px_for_intrinsics": int(image_width_px),
+        "fx_px_per_view": fx_px.tolist(),
+        "focal_length_mm_per_view": focal_mm.tolist(),
+        "focal_length_mm_mean": float(focal_mm.mean()),
+    }
+
+
 def parse_device(device: str) -> torch.device:
     """Validate and parse a torch device string."""
     device = device.strip()
@@ -279,6 +305,12 @@ def main() -> None:
     if prediction.extrinsics is None or prediction.intrinsics is None:
         raise RuntimeError("Pose estimation outputs are missing extrinsics/intrinsics.")
 
+    model_depth_w = int(prediction.depth.shape[2])
+    focal_info = compute_focal_length_mm_from_intrinsics(
+        intrinsics=prediction.intrinsics,
+        image_width_px=model_depth_w,
+        sensor_width_mm=36.0,
+    )
     metric_depth = prediction.depth[0].astype(np.float32)
 
     scale_factor = prediction.scale_factor
@@ -316,6 +348,8 @@ def main() -> None:
     pose_json = {
         "extrinsics": prediction.extrinsics.tolist(),
         "intrinsics": prediction.intrinsics.tolist(),
+        "focal_length": focal_info,
+        "focal_length_mm": float(focal_info["focal_length_mm_mean"]),
         "scale_factor": scale_factor_f,
         "is_metric": int(prediction.is_metric),
         "device": str(device),
@@ -332,6 +366,7 @@ def main() -> None:
         "model_id": args.model_id,
         "device": str(device),
         "process_res_used": int(process_res),
+        "focal_length_mm": float(focal_info["focal_length_mm_mean"]),
         "artifacts": {
             "relative_depth": relative_artifacts,
             "metric_depth": metric_artifacts,
