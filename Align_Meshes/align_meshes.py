@@ -98,22 +98,6 @@ def ensure_3x4_extrinsics(raw: Any | None) -> np.ndarray | None:
     return arr
 
 
-def find_segmentation_summary(object_video_dir: Path) -> Path:
-    preferred = object_video_dir / "frame_00_segmentation_summary.json"
-    if preferred.exists():
-        return preferred
-    matches = sorted(object_video_dir.glob("*_segmentation_summary.json"))
-    if len(matches) == 1:
-        return matches[0]
-    if not matches:
-        raise FileNotFoundError(
-            f"No '*_segmentation_summary.json' found in {object_video_dir}"
-        )
-    raise RuntimeError(
-        f"Multiple segmentation summaries found in {object_video_dir}: {[m.name for m in matches]}"
-    )
-
-
 def load_mesh(path: Path) -> tuple[np.ndarray, np.ndarray]:
     mesh = trimesh.load(str(path), force="mesh")
     if not isinstance(mesh, trimesh.Trimesh):
@@ -325,6 +309,60 @@ def save_mesh_obj(path: Path, verts: np.ndarray, faces: np.ndarray) -> None:
     mesh.export(str(path))
 
 
+def export_meshes_and_transforms(
+    assets: list[MeshAsset],
+    verts_aligned: list[np.ndarray],
+    rotvec_axis_angle: np.ndarray,
+    rots_np: np.ndarray,
+    scales_np: np.ndarray,
+    t_np: np.ndarray,
+    meshes_out_dir: Path,
+    transforms_out_path: Path,
+) -> list[dict[str, Any]]:
+    meshes_out_dir.mkdir(parents=True, exist_ok=True)
+
+    transforms_out: list[dict[str, Any]] = []
+    for j, asset in enumerate(assets):
+        out_mesh_path = meshes_out_dir / f"{asset.slug}.obj"
+        save_mesh_obj(out_mesh_path, verts_aligned[j], asset.faces)
+
+        c = asset.source_to_cv.astype(np.float32)
+        r = rots_np[j].astype(np.float32)
+        s = float(scales_np[j])
+        t = t_np[j].astype(np.float32)
+
+        source_to_cv_4x4 = np.eye(4, dtype=np.float32)
+        source_to_cv_4x4[:3, :3] = c
+
+        source_to_aligned_4x4 = np.eye(4, dtype=np.float32)
+        source_to_aligned_4x4[:3, :3] = (s * r @ c).astype(np.float32)
+        source_to_aligned_4x4[:3, 3] = t
+
+        transforms_out.append(
+            {
+                "name": asset.name,
+                "slug": asset.slug,
+                "kind": asset.kind,
+                "source_mesh_path": str(asset.source_mesh_path),
+                "source_coordinate": asset.source_coord,
+                "source_to_cv_rotation_3x3": c.tolist(),
+                "source_to_cv_matrix_4x4": source_to_cv_4x4.tolist(),
+                "optimized_similarity_in_cv": {
+                    "scale": s,
+                    "rotation_axis_angle": rotvec_axis_angle[j].tolist(),
+                    "rotation_matrix_3x3": r.tolist(),
+                    "translation_xyz_m": t.tolist(),
+                },
+                "source_to_aligned_matrix_4x4": source_to_aligned_4x4.tolist(),
+                "aligned_mesh_obj": str(out_mesh_path),
+            }
+        )
+
+    with open(transforms_out_path, "w", encoding="utf-8") as f:
+        json.dump({"transforms": transforms_out}, f, indent=2)
+    return transforms_out
+
+
 def project_points_cv(
     points_cv: np.ndarray,
     k: np.ndarray,
@@ -526,9 +564,18 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--min_scale", type=float, default=0.2)
     parser.add_argument("--max_scale", type=float, default=5.0)
-    parser.add_argument("--max_rot_deg", type=float, default=45.0)
+    parser.add_argument("--max_rot_deg", type=float, default=5.0)
     parser.add_argument("--log_every", type=int, default=10)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--save_stage_outputs",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Save per-stage outputs (OBJ meshes + combined transforms.json) "
+            "in meshes_stage_1, meshes_stage_2, ..."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -564,23 +611,38 @@ def main() -> None:
     if not human_video_dir.exists():
         raise FileNotFoundError(f"Human dir not found: {human_video_dir}")
 
-    summary_path = find_segmentation_summary(object_video_dir)
+    summary_path = object_video_dir / "frame_00_segmentation_summary.json"
+    if not summary_path.exists():
+        raise FileNotFoundError(f"Segmentation summary not found: {summary_path}")
     summary = load_json(summary_path)
 
     pose_json_path = depth_video_dir / "pose_estimation.json"
+    run_summary_path = depth_video_dir / "run_summary.json"
     metric_depth_dir = depth_video_dir / "metric_depth"
-    depth_npy_candidates = [
-        metric_depth_dir / "metric_depth.npy",
-        depth_video_dir / "metric_depth.npy",  # Backward compatibility
-    ]
-    depth_npy_path = next((p for p in depth_npy_candidates if p.exists()), None)
-    if depth_npy_path is None:
-        raise FileNotFoundError(
-            "metric_depth.npy not found. Tried: "
-            + ", ".join(str(p) for p in depth_npy_candidates)
-        )
+    depth_npy_path = metric_depth_dir / "metric_depth.npy"
+    if not run_summary_path.exists():
+        raise FileNotFoundError(f"run_summary.json not found: {run_summary_path}")
+    if not depth_npy_path.exists():
+        raise FileNotFoundError(f"metric_depth.npy not found: {depth_npy_path}")
     if not pose_json_path.exists():
         raise FileNotFoundError(f"pose_estimation.json not found: {pose_json_path}")
+
+    run_summary = load_json(run_summary_path)
+    frame_00_raw = run_summary.get("frame_00")
+    if not isinstance(frame_00_raw, str) or not frame_00_raw.strip():
+        raise KeyError(
+            f"'frame_00' is missing or invalid in run_summary.json: {run_summary_path}"
+        )
+    frame_path = Path(frame_00_raw)
+    if not frame_path.is_absolute():
+        frame_path = (depth_video_dir / frame_path).resolve()
+    else:
+        frame_path = frame_path.resolve()
+    if not frame_path.exists():
+        raise FileNotFoundError(f"frame_00 image not found: {frame_path}")
+    frame_bgr = cv2.imread(str(frame_path), cv2.IMREAD_COLOR)
+    if frame_bgr is None:
+        raise RuntimeError(f"Failed to read frame_00 image: {frame_path}")
 
     depth_obs = np.load(depth_npy_path).astype(np.float32)
     depth_h, depth_w = depth_obs.shape
@@ -598,17 +660,20 @@ def main() -> None:
         obj_dir = Path(obj["output_dir"]).resolve()
         mesh_path = obj_dir / "mesh_posed.glb"
         if not mesh_path.exists():
-            print(f"[WARN] Missing mesh_posed.glb for {obj_name}: {mesh_path}")
-            continue
+            raise FileNotFoundError(
+                f"Missing mesh_posed.glb for object '{obj_name}': {mesh_path}"
+            )
 
         mask_rel = obj.get("mask_file")
         if mask_rel is None:
-            print(f"[WARN] Missing mask_file for {obj_name}, skipping.")
-            continue
+            raise KeyError(
+                f"Missing 'mask_file' for object '{obj_name}' in {summary_path}"
+            )
         mask_path = (obj_dir / mask_rel).resolve()
         if not mask_path.exists():
-            print(f"[WARN] Missing mask for {obj_name}: {mask_path}")
-            continue
+            raise FileNotFoundError(
+                f"Missing mask for object '{obj_name}': {mask_path}"
+            )
 
         verts_src, faces = load_mesh(mesh_path)
         mask = load_binary_mask(mask_path, (depth_h, depth_w))
@@ -711,6 +776,16 @@ def main() -> None:
             else torch.from_numpy(asset.mask).to(device=device, dtype=torch.float32)
         )
 
+    verts_before = [v.detach().cpu().numpy() for v in verts_base_cv]
+    overlay_before = draw_overlay_points(
+        frame_bgr=frame_bgr,
+        verts_cv_list=verts_before,
+        names=names,
+        k=k_full,
+    )
+    cv2.imwrite(str(output_dir / "overlay_before.png"), overlay_before)
+    print(f"Saved initial overlay to: {output_dir / 'overlay_before.png'}")
+
     # If no human mask is provided, use initial rendered silhouette as a pseudo target.
     if masks_t[0] is None:
         with torch.no_grad():
@@ -779,6 +854,7 @@ def main() -> None:
         raise ValueError("--iters, --stage_lr, --stage_sil_weight must each provide exactly 3 values.")
 
     loss_history: list[dict[str, Any]] = []
+    stage_output_records: list[dict[str, Any]] = []
     max_rot_rad = math.radians(float(args.max_rot_deg))
     min_log_scale = math.log(float(args.min_scale))
     max_log_scale = math.log(float(args.max_scale))
@@ -900,8 +976,38 @@ def main() -> None:
                     }
                 )
 
+        if bool(args.save_stage_outputs):
+            stage_num = stage_idx + 1
+            stage_meshes_dir = output_dir / f"meshes_stage_{stage_num}"
+            stage_transforms_path = stage_meshes_dir / "transforms.json"
+            with torch.no_grad():
+                verts_stage_t = transform_vertices_list(verts_base_cv, log_s, rotvec, tvec)
+                verts_stage = [v.detach().cpu().numpy() for v in verts_stage_t]
+                rotvec_np_stage = rotvec.detach().cpu().numpy()
+                rots_np_stage = axis_angle_to_matrix(rotvec.detach()).cpu().numpy()
+                scales_np_stage = np.exp(log_s.detach().cpu().numpy())
+                t_np_stage = tvec.detach().cpu().numpy()
+
+            export_meshes_and_transforms(
+                assets=assets,
+                verts_aligned=verts_stage,
+                rotvec_axis_angle=rotvec_np_stage,
+                rots_np=rots_np_stage,
+                scales_np=scales_np_stage,
+                t_np=t_np_stage,
+                meshes_out_dir=stage_meshes_dir,
+                transforms_out_path=stage_transforms_path,
+            )
+            stage_output_records.append(
+                {
+                    "stage": stage_num,
+                    "meshes_dir": str(stage_meshes_dir),
+                    "transforms_json": str(stage_transforms_path),
+                }
+            )
+            print(f"Saved stage {stage_num} outputs to: {stage_meshes_dir}")
+
     with torch.no_grad():
-        verts_before = [v.detach().cpu().numpy() for v in verts_base_cv]
         verts_final_t = transform_vertices_list(verts_base_cv, log_s, rotvec, tvec)
         verts_final = [v.detach().cpu().numpy() for v in verts_final_t]
         depth_before, mesh_id_before = render_scene_depth_and_mesh_id(
@@ -936,78 +1042,30 @@ def main() -> None:
         use_visibility=bool(args.use_mesh_visibility_for_depth),
     )
 
-    meshes_out_dir = output_dir / "meshes_cv"
-    meshes_out_dir.mkdir(parents=True, exist_ok=True)
-
-    transforms_out: list[dict[str, Any]] = []
+    meshes_out_dir = output_dir / "meshes"
+    transforms_json_path = meshes_out_dir / "transforms.json"
+    rotvec_np = rotvec.detach().cpu().numpy()
     rots_np = axis_angle_to_matrix(rotvec.detach()).cpu().numpy()
     scales_np = np.exp(log_s.detach().cpu().numpy())
     t_np = tvec.detach().cpu().numpy()
+    transforms_out = export_meshes_and_transforms(
+        assets=assets,
+        verts_aligned=verts_final,
+        rotvec_axis_angle=rotvec_np,
+        rots_np=rots_np,
+        scales_np=scales_np,
+        t_np=t_np,
+        meshes_out_dir=meshes_out_dir,
+        transforms_out_path=transforms_json_path,
+    )
 
-    for j, asset in enumerate(assets):
-        out_mesh_path = meshes_out_dir / f"{asset.slug}.obj"
-        save_mesh_obj(out_mesh_path, verts_final[j], asset.faces)
-
-        c = asset.source_to_cv.astype(np.float32)
-        r = rots_np[j].astype(np.float32)
-        s = float(scales_np[j])
-        t = t_np[j].astype(np.float32)
-
-        source_to_cv_4x4 = np.eye(4, dtype=np.float32)
-        source_to_cv_4x4[:3, :3] = c
-
-        source_to_aligned_4x4 = np.eye(4, dtype=np.float32)
-        source_to_aligned_4x4[:3, :3] = (s * r @ c).astype(np.float32)
-        source_to_aligned_4x4[:3, 3] = t
-
-        transforms_out.append(
-            {
-                "name": asset.name,
-                "slug": asset.slug,
-                "kind": asset.kind,
-                "source_mesh_path": str(asset.source_mesh_path),
-                "source_coordinate": asset.source_coord,
-                "source_to_cv_rotation_3x3": c.tolist(),
-                "source_to_cv_matrix_4x4": source_to_cv_4x4.tolist(),
-                "optimized_similarity_in_cv": {
-                    "scale": s,
-                    "rotation_axis_angle": rotvec.detach().cpu().numpy()[j].tolist(),
-                    "rotation_matrix_3x3": r.tolist(),
-                    "translation_xyz_m": t.tolist(),
-                },
-                "source_to_aligned_matrix_4x4": source_to_aligned_4x4.tolist(),
-                "aligned_mesh_obj": str(out_mesh_path),
-            }
-        )
-
-    frame_path = None
-    if "source_image" in summary:
-        frame_path = Path(summary["source_image"])
-    if frame_path is None or not frame_path.exists():
-        fallback = depth_video_dir / "frame_00.png"
-        if fallback.exists():
-            frame_path = fallback
-        else:
-            fallback_metric = metric_depth_dir / "frame_00.png"
-            frame_path = fallback_metric if fallback_metric.exists() else None
-
-    if frame_path is not None and frame_path.exists():
-        frame_bgr = cv2.imread(str(frame_path), cv2.IMREAD_COLOR)
-        if frame_bgr is not None:
-            overlay_before = draw_overlay_points(
-                frame_bgr=frame_bgr,
-                verts_cv_list=verts_before,
-                names=names,
-                k=k_full,
-            )
-            overlay_after = draw_overlay_points(
-                frame_bgr=frame_bgr,
-                verts_cv_list=verts_final,
-                names=names,
-                k=k_full,
-            )
-            cv2.imwrite(str(output_dir / "overlay_before.png"), overlay_before)
-            cv2.imwrite(str(output_dir / "overlay_after.png"), overlay_after)
+    overlay_after = draw_overlay_points(
+        frame_bgr=frame_bgr,
+        verts_cv_list=verts_final,
+        names=names,
+        k=k_full,
+    )
+    cv2.imwrite(str(output_dir / "overlay_after.png"), overlay_after)
 
     result = {
         "video_name": args.video_name,
@@ -1021,6 +1079,8 @@ def main() -> None:
             "pose_json": str(pose_json_path),
             "depth_npy": str(depth_npy_path),
             "output_dir": str(output_dir),
+            "meshes_dir": str(meshes_out_dir),
+            "transforms_json": str(transforms_json_path),
         },
         "camera": {
             "intrinsics_3x3": k_full.tolist(),
@@ -1046,6 +1106,7 @@ def main() -> None:
         },
         "depth_residual_stats_before": before_stats,
         "depth_residual_stats_after": after_stats,
+        "stage_outputs": stage_output_records,
         "transforms": transforms_out,
         "loss_history": loss_history,
     }
@@ -1056,6 +1117,7 @@ def main() -> None:
 
     print(f"\nSaved alignment result: {result_path}")
     print(f"Saved aligned meshes to: {meshes_out_dir}")
+    print(f"Saved combined transforms JSON to: {transforms_json_path}")
 
 
 if __name__ == "__main__":
