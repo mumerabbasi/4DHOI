@@ -98,6 +98,19 @@ def ensure_3x4_extrinsics(raw: Any | None) -> np.ndarray | None:
     return arr
 
 
+def load_object_intrinsics(camera_intrinsics_json_path: Path) -> np.ndarray:
+    if not camera_intrinsics_json_path.exists():
+        raise FileNotFoundError(
+            f"camera_intrinsics.json not found: {camera_intrinsics_json_path}"
+        )
+    camera_intr = load_json(camera_intrinsics_json_path)
+    if "intrinsics_pixels_3x3" not in camera_intr:
+        raise KeyError(
+            f"Missing 'intrinsics_pixels_3x3' in {camera_intrinsics_json_path}"
+        )
+    return ensure_3x3_intrinsics(camera_intr.get("intrinsics_pixels_3x3"))
+
+
 def load_mesh(path: Path) -> tuple[np.ndarray, np.ndarray]:
     mesh = trimesh.load(str(path), force="mesh")
     if not isinstance(mesh, trimesh.Trimesh):
@@ -534,6 +547,18 @@ def parse_args() -> argparse.Namespace:
         default="opencv",
         help="Coordinate frame of the input human OBJ.",
     )
+    parser.add_argument(
+        "--intrinsics_source",
+        type=str,
+        choices=["object", "depth"],
+        default="object",
+        help=(
+            "Camera intrinsics source for rendering/alignment. "
+            "'object' uses Generate_Object_Mesh/output/video_xx/camera_intrinsics.json "
+            "(intrinsics_pixels_3x3). "
+            "'depth' uses Estimate_Depth/output/video_xx/pose_estimation.json intrinsics."
+        ),
+    )
 
     parser.add_argument("--device", type=str, default="cuda:0")
     parser.add_argument("--opt_max_side", type=int, default=640)
@@ -617,6 +642,7 @@ def main() -> None:
     summary = load_json(summary_path)
 
     pose_json_path = depth_video_dir / "pose_estimation.json"
+    object_intrinsics_json_path = object_video_dir / "camera_intrinsics.json"
     run_summary_path = depth_video_dir / "run_summary.json"
     metric_depth_dir = depth_video_dir / "metric_depth"
     depth_npy_path = metric_depth_dir / "metric_depth.npy"
@@ -648,8 +674,12 @@ def main() -> None:
     depth_h, depth_w = depth_obs.shape
 
     pose = load_json(pose_json_path)
-    k_full = ensure_3x3_intrinsics(pose.get("intrinsics"))
+    if args.intrinsics_source == "object":
+        k_full = load_object_intrinsics(object_intrinsics_json_path)
+    else:
+        k_full = ensure_3x3_intrinsics(pose.get("intrinsics"))
     extrinsics = ensure_3x4_extrinsics(pose.get("extrinsics"))
+    print(f"Using intrinsics source: {args.intrinsics_source}")
 
     assets: list[MeshAsset] = []
     object_count = 0
@@ -1077,12 +1107,14 @@ def main() -> None:
             "human_video_dir": str(human_video_dir),
             "summary_json": str(summary_path),
             "pose_json": str(pose_json_path),
+            "object_intrinsics_json": str(object_intrinsics_json_path),
             "depth_npy": str(depth_npy_path),
             "output_dir": str(output_dir),
             "meshes_dir": str(meshes_out_dir),
             "transforms_json": str(transforms_json_path),
         },
         "camera": {
+            "intrinsics_source": str(args.intrinsics_source),
             "intrinsics_3x3": k_full.tolist(),
             "extrinsics_3x4_from_depth": None if extrinsics is None else extrinsics.tolist(),
             "depth_is_metric": bool(int(pose.get("is_metric", 0))),
