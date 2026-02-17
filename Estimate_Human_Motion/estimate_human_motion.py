@@ -11,7 +11,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--video",
-        default="../Generate_Video/videos/video_02",
+        default="../Generate_Video/videos/video_01",
     )
     parser.add_argument("--outdir", default="./output")
     parser.add_argument(
@@ -20,10 +20,12 @@ def main() -> None:
         help="Path to the cloned GVHMR repo.",
     )
     parser.add_argument("--device", default="cuda:0")
+    # Use focal_length_mm_recommended from SAM3D-Objects' camera_intrinsics.json
+    # for better scale alignment between GVHMR's human meshes and SAM3D-Objects' object meshes.
     parser.add_argument(
         "--f_mm",
         type=float,
-        default=24,
+        default=None,
         help="Focal length in millimeters passed to GVHMR (--f_mm).",
     )
     args = parser.parse_args()
