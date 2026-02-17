@@ -93,14 +93,14 @@ def load_metric_depth(depth_path: Path) -> np.ndarray:
 
 
 def find_metric_depth_path(
-    depth_video_dir: Path,
+    depth_output_dir: Path,
     metric_depth_dirname: str,
     depth_file: str,
 ) -> Path:
     """Find metric depth file in new layout first, then legacy flat layout."""
     candidates = [
-        depth_video_dir / metric_depth_dirname / depth_file,
-        depth_video_dir / depth_file,  # Backward compatibility
+        depth_output_dir / metric_depth_dirname / depth_file,
+        depth_output_dir / depth_file,  # Backward compatibility
     ]
     found = next((p for p in candidates if p.exists()), None)
     if found is None:
@@ -109,6 +109,12 @@ def find_metric_depth_path(
             + ", ".join(str(p) for p in candidates)
         )
     return found
+
+
+def default_sam3d_output_dir(depth_output_dir: Path, script_dir: Path) -> Path:
+    """Infer SAM3D output dir from depth_output_dir's video_xx folder."""
+    video_dir_name = depth_output_dir.name
+    return (script_dir.parent / "Generate_Object_Mesh" / "output" / video_dir_name).resolve()
 
 
 def load_rgb_image(image_path: Path, target_hw: tuple[int, int]) -> np.ndarray | None:
@@ -231,11 +237,11 @@ def parse_args() -> argparse.Namespace:
         )
     )
     parser.add_argument(
-        "--depth_video_dir",
+        "--depth_output_dir",
         type=str,
-        default="./output/video_01",
+        default="./output/video_03",
         help=(
-            "Depth video directory (Estimate_Depth/output/video_xx). "
+            "Depth output directory (Estimate_Depth/output/video_xx). "
             "Contains pose_estimation.json and depth subdirectories."
         ),
     )
@@ -243,13 +249,16 @@ def parse_args() -> argparse.Namespace:
         "--metric_depth_dirname",
         type=str,
         default="metric_depth",
-        help="Subdirectory under depth_video_dir containing metric depth artifacts.",
+        help="Subdirectory under depth_output_dir containing metric depth artifacts.",
     )
     parser.add_argument(
         "--sam3d_output_dir",
         type=str,
-        default="../Generate_Object_Mesh/output/video_01",
-        help="Directory containing camera_intrinsics.json from SAM3D object generation.",
+        default=None,
+        help=(
+            "Directory containing camera_intrinsics.json from SAM3D object generation. "
+            "Default: ../Generate_Object_Mesh/output/<video_xx inferred from depth_output_dir>."
+        ),
     )
     parser.add_argument(
         "--depth_file",
@@ -261,7 +270,7 @@ def parse_args() -> argparse.Namespace:
         "--pose_file",
         type=str,
         default="pose_estimation.json",
-        help="DA3 pose/intrinsics JSON file name inside depth_video_dir.",
+        help="DA3 pose/intrinsics JSON file name inside depth_output_dir.",
     )
     parser.add_argument(
         "--sam3d_intrinsics_file",
@@ -273,7 +282,7 @@ def parse_args() -> argparse.Namespace:
         "--color_image_file",
         type=str,
         default="frame_00.png",
-        help="Optional RGB image file in depth_video_dir for point colors.",
+        help="Optional RGB image file in depth_output_dir for point colors.",
     )
     parser.add_argument(
         "--save_colors",
@@ -291,7 +300,7 @@ def parse_args() -> argparse.Namespace:
         "--pointcloud_dirname",
         type=str,
         default="pointclouds",
-        help="Subdirectory under depth_video_dir where point cloud outputs are saved.",
+        help="Subdirectory under depth_output_dir where point cloud outputs are saved.",
     )
     return parser.parse_args()
 
@@ -300,24 +309,28 @@ def main() -> None:
     args = parse_args()
     script_dir = Path(__file__).resolve().parent
 
-    depth_video_dir = resolve_path(args.depth_video_dir, script_dir)
-    sam3d_output_dir = resolve_path(args.sam3d_output_dir, script_dir)
-    if not depth_video_dir.is_dir():
-        raise NotADirectoryError(f"Depth video directory not found: {depth_video_dir}")
+    depth_output_dir = resolve_path(args.depth_output_dir, script_dir)
+    if args.sam3d_output_dir is None:
+        sam3d_output_dir = default_sam3d_output_dir(depth_output_dir, script_dir)
+    else:
+        sam3d_output_dir = resolve_path(args.sam3d_output_dir, script_dir)
+
+    if not depth_output_dir.is_dir():
+        raise NotADirectoryError(f"Depth output directory not found: {depth_output_dir}")
     if not sam3d_output_dir.is_dir():
         raise NotADirectoryError(f"SAM3D output directory not found: {sam3d_output_dir}")
 
     depth_path = find_metric_depth_path(
-        depth_video_dir=depth_video_dir,
+        depth_output_dir=depth_output_dir,
         metric_depth_dirname=args.metric_depth_dirname,
         depth_file=args.depth_file,
     )
     metric_depth_output_dir = depth_path.parent
-    pointcloud_output_dir = depth_video_dir / args.pointcloud_dirname
+    pointcloud_output_dir = depth_output_dir / args.pointcloud_dirname
     pointcloud_output_dir.mkdir(parents=True, exist_ok=True)
-    pose_path = depth_video_dir / args.pose_file
+    pose_path = depth_output_dir / args.pose_file
     sam3d_intrinsics_path = sam3d_output_dir / args.sam3d_intrinsics_file
-    color_image_path = depth_video_dir / args.color_image_file
+    color_image_path = depth_output_dir / args.color_image_file
 
     depth = load_metric_depth(depth_path)
     da3_intrinsics = load_da3_intrinsics(pose_path)
@@ -339,7 +352,7 @@ def main() -> None:
     write_ply_ascii(sam3d_ply_path, sam3d_points, sam3d_colors)
 
     summary = {
-        "depth_video_dir": str(depth_video_dir),
+        "depth_output_dir": str(depth_output_dir),
         "metric_depth_output_dir": str(metric_depth_output_dir),
         "pointcloud_output_dir": str(pointcloud_output_dir),
         "sam3d_output_dir": str(sam3d_output_dir),
