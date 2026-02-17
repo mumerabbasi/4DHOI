@@ -15,7 +15,10 @@ import trimesh
 from pytorch3d.renderer import MeshRasterizer, PerspectiveCameras, RasterizationSettings
 from pytorch3d.structures import Meshes
 
+# TODO 1: Or should we use K given by depth-anything3, instead of full-frame sensor assumption?
 
+# TODO 2: Implement temporal smoothing constraints in estimate_pose_pnp_ransac, e.g. by using previous
+# pose as a prior and/or by enforcing velocity smoothness.
 SENSOR_WIDTH_MM = 36.0
 
 R_Y_UP_TO_Z_UP = np.array(

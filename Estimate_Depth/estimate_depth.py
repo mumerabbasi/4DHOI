@@ -232,6 +232,15 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Optional Hugging Face token. Falls back to HF_TOKEN env var.",
     )
+    parser.add_argument(
+        "--estimate_relative_depth",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Estimate and save relative depth from metric depth using DA3 scale factor. "
+            "Disabled by default."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -315,25 +324,31 @@ def main() -> None:
 
     scale_factor = prediction.scale_factor
     scale_factor_f = float(scale_factor) if scale_factor is not None else None
-    if scale_factor_f is not None and np.isfinite(scale_factor_f) and abs(scale_factor_f) > 1e-8:
-        relative_depth = metric_depth / scale_factor_f
-    else:
-        relative_depth = metric_depth.copy()
+    metric_depth_dir = output_dir / "metric_depth"
+    metric_depth_dir.mkdir(parents=True, exist_ok=True)
 
     metric_artifacts = save_depth_artifacts(
-        out_dir=output_dir,
+        out_dir=metric_depth_dir,
         prefix="metric_depth",
         depth=metric_depth,
         visualize_depth_fn=visualize_depth,
         output_hw=(frame_h, frame_w),
     )
-    relative_artifacts = save_depth_artifacts(
-        out_dir=output_dir,
-        prefix="relative_depth",
-        depth=relative_depth,
-        visualize_depth_fn=visualize_depth,
-        output_hw=(frame_h, frame_w),
-    )
+    relative_artifacts: dict[str, Any] | None = None
+    if args.estimate_relative_depth:
+        relative_depth_dir = output_dir / "relative_depth"
+        relative_depth_dir.mkdir(parents=True, exist_ok=True)
+        if scale_factor_f is not None and np.isfinite(scale_factor_f) and abs(scale_factor_f) > 1e-8:
+            relative_depth = metric_depth / scale_factor_f
+        else:
+            relative_depth = metric_depth.copy()
+        relative_artifacts = save_depth_artifacts(
+            out_dir=relative_depth_dir,
+            prefix="relative_depth",
+            depth=relative_depth,
+            visualize_depth_fn=visualize_depth,
+            output_hw=(frame_h, frame_w),
+        )
 
     sky_mask_path: str | None = None
     if prediction.sky is not None and prediction.sky.shape[0] == 1:
@@ -354,6 +369,7 @@ def main() -> None:
         "is_metric": int(prediction.is_metric),
         "device": str(device),
         "use_ray_pose": bool(args.use_ray_pose),
+        "estimate_relative_depth": bool(args.estimate_relative_depth),
     }
     with open(pose_json_path, "w", encoding="utf-8") as f:
         json.dump(pose_json, f, indent=2)
@@ -367,9 +383,17 @@ def main() -> None:
         "device": str(device),
         "process_res_used": int(process_res),
         "focal_length_mm": float(focal_info["focal_length_mm_mean"]),
+        "estimate_relative_depth": bool(args.estimate_relative_depth),
         "artifacts": {
-            "relative_depth": relative_artifacts,
-            "metric_depth": metric_artifacts,
+            "relative_depth": (
+                None
+                if relative_artifacts is None
+                else {"dir": str(output_dir / "relative_depth"), **relative_artifacts}
+            ),
+            "metric_depth": {
+                "dir": str(metric_depth_dir),
+                **metric_artifacts,
+            },
             "pose_estimation": {
                 "json": str(pose_json_path),
             },

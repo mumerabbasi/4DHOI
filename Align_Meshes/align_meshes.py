@@ -568,9 +568,17 @@ def main() -> None:
     summary = load_json(summary_path)
 
     pose_json_path = depth_video_dir / "pose_estimation.json"
-    depth_npy_path = depth_video_dir / "metric_depth.npy"
-    if not depth_npy_path.exists():
-        raise FileNotFoundError(f"metric_depth.npy not found: {depth_npy_path}")
+    metric_depth_dir = depth_video_dir / "metric_depth"
+    depth_npy_candidates = [
+        metric_depth_dir / "metric_depth.npy",
+        depth_video_dir / "metric_depth.npy",  # Backward compatibility
+    ]
+    depth_npy_path = next((p for p in depth_npy_candidates if p.exists()), None)
+    if depth_npy_path is None:
+        raise FileNotFoundError(
+            "metric_depth.npy not found. Tried: "
+            + ", ".join(str(p) for p in depth_npy_candidates)
+        )
     if not pose_json_path.exists():
         raise FileNotFoundError(f"pose_estimation.json not found: {pose_json_path}")
 
@@ -977,7 +985,11 @@ def main() -> None:
         frame_path = Path(summary["source_image"])
     if frame_path is None or not frame_path.exists():
         fallback = depth_video_dir / "frame_00.png"
-        frame_path = fallback if fallback.exists() else None
+        if fallback.exists():
+            frame_path = fallback
+        else:
+            fallback_metric = metric_depth_dir / "frame_00.png"
+            frame_path = fallback_metric if fallback_metric.exists() else None
 
     if frame_path is not None and frame_path.exists():
         frame_bgr = cv2.imread(str(frame_path), cv2.IMREAD_COLOR)
@@ -1003,6 +1015,7 @@ def main() -> None:
         "paths": {
             "object_video_dir": str(object_video_dir),
             "depth_video_dir": str(depth_video_dir),
+            "metric_depth_dir": str(depth_npy_path.parent),
             "human_video_dir": str(human_video_dir),
             "summary_json": str(summary_path),
             "pose_json": str(pose_json_path),
