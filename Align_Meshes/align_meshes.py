@@ -514,7 +514,7 @@ def parse_args() -> argparse.Namespace:
             "using observed depth + silhouettes (first frame)."
         )
     )
-    parser.add_argument("--video_name", type=str, default="video_03")
+    parser.add_argument("--video_name", type=str, default="video_01")
 
     parser.add_argument(
         "--object_video_dir",
