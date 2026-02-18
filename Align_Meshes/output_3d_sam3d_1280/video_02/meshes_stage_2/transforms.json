@@ -50,7 +50,7 @@
         ]
       ],
       "optimized_similarity_in_cv": {
-        "scale": 1.232608437538147,
+        "scale": 1.2348549365997314,
         "rotation_axis_angle": [
           0.0,
           0.0,
@@ -74,29 +74,29 @@
           ]
         ],
         "translation_xyz_m": [
-          0.0,
-          0.0,
-          0.3217753469944
+          0.0015435598324984312,
+          -0.04471127688884735,
+          0.3161467909812927
         ]
       },
       "source_to_aligned_matrix_4x4": [
         [
-          1.232608437538147,
+          1.2348549365997314,
           0.0,
           0.0,
-          0.0
+          0.0015435598324984312
         ],
         [
           0.0,
-          1.232608437538147,
+          1.2348549365997314,
           0.0,
-          0.0
+          -0.04471127688884735
         ],
         [
           0.0,
           0.0,
-          1.232608437538147,
-          0.3217753469944
+          1.2348549365997314,
+          0.3161467909812927
         ],
         [
           0.0,
@@ -105,7 +105,7 @@
           1.0
         ]
       ],
-      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_3d/video_02/meshes_stage_1/human.obj"
+      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_3d/video_02/meshes_stage_2/human.obj"
     },
     {
       "name": "dumbbell (left hand)",
@@ -157,7 +157,7 @@
         ]
       ],
       "optimized_similarity_in_cv": {
-        "scale": 2.4334990978240967,
+        "scale": 1.2621568441390991,
         "rotation_axis_angle": [
           0.0,
           0.0,
@@ -181,29 +181,29 @@
           ]
         ],
         "translation_xyz_m": [
-          0.0,
-          0.0,
-          0.42918360233306885
+          -0.11089156568050385,
+          -0.6788091659545898,
+          1.9940085411071777
         ]
       },
       "source_to_aligned_matrix_4x4": [
         [
-          -2.4334990978240967,
+          -1.2621568441390991,
           0.0,
           0.0,
-          0.0
+          -0.11089156568050385
         ],
         [
           0.0,
           0.0,
-          2.4334990978240967,
-          0.0
+          1.2621568441390991,
+          -0.6788091659545898
         ],
         [
           0.0,
-          2.4334990978240967,
+          1.2621568441390991,
           0.0,
-          0.42918360233306885
+          1.9940085411071777
         ],
         [
           0.0,
@@ -212,7 +212,7 @@
           1.0
         ]
       ],
-      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_3d/video_02/meshes_stage_1/dumbbell_left_hand.obj"
+      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_3d/video_02/meshes_stage_2/dumbbell_left_hand.obj"
     },
     {
       "name": "dumbbell (right hand)",
@@ -264,7 +264,7 @@
         ]
       ],
       "optimized_similarity_in_cv": {
-        "scale": 2.2227041721343994,
+        "scale": 1.281450629234314,
         "rotation_axis_angle": [
           0.0,
           0.0,
@@ -288,29 +288,29 @@
           ]
         ],
         "translation_xyz_m": [
-          0.0,
-          0.0,
-          0.24176380038261414
+          0.16465049982070923,
+          -0.6036577820777893,
+          1.721449375152588
         ]
       },
       "source_to_aligned_matrix_4x4": [
         [
-          -2.2227041721343994,
+          -1.281450629234314,
           0.0,
           0.0,
-          0.0
+          0.16465049982070923
         ],
         [
           0.0,
           0.0,
-          2.2227041721343994,
-          0.0
+          1.281450629234314,
+          -0.6036577820777893
         ],
         [
           0.0,
-          2.2227041721343994,
+          1.281450629234314,
           0.0,
-          0.24176380038261414
+          1.721449375152588
         ],
         [
           0.0,
@@ -319,7 +319,7 @@
           1.0
         ]
       ],
-      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_3d/video_02/meshes_stage_1/dumbbell_right_hand.obj"
+      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_3d/video_02/meshes_stage_2/dumbbell_right_hand.obj"
     }
   ]
 }

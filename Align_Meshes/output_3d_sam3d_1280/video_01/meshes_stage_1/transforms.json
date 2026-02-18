@@ -4,7 +4,7 @@
       "name": "human",
       "slug": "human",
       "kind": "human",
-      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_02/output_objs/frame_0000.obj",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_01/output_objs/frame_0000.obj",
       "source_coordinate": "opencv_camera",
       "source_to_cv_rotation_3x3": [
         [
@@ -50,7 +50,7 @@
         ]
       ],
       "optimized_similarity_in_cv": {
-        "scale": 1.232608437538147,
+        "scale": 0.9888020157814026,
         "rotation_axis_angle": [
           0.0,
           0.0,
@@ -76,27 +76,27 @@
         "translation_xyz_m": [
           0.0,
           0.0,
-          0.3217753469944
+          -0.19882279634475708
         ]
       },
       "source_to_aligned_matrix_4x4": [
         [
-          1.232608437538147,
+          0.9888020157814026,
           0.0,
           0.0,
           0.0
         ],
         [
           0.0,
-          1.232608437538147,
+          0.9888020157814026,
           0.0,
           0.0
         ],
         [
           0.0,
           0.0,
-          1.232608437538147,
-          0.3217753469944
+          0.9888020157814026,
+          -0.19882279634475708
         ],
         [
           0.0,
@@ -105,13 +105,13 @@
           1.0
         ]
       ],
-      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_3d/video_02/meshes_stage_1/human.obj"
+      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_3d/video_01/meshes_stage_1/human.obj"
     },
     {
-      "name": "dumbbell (left hand)",
-      "slug": "dumbbell_left_hand",
+      "name": "iron",
+      "slug": "iron",
       "kind": "object",
-      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/dumbbell_(left_hand)/mesh_posed.glb",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01/iron/mesh_posed.glb",
       "source_coordinate": "mesh_posed_glb_y_up",
       "source_to_cv_rotation_3x3": [
         [
@@ -157,7 +157,7 @@
         ]
       ],
       "optimized_similarity_in_cv": {
-        "scale": 2.4334990978240967,
+        "scale": 1.0,
         "rotation_axis_angle": [
           0.0,
           0.0,
@@ -183,12 +183,12 @@
         "translation_xyz_m": [
           0.0,
           0.0,
-          0.42918360233306885
+          0.667492151260376
         ]
       },
       "source_to_aligned_matrix_4x4": [
         [
-          -2.4334990978240967,
+          -1.0,
           0.0,
           0.0,
           0.0
@@ -196,14 +196,14 @@
         [
           0.0,
           0.0,
-          2.4334990978240967,
+          1.0,
           0.0
         ],
         [
           0.0,
-          2.4334990978240967,
+          1.0,
           0.0,
-          0.42918360233306885
+          0.667492151260376
         ],
         [
           0.0,
@@ -212,13 +212,13 @@
           1.0
         ]
       ],
-      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_3d/video_02/meshes_stage_1/dumbbell_left_hand.obj"
+      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_3d/video_01/meshes_stage_1/iron.obj"
     },
     {
-      "name": "dumbbell (right hand)",
-      "slug": "dumbbell_right_hand",
+      "name": "ironing board",
+      "slug": "ironing_board",
       "kind": "object",
-      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/dumbbell_(right_hand)/mesh_posed.glb",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01/ironing_board/mesh_posed.glb",
       "source_coordinate": "mesh_posed_glb_y_up",
       "source_to_cv_rotation_3x3": [
         [
@@ -264,7 +264,7 @@
         ]
       ],
       "optimized_similarity_in_cv": {
-        "scale": 2.2227041721343994,
+        "scale": 1.0240727663040161,
         "rotation_axis_angle": [
           0.0,
           0.0,
@@ -290,12 +290,12 @@
         "translation_xyz_m": [
           0.0,
           0.0,
-          0.24176380038261414
+          0.39138010144233704
         ]
       },
       "source_to_aligned_matrix_4x4": [
         [
-          -2.2227041721343994,
+          -1.0240727663040161,
           0.0,
           0.0,
           0.0
@@ -303,14 +303,14 @@
         [
           0.0,
           0.0,
-          2.2227041721343994,
+          1.0240727663040161,
           0.0
         ],
         [
           0.0,
-          2.2227041721343994,
+          1.0240727663040161,
           0.0,
-          0.24176380038261414
+          0.39138010144233704
         ],
         [
           0.0,
@@ -319,7 +319,7 @@
           1.0
         ]
       ],
-      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_3d/video_02/meshes_stage_1/dumbbell_right_hand.obj"
+      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_3d/video_01/meshes_stage_1/ironing_board.obj"
     }
   ]
 }

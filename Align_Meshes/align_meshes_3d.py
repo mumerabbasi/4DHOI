@@ -755,7 +755,7 @@ def parse_args() -> argparse.Namespace:
             "using masked 3D depth point clouds (first frame)."
         )
     )
-    parser.add_argument("--video_name", type=str, default="video_01")
+    parser.add_argument("--video_name", type=str, default="video_03")
 
     parser.add_argument(
         "--object_video_dir",
@@ -864,7 +864,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--depth_huber_delta_3d", type=float, default=0.05)
     parser.add_argument("--depth_anchor_weight", type=float, default=0.15)
 
-    parser.add_argument("--chamfer_forward_weight", type=float, default=0.0)
+    parser.add_argument("--chamfer_forward_weight", type=float, default=0.5)
     parser.add_argument("--chamfer_backward_weight", type=float, default=1.0)
     parser.add_argument("--pc_max_points_per_mesh", type=int, default=5000)
     parser.add_argument("--mesh_sample_points", type=int, default=5000)
@@ -881,7 +881,7 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--min_scale", type=float, default=0.2)
     parser.add_argument("--max_scale", type=float, default=5.0)
-    parser.add_argument("--max_rot_deg", type=float, default=5.0)
+    parser.add_argument("--max_rot_deg", type=float, default=0.0)
     parser.add_argument("--log_every", type=int, default=10)
     parser.add_argument(
         "--save_stage_outputs",
