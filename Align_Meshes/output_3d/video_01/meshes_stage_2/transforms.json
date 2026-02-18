@@ -1,0 +1,325 @@
+{
+  "transforms": [
+    {
+      "name": "human",
+      "slug": "human",
+      "kind": "human",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_01/output_objs/frame_0000.obj",
+      "source_coordinate": "opencv_camera",
+      "source_to_cv_rotation_3x3": [
+        [
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_cv_matrix_4x4": [
+        [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "optimized_similarity_in_cv": {
+        "scale": 0.9433202147483826,
+        "rotation_axis_angle": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_matrix_3x3": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "translation_xyz_m": [
+          0.03337356448173523,
+          -0.0189394298940897,
+          -0.0765305608510971
+        ]
+      },
+      "source_to_aligned_matrix_4x4": [
+        [
+          0.9433202147483826,
+          0.0,
+          0.0,
+          0.03337356448173523
+        ],
+        [
+          0.0,
+          0.9433202147483826,
+          0.0,
+          -0.0189394298940897
+        ],
+        [
+          0.0,
+          0.0,
+          0.9433202147483826,
+          -0.0765305608510971
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_3d/video_01/meshes_stage_2/human.obj"
+    },
+    {
+      "name": "iron",
+      "slug": "iron",
+      "kind": "object",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01/iron/mesh_posed.glb",
+      "source_coordinate": "mesh_posed_glb_y_up",
+      "source_to_cv_rotation_3x3": [
+        [
+          -1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0
+        ]
+      ],
+      "source_to_cv_matrix_4x4": [
+        [
+          -1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "optimized_similarity_in_cv": {
+        "scale": 0.9988015294075012,
+        "rotation_axis_angle": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_matrix_3x3": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "translation_xyz_m": [
+          0.019141772761940956,
+          0.012048140168190002,
+          0.6637396216392517
+        ]
+      },
+      "source_to_aligned_matrix_4x4": [
+        [
+          -0.9988015294075012,
+          0.0,
+          0.0,
+          0.019141772761940956
+        ],
+        [
+          0.0,
+          0.0,
+          0.9988015294075012,
+          0.012048140168190002
+        ],
+        [
+          0.0,
+          0.9988015294075012,
+          0.0,
+          0.6637396216392517
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_3d/video_01/meshes_stage_2/iron.obj"
+    },
+    {
+      "name": "ironing board",
+      "slug": "ironing_board",
+      "kind": "object",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01/ironing_board/mesh_posed.glb",
+      "source_coordinate": "mesh_posed_glb_y_up",
+      "source_to_cv_rotation_3x3": [
+        [
+          -1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0
+        ]
+      ],
+      "source_to_cv_matrix_4x4": [
+        [
+          -1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "optimized_similarity_in_cv": {
+        "scale": 1.053277611732483,
+        "rotation_axis_angle": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_matrix_3x3": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "translation_xyz_m": [
+          0.030350105836987495,
+          0.07216230034828186,
+          0.35210105776786804
+        ]
+      },
+      "source_to_aligned_matrix_4x4": [
+        [
+          -1.053277611732483,
+          0.0,
+          0.0,
+          0.030350105836987495
+        ],
+        [
+          0.0,
+          0.0,
+          1.053277611732483,
+          0.07216230034828186
+        ],
+        [
+          0.0,
+          1.053277611732483,
+          0.0,
+          0.35210105776786804
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_3d/video_01/meshes_stage_2/ironing_board.obj"
+    }
+  ]
+}

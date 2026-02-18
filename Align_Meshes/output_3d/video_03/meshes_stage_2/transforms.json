@@ -1,0 +1,218 @@
+{
+  "transforms": [
+    {
+      "name": "human",
+      "slug": "human",
+      "kind": "human",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_03/output_objs/frame_0000.obj",
+      "source_coordinate": "opencv_camera",
+      "source_to_cv_rotation_3x3": [
+        [
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_cv_matrix_4x4": [
+        [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "optimized_similarity_in_cv": {
+        "scale": 1.2776321172714233,
+        "rotation_axis_angle": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_matrix_3x3": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "translation_xyz_m": [
+          0.006453725043684244,
+          0.05492300167679787,
+          0.7657004594802856
+        ]
+      },
+      "source_to_aligned_matrix_4x4": [
+        [
+          1.2776321172714233,
+          0.0,
+          0.0,
+          0.006453725043684244
+        ],
+        [
+          0.0,
+          1.2776321172714233,
+          0.0,
+          0.05492300167679787
+        ],
+        [
+          0.0,
+          0.0,
+          1.2776321172714233,
+          0.7657004594802856
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_3d/video_03/meshes_stage_2/human.obj"
+    },
+    {
+      "name": "umbrella",
+      "slug": "umbrella",
+      "kind": "object",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_03/umbrella/mesh_posed.glb",
+      "source_coordinate": "mesh_posed_glb_y_up",
+      "source_to_cv_rotation_3x3": [
+        [
+          -1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0
+        ]
+      ],
+      "source_to_cv_matrix_4x4": [
+        [
+          -1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "optimized_similarity_in_cv": {
+        "scale": 2.0352625846862793,
+        "rotation_axis_angle": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation_matrix_3x3": [
+          [
+            1.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            1.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "translation_xyz_m": [
+          0.002885737456381321,
+          -0.5717859268188477,
+          1.8762187957763672
+        ]
+      },
+      "source_to_aligned_matrix_4x4": [
+        [
+          -2.0352625846862793,
+          0.0,
+          0.0,
+          0.002885737456381321
+        ],
+        [
+          0.0,
+          0.0,
+          2.0352625846862793,
+          -0.5717859268188477
+        ],
+        [
+          0.0,
+          2.0352625846862793,
+          0.0,
+          1.8762187957763672
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_3d/video_03/meshes_stage_2/umbrella.obj"
+    }
+  ]
+}
