@@ -1,3 +1,16 @@
+"""Align human and object meshes in a shared camera frame using depth + silhouettes.
+
+This script takes posed object meshes and a human mesh for a video, then optimizes
+per-mesh similarity transforms (scale, rotation, translation) so all meshes align
+to the first-frame camera in OpenCV coordinates.
+
+High-level pipeline:
+1. Load object meshes/masks from Generate_Object_Mesh outputs and human mesh/mask.
+2. Load camera intrinsics and observed depth for frame_00.
+3. Run 3-stage optimization with depth residual + silhouette + regularization losses.
+4. Export aligned OBJ meshes (in OpenCV coordinates), transforms, overlays, and a JSON result summary.
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -501,7 +514,7 @@ def parse_args() -> argparse.Namespace:
             "using observed depth + silhouettes (first frame)."
         )
     )
-    parser.add_argument("--video_name", type=str, default="video_01")
+    parser.add_argument("--video_name", type=str, default="video_03")
 
     parser.add_argument(
         "--object_video_dir",
