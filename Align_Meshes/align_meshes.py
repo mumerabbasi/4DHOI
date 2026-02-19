@@ -1,14 +1,15 @@
-"""Align human and object meshes in a shared camera frame using depth + silhouettes.
+"""Align human and object meshes to masked depth point clouds in camera space.
 
-This script takes posed object meshes and a human mesh for a video, then optimizes
-per-mesh similarity transforms (scale, rotation, translation) so all meshes align
-to the first-frame camera in OpenCV coordinates.
+This script is a 3D-only alternative to align_meshes.py.
+It aligns each mesh independently to its own masked depth point cloud using
+trimmed bidirectional Chamfer distance with robust losses.
 
 High-level pipeline:
 1. Load object meshes/masks from Generate_Object_Mesh outputs and human mesh/mask.
 2. Load camera intrinsics and observed depth for frame_00.
-3. Run 3-stage optimization with depth residual + silhouette + regularization losses.
-4. Export aligned OBJ meshes (in OpenCV coordinates), transforms, overlays, and a JSON result summary.
+3. Build per-mesh target point clouds from depth + masks.
+4. Run staged per-mesh similarity optimization in OpenCV camera coordinates.
+5. Export aligned OBJ meshes, transforms, overlays, and JSON summaries.
 """
 
 from __future__ import annotations
@@ -26,12 +27,9 @@ import numpy as np
 import torch
 import trimesh
 from pytorch3d.renderer import (
-    BlendParams,
     MeshRasterizer,
-    MeshRenderer,
     PerspectiveCameras,
     RasterizationSettings,
-    SoftSilhouetteShader,
 )
 from pytorch3d.structures import Meshes
 from pytorch3d.transforms import axis_angle_to_matrix
@@ -62,6 +60,22 @@ class MeshAsset:
     source_to_cv: np.ndarray
     mask_path: Path | None
     mask: np.ndarray | None
+
+
+@dataclass
+class MeshState:
+    log_s: torch.nn.Parameter
+    rotvec: torch.nn.Parameter
+    tvec: torch.nn.Parameter
+    tvec_init: torch.Tensor
+    sample_points_base: torch.Tensor
+    target_points: torch.Tensor | None
+    target_points_total: int
+    target_points_used: int
+    target_z_median: torch.Tensor | None
+    active: bool
+    status: str
+    message: str | None
 
 
 def slugify(text: str) -> str:
@@ -163,7 +177,9 @@ def parse_device(device_str: str) -> torch.device:
     return torch.device(device_str)
 
 
-def build_cameras(k: np.ndarray, width: int, height: int, device: torch.device) -> PerspectiveCameras:
+def build_cameras(
+    k: np.ndarray, width: int, height: int, device: torch.device
+) -> PerspectiveCameras:
     fx = float(k[0, 0])
     fy = float(k[1, 1])
     cx = float(k[0, 2])
@@ -177,14 +193,11 @@ def build_cameras(k: np.ndarray, width: int, height: int, device: torch.device) 
     )
 
 
-def build_rasterizers_and_silhouette_renderer(
+def build_hard_rasterizer(
     cameras: PerspectiveCameras,
     image_size: tuple[int, int],
     bin_size: int,
-    sil_sigma: float,
-    sil_gamma: float,
-    sil_faces_per_pixel: int,
-) -> tuple[MeshRasterizer, MeshRenderer]:
+) -> MeshRasterizer:
     hard_settings = RasterizationSettings(
         image_size=image_size,
         blur_radius=0.0,
@@ -192,22 +205,7 @@ def build_rasterizers_and_silhouette_renderer(
         bin_size=int(bin_size),
         max_faces_per_bin=300000,
     )
-    hard_rasterizer = MeshRasterizer(cameras=cameras, raster_settings=hard_settings)
-
-    blur_radius = math.log(1.0 / 1e-4 - 1.0) * float(sil_sigma)
-    sil_settings = RasterizationSettings(
-        image_size=image_size,
-        blur_radius=blur_radius,
-        faces_per_pixel=int(sil_faces_per_pixel),
-        bin_size=int(bin_size),
-        max_faces_per_bin=300000,
-    )
-    blend_params = BlendParams(sigma=float(sil_sigma), gamma=float(sil_gamma))
-    sil_renderer = MeshRenderer(
-        rasterizer=MeshRasterizer(cameras=cameras, raster_settings=sil_settings),
-        shader=SoftSilhouetteShader(blend_params=blend_params),
-    )
-    return hard_rasterizer, sil_renderer
+    return MeshRasterizer(cameras=cameras, raster_settings=hard_settings)
 
 
 def maybe_resize_for_optimization(
@@ -254,6 +252,17 @@ def transform_vertices_list(
     return out
 
 
+def transform_points_single(
+    points_base: torch.Tensor,
+    log_s: torch.Tensor,
+    rotvec: torch.Tensor,
+    tvec: torch.Tensor,
+) -> torch.Tensor:
+    rot = axis_angle_to_matrix(rotvec.unsqueeze(0))[0]
+    scale = torch.exp(log_s)
+    return scale * (points_base @ rot.transpose(0, 1)) + tvec
+
+
 def render_scene_depth_and_mesh_id(
     hard_rasterizer: MeshRasterizer,
     verts_cv: list[torch.Tensor],
@@ -294,18 +303,6 @@ def render_scene_depth_and_mesh_id(
     return depth, mesh_id
 
 
-def render_soft_silhouettes(
-    sil_renderer: MeshRenderer,
-    verts_cv: list[torch.Tensor],
-    faces: list[torch.Tensor],
-    cv_to_p3d: torch.Tensor,
-) -> torch.Tensor:
-    verts_p3d = [v @ cv_to_p3d.transpose(0, 1) for v in verts_cv]
-    meshes = Meshes(verts=verts_p3d, faces=faces)
-    rgba = sil_renderer(meshes)
-    return rgba[..., 3]  # (J,H,W)
-
-
 def huber_loss(residual: torch.Tensor, delta: float) -> torch.Tensor:
     abs_r = residual.abs()
     return torch.where(
@@ -313,21 +310,6 @@ def huber_loss(residual: torch.Tensor, delta: float) -> torch.Tensor:
         0.5 * residual * residual,
         delta * (abs_r - 0.5 * delta),
     )
-
-
-def balanced_bce_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-    eps = 1e-6
-    p = pred.clamp(min=eps, max=1.0 - eps)
-    gt = target > 0.5
-    losses = []
-    if bool(gt.any()):
-        losses.append(-torch.log(p[gt]).mean())
-    neg = ~gt
-    if bool(neg.any()):
-        losses.append(-torch.log(1.0 - p[neg]).mean())
-    if not losses:
-        return pred.new_zeros(())
-    return torch.stack(losses).mean()
 
 
 def save_mesh_obj(path: Path, verts: np.ndarray, faces: np.ndarray) -> None:
@@ -446,7 +428,6 @@ def draw_overlay_points(
             2,
             cv2.LINE_AA,
         )
-
     return out
 
 
@@ -507,14 +488,274 @@ def per_mesh_depth_stats(
     return stats
 
 
+def pointcloud_stats(points: np.ndarray) -> dict[str, Any]:
+    if points.shape[0] == 0:
+        return {
+            "num_points": 0,
+            "bounds_min_xyz": [0.0, 0.0, 0.0],
+            "bounds_max_xyz": [0.0, 0.0, 0.0],
+            "median_z_m": None,
+        }
+    bmin = points.min(axis=0).astype(np.float32)
+    bmax = points.max(axis=0).astype(np.float32)
+    return {
+        "num_points": int(points.shape[0]),
+        "bounds_min_xyz": bmin.tolist(),
+        "bounds_max_xyz": bmax.tolist(),
+        "median_z_m": float(np.median(points[:, 2])),
+    }
+
+
+def masked_depth_to_pointcloud_cv(
+    depth: np.ndarray,
+    mask: np.ndarray | None,
+    intrinsics: np.ndarray,
+) -> np.ndarray:
+    if mask is None:
+        return np.zeros((0, 3), dtype=np.float32)
+
+    h, w = depth.shape
+    fx = float(intrinsics[0, 0])
+    fy = float(intrinsics[1, 1])
+    cx = float(intrinsics[0, 2])
+    cy = float(intrinsics[1, 2])
+
+    yy, xx = np.indices((h, w), dtype=np.float32)
+    valid = np.isfinite(depth) & (depth > 0.0) & (mask > 0.5)
+    if not np.any(valid):
+        return np.zeros((0, 3), dtype=np.float32)
+
+    z = depth[valid]
+    x = ((xx[valid] - cx) / fx) * z
+    y = ((yy[valid] - cy) / fy) * z
+    return np.stack((x, y, z), axis=-1).astype(np.float32)
+
+
+def downsample_points(
+    points: np.ndarray, max_points: int, rng: np.random.Generator
+) -> np.ndarray:
+    if max_points <= 0 or points.shape[0] <= max_points:
+        return points
+    idx = rng.choice(points.shape[0], size=max_points, replace=False)
+    return points[idx]
+
+
+def sample_mesh_surface_points(
+    verts: np.ndarray,
+    faces: np.ndarray,
+    num_samples: int,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    if num_samples <= 0:
+        raise ValueError(f"num_samples must be > 0, got {num_samples}")
+    if faces.shape[0] == 0:
+        raise ValueError("Mesh has no faces for surface sampling.")
+
+    tri = verts[faces]  # (F,3,3)
+    edge1 = tri[:, 1] - tri[:, 0]
+    edge2 = tri[:, 2] - tri[:, 0]
+    areas = 0.5 * np.linalg.norm(np.cross(edge1, edge2), axis=1)
+    area_sum = float(np.sum(areas))
+
+    if not np.isfinite(area_sum) or area_sum <= 1e-12:
+        vidx = rng.choice(verts.shape[0], size=num_samples, replace=True)
+        return verts[vidx].astype(np.float32)
+
+    probs = areas / area_sum
+    face_idx = rng.choice(faces.shape[0], size=num_samples, replace=True, p=probs)
+    chosen = tri[face_idx]
+
+    u = rng.random((num_samples, 1), dtype=np.float32)
+    v = rng.random((num_samples, 1), dtype=np.float32)
+    su = np.sqrt(u)
+    bary0 = 1.0 - su
+    bary1 = su * (1.0 - v)
+    bary2 = su * v
+    pts = (
+        bary0 * chosen[:, 0]
+        + bary1 * chosen[:, 1]
+        + bary2 * chosen[:, 2]
+    )
+    return pts.astype(np.float32)
+
+
+def nearest_neighbor_distances(
+    src: torch.Tensor,
+    dst: torch.Tensor,
+    chunk_size: int,
+) -> torch.Tensor:
+    if src.ndim != 2 or dst.ndim != 2 or src.shape[1] != 3 or dst.shape[1] != 3:
+        raise ValueError("src and dst must be Nx3 / Mx3 tensors.")
+    if src.shape[0] == 0:
+        return torch.zeros((0,), device=src.device, dtype=src.dtype)
+    if dst.shape[0] == 0:
+        return torch.full((src.shape[0],), float("inf"), device=src.device, dtype=src.dtype)
+
+    if chunk_size <= 0:
+        chunk_size = src.shape[0]
+
+    out = []
+    dst_b = dst.unsqueeze(0)
+    for start in range(0, src.shape[0], chunk_size):
+        s = src[start: start + chunk_size]
+        d = torch.cdist(s.unsqueeze(0), dst_b, p=2)[0]
+        out.append(d.min(dim=1).values)
+    return torch.cat(out, dim=0)
+
+
+def trimmed_huber(
+    distances: torch.Tensor,
+    trim_quantile: float,
+    delta: float,
+) -> tuple[torch.Tensor, int]:
+    if distances.numel() == 0:
+        return distances.new_zeros(()), 0
+
+    trim_q = float(trim_quantile)
+    if trim_q <= 0.0:
+        trim_q = 1.0
+    if trim_q < 1.0 and distances.numel() > 1:
+        keep = max(1, int(math.ceil(trim_q * distances.numel())))
+        kept = torch.topk(distances, k=keep, largest=False).values
+    else:
+        kept = distances
+        keep = int(distances.numel())
+
+    return huber_loss(kept, float(delta)).mean(), keep
+
+
+def compute_mesh_losses(
+    state: MeshState,
+    trim_quantile: float,
+    chamfer_forward_weight: float,
+    chamfer_backward_weight: float,
+    depth_weight: float,
+    reg_weight: float,
+    reg_scale: float,
+    reg_rot: float,
+    reg_trans: float,
+    reg_trans_reference: str,
+    depth_huber_delta_3d: float,
+    depth_anchor_weight: float,
+    nn_chunk_size: int,
+) -> dict[str, Any]:
+    pred = transform_points_single(
+        state.sample_points_base, state.log_s, state.rotvec, state.tvec
+    )
+    if reg_trans_reference == "warmstart":
+        trans_reg_vec = state.tvec - state.tvec_init
+    else:
+        trans_reg_vec = state.tvec
+
+    if state.target_points is None or state.target_points.shape[0] == 0:
+        z = pred.new_zeros(())
+        l_reg = (
+            float(reg_scale) * (state.log_s.pow(2))
+            + float(reg_rot) * (state.rotvec.pow(2).mean())
+            + float(reg_trans) * (trans_reg_vec.pow(2).mean())
+        )
+        total = float(reg_weight) * l_reg
+        return {
+            "total": total,
+            "chamfer": z,
+            "forward": z,
+            "backward": z,
+            "anchor": z,
+            "reg": l_reg,
+            "forward_kept": 0,
+            "backward_kept": 0,
+        }
+
+    d_fw = nearest_neighbor_distances(pred, state.target_points, nn_chunk_size)
+    d_bw = nearest_neighbor_distances(state.target_points, pred, nn_chunk_size)
+    l_fw, kept_fw = trimmed_huber(d_fw, trim_quantile, depth_huber_delta_3d)
+    l_bw, kept_bw = trimmed_huber(d_bw, trim_quantile, depth_huber_delta_3d)
+
+    l_ch = float(chamfer_forward_weight) * l_fw + float(chamfer_backward_weight) * l_bw
+    l_reg = (
+        float(reg_scale) * (state.log_s.pow(2))
+        + float(reg_rot) * (state.rotvec.pow(2).mean())
+        + float(reg_trans) * (trans_reg_vec.pow(2).mean())
+    )
+
+    if state.target_z_median is None:
+        l_anchor = pred.new_zeros(())
+    else:
+        z_residual = torch.median(pred[:, 2]) - state.target_z_median
+        l_anchor = huber_loss(z_residual, float(depth_huber_delta_3d))
+
+    total = float(depth_weight) * l_ch + float(reg_weight) * l_reg + float(
+        depth_anchor_weight
+    ) * l_anchor
+    return {
+        "total": total,
+        "chamfer": l_ch,
+        "forward": l_fw,
+        "backward": l_bw,
+        "anchor": l_anchor,
+        "reg": l_reg,
+        "forward_kept": kept_fw,
+        "backward_kept": kept_bw,
+    }
+
+
+def build_intrinsics_mismatch_report(
+    k_object: np.ndarray,
+    k_depth: np.ndarray,
+    warn_threshold_px: float,
+) -> dict[str, Any]:
+    diff = (k_object - k_depth).astype(np.float32)
+    fx_diff = float(abs(diff[0, 0]))
+    fy_diff = float(abs(diff[1, 1]))
+    cx_diff = float(abs(diff[0, 2]))
+    cy_diff = float(abs(diff[1, 2]))
+    max_abs = float(np.max(np.abs(diff)))
+    warn = (
+        fx_diff > float(warn_threshold_px)
+        or fy_diff > float(warn_threshold_px)
+        or cx_diff > float(warn_threshold_px)
+        or cy_diff > float(warn_threshold_px)
+    )
+    return {
+        "object_intrinsics_3x3": k_object.tolist(),
+        "depth_intrinsics_3x3": k_depth.tolist(),
+        "difference_object_minus_depth_3x3": diff.tolist(),
+        "abs_fx_diff_px": fx_diff,
+        "abs_fy_diff_px": fy_diff,
+        "abs_cx_diff_px": cx_diff,
+        "abs_cy_diff_px": cy_diff,
+        "max_abs_diff": max_abs,
+        "warn_threshold_px": float(warn_threshold_px),
+        "warning": bool(warn),
+    }
+
+
+def stacked_params(states: list[MeshState]) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    log_s = torch.stack([s.log_s for s in states], dim=0)
+    rotvec = torch.stack([s.rotvec for s in states], dim=0)
+    tvec = torch.stack([s.tvec for s in states], dim=0)
+    return log_s, rotvec, tvec
+
+
+def get_transform_arrays(states: list[MeshState]) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    log_s_np = np.array([float(s.log_s.detach().cpu().item()) for s in states], dtype=np.float32)
+    scales_np = np.exp(log_s_np)
+    rotvec_np = np.stack([s.rotvec.detach().cpu().numpy() for s in states], axis=0).astype(
+        np.float32
+    )
+    t_np = np.stack([s.tvec.detach().cpu().numpy() for s in states], axis=0).astype(np.float32)
+    rots_np = axis_angle_to_matrix(torch.from_numpy(rotvec_np)).cpu().numpy().astype(np.float32)
+    return log_s_np, scales_np, rotvec_np, rots_np, t_np
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Align human and object meshes into a single OpenCV camera frame "
-            "using observed depth + silhouettes (first frame)."
+            "using masked 3D depth point clouds (first frame)."
         )
     )
-    parser.add_argument("--video_name", type=str, default="video_01")
+    parser.add_argument("--video_name", type=str, default="video_03")
 
     parser.add_argument(
         "--object_video_dir",
@@ -566,54 +807,92 @@ def parse_args() -> argparse.Namespace:
         choices=["object", "depth"],
         default="object",
         help=(
-            "Camera intrinsics source for rendering/alignment. "
+            "Camera intrinsics source for alignment point-cloud back-projection. "
             "'object' uses Generate_Object_Mesh/output/video_xx/camera_intrinsics.json "
             "(intrinsics_pixels_3x3). "
             "'depth' uses Estimate_Depth/output/video_xx/pose_estimation.json intrinsics."
         ),
     )
+    parser.add_argument(
+        "--intrinsics_warn_threshold_px",
+        type=float,
+        default=100.0,
+        help="Warn when |object-depth intrinsics element diff| exceeds this threshold.",
+    )
 
     parser.add_argument("--device", type=str, default="cuda:0")
-    parser.add_argument("--opt_max_side", type=int, default=640)
+    parser.add_argument("--opt_max_side", type=int, default=1280)
     parser.add_argument("--bin_size", type=int, default=0)
 
-    parser.add_argument("--iters", type=int, nargs=3, default=[100, 120, 160])
+    parser.add_argument("--iters", type=int, nargs=3, default=[2500, 2500, 3000])
     parser.add_argument("--stage_lr", type=float, nargs=3, default=[5e-3, 2e-3, 1e-3])
-    parser.add_argument("--stage_sil_weight", type=float, nargs=3, default=[0.05, 0.2, 0.5])
+    parser.add_argument(
+        "--stage_early_stop_patience",
+        type=int,
+        nargs=3,
+        default=[80, 100, 120],
+        help=(
+            "Per-stage per-mesh early stopping patience. "
+            "Stop stage for a mesh when loss does not improve for this many iterations. "
+            "Set <= 0 to disable."
+        ),
+    )
+    parser.add_argument(
+        "--stage_early_stop_min_delta",
+        type=float,
+        nargs=3,
+        default=[1e-4, 5e-5, 1e-5],
+        help=(
+            "Per-stage minimum loss improvement required to reset early-stop patience. "
+            "Improvement means eval_total < (best_total - min_delta)."
+        ),
+    )
+    parser.add_argument("--trim_quantile", type=float, default=0.7)
 
     parser.add_argument("--depth_weight", type=float, default=1.0)
-    parser.add_argument("--human_sil_weight", type=float, default=0.25)
-    parser.add_argument("--reg_weight", type=float, default=1.0)
-    parser.add_argument("--reg_scale", type=float, default=0.2)
-    parser.add_argument("--reg_rot", type=float, default=0.01)
-    parser.add_argument("--reg_trans", type=float, default=0.1)
-    parser.add_argument("--depth_huber_delta", type=float, default=0.1)
+    parser.add_argument("--reg_weight", type=float, default=0.1)
+    parser.add_argument("--reg_scale", type=float, default=0.05)
+    parser.add_argument("--reg_rot", type=float, default=0.005)
+    parser.add_argument("--reg_trans", type=float, default=0.01)
+    parser.add_argument(
+        "--reg_trans_reference",
+        type=str,
+        choices=["zero", "warmstart"],
+        default="warmstart",
+        help="Reference for translation regularization; warmstart penalizes drift from initialized translation.",
+    )
+    parser.add_argument("--depth_huber_delta_3d", type=float, default=0.05)
+    parser.add_argument("--depth_anchor_weight", type=float, default=0.15)
 
-    parser.add_argument("--sil_sigma", type=float, default=1e-4)
-    parser.add_argument("--sil_gamma", type=float, default=1e-4)
-    parser.add_argument("--sil_faces_per_pixel", type=int, default=50)
+    parser.add_argument("--chamfer_forward_weight", type=float, default=0.5)
+    parser.add_argument("--chamfer_backward_weight", type=float, default=1.0)
+    parser.add_argument("--pc_max_points_per_mesh", type=int, default=5000)
+    parser.add_argument("--mesh_sample_points", type=int, default=5000)
+    parser.add_argument("--min_points_per_mesh", type=int, default=256)
+    parser.add_argument("--nn_chunk_size", type=int, default=1024)
+
     parser.add_argument("--human_mask_dilate_px", type=int, default=6)
     parser.add_argument(
         "--use_mesh_visibility_for_depth",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Use visible mesh_id from full-scene rasterization for per-mesh depth residuals.",
+        help="Use visible mesh_id from full-scene rasterization for depth residual stats.",
     )
 
     parser.add_argument("--min_scale", type=float, default=0.2)
     parser.add_argument("--max_scale", type=float, default=5.0)
-    parser.add_argument("--max_rot_deg", type=float, default=5.0)
+    parser.add_argument("--max_rot_deg", type=float, default=0.0)
     parser.add_argument("--log_every", type=int, default=10)
-    parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
         "--save_stage_outputs",
         action=argparse.BooleanOptionalAction,
         default=False,
         help=(
-            "Save per-stage outputs (OBJ meshes + combined transforms.json) "
+            "Save per-stage outputs (OBJ meshes + combined transforms.json + overlay.png) "
             "in meshes_stage_1, meshes_stage_2, ..."
         ),
     )
+    parser.add_argument("--seed", type=int, default=42)
     return parser.parse_args()
 
 
@@ -687,12 +966,44 @@ def main() -> None:
     depth_h, depth_w = depth_obs.shape
 
     pose = load_json(pose_json_path)
+    k_object_full = load_object_intrinsics(object_intrinsics_json_path)
+    k_depth_full = ensure_3x3_intrinsics(pose.get("intrinsics"))
     if args.intrinsics_source == "object":
-        k_full = load_object_intrinsics(object_intrinsics_json_path)
+        k_full = k_object_full
     else:
-        k_full = ensure_3x3_intrinsics(pose.get("intrinsics"))
+        k_full = k_depth_full
     extrinsics = ensure_3x4_extrinsics(pose.get("extrinsics"))
     print(f"Using intrinsics source: {args.intrinsics_source}")
+
+    mismatch_report = build_intrinsics_mismatch_report(
+        k_object=k_object_full,
+        k_depth=k_depth_full,
+        warn_threshold_px=float(args.intrinsics_warn_threshold_px),
+    )
+    selected_intrinsics_consistent = (
+        (args.intrinsics_source == "depth") or (not bool(mismatch_report["warning"]))
+    )
+    selected_intrinsics_message = "Selected intrinsics are consistent with 3D depth back-projection."
+    if mismatch_report["warning"]:
+        if args.intrinsics_source == "depth":
+            print(
+                "WARNING: object/depth intrinsics mismatch exceeds threshold; "
+                f"max_abs_diff={mismatch_report['max_abs_diff']:.3f}px "
+                "(using depth intrinsics for 3D back-projection)."
+            )
+            selected_intrinsics_message = (
+                "Object/depth intrinsics differ, but depth intrinsics were selected for back-projection."
+            )
+        else:
+            print(
+                "WARNING: object/depth intrinsics mismatch exceeds threshold; "
+                f"max_abs_diff={mismatch_report['max_abs_diff']:.3f}px "
+                "(non-depth intrinsics may bias 3D point-cloud alignment)."
+            )
+            selected_intrinsics_message = (
+                "Object/depth intrinsics differ and non-depth intrinsics were selected; "
+                "this can bias back-projected target point clouds."
+            )
 
     assets: list[MeshAsset] = []
     object_count = 0
@@ -764,7 +1075,9 @@ def main() -> None:
         slug="human",
         kind="human",
         source_mesh_path=human_obj_path,
-        source_coord="opencv_camera" if args.human_coord == "opencv" else "pytorch3d_camera",
+        source_coord="opencv_camera"
+        if args.human_coord == "opencv"
+        else "pytorch3d_camera",
         verts_source=human_verts_src,
         faces=human_faces,
         source_to_cv=human_source_to_cv.astype(np.float32),
@@ -774,7 +1087,6 @@ def main() -> None:
     assets = [human_asset] + assets
 
     names = [a.name for a in assets]
-    kinds = [a.kind for a in assets]
     j_count = len(assets)
     print(f"Loaded {j_count} meshes: {names}")
 
@@ -792,13 +1104,10 @@ def main() -> None:
     print(f"Using device: {device}")
 
     cams = build_cameras(k_opt, opt_w, opt_h, device)
-    hard_rasterizer, sil_renderer = build_rasterizers_and_silhouette_renderer(
+    hard_rasterizer = build_hard_rasterizer(
         cameras=cams,
         image_size=(opt_h, opt_w),
         bin_size=int(args.bin_size),
-        sil_sigma=float(args.sil_sigma),
-        sil_gamma=float(args.sil_gamma),
-        sil_faces_per_pixel=int(args.sil_faces_per_pixel),
     )
 
     cv_to_p3d = torch.tensor(F_P3D_TO_CV, dtype=torch.float32, device=device)
@@ -807,8 +1116,10 @@ def main() -> None:
     verts_base_cv: list[torch.Tensor] = []
     faces_t: list[torch.Tensor] = []
     masks_t: list[torch.Tensor | None] = []
+    verts_base_cv_np: list[np.ndarray] = []
     for asset in assets:
         verts_cv_np = asset.verts_source @ asset.source_to_cv.transpose(0, 1)
+        verts_base_cv_np.append(verts_cv_np.astype(np.float32))
         verts_base_cv.append(
             torch.from_numpy(verts_cv_np).to(device=device, dtype=torch.float32)
         )
@@ -857,180 +1168,484 @@ def main() -> None:
     else:
         print("Human mask: loaded from file.")
 
-    log_s = torch.nn.Parameter(torch.zeros((j_count,), device=device, dtype=torch.float32))
-    rotvec = torch.nn.Parameter(torch.zeros((j_count, 3), device=device, dtype=torch.float32))
-    tvec = torch.nn.Parameter(torch.zeros((j_count, 3), device=device, dtype=torch.float32))
+    # Build target point clouds + fixed mesh surface samples.
+    # rng = np.random.default_rng(args.seed)
+    states: list[MeshState] = []
+    per_mesh_pointcloud_stats: list[dict[str, Any]] = []
+    mesh_status: list[dict[str, Any]] = []
+    for j, asset in enumerate(assets):
+        mesh_rng = np.random.default_rng(args.seed + 10007 * (j + 1))
 
-    # Warm-start z translation from masked depth median offset.
-    with torch.no_grad():
-        verts_init = transform_vertices_list(verts_base_cv, log_s, rotvec, tvec)
-        depth_init, mesh_id_init = render_scene_depth_and_mesh_id(
-            hard_rasterizer=hard_rasterizer,
-            verts_cv=verts_init,
-            faces=faces_t,
-            cv_to_p3d=cv_to_p3d,
-            device=device,
+        target_full = masked_depth_to_pointcloud_cv(
+            depth=depth_opt,
+            mask=asset.mask,
+            intrinsics=k_opt,
         )
-        for j in range(j_count):
-            mask = masks_t[j]
-            if mask is None:
-                continue
-            pix = (depth_obs_t > 0.0) & (mask > 0.5)
-            if bool(args.use_mesh_visibility_for_depth):
-                pix = pix & (mesh_id_init == j)
-            if int(pix.sum().item()) < 64:
-                pix = (depth_obs_t > 0.0) & (mask > 0.5)
-            if int(pix.sum().item()) < 64:
-                continue
-            z_obs = torch.median(depth_obs_t[pix])
-            z_rnd = torch.median(depth_init[pix])
-            if torch.isfinite(z_obs) and torch.isfinite(z_rnd):
-                tvec[j, 2] += (z_obs - z_rnd)
-    print("Warm-started tz from depth medians.")
+        target_used = downsample_points(
+            target_full, int(args.pc_max_points_per_mesh), mesh_rng
+        )
 
+        sample_points_np = sample_mesh_surface_points(
+            verts=verts_base_cv_np[j],
+            faces=asset.faces,
+            num_samples=int(args.mesh_sample_points),
+            rng=mesh_rng,
+        )
+        sample_points_t = torch.from_numpy(sample_points_np).to(
+            device=device, dtype=torch.float32
+        )
+
+        target_points_t: torch.Tensor | None = None
+        target_z_median_t: torch.Tensor | None = None
+        if target_used.shape[0] > 0:
+            target_points_t = torch.from_numpy(target_used).to(
+                device=device, dtype=torch.float32
+            )
+            target_z_median_t = torch.median(target_points_t[:, 2])
+
+        state = MeshState(
+            log_s=torch.nn.Parameter(
+                torch.zeros((), device=device, dtype=torch.float32)
+            ),
+            rotvec=torch.nn.Parameter(
+                torch.zeros((3,), device=device, dtype=torch.float32)
+            ),
+            tvec=torch.nn.Parameter(
+                torch.zeros((3,), device=device, dtype=torch.float32)
+            ),
+            tvec_init=torch.zeros((3,), device=device, dtype=torch.float32),
+            sample_points_base=sample_points_t,
+            target_points=target_points_t,
+            target_points_total=int(target_full.shape[0]),
+            target_points_used=int(target_used.shape[0]),
+            target_z_median=target_z_median_t,
+            active=True,
+            status="pending",
+            message=None,
+        )
+
+        # Warm-start tz from median depth.
+        if target_points_t is not None and target_points_t.shape[0] > 0:
+            with torch.no_grad():
+                state.tvec[2] += torch.median(target_points_t[:, 2]) - torch.median(
+                    sample_points_t[:, 2]
+                )
+        with torch.no_grad():
+            state.tvec_init.copy_(state.tvec.detach())
+
+        if state.target_points_used < int(args.min_points_per_mesh):
+            state.active = False
+            state.status = "skipped_insufficient_points"
+            state.message = (
+                f"target points {state.target_points_used} < min_points_per_mesh {int(args.min_points_per_mesh)}"
+            )
+
+        states.append(state)
+        per_mesh_pointcloud_stats.append(
+            {
+                "name": asset.name,
+                "slug": asset.slug,
+                "kind": asset.kind,
+                "mask_path": None if asset.mask_path is None else str(asset.mask_path),
+                "target_points_full": int(target_full.shape[0]),
+                "target_points_used": int(target_used.shape[0]),
+                "stats_full": pointcloud_stats(target_full),
+                "stats_used": pointcloud_stats(target_used),
+                "mesh_sample_points": int(sample_points_np.shape[0]),
+                "active_for_optimization": bool(state.active),
+            }
+        )
+        mesh_status.append(
+            {
+                "name": asset.name,
+                "slug": asset.slug,
+                "kind": asset.kind,
+                "status": state.status,
+                "message": state.message,
+                "target_points_total": int(state.target_points_total),
+                "target_points_used": int(state.target_points_used),
+            }
+        )
+
+    loss_history: list[dict[str, Any]] = []
+    per_stage_mesh_losses_3d: list[dict[str, Any]] = []
+    stage_output_records: list[dict[str, Any]] = []
+    scale_clamped_count = 0
+    rotation_clamped_count = 0
+    low_overlap_pixel_threshold = 128
+
+    max_rot_rad = math.radians(float(args.max_rot_deg))
+    max_rot_t = torch.tensor(float(max_rot_rad), device=device, dtype=torch.float32)
+    min_log_scale = math.log(float(args.min_scale))
+    max_log_scale = math.log(float(args.max_scale))
     stages = [
         {"use_scale": True, "use_rot": False, "use_txy": False, "use_tz": True},
         {"use_scale": True, "use_rot": False, "use_txy": True, "use_tz": True},
         {"use_scale": True, "use_rot": True, "use_txy": True, "use_tz": True},
     ]
-    if len(args.iters) != 3 or len(args.stage_lr) != 3 or len(args.stage_sil_weight) != 3:
-        raise ValueError("--iters, --stage_lr, --stage_sil_weight must each provide exactly 3 values.")
-
-    loss_history: list[dict[str, Any]] = []
-    stage_output_records: list[dict[str, Any]] = []
-    max_rot_rad = math.radians(float(args.max_rot_deg))
-    min_log_scale = math.log(float(args.min_scale))
-    max_log_scale = math.log(float(args.max_scale))
-
-    for stage_idx, stage_cfg in enumerate(stages):
-        n_iter = int(args.iters[stage_idx])
-        if n_iter <= 0:
-            continue
-
-        lr = float(args.stage_lr[stage_idx])
-        sil_weight_stage = float(args.stage_sil_weight[stage_idx])
-        optimizer = torch.optim.Adam([log_s, rotvec, tvec], lr=lr)
-
-        print(
-            f"[Stage {stage_idx}] iters={n_iter}, lr={lr}, "
-            f"sil_w={sil_weight_stage}, cfg={stage_cfg}"
+    if (
+        len(args.iters) != 3
+        or len(args.stage_lr) != 3
+        or len(args.stage_early_stop_patience) != 3
+        or len(args.stage_early_stop_min_delta) != 3
+    ):
+        raise ValueError(
+            "--iters, --stage_lr, --stage_early_stop_patience, "
+            "and --stage_early_stop_min_delta must each provide exactly 3 values."
         )
 
-        for it in range(n_iter):
-            verts_cur = transform_vertices_list(verts_base_cv, log_s, rotvec, tvec)
-            depth_rend, mesh_id = render_scene_depth_and_mesh_id(
-                hard_rasterizer=hard_rasterizer,
-                verts_cv=verts_cur,
-                faces=faces_t,
-                cv_to_p3d=cv_to_p3d,
-                device=device,
+    stage_iters = [int(v) for v in args.iters]
+    stage_lrs = [float(v) for v in args.stage_lr]
+    stage_early_stop_patience = [int(v) for v in args.stage_early_stop_patience]
+    stage_early_stop_min_delta = [float(v) for v in args.stage_early_stop_min_delta]
+    for stage_i, n_iter in enumerate(stage_iters):
+        if n_iter <= 0:
+            raise ValueError(f"--iters[{stage_i}] must be > 0.")
+    for stage_i, patience in enumerate(stage_early_stop_patience):
+        if patience < 0:
+            raise ValueError(
+                f"--stage_early_stop_patience[{stage_i}] must be >= 0."
             )
-            sil_rend = render_soft_silhouettes(
-                sil_renderer=sil_renderer,
-                verts_cv=verts_cur,
-                faces=faces_t,
-                cv_to_p3d=cv_to_p3d,
-            )
-
-            l_depth = depth_obs_t.new_zeros(())
-            depth_terms = 0
-            valid_depth = depth_obs_t > 0.0
-            for j in range(j_count):
-                mask = masks_t[j]
-                if mask is None:
-                    continue
-                pix = valid_depth & (mask > 0.5)
-                if bool(args.use_mesh_visibility_for_depth):
-                    pix = pix & (mesh_id == j)
-                if int(pix.sum().item()) < 32 and bool(args.use_mesh_visibility_for_depth):
-                    # Fallback to weaker supervision if occlusion/visibility labeling is empty.
-                    pix = valid_depth & (mask > 0.5)
-                if int(pix.sum().item()) == 0:
-                    continue
-                r = depth_rend[pix] - depth_obs_t[pix]
-                l_depth = l_depth + huber_loss(r, float(args.depth_huber_delta)).mean()
-                depth_terms += 1
-            if depth_terms > 0:
-                l_depth = l_depth / float(depth_terms)
-
-            l_sil = depth_obs_t.new_zeros(())
-            sil_weight_sum = 0.0
-            for j in range(j_count):
-                mask = masks_t[j]
-                if mask is None:
-                    continue
-                mesh_w = 1.0 if kinds[j] == "object" else float(args.human_sil_weight)
-                if mesh_w <= 0.0:
-                    continue
-                l_sil = l_sil + mesh_w * balanced_bce_loss(sil_rend[j], mask)
-                sil_weight_sum += mesh_w
-            if sil_weight_sum > 0.0:
-                l_sil = l_sil / sil_weight_sum
-
-            l_reg = (
-                float(args.reg_scale) * (log_s.pow(2).mean())
-                + float(args.reg_rot) * (rotvec.pow(2).mean())
-                + float(args.reg_trans) * (tvec.pow(2).mean())
-            )
-            total = (
-                float(args.depth_weight) * l_depth
-                + sil_weight_stage * l_sil
-                + float(args.reg_weight) * l_reg
+    for stage_i, min_delta in enumerate(stage_early_stop_min_delta):
+        if min_delta < 0.0:
+            raise ValueError(
+                f"--stage_early_stop_min_delta[{stage_i}] must be >= 0."
             )
 
-            optimizer.zero_grad()
-            total.backward()
+    trim_q = float(args.trim_quantile)
+    for stage_idx, stage_cfg in enumerate(stages):
+        n_iter = stage_iters[stage_idx]
+        lr_stage = stage_lrs[stage_idx]
+        stage_patience = stage_early_stop_patience[stage_idx]
+        stage_min_delta = stage_early_stop_min_delta[stage_idx]
+        print(
+            f"[Stage {stage_idx}] iters={n_iter}, lr={lr_stage}, trim_q={trim_q}, "
+            f"patience={stage_patience}, min_delta={stage_min_delta}, cfg={stage_cfg}"
+        )
 
-            if not stage_cfg["use_scale"] and log_s.grad is not None:
-                log_s.grad.zero_()
-            if not stage_cfg["use_rot"] and rotvec.grad is not None:
-                rotvec.grad.zero_()
-            if tvec.grad is not None:
-                if not stage_cfg["use_txy"]:
-                    tvec.grad[:, 0:2].zero_()
-                if not stage_cfg["use_tz"]:
-                    tvec.grad[:, 2].zero_()
-
-            optimizer.step()
-
-            with torch.no_grad():
-                log_s.clamp_(min=min_log_scale, max=max_log_scale)
-                norms = torch.linalg.norm(rotvec, dim=1, keepdim=True).clamp_min(1e-8)
-                factor = torch.clamp(max_rot_rad / norms, max=1.0)
-                rotvec.mul_(factor)
-
-            if (it + 1) % int(args.log_every) == 0 or it == 0 or (it + 1) == n_iter:
-                msg = (
-                    f"stage={stage_idx:02d} iter={it + 1:04d}/{n_iter:04d} "
-                    f"loss={float(total.item()):.6f} "
-                    f"depth={float(l_depth.item()):.6f} "
-                    f"sil={float(l_sil.item()):.6f} "
-                    f"reg={float(l_reg.item()):.6f}"
-                )
-                print(msg)
-                loss_history.append(
+        stage_mesh_losses: list[dict[str, Any]] = []
+        for j, state in enumerate(states):
+            mesh_name = names[j]
+            if not state.active:
+                stage_mesh_losses.append(
                     {
-                        "stage": stage_idx,
-                        "iter": it + 1,
-                        "loss_total": float(total.item()),
-                        "loss_depth": float(l_depth.item()),
-                        "loss_silhouette": float(l_sil.item()),
-                        "loss_regularization": float(l_reg.item()),
+                        "name": mesh_name,
+                        "status": state.status,
+                        "message": state.message,
+                        "iters_requested": n_iter,
+                        "iters_ran": 0,
+                        "initial_total": None,
+                        "best_total": None,
+                        "final_total": None,
+                        "final_chamfer": None,
+                        "final_forward": None,
+                        "final_backward": None,
+                        "final_anchor": None,
+                        "final_reg": None,
+                        "forward_kept": 0,
+                        "backward_kept": 0,
+                        "target_points_used": int(state.target_points_used),
+                        "mesh_sample_points": int(state.sample_points_base.shape[0]),
+                        "trim_quantile": trim_q,
+                        "early_stopped": False,
+                        "early_stop_patience": int(stage_patience),
+                        "early_stop_min_delta": float(stage_min_delta),
+                        "early_stop_iter": None,
                     }
                 )
+                continue
+
+            with torch.no_grad():
+                init_losses = compute_mesh_losses(
+                    state=state,
+                    trim_quantile=trim_q,
+                    chamfer_forward_weight=float(args.chamfer_forward_weight),
+                    chamfer_backward_weight=float(args.chamfer_backward_weight),
+                    depth_weight=float(args.depth_weight),
+                    reg_weight=float(args.reg_weight),
+                    reg_scale=float(args.reg_scale),
+                    reg_rot=float(args.reg_rot),
+                    reg_trans=float(args.reg_trans),
+                    reg_trans_reference=str(args.reg_trans_reference),
+                    depth_huber_delta_3d=float(args.depth_huber_delta_3d),
+                    depth_anchor_weight=float(args.depth_anchor_weight),
+                    nn_chunk_size=int(args.nn_chunk_size),
+                )
+                init_total = float(init_losses["total"].item())
+
+            if not math.isfinite(init_total):
+                state.active = False
+                state.status = "failed_nonfinite_initial"
+                state.message = "Initial 3D loss is non-finite."
+                stage_mesh_losses.append(
+                    {
+                        "name": mesh_name,
+                        "status": state.status,
+                        "message": state.message,
+                        "iters_requested": n_iter,
+                        "iters_ran": 0,
+                        "initial_total": init_total,
+                        "best_total": None,
+                        "final_total": None,
+                        "final_chamfer": None,
+                        "final_forward": None,
+                        "final_backward": None,
+                        "final_anchor": None,
+                        "final_reg": None,
+                        "forward_kept": 0,
+                        "backward_kept": 0,
+                        "target_points_used": int(state.target_points_used),
+                        "mesh_sample_points": int(state.sample_points_base.shape[0]),
+                        "trim_quantile": trim_q,
+                        "early_stopped": False,
+                        "early_stop_patience": int(stage_patience),
+                        "early_stop_min_delta": float(stage_min_delta),
+                        "early_stop_iter": None,
+                    }
+                )
+                continue
+
+            optimizer = torch.optim.Adam(
+                [state.log_s, state.rotvec, state.tvec], lr=lr_stage
+            )
+            best_total = init_total
+            best_state = (
+                state.log_s.detach().clone(),
+                state.rotvec.detach().clone(),
+                state.tvec.detach().clone(),
+            )
+            diverged = False
+            early_stopped = False
+            early_stop_iter: int | None = None
+            no_improve_iters = 0
+            iters_ran = 0
+
+            for it in range(n_iter):
+                losses = compute_mesh_losses(
+                    state=state,
+                    trim_quantile=trim_q,
+                    chamfer_forward_weight=float(args.chamfer_forward_weight),
+                    chamfer_backward_weight=float(args.chamfer_backward_weight),
+                    depth_weight=float(args.depth_weight),
+                    reg_weight=float(args.reg_weight),
+                    reg_scale=float(args.reg_scale),
+                    reg_rot=float(args.reg_rot),
+                    reg_trans=float(args.reg_trans),
+                    reg_trans_reference=str(args.reg_trans_reference),
+                    depth_huber_delta_3d=float(args.depth_huber_delta_3d),
+                    depth_anchor_weight=float(args.depth_anchor_weight),
+                    nn_chunk_size=int(args.nn_chunk_size),
+                )
+                total = losses["total"]
+                if not torch.isfinite(total):
+                    diverged = True
+                    break
+
+                optimizer.zero_grad()
+                total.backward()
+
+                if not stage_cfg["use_scale"] and state.log_s.grad is not None:
+                    state.log_s.grad.zero_()
+                if not stage_cfg["use_rot"] and state.rotvec.grad is not None:
+                    state.rotvec.grad.zero_()
+                if state.tvec.grad is not None:
+                    if not stage_cfg["use_txy"]:
+                        state.tvec.grad[0:2].zero_()
+                    if not stage_cfg["use_tz"]:
+                        state.tvec.grad[2].zero_()
+
+                optimizer.step()
+                iters_ran = it + 1
+
+                with torch.no_grad():
+                    prev_log_s = state.log_s.detach().clone()
+                    prev_rot_norm = float(torch.linalg.norm(state.rotvec).item())
+                    state.log_s.clamp_(min=min_log_scale, max=max_log_scale)
+                    if float((state.log_s - prev_log_s).abs().item()) > 1e-10:
+                        scale_clamped_count += 1
+                    norm = torch.linalg.norm(state.rotvec).clamp_min(1e-8)
+                    fac = torch.clamp(max_rot_t / norm, max=1.0)
+                    state.rotvec.mul_(fac)
+                    if prev_rot_norm > float(max_rot_rad) + 1e-8:
+                        rotation_clamped_count += 1
+
+                    eval_losses = compute_mesh_losses(
+                        state=state,
+                        trim_quantile=trim_q,
+                        chamfer_forward_weight=float(args.chamfer_forward_weight),
+                        chamfer_backward_weight=float(args.chamfer_backward_weight),
+                        depth_weight=float(args.depth_weight),
+                        reg_weight=float(args.reg_weight),
+                        reg_scale=float(args.reg_scale),
+                        reg_rot=float(args.reg_rot),
+                        reg_trans=float(args.reg_trans),
+                        reg_trans_reference=str(args.reg_trans_reference),
+                        depth_huber_delta_3d=float(args.depth_huber_delta_3d),
+                        depth_anchor_weight=float(args.depth_anchor_weight),
+                        nn_chunk_size=int(args.nn_chunk_size),
+                    )
+                    eval_total = float(eval_losses["total"].item())
+                    if not math.isfinite(eval_total):
+                        diverged = True
+                        break
+                    if eval_total < (best_total - stage_min_delta):
+                        best_total = eval_total
+                        best_state = (
+                            state.log_s.detach().clone(),
+                            state.rotvec.detach().clone(),
+                            state.tvec.detach().clone(),
+                        )
+                        no_improve_iters = 0
+                    else:
+                        no_improve_iters += 1
+
+                    if stage_patience > 0 and no_improve_iters >= stage_patience:
+                        early_stopped = True
+                        early_stop_iter = it + 1
+                        print(
+                            f"stage={stage_idx:02d} mesh={mesh_name} "
+                            f"early_stop iter={early_stop_iter:04d}/{n_iter:04d} "
+                            f"best_loss={best_total:.6f} patience={stage_patience} "
+                            f"min_delta={stage_min_delta:.6g}"
+                        )
+                        break
+
+                    if (it + 1) % int(args.log_every) == 0 or it == 0 or (it + 1) == n_iter:
+                        print(
+                            f"stage={stage_idx:02d} mesh={mesh_name} "
+                            f"iter={it + 1:04d}/{n_iter:04d} "
+                            f"loss={eval_total:.6f} ch={float(eval_losses['chamfer'].item()):.6f} "
+                            f"fw={float(eval_losses['forward'].item()):.6f} "
+                            f"bw={float(eval_losses['backward'].item()):.6f} "
+                            f"anchor={float(eval_losses['anchor'].item()):.6f} "
+                            f"reg={float(eval_losses['reg'].item()):.6f}"
+                        )
+                        loss_history.append(
+                            {
+                                "stage": stage_idx,
+                                "mesh": mesh_name,
+                                "mesh_index": j,
+                                "iter": it + 1,
+                                "loss_total": eval_total,
+                                "loss_chamfer": float(eval_losses["chamfer"].item()),
+                                "loss_forward": float(eval_losses["forward"].item()),
+                                "loss_backward": float(eval_losses["backward"].item()),
+                                "loss_anchor": float(eval_losses["anchor"].item()),
+                                "loss_regularization": float(eval_losses["reg"].item()),
+                                "forward_kept": int(eval_losses["forward_kept"]),
+                                "backward_kept": int(eval_losses["backward_kept"]),
+                            }
+                        )
+
+            if diverged:
+                with torch.no_grad():
+                    state.log_s.copy_(best_state[0])
+                    state.rotvec.copy_(best_state[1])
+                    state.tvec.copy_(best_state[2])
+                state.status = "diverged_recovered"
+                state.message = (
+                    "Encountered non-finite loss; reverted to best finite checkpoint."
+                )
+            elif early_stopped:
+                with torch.no_grad():
+                    state.log_s.copy_(best_state[0])
+                    state.rotvec.copy_(best_state[1])
+                    state.tvec.copy_(best_state[2])
+                state.status = "optimized_early_stopped"
+                state.message = (
+                    f"Early stopped at iter {int(early_stop_iter or 0)} "
+                    f"(patience={stage_patience}, min_delta={stage_min_delta}); "
+                    "reverted to best checkpoint."
+                )
+            else:
+                state.status = "optimized"
+                state.message = None
+
+            with torch.no_grad():
+                final_losses = compute_mesh_losses(
+                    state=state,
+                    trim_quantile=trim_q,
+                    chamfer_forward_weight=float(args.chamfer_forward_weight),
+                    chamfer_backward_weight=float(args.chamfer_backward_weight),
+                    depth_weight=float(args.depth_weight),
+                    reg_weight=float(args.reg_weight),
+                    reg_scale=float(args.reg_scale),
+                    reg_rot=float(args.reg_rot),
+                    reg_trans=float(args.reg_trans),
+                    reg_trans_reference=str(args.reg_trans_reference),
+                    depth_huber_delta_3d=float(args.depth_huber_delta_3d),
+                    depth_anchor_weight=float(args.depth_anchor_weight),
+                    nn_chunk_size=int(args.nn_chunk_size),
+                )
+
+            stage_mesh_losses.append(
+                {
+                    "name": mesh_name,
+                    "status": state.status,
+                    "message": state.message,
+                    "iters_requested": n_iter,
+                    "iters_ran": int(iters_ran),
+                    "initial_total": init_total,
+                    "best_total": float(best_total),
+                    "final_total": float(final_losses["total"].item()),
+                    "final_chamfer": float(final_losses["chamfer"].item()),
+                    "final_forward": float(final_losses["forward"].item()),
+                    "final_backward": float(final_losses["backward"].item()),
+                    "final_anchor": float(final_losses["anchor"].item()),
+                    "final_reg": float(final_losses["reg"].item()),
+                    "forward_kept": int(final_losses["forward_kept"]),
+                    "backward_kept": int(final_losses["backward_kept"]),
+                    "target_points_used": int(state.target_points_used),
+                    "mesh_sample_points": int(state.sample_points_base.shape[0]),
+                    "trim_quantile": trim_q,
+                    "early_stopped": bool(early_stopped),
+                    "early_stop_patience": int(stage_patience),
+                    "early_stop_min_delta": float(stage_min_delta),
+                    "early_stop_iter": None
+                    if early_stop_iter is None
+                    else int(early_stop_iter),
+                }
+            )
+
+            mesh_status[j] = {
+                "name": assets[j].name,
+                "slug": assets[j].slug,
+                "kind": assets[j].kind,
+                "status": state.status,
+                "message": state.message,
+                "target_points_total": int(state.target_points_total),
+                "target_points_used": int(state.target_points_used),
+            }
+
+        per_stage_mesh_losses_3d.append(
+            {
+                "stage": stage_idx + 1,
+                "stage_index": stage_idx,
+                "trim_quantile": trim_q,
+                "mesh_losses": stage_mesh_losses,
+                "mode": "joint",
+                "stage_config": stage_cfg,
+                "iters": int(n_iter),
+                "lr": float(lr_stage),
+                "early_stop_patience": int(stage_patience),
+                "early_stop_min_delta": float(stage_min_delta),
+            }
+        )
 
         if bool(args.save_stage_outputs):
             stage_num = stage_idx + 1
             stage_meshes_dir = output_dir / f"meshes_stage_{stage_num}"
             stage_transforms_path = stage_meshes_dir / "transforms.json"
+            stage_overlay_path = stage_meshes_dir / "overlay.png"
             with torch.no_grad():
-                verts_stage_t = transform_vertices_list(verts_base_cv, log_s, rotvec, tvec)
+                verts_stage_t = [
+                    transform_points_single(v, st.log_s, st.rotvec, st.tvec)
+                    for v, st in zip(verts_base_cv, states)
+                ]
                 verts_stage = [v.detach().cpu().numpy() for v in verts_stage_t]
-                rotvec_np_stage = rotvec.detach().cpu().numpy()
-                rots_np_stage = axis_angle_to_matrix(rotvec.detach()).cpu().numpy()
-                scales_np_stage = np.exp(log_s.detach().cpu().numpy())
-                t_np_stage = tvec.detach().cpu().numpy()
-
+                _, scales_np_stage, rotvec_np_stage, rots_np_stage, t_np_stage = (
+                    get_transform_arrays(states)
+                )
             export_meshes_and_transforms(
                 assets=assets,
                 verts_aligned=verts_stage,
@@ -1041,17 +1656,28 @@ def main() -> None:
                 meshes_out_dir=stage_meshes_dir,
                 transforms_out_path=stage_transforms_path,
             )
+            overlay_stage = draw_overlay_points(
+                frame_bgr=frame_bgr,
+                verts_cv_list=verts_stage,
+                names=names,
+                k=k_full,
+            )
+            cv2.imwrite(str(stage_overlay_path), overlay_stage)
             stage_output_records.append(
                 {
                     "stage": stage_num,
                     "meshes_dir": str(stage_meshes_dir),
                     "transforms_json": str(stage_transforms_path),
+                    "overlay_png": str(stage_overlay_path),
                 }
             )
             print(f"Saved stage {stage_num} outputs to: {stage_meshes_dir}")
 
     with torch.no_grad():
-        verts_final_t = transform_vertices_list(verts_base_cv, log_s, rotvec, tvec)
+        verts_final_t = [
+            transform_points_single(v, st.log_s, st.rotvec, st.tvec)
+            for v, st in zip(verts_base_cv, states)
+        ]
         verts_final = [v.detach().cpu().numpy() for v in verts_final_t]
         depth_before, mesh_id_before = render_scene_depth_and_mesh_id(
             hard_rasterizer=hard_rasterizer,
@@ -1084,13 +1710,42 @@ def main() -> None:
         names=names,
         use_visibility=bool(args.use_mesh_visibility_for_depth),
     )
+    mesh_target_points_used = {
+        str(m["name"]): int(m.get("target_points_used", 0)) for m in mesh_status
+    }
+    low_overlap_meshes = []
+    for s in after_stats:
+        n = str(s["name"])
+        pix = int(s.get("pixels", 0))
+        tgt_used = int(mesh_target_points_used.get(n, 0))
+        if tgt_used >= int(args.min_points_per_mesh) and pix < low_overlap_pixel_threshold:
+            low_overlap_meshes.append(
+                {
+                    "name": n,
+                    "pixels_after": pix,
+                    "target_points_used": tgt_used,
+                }
+            )
+            for m in mesh_status:
+                if str(m["name"]) != n:
+                    continue
+                cur_status = str(m.get("status", ""))
+                cur_msg = m.get("message")
+                if cur_status == "optimized":
+                    m["status"] = "optimized_low_overlap"
+                warn_msg = (
+                    f"Low final overlap: pixels_after={pix} < "
+                    f"low_overlap_pixel_threshold={low_overlap_pixel_threshold}."
+                )
+                if cur_msg:
+                    m["message"] = f"{cur_msg} {warn_msg}"
+                else:
+                    m["message"] = warn_msg
+                break
 
     meshes_out_dir = output_dir / "meshes"
     transforms_json_path = meshes_out_dir / "transforms.json"
-    rotvec_np = rotvec.detach().cpu().numpy()
-    rots_np = axis_angle_to_matrix(rotvec.detach()).cpu().numpy()
-    scales_np = np.exp(log_s.detach().cpu().numpy())
-    t_np = tvec.detach().cpu().numpy()
+    _, scales_np, rotvec_np, rots_np, t_np = get_transform_arrays(states)
     transforms_out = export_meshes_and_transforms(
         assets=assets,
         verts_aligned=verts_final,
@@ -1129,29 +1784,79 @@ def main() -> None:
         "camera": {
             "intrinsics_source": str(args.intrinsics_source),
             "intrinsics_3x3": k_full.tolist(),
+            "object_intrinsics_3x3": k_object_full.tolist(),
+            "depth_intrinsics_3x3": k_depth_full.tolist(),
             "extrinsics_3x4_from_depth": None if extrinsics is None else extrinsics.tolist(),
             "depth_is_metric": bool(int(pose.get("is_metric", 0))),
             "depth_scale_factor": pose.get("scale_factor", None),
         },
+        "intrinsics_mismatch_report": mismatch_report,
         "optimization": {
             "device": str(device),
             "resolution_input_hw": [int(depth_h), int(depth_w)],
             "resolution_optimized_hw": [int(opt_h), int(opt_w)],
-            "iters": [int(x) for x in args.iters],
-            "stage_lr": [float(x) for x in args.stage_lr],
-            "stage_sil_weight": [float(x) for x in args.stage_sil_weight],
+            "iters": [int(v) for v in args.iters],
+            "stage_lr": [float(v) for v in args.stage_lr],
+            "stage_early_stop_patience": [
+                int(v) for v in args.stage_early_stop_patience
+            ],
+            "stage_early_stop_min_delta": [
+                float(v) for v in args.stage_early_stop_min_delta
+            ],
             "depth_weight": float(args.depth_weight),
-            "human_sil_weight": float(args.human_sil_weight),
             "reg_weight": float(args.reg_weight),
             "reg_scale": float(args.reg_scale),
             "reg_rot": float(args.reg_rot),
             "reg_trans": float(args.reg_trans),
-            "depth_huber_delta": float(args.depth_huber_delta),
+            "reg_trans_reference": str(args.reg_trans_reference),
             "use_mesh_visibility_for_depth": bool(args.use_mesh_visibility_for_depth),
+            "stage_dof_schedule": stages,
         },
+        "optimization_3d": {
+            "mode": "staged_joint",
+            "num_stages": 3,
+            "iters": [int(v) for v in args.iters],
+            "stage_lr": [float(v) for v in args.stage_lr],
+            "stage_early_stop_patience": [
+                int(v) for v in args.stage_early_stop_patience
+            ],
+            "stage_early_stop_min_delta": [
+                float(v) for v in args.stage_early_stop_min_delta
+            ],
+            "stage_dof_schedule": stages,
+            "trim_quantile": float(args.trim_quantile),
+            "pc_max_points_per_mesh": int(args.pc_max_points_per_mesh),
+            "mesh_sample_points": int(args.mesh_sample_points),
+            "min_points_per_mesh": int(args.min_points_per_mesh),
+            "nn_chunk_size": int(args.nn_chunk_size),
+            "chamfer_forward_weight": float(args.chamfer_forward_weight),
+            "chamfer_backward_weight": float(args.chamfer_backward_weight),
+            "depth_huber_delta_3d": float(args.depth_huber_delta_3d),
+            "depth_anchor_weight": float(args.depth_anchor_weight),
+            "reg_trans_reference": str(args.reg_trans_reference),
+            "min_scale": float(args.min_scale),
+            "max_scale": float(args.max_scale),
+            "max_rot_deg": float(args.max_rot_deg),
+        },
+        "optimizer_health": {
+            "scale_clamped_count": int(scale_clamped_count),
+            "rotation_clamped_count": int(rotation_clamped_count),
+            "low_overlap_pixel_threshold": int(low_overlap_pixel_threshold),
+            "low_overlap_warning": bool(len(low_overlap_meshes) > 0),
+            "low_overlap_meshes": low_overlap_meshes,
+            "selected_intrinsics_consistency": {
+                "intrinsics_source": str(args.intrinsics_source),
+                "mismatch_warning": bool(mismatch_report["warning"]),
+                "consistent": bool(selected_intrinsics_consistent),
+                "message": str(selected_intrinsics_message),
+            },
+        },
+        "per_mesh_pointcloud_stats": per_mesh_pointcloud_stats,
+        "per_stage_mesh_losses_3d": per_stage_mesh_losses_3d,
+        "stage_outputs": stage_output_records,
+        "mesh_status": mesh_status,
         "depth_residual_stats_before": before_stats,
         "depth_residual_stats_after": after_stats,
-        "stage_outputs": stage_output_records,
         "transforms": transforms_out,
         "loss_history": loss_history,
     }
