@@ -10,6 +10,10 @@ Input:
 
 Output (under THIS script's directory by default):
 ./output_cotracker/video_xx/
+  |_ _frames/
+      |_ frame_0000.png
+      |_ frame_0001.png
+      |_ ...
   |_ <object_name>/
       |_ seed_points_frame0.npy
       |_ tracks.npy            # [T, N, 2]
@@ -205,6 +209,33 @@ def run_cotracker_queries(
     return tracks, visibility
 
 
+def clear_dir(path: Path) -> None:
+    """Delete directory contents if it exists, then recreate it."""
+    if path.exists():
+        for child in path.glob("*"):
+            if child.is_file():
+                child.unlink()
+            else:
+                for sub in child.rglob("*"):
+                    if sub.is_file():
+                        sub.unlink()
+                for sub in sorted(child.rglob("*"), reverse=True):
+                    if sub.is_dir():
+                        sub.rmdir()
+                child.rmdir()
+    path.mkdir(parents=True, exist_ok=True)
+
+
+def save_frames(frames_bgr: list[np.ndarray], frames_dir: Path) -> None:
+    """Save decoded video frames as BGR PNGs to frames_dir."""
+    clear_dir(frames_dir)
+    for idx, frame_bgr in enumerate(frames_bgr):
+        out_path = frames_dir / f"frame_{idx:04d}.png"
+        ok = cv2.imwrite(str(out_path), frame_bgr)
+        if not ok:
+            raise RuntimeError(f"Failed to write frame: {out_path}")
+
+
 def main() -> None:
     args = parse_args()
     script_dir = Path(__file__).resolve().parent
@@ -231,6 +262,7 @@ def main() -> None:
     else:
         output_video_dir = resolve_path(args.output_dir, script_dir)
     output_video_dir.mkdir(parents=True, exist_ok=True)
+    frames_dir = output_video_dir / "_frames"
 
     device = torch.device(
         "cuda" if args.device.startswith("cuda") and torch.cuda.is_available() else "cpu"
@@ -247,6 +279,8 @@ def main() -> None:
     video, frames_bgr, video_fps = load_video_tensor(video_mp4, device=device)
     _, num_frames, _, height, width = video.shape
     print(f"[OK] video tensor shape: {tuple(video.shape)}")
+    save_frames(frames_bgr, frames_dir)
+    print(f"[OK] Saved {len(frames_bgr)} frames -> {frames_dir}")
     vis_fps = float(args.vis_fps) if args.vis_fps is not None else float(video_fps)
 
     print("[INFO] Loading CoTracker (torch.hub)...")
