@@ -517,6 +517,7 @@ def build_mesh_correspondences(
         image_size=(h, w),
         blur_radius=0.0,
         faces_per_pixel=1,
+        # cull_backfaces=True,
         bin_size=int(bin_size),
         max_faces_per_bin=300000,
     )
@@ -943,7 +944,7 @@ def parse_args() -> argparse.Namespace:
             "and scale+t_z optimization."
         )
     )
-    parser.add_argument("--video_name", type=str, default="video_01")
+    parser.add_argument("--video_name", type=str, default="video_03")
 
     parser.add_argument(
         "--object_video_dir",
