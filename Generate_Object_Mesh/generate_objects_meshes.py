@@ -19,6 +19,8 @@ Pipeline:
 
 Coordinate System Notes:
     - SAM 3D Objects transforms are in Z-up coordinate system.
+    - SAM 3D Objects ouput PLY are in PyTorch3D format (Z-up).
+    - SAM 3D Objects output GLB are converted into PyTorch3D format (Z-up) after Y2Z rotation.
     - GLB workflow:
         1. Convert mesh from Y-up to Z-up
         2. Apply transforms (scale -> rotate -> translate)
@@ -944,7 +946,7 @@ def main():
     parser.add_argument(
         "--input_dir",
         type=str,
-        default="./output/video_03",
+        default="./output/video_01",
         help="Directory containing '*_segmentation_summary.json'.",
     )
     parser.add_argument(
@@ -959,7 +961,7 @@ def main():
     parser.add_argument(
         "--mesh_format",
         type=str,
-        default="ply",
+        default="glb",
         choices=["ply", "glb"],
         help="Mesh export format for canonical and posed meshes.",
     )
