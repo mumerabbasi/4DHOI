@@ -1,0 +1,265 @@
+{
+  "transforms": [
+    {
+      "name": "human",
+      "slug": "human",
+      "kind": "human",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_01/output_objs/frame_0000.obj",
+      "source_coordinate": "opencv_camera",
+      "source_to_cv_rotation_3x3": [
+        [
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_cv_matrix_4x4": [
+        [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": -0.020799269899725914,
+        "scale_exp_alpha": 0.9794155430193539,
+        "tz_init_m": 0.0,
+        "delta_tz_m": -0.0026807738468050957,
+        "tz_total_m": -0.0026807738468050957,
+        "num_correspondences": 78191
+      },
+      "source_to_aligned_matrix_4x4": [
+        [
+          0.9794155359268188,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.9794155359268188,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.9794155359268188,
+          -0.0026807738468050957
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/meshes/human.obj"
+    },
+    {
+      "name": "iron",
+      "slug": "iron",
+      "kind": "object",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01/iron/mesh_posed.glb",
+      "source_coordinate": "mesh_posed_glb_y_up",
+      "source_to_cv_rotation_3x3": [
+        [
+          -1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0
+        ]
+      ],
+      "source_to_cv_matrix_4x4": [
+        [
+          -1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 0.44389569759368896,
+        "scale_exp_alpha": 1.5587678939004945,
+        "tz_init_m": 0.0,
+        "delta_tz_m": 0.010190905071794987,
+        "tz_total_m": 0.010190905071794987,
+        "num_correspondences": 1913
+      },
+      "source_to_aligned_matrix_4x4": [
+        [
+          -1.5587679147720337,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.5587679147720337,
+          0.0
+        ],
+        [
+          0.0,
+          1.5587679147720337,
+          0.0,
+          0.010190905071794987
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/meshes/iron.obj"
+    },
+    {
+      "name": "ironing board",
+      "slug": "ironing_board",
+      "kind": "object",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01/ironing_board/mesh_posed.glb",
+      "source_coordinate": "mesh_posed_glb_y_up",
+      "source_to_cv_rotation_3x3": [
+        [
+          -1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0
+        ]
+      ],
+      "source_to_cv_matrix_4x4": [
+        [
+          -1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 0.2926925718784332,
+        "scale_exp_alpha": 1.3400307639600586,
+        "tz_init_m": 0.0,
+        "delta_tz_m": 0.00497343810275197,
+        "tz_total_m": 0.00497343810275197,
+        "num_correspondences": 8122
+      },
+      "source_to_aligned_matrix_4x4": [
+        [
+          -1.3400307893753052,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.3400307893753052,
+          0.0
+        ],
+        [
+          0.0,
+          1.3400307893753052,
+          0.0,
+          0.00497343810275197
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/meshes/ironing_board.obj"
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+{
+  "depth_video_dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_01",
+  "metric_depth_output_dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_01/metric_depth",
+  "pointcloud_output_dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_01/pointclouds",
+  "sam3d_output_dir": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01",
+  "inputs": {
+    "metric_depth_npy": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_01/metric_depth/metric_depth.npy",
+    "da3_pose_json": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_01/pose_estimation.json",
+    "sam3d_intrinsics_json": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01/camera_intrinsics.json",
+    "color_image": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_01/frame_00.png"
+  },
+  "depth_shape_hw": [
+    720,
+    1280
+  ],
+  "intrinsics": {
+    "da3_3x3": [
+      [
+        944.725830078125,
+        0.0,
+        637.0
+      ],
+      [
+        0.0,
+        942.0692749023438,
+        357.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "sam3d_3x3": [
+      [
+        940.4476318359375,
+        0.0,
+        640.0
+      ],
+      [
+        0.0,
+        940.4476318359375,
+        360.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ]
+  },
+  "outputs": {
+    "da3_intrinsics_pointcloud": {
+      "ply": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_01/pointclouds/metric_depth_pointcloud_da3_intrinsics.ply",
+      "has_color": true,
+      "num_points": 921600,
+      "bounds_min_xyz": [
+        -1.3473905324935913,
+        -0.9591149687767029,
+        1.7378315925598145
+      ],
+      "bounds_max_xyz": [
+        1.2783641815185547,
+        0.8293624520301819,
+        2.6840641498565674
+      ]
+    },
+    "sam3d_intrinsics_pointcloud": {
+      "ply": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_01/pointclouds/metric_depth_pointcloud_sam3d_intrinsics.ply",
+      "has_color": true,
+      "num_points": 921600,
+      "bounds_min_xyz": [
+        -1.3598943948745728,
+        -0.9688425064086914,
+        1.7378315925598145
+      ],
+      "bounds_max_xyz": [
+        1.2781788110733032,
+        0.8239075541496277,
+        2.6840641498565674
+      ]
+    }
+  }
+}

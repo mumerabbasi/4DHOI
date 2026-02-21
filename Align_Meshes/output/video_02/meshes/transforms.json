@@ -1,0 +1,265 @@
+{
+  "transforms": [
+    {
+      "name": "human",
+      "slug": "human",
+      "kind": "human",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_02/output_objs/frame_0000.obj",
+      "source_coordinate": "opencv_camera",
+      "source_to_cv_rotation_3x3": [
+        [
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "source_to_cv_matrix_4x4": [
+        [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 0.3344004452228546,
+        "scale_exp_alpha": 1.397102494592107,
+        "tz_init_m": 0.0,
+        "delta_tz_m": -0.0008169356151483953,
+        "tz_total_m": -0.0008169356151483953,
+        "num_correspondences": 60000
+      },
+      "source_to_aligned_matrix_4x4": [
+        [
+          1.3971024751663208,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.3971024751663208,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.3971024751663208,
+          -0.0008169356151483953
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/meshes/human.obj"
+    },
+    {
+      "name": "dumbbell (left hand)",
+      "slug": "dumbbell_left_hand",
+      "kind": "object",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/dumbbell_(left_hand)/mesh_posed.glb",
+      "source_coordinate": "mesh_posed_glb_y_up",
+      "source_to_cv_rotation_3x3": [
+        [
+          -1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0
+        ]
+      ],
+      "source_to_cv_matrix_4x4": [
+        [
+          -1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 1.025343418121338,
+        "scale_exp_alpha": 2.7880527640211765,
+        "tz_init_m": 0.0,
+        "delta_tz_m": -0.006410366389900446,
+        "tz_total_m": -0.006410366389900446,
+        "num_correspondences": 2170
+      },
+      "source_to_aligned_matrix_4x4": [
+        [
+          -2.788052797317505,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          2.788052797317505,
+          0.0
+        ],
+        [
+          0.0,
+          2.788052797317505,
+          0.0,
+          -0.006410366389900446
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/meshes/dumbbell_left_hand.obj"
+    },
+    {
+      "name": "dumbbell (right hand)",
+      "slug": "dumbbell_right_hand",
+      "kind": "object",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/dumbbell_(right_hand)/mesh_posed.glb",
+      "source_coordinate": "mesh_posed_glb_y_up",
+      "source_to_cv_rotation_3x3": [
+        [
+          -1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0
+        ]
+      ],
+      "source_to_cv_matrix_4x4": [
+        [
+          -1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 0.8852479457855225,
+        "scale_exp_alpha": 2.4235852347390034,
+        "tz_init_m": 0.0,
+        "delta_tz_m": -0.0036859179381281137,
+        "tz_total_m": -0.0036859179381281137,
+        "num_correspondences": 1406
+      },
+      "source_to_aligned_matrix_4x4": [
+        [
+          -2.4235851764678955,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          2.4235851764678955,
+          0.0
+        ],
+        [
+          0.0,
+          2.4235851764678955,
+          0.0,
+          -0.0036859179381281137
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "aligned_mesh_obj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/meshes/dumbbell_right_hand.obj"
+    }
+  ]
+}
