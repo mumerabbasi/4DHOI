@@ -13,7 +13,7 @@ def main() -> None:
         description="Sample FLUX.1-dev first-frame images from a PAG directory.",
     )
     parser.add_argument(
-        "--input-dir",
+        "--pag-dir",
         default="../Generate_PAG/output/video_03",
     )
     parser.add_argument("--n", type=int, default=5)
@@ -23,10 +23,10 @@ def main() -> None:
     parser.add_argument("--device", default="cuda:0")
     args = parser.parse_args()
 
-    input_dir = Path(args.input_dir)
-    pag_path = next(input_dir.glob("*.json"))
+    pag_dir = Path(args.pag_dir)
+    pag_path = next(pag_dir.glob("*.json"))
 
-    outdir = Path("./output") / input_dir.name / "first_frames"
+    outdir = Path("./output") / pag_dir.name / "first_frames"
     outdir.mkdir(parents=True, exist_ok=True)
 
     pag = json.loads(pag_path.read_text(encoding="utf-8"))

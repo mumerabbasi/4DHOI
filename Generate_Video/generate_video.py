@@ -55,14 +55,6 @@ def load_and_prepare_image(path: Path, width: int, height: int) -> Image.Image:
     return img.resize((width, height), resample=Image.BICUBIC)
 
 
-def resolve_default_pag_path(video_name: str) -> Path:
-    pag_dir = Path("../Generate_PAG/output") / video_name
-    pag_candidates = sorted(pag_dir.glob("*.json"))
-    if not pag_candidates:
-        raise FileNotFoundError(f"No PAG json found in: {pag_dir}")
-    return pag_candidates[0]
-
-
 def generate_video_wan(
     pipe,
     prompt: str,
@@ -91,10 +83,8 @@ def generate_video_wan(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--video-name", default="video_03")
-    parser.add_argument("--frame-num", type=int, default=0)
+    parser.add_argument("--frame", default="./output/video_03/first_frames/frame_00.png")
     parser.add_argument("--pag", default=None)
-    parser.add_argument("--frame", default=None)
     parser.add_argument("--outdir", default=None)
     parser.add_argument("--model", default="Wan-AI/Wan2.2-I2V-A14B-Diffusers")
     parser.add_argument("--device", default="cuda:0")
@@ -107,16 +97,14 @@ def main() -> None:
     parser.add_argument("--fps", type=int, default=24)
     args = parser.parse_args()
 
-    pag_path = Path(args.pag) if args.pag else resolve_default_pag_path(args.video_name)
-    frame_path = (
-        Path(args.frame)
-        if args.frame
-        else Path("./output")
-        / args.video_name
-        / "first_frames"
-        / f"frame_{args.frame_num:02d}.png"
+    frame_path = Path(args.frame)
+    video_name = frame_path.parent.parent.name
+    pag_path = (
+        Path(args.pag)
+        if args.pag
+        else next((Path("../Generate_PAG/output") / video_name).glob("*.json"))
     )
-    outdir = Path(args.outdir) if args.outdir else Path("./output") / args.video_name
+    outdir = Path(args.outdir) if args.outdir else Path("./output") / video_name
     outdir.mkdir(parents=True, exist_ok=True)
 
     prompt = load_pag_prompt(pag_path)

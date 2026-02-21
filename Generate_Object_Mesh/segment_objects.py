@@ -262,31 +262,6 @@ def save_bbox_image(
     cv2.imwrite(str(output_path), result)
 
 
-def find_default_pag_file(video_name: str, script_dir: Path) -> Path | None:
-    """Find default PAG file for a video directory name."""
-    pag_dir = (script_dir.parent / "Generate_PAG" / "pags" / video_name).resolve()
-    if not pag_dir.exists():
-        return None
-
-    output_pag_files = sorted(pag_dir.glob("output_pag*.json"))
-    if output_pag_files:
-        return output_pag_files[0]
-
-    json_files = sorted(pag_dir.glob("*.json"))
-    if len(json_files) == 1:
-        return json_files[0]
-
-    return None
-
-
-def find_single_video(video_dir: Path) -> Path | None:
-    """Find the single MP4 in a video directory."""
-    mp4_files = sorted(video_dir.glob("*.mp4"))
-    if len(mp4_files) != 1:
-        return None
-    return mp4_files[0]
-
-
 def extract_first_frame(video_path: Path) -> np.ndarray | None:
     """Read the first frame from a video as an RGB image."""
     capture = cv2.VideoCapture(str(video_path))
@@ -306,7 +281,7 @@ def main():
     parser.add_argument(
         "--video_dir",
         type=str,
-        default="../Generate_Video/videos/video_02",
+        default="../Generate_Video/output/video_02",
         help="Directory containing exactly one MP4 (e.g., .../video_01).",
     )
     parser.add_argument(
@@ -315,7 +290,7 @@ def main():
         default=None,
         help=(
             "PAG JSON file. Default: "
-            "../Generate_PAG/pags/<video_xx>/output_pag*.json"
+            "../Generate_PAG/output/<video_xx>/*.json"
         ),
     )
     parser.add_argument(
@@ -344,19 +319,7 @@ def main():
         video_dir = script_dir / video_dir
     video_dir = video_dir.resolve()
     video_name = video_dir.name
-
-    if not video_dir.exists() or not video_dir.is_dir():
-        print(f"Error: Video directory not found: {video_dir}")
-        return
-
-    video_path = find_single_video(video_dir)
-    if video_path is None:
-        mp4_files = sorted(video_dir.glob("*.mp4"))
-        print(
-            f"Error: Expected exactly one MP4 in {video_dir}, "
-            f"found {len(mp4_files)}."
-        )
-        return
+    video_path = next(video_dir.glob("*.mp4"))
 
     if args.pag_file is not None:
         pag_path = Path(args.pag_file)
@@ -364,15 +327,9 @@ def main():
             pag_path = script_dir / pag_path
         pag_path = pag_path.resolve()
     else:
-        pag_path = find_default_pag_file(video_name, script_dir)
-        if pag_path is None:
-            print(
-                "Error: Could not resolve default PAG file. Expected one of:\n"
-                f"  1) ../Generate_PAG/pags/{video_name}/output_pag*.json\n"
-                f"  2) A single ../Generate_PAG/pags/{video_name}/*.json\n"
-                "Please pass --pag_file explicitly."
-            )
-            return
+        pag_path = next(
+            (script_dir.parent / "Generate_PAG" / "output" / video_name).glob("*.json")
+        )
 
     if args.output_dir is not None:
         output_root = Path(args.output_dir)
@@ -381,10 +338,6 @@ def main():
     else:
         output_root = script_dir / "output" / video_name
     output_root = output_root.resolve()
-
-    if not pag_path.exists():
-        print(f"Error: PAG file not found: {pag_path}")
-        return
 
     frame_name = "frame_00"
     image_rgb = extract_first_frame(video_path)
