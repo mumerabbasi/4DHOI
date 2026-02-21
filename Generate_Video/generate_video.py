@@ -55,57 +55,12 @@ def load_and_prepare_image(path: Path, width: int, height: int) -> Image.Image:
     return img.resize((width, height), resample=Image.BICUBIC)
 
 
-def load_pipeline(model: str, device: str, dtype: torch.dtype):
-    """Load the appropriate pipeline based on model name."""
-    model_lower = model.lower()
-
-    if "wan" in model_lower:
-        from diffusers import WanImageToVideoPipeline
-
-        pipe = WanImageToVideoPipeline.from_pretrained(
-            model,
-            torch_dtype=dtype,
-        )
-        pipe.enable_model_cpu_offload(device=device)
-        pipe.vae.enable_tiling()
-        pipe.vae.enable_slicing()
-        return pipe, "wan"
-    else:
-        from diffusers import CogVideoXImageToVideoPipeline
-
-        pipe = CogVideoXImageToVideoPipeline.from_pretrained(
-            model,
-            torch_dtype=dtype,
-        ).to(device)
-        pipe.vae.enable_tiling()
-        pipe.vae.enable_slicing()
-        return pipe, "cogvideo"
-
-
-def generate_video_cogvideo(
-    pipe,
-    prompt: str,
-    negative_prompt: str,
-    image: Image.Image,
-    width: int,
-    height: int,
-    num_frames: int,
-    steps: int,
-    guidance_scale: float,
-    generator: torch.Generator,
-) -> list:
-    """Generate video using CogVideoX pipeline."""
-    return pipe(
-        prompt=prompt,
-        negative_prompt=negative_prompt,
-        image=image,
-        width=width,
-        height=height,
-        num_frames=num_frames,
-        num_inference_steps=steps,
-        guidance_scale=guidance_scale,
-        generator=generator,
-    ).frames[0]
+def resolve_default_pag_path(video_name: str) -> Path:
+    pag_dir = Path("../Generate_PAG/output") / video_name
+    pag_candidates = sorted(pag_dir.glob("*.json"))
+    if not pag_candidates:
+        raise FileNotFoundError(f"No PAG json found in: {pag_dir}")
+    return pag_candidates[0]
 
 
 def generate_video_wan(
@@ -136,11 +91,11 @@ def generate_video_wan(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--pag", default="../Generate_PAG/pags/video_03/output_pag_deepseek_r1_32b.json"
-    )
-    parser.add_argument("--frame", default="./videos/video_03/first_frames/frame_00.png")
-    parser.add_argument("--outdir", default="./videos/video_03")
+    parser.add_argument("--video-name", default="video_03")
+    parser.add_argument("--frame-num", type=int, default=0)
+    parser.add_argument("--pag", default=None)
+    parser.add_argument("--frame", default=None)
+    parser.add_argument("--outdir", default=None)
     parser.add_argument("--model", default="Wan-AI/Wan2.2-I2V-A14B-Diffusers")
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--seed", type=int, default=72)
@@ -152,11 +107,19 @@ def main() -> None:
     parser.add_argument("--fps", type=int, default=24)
     args = parser.parse_args()
 
-    outdir = Path(args.outdir)
+    pag_path = Path(args.pag) if args.pag else resolve_default_pag_path(args.video_name)
+    frame_path = (
+        Path(args.frame)
+        if args.frame
+        else Path("./output")
+        / args.video_name
+        / "first_frames"
+        / f"frame_{args.frame_num:02d}.png"
+    )
+    outdir = Path(args.outdir) if args.outdir else Path("./output") / args.video_name
     outdir.mkdir(parents=True, exist_ok=True)
 
-    frame_path = Path(args.frame)
-    prompt = load_pag_prompt(Path(args.pag))
+    prompt = load_pag_prompt(pag_path)
 
     # Always-on camera lock
     prompt = prompt.rstrip() + "\n\n" + CAMERA_LOCK_SUFFIX
@@ -164,37 +127,31 @@ def main() -> None:
 
     image = load_and_prepare_image(frame_path, args.width, args.height)
 
+    from diffusers import WanImageToVideoPipeline
+
     dtype = torch.bfloat16 if args.device.startswith("cuda") else torch.float32
-    pipe, model_type = load_pipeline(args.model, args.device, dtype)
+    pipe = WanImageToVideoPipeline.from_pretrained(
+        args.model,
+        torch_dtype=dtype,
+    )
+    pipe.enable_model_cpu_offload(device=args.device)
+    pipe.vae.enable_tiling()
+    pipe.vae.enable_slicing()
 
     generator = torch.Generator(device=args.device).manual_seed(args.seed)
 
-    if model_type == "wan":
-        frames = generate_video_wan(
-            pipe,
-            prompt,
-            negative_prompt,
-            image,
-            args.width,
-            args.height,
-            args.num_frames,
-            args.steps,
-            args.guidance_scale,
-            generator,
-        )
-    else:
-        frames = generate_video_cogvideo(
-            pipe,
-            prompt,
-            negative_prompt,
-            image,
-            args.width,
-            args.height,
-            args.num_frames,
-            args.steps,
-            args.guidance_scale,
-            generator,
-        )
+    frames = generate_video_wan(
+        pipe,
+        prompt,
+        negative_prompt,
+        image,
+        args.width,
+        args.height,
+        args.num_frames,
+        args.steps,
+        args.guidance_scale,
+        generator,
+    )
 
     out_path = outdir / f"{frame_path.stem}_video_{model_suffix(args.model)}.mp4"
     export_to_video(frames, out_path.as_posix(), fps=args.fps)
