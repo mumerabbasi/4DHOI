@@ -6,12 +6,31 @@ import torch
 from tqdm import tqdm
 
 
+def write_ascii_ply(path: Path, vertices, faces) -> None:
+    """Write a triangular mesh to an ASCII PLY file."""
+    with path.open("w") as f:
+        f.write("ply\n")
+        f.write("format ascii 1.0\n")
+        f.write(f"element vertex {len(vertices)}\n")
+        f.write("property float x\n")
+        f.write("property float y\n")
+        f.write("property float z\n")
+        f.write(f"element face {len(faces)}\n")
+        f.write("property list uchar int vertex_indices\n")
+        f.write("end_header\n")
+
+        for v in vertices:
+            f.write(f"{v[0]} {v[1]} {v[2]}\n")
+        for face in faces:
+            f.write(f"3 {int(face[0])} {int(face[1])} {int(face[2])}\n")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--video_dir",
         type=str,
-        default="output/video_01",
+        default="output/video_03",
         help="Directory containing hmr4d_results.pt.",
     )
     parser.add_argument(
@@ -24,8 +43,8 @@ def main() -> None:
         type=str,
         default=None,
         help=(
-            "Directory to save exported OBJ files. If not provided, defaults to "
-            "<video_dir>/output_objs."
+            "Directory to save exported PLY files. If not provided, defaults to "
+            "<video_dir>/output_plys."
         ),
     )
     parser.add_argument(
@@ -47,7 +66,7 @@ def main() -> None:
         raise FileNotFoundError(f"Could not find hmr4d_results.pt in: {video_dir}")
 
     if args.output_dir is None:
-        output_dir = video_dir / "output_objs"
+        output_dir = video_dir / "output_plys"
     else:
         output_dir = Path(args.output_dir).resolve()
 
@@ -97,7 +116,7 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # 5. Loop through frames
-    print("Exporting frames to .obj...")
+    print("Exporting frames to .ply...")
     for i in tqdm(range(num_frames)):
         # Handle shape parameters (repeat or slice)
         curr_betas = betas[i: i + 1] if betas.shape[0] > 1 else betas[:1]
@@ -114,13 +133,8 @@ def main() -> None:
         smpl_verts = torch.matmul(smplx2smpl, smplx_verts)  # (6890, 3)
         vertices = smpl_verts.detach().cpu().numpy()
 
-        filename = output_dir / f"frame_{i:04d}.obj"
-        with filename.open("w") as f:
-            for v in vertices:
-                f.write(f"v {v[0]} {v[1]} {v[2]}\n")
-            for face in faces_smpl:
-                # OBJ indices start at 1
-                f.write(f"f {face[0] + 1} {face[1] + 1} {face[2] + 1}\n")
+        filename = output_dir / f"frame_{i:04d}.ply"
+        write_ascii_ply(filename, vertices, faces_smpl)
 
     print(f"\nDone! Files saved in: {output_dir}")
 

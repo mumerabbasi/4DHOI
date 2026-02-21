@@ -2,7 +2,7 @@ import bpy
 import os
 import re
 
-OBJ_FOLDER = r"C:\Users\umerh\Desktop\Thesis Temp\video_01_hm\output_objs"
+PLY_FOLDER = r"C:\Users\umerh\Desktop\Thesis Temp\video_01_hm\output_plys"
 COLLECTION_NAME = "Human_Motion"
 
 # Pick your color here (R, G, B, A) in 0..1
@@ -74,18 +74,29 @@ def _apply_material(obj: bpy.types.Object, mat: bpy.types.Material, overwrite: b
         obj.data.materials.append(mat)
 
 
-def import_obj_sequence():
+def _import_ply(filepath: str):
+    """Import a PLY mesh with Blender-version fallback."""
+    if hasattr(bpy.ops.wm, "ply_import"):
+        bpy.ops.wm.ply_import(filepath=filepath)
+        return
+    if hasattr(bpy.ops.import_mesh, "ply"):
+        bpy.ops.import_mesh.ply(filepath=filepath)
+        return
+    raise RuntimeError("No PLY importer found (wm.ply_import or import_mesh.ply).")
+
+
+def import_ply_sequence():
     # 1) Get file list
-    if not os.path.exists(OBJ_FOLDER):
+    if not os.path.exists(PLY_FOLDER):
         print("Error: Folder not found!")
         return
 
     files = sorted(
-        [f for f in os.listdir(OBJ_FOLDER) if f.lower().endswith(".obj")],
+        [f for f in os.listdir(PLY_FOLDER) if f.lower().endswith(".ply")],
         key=_extract_index,
     )
     if not files:
-        print("No .obj files found.")
+        print("No .ply files found.")
         return
 
     print(f"Found {len(files)} frames. Importing...")
@@ -101,10 +112,10 @@ def import_obj_sequence():
 
     # 3) Import and animate
     for i, filename in enumerate(files):
-        filepath = os.path.join(OBJ_FOLDER, filename)
+        filepath = os.path.join(PLY_FOLDER, filename)
 
         bpy.ops.object.select_all(action="DESELECT")
-        bpy.ops.wm.obj_import(filepath=filepath, forward_axis='Y', up_axis='Z')
+        _import_ply(filepath)
 
         imported = list(bpy.context.selected_objects)
         mesh_objs = _gather_mesh_objects(imported)
@@ -149,4 +160,4 @@ def import_obj_sequence():
 
 
 if __name__ == "__main__":
-    import_obj_sequence()
+    import_ply_sequence()
