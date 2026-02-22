@@ -1,0 +1,139 @@
+{
+  "transforms": [
+    {
+      "name": "human",
+      "slug": "human",
+      "kind": "human",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_01/output_plys/frame_0000.ply",
+      "source_coordinate": "opencv_camera",
+      "output_coordinate": "opencv",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/meshes/human.ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": -0.02081037126481533,
+        "scale_exp_alpha": 0.9794046702301881,
+        "tz_init_m": 0.0,
+        "delta_tz_m": -0.002694606315344572,
+        "tz_total_m": -0.002694606315344572,
+        "num_correspondences": 78191
+      },
+      "source_to_aligned_cv_matrix_4x4": [
+        [
+          0.9794046878814697,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.9794046878814697,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.9794046878814697,
+          -0.002694606315344572
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "iron",
+      "slug": "iron",
+      "kind": "object",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01/iron/mesh_posed.ply",
+      "source_coordinate": "pytorch3d_camera",
+      "output_coordinate": "opencv",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/meshes/iron.ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 0.44234323501586914,
+        "scale_exp_alpha": 1.5563498425304922,
+        "tz_init_m": 0.0,
+        "delta_tz_m": 0.012970908544957638,
+        "tz_total_m": 0.012970908544957638,
+        "num_correspondences": 1913
+      },
+      "source_to_aligned_cv_matrix_4x4": [
+        [
+          -1.5563498735427856,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -1.5563498735427856,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.5563498735427856,
+          0.012970908544957638
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "ironing board",
+      "slug": "ironing_board",
+      "kind": "object",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01/ironing_board/mesh_posed.ply",
+      "source_coordinate": "pytorch3d_camera",
+      "output_coordinate": "opencv",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/meshes/ironing_board.ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 0.2926947772502899,
+        "scale_exp_alpha": 1.3400337192294511,
+        "tz_init_m": 0.0,
+        "delta_tz_m": 0.004973689094185829,
+        "tz_total_m": 0.004973689094185829,
+        "num_correspondences": 8122
+      },
+      "source_to_aligned_cv_matrix_4x4": [
+        [
+          -1.340033769607544,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -1.340033769607544,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.340033769607544,
+          0.004973689094185829
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    }
+  ]
+}

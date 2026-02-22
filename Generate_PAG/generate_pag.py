@@ -40,7 +40,7 @@ def main() -> None:
     parser.add_argument("--host", default="http://localhost:11434/v1")
     parser.add_argument("--model", default="deepseek-r1:32b")
     parser.add_argument("--system-prompt", default="./system_prompt_pag.md")
-    parser.add_argument("--input-dir", default="./pags/video_02")
+    parser.add_argument("--input-dir", default="./input_prompts/video_03")
     parser.add_argument("--temperature", type=float, default=0.0)
     args = parser.parse_args()
 
@@ -63,7 +63,10 @@ def main() -> None:
     output_text = strip_json_fence(response.choices[0].message.content)
     output_obj = json.loads(output_text)
 
-    out_path = input_dir / f"output_pag_{model_suffix(args.model)}.json"
+    output_dir = Path("./output") / input_dir.name
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    out_path = output_dir / f"output_pag_{model_suffix(args.model)}.json"
     out_path.write_text(
         json.dumps(output_obj, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",

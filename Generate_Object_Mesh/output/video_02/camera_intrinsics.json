@@ -1,0 +1,58 @@
+{
+  "source": "moge_from_sam3d_depth_model",
+  "image_size_px": {
+    "width": 1280,
+    "height": 720
+  },
+  "intrinsics_normalized_3x3": [
+    [
+      0.7026464343070984,
+      0.0,
+      0.5
+    ],
+    [
+      0.0,
+      1.249149203300476,
+      0.5
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "intrinsics_pixels_3x3": [
+    [
+      899.387451171875,
+      0.0,
+      640.0
+    ],
+    [
+      0.0,
+      899.387451171875,
+      360.0
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "fx_px": 899.3874359130859,
+  "fy_px": 899.3874263763428,
+  "cx_px": 640.0,
+  "cy_px": 360.0,
+  "sensor_width_mm_assumed": 36.0,
+  "sensor_height_mm_assumed": 24.0,
+  "focal_length_mm_x": 25.295271635055542,
+  "focal_length_mm_y": 29.979580879211426,
+  "focal_length_mm_recommended": 25.295271635055542,
+  "blender_recommendation": {
+    "sensor_fit": "HORIZONTAL",
+    "lens_mm": 25.295271635055542,
+    "sensor_width_mm": 36.0,
+    "sensor_height_mm": 24.0,
+    "note": "Lens uses fx with full-frame horizontal fit."
+  },
+  "focal_length_mm_used_for_overlay": 25.295271635055542
+}

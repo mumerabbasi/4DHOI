@@ -10,13 +10,12 @@ from diffusers import FluxPipeline
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Sample FLUX.1-dev first-frame images from a PAG JSON.",
+        description="Sample FLUX.1-dev first-frame images from a PAG directory.",
     )
     parser.add_argument(
-        "--pag",
-        default="../Generate_PAG/pags/video_03/output_pag_deepseek_r1_32b.json"
+        "--pag-dir",
+        default="../Generate_PAG/output/video_03",
     )
-    parser.add_argument("--outdir", default="./videos/video_03/first_frames")
     parser.add_argument("--n", type=int, default=5)
     parser.add_argument("--seed", type=int, default=72)
     parser.add_argument("--height", type=int, default=720)
@@ -24,10 +23,13 @@ def main() -> None:
     parser.add_argument("--device", default="cuda:0")
     args = parser.parse_args()
 
-    outdir = Path(args.outdir)
+    pag_dir = Path(args.pag_dir)
+    pag_path = next(pag_dir.glob("*.json"))
+
+    outdir = Path("./output") / pag_dir.name / "first_frames"
     outdir.mkdir(parents=True, exist_ok=True)
 
-    pag = json.loads(Path(args.pag).read_text(encoding="utf-8"))
+    pag = json.loads(pag_path.read_text(encoding="utf-8"))
     prompt = pag["interaction"]
 
     dtype = torch.bfloat16 if args.device.startswith("cuda") else torch.float32
@@ -56,6 +58,7 @@ def main() -> None:
     for i, img in enumerate(images):
         img.save(outdir / f"frame_{i:02d}.png")
 
+    print(f"Loaded PAG: {pag_path}")
     print(f"Saved {len(images)} images to: {outdir}")
 
 
