@@ -134,14 +134,44 @@ def build_intrinsics(width: int, height: int, focal_length_mm: float) -> np.ndar
     )
 
 
-def load_mesh_glb_y_up(mesh_path: Path) -> trimesh.Trimesh:
-    """Load a GLB mesh and validate topology."""
+def load_intrinsics_pixels_3x3(camera_intrinsics_path: Path) -> np.ndarray:
+    """Load SAM3D intrinsics matrix from camera_intrinsics.json."""
+    if not camera_intrinsics_path.exists():
+        raise FileNotFoundError(f"camera_intrinsics.json not found: {camera_intrinsics_path}")
+
+    with camera_intrinsics_path.open("r", encoding="utf-8") as f:
+        payload = json.load(f)
+
+    if "intrinsics_pixels_3x3" not in payload:
+        raise KeyError(
+            "Missing 'intrinsics_pixels_3x3' in camera intrinsics file: "
+            f"{camera_intrinsics_path}"
+        )
+
+    k = np.array(payload["intrinsics_pixels_3x3"], dtype=np.float32)
+    while k.ndim > 2:
+        k = k[0]
+    if k.shape != (3, 3):
+        raise ValueError(
+            "Expected intrinsics_pixels_3x3 to resolve to shape (3, 3), "
+            f"got {k.shape} in {camera_intrinsics_path}"
+        )
+    return k.astype(np.float32)
+
+
+def load_mesh(mesh_path: Path) -> trimesh.Trimesh:
+    """Load a mesh and validate topology."""
     mesh = trimesh.load(str(mesh_path), force="mesh")
     if not isinstance(mesh, trimesh.Trimesh):
-        raise ValueError(f"Failed to load GLB as trimesh.Trimesh: {mesh_path}")
+        raise ValueError(f"Failed to load mesh as trimesh.Trimesh: {mesh_path}")
     if mesh.faces is None or len(mesh.faces) == 0:
         raise ValueError(f"Mesh has no faces: {mesh_path}")
     return mesh
+
+
+def load_mesh_glb_y_up(mesh_path: Path) -> trimesh.Trimesh:
+    """Backward-compatible alias for existing callers."""
+    return load_mesh(mesh_path)
 
 
 def y_up_to_z_up(verts_y: np.ndarray) -> np.ndarray:
