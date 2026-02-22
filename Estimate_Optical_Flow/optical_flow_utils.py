@@ -102,16 +102,23 @@ def find_single_summary(object_mesh_dir: Path) -> Path:
     return files[0]
 
 
-def make_track_colors(num_points: int) -> np.ndarray:
-    """Create distinct BGR colors for each tracked point."""
-    if num_points <= 0:
+def make_track_colors(points_xy: np.ndarray) -> np.ndarray:
+    """Create deterministic BGR colors from point XY coordinates."""
+    if points_xy.shape[0] == 0:
         return np.zeros((0, 3), dtype=np.uint8)
 
-    hsv = np.zeros((num_points, 1, 3), dtype=np.uint8)
-    for i in range(num_points):
-        hue = int((179 * i) / max(1, num_points))
-        hsv[i, 0] = (hue, 255, 255)
-    return cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)[:, 0, :]
+    xy = points_xy.astype(np.float32)
+    pmin = xy.min(axis=0)
+    pmax = xy.max(axis=0)
+    denom = np.maximum(pmax - pmin, 1e-8)
+    xy_norm = (xy - pmin) / denom
+
+    x = xy_norm[:, 0]
+    y = xy_norm[:, 1]
+
+    # B/G from spatial coordinates, R from their average for smoother gradients.
+    bgr = np.stack([255.0 * x, 255.0 * y, 255.0 * (0.5 * (x + y))], axis=1)
+    return bgr.clip(0.0, 255.0).astype(np.uint8)
 
 
 def sample_visualization_indices(
@@ -153,7 +160,7 @@ def render_trails_video(
 
     h, w = frames_bgr[0].shape[:2]
     num_frames, num_points = tracks.shape[:2]
-    colors = make_track_colors(num_points)
+    colors = make_track_colors(tracks[0] if num_frames > 0 else np.zeros((0, 2), dtype=np.float32))
     writer = start_ffmpeg_writer(out_path, fps, (h, w))
     trail_len = max(1, int(trail_length))
 
@@ -182,7 +189,7 @@ def render_trails_video(
 
             if bool(visibility[t, p_idx]):
                 curr = clamp_xy(tracks[t, p_idx])
-                cv2.circle(canvas, curr, 2, color, -1)
+                cv2.circle(canvas, curr, 1, color, -1)
 
         if writer.stdin is None:
             raise RuntimeError("ffmpeg stdin is closed")

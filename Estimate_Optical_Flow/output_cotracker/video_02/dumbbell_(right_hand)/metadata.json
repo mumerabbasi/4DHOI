@@ -1,0 +1,15 @@
+{
+  "object": "dumbbell (right hand)",
+  "slug": "dumbbell_(right_hand)",
+  "mask_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/dumbbell_(right_hand)/mask/frame_00.png",
+  "mask_area_px": 1489,
+  "track_point_density": 200.0,
+  "track_target_points": 298,
+  "seed_points": 298,
+  "num_frames": 81,
+  "tracks_file": "tracks.npy",
+  "visibility_file": "visibility.npy",
+  "trails_video": "trails.mp4",
+  "vis_point_percent": 10.0,
+  "vis_points_count": 30
+}
