@@ -1,27 +1,4 @@
-#!/usr/bin/env python3
-"""
-Estimate optical flow on a video using WAFT (Spring checkpoint).
-Run with conda environment: waft
-
-Input:
-- --input_dir: directory like */videos/video_xx containing exactly one .mp4
-
-Output (created under THIS script's directory):
-./output_waft/video_xx/
-  |_ _frames/                   extracted frames (BGR PNGs)
-  |_ _frames_visualization/     flow visualization PNGs
-  |_ _frames_arrows/            arrow overlay PNGs on source frames
-  |_ optical_flow/              raw flow .npy files
-  |_ visualization.mp4          flow visualization video (MP4)
-  |_ arrows.mp4                 arrow overlay video (MP4)
-  |_ <object_name>/             per-object visualization from masks
-      |_ trails.mp4             colored points + trails over video
-      |_ seed_points_frame0.npy
-      |_ tracks.npy             [T, N, 2]
-      |_ visibility.npy         [T, N] bool
-      |_ metadata.json
-  |_ run_summary.json
-"""
+"""Estimate optical flow on a video using WAFT and generate per-object trail visualizations."""
 
 from __future__ import annotations
 
@@ -75,10 +52,10 @@ def parse_args() -> argparse.Namespace:
         description="Run WAFT optical flow on a video directory (video_xx)."
     )
     parser.add_argument(
-        "--input_dir",
-        default="../Generate_Video/videos/video_01",
+        "--video_dir",
+        default="../Generate_Video/output/video_01",
         type=str,
-        help="Path to a directory like */videos/video_xx containing an .mp4.",
+        help="Path to a directory like */output/video_xx containing an .mp4.",
     )
     parser.add_argument(
         "--output_dir",
@@ -169,7 +146,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--vis_point_percent",
-        default=2.5,
+        default=10,
         type=float,
         help="Percentage of tracked points to visualize in trails.mp4. Range: (0, 100].",
     )
@@ -185,14 +162,14 @@ def parse_args() -> argparse.Namespace:
 def build_paths(args: argparse.Namespace) -> Paths:
     """Build Paths object from CLI args."""
     script_dir = Path(__file__).resolve().parent
-    input_dir = Path(args.input_dir).resolve()
+    input_dir = Path(args.video_dir).resolve()
     if not input_dir.exists():
-        raise FileNotFoundError(f"input_dir does not exist: {input_dir}")
+        raise FileNotFoundError(f"video_dir does not exist: {input_dir}")
     if not input_dir.is_dir():
-        raise NotADirectoryError(f"input_dir is not a directory: {input_dir}")
+        raise NotADirectoryError(f"video_dir is not a directory: {input_dir}")
 
     input_mp4 = find_single_mp4(input_dir)
-    video_name = input_dir.name  # expected "video_xx"
+    video_name = input_dir.name
 
     waft_dir = Path(args.waft_dir).resolve() if args.waft_dir else (script_dir / "WAFT")
     if not waft_dir.exists():

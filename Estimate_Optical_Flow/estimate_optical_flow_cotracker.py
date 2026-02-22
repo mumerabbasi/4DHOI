@@ -1,27 +1,4 @@
-#!/usr/bin/env python3
-"""Estimate per-object CoTracker3 tracks from frame-0 masks.
-
-Run with a CoTracker-capable environment.
-
-Input:
-- --video_dir: directory like */videos/video_xx containing exactly one .mp4
-- --object_mesh_dir: directory like ../Generate_Object_Mesh/output/video_xx
-  containing frame_00_segmentation_summary.json and per-object masks.
-
-Output (under THIS script's directory by default):
-./output_cotracker/video_xx/
-  |_ _frames/
-      |_ frame_0000.png
-      |_ frame_0001.png
-      |_ ...
-  |_ <object_name>/
-      |_ seed_points_frame0.npy
-      |_ tracks.npy            # [T, N, 2]
-      |_ visibility.npy        # [T, N] bool
-      |_ trails.mp4            # colored points + trails
-      |_ metadata.json
-  |_ run_summary.json
-"""
+"""Estimate per-object CoTracker3 tracks from frame-0 masks and render trail videos."""
 
 from __future__ import annotations
 
@@ -114,7 +91,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--vis_point_percent",
-        default=2.5,
+        default=10,
         type=float,
         help=(
             "Percentage of tracked points to visualize in trails.mp4. "
