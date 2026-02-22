@@ -2,11 +2,11 @@
 
 Overview
 --------
-This script aligns meshes (human and/or objects) to frame_00 depth in camera
+This script aligns human and object meshes to frame_00 depth in camera
 coordinates using fixed point-to-point correspondences.
 
 The pipeline is intentionally simple:
-1. Load frame_00 RGB, metric depth, intrinsics, meshes, and masks.
+1. Load frame_00 RGB, metric depth, intrinsics, human/object meshes, and masks.
 2. Convert each mesh to OpenCV camera coordinates.
 3. Render each mesh once to establish mesh<->depth correspondences.
 4. Keep correspondences fixed and optimize only global mesh scale + z translation.
@@ -24,13 +24,14 @@ A) Inputs and coordinate preparation
       or depth intrinsics (`pose_estimation.json`, DA3 side), selected by
       `--intrinsics_source`.
   - Meshes:
-    - Objects: `mesh_posed.glb` and per-object mask from
+    - Objects: `mesh_posed.ply` and per-object mask from
       `frame_00_segmentation_summary.json`.
-    - Human: first OBJ in `output_objs` (or `--human_obj`) and optional mask.
+    - Human: first PLY in `output_plys` and optional mask.
   - Coordinate conversion:
-    - Object GLB vertices are mapped to OpenCV camera coordinates using
-      `F_P3D_TO_CV @ R_Y_UP_TO_Z_UP`.
-    - Human vertices use identity or `F_P3D_TO_CV` depending on `--human_coord`.
+    - Object PLY vertices are treated as PyTorch3D camera coordinates and mapped
+      to OpenCV camera coordinates using `F_P3D_TO_CV`.
+    - Human vertices are assumed OpenCV camera coordinates (identity transform).
+    - No Y-up to Z-up rotation is applied for objects.
 
 B) Render mesh and build fixed correspondences
   For each mesh independently:
@@ -101,7 +102,8 @@ E) Losses (exact energy terms)
 F) What is saved
   - `overlay_before.png`: projection of raw input meshes before optimization.
   - `overlay_after.png`: projection after optimized scale + t_z.
-  - `meshes/<slug>.obj`: aligned meshes.
+  - `meshes/<slug>.ply`: aligned meshes (coordinate frame selected by
+    `--output_coord`, default `opencv`).
   - `meshes/transforms.json`: source-to-aligned transform metadata.
   - `loss_curves/<slug>_loss_*.png`: separate loss plots for each term and total.
   - `loss_curves/<slug>_loss.csv`: numeric loss history.
@@ -120,384 +122,41 @@ import argparse
 import json
 import math
 import random
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import cv2
-import matplotlib
 import numpy as np
 import torch
-import trimesh
-from pytorch3d.renderer import MeshRasterizer, PerspectiveCameras, RasterizationSettings
+from pytorch3d.renderer import MeshRasterizer, RasterizationSettings
 from pytorch3d.structures import Meshes
 
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
-
-
-# GLB meshes are typically Y-up while SAM3D transforms are Z-up.
-R_Y_UP_TO_Z_UP = np.array(
-    [
-        [1.0, 0.0, 0.0],
-        [0.0, 0.0, -1.0],
-        [0.0, 1.0, 0.0],
-    ],
-    dtype=np.float32,
+from utils_align_meshes import (
+    F_CV_TO_P3D,
+    F_P3D_TO_CV,
+    CorrespondenceSet,
+    MeshAsset,
+    OptimizationResult,
+    append_history,
+    build_cameras,
+    colorize_points_by_xyz,
+    draw_overlay_points,
+    ensure_3x3_intrinsics,
+    find_first_human_ply,
+    load_binary_mask,
+    load_json,
+    load_mesh,
+    load_object_intrinsics,
+    maybe_resize_for_optimization,
+    new_history_dict,
+    parse_device,
+    plot_loss_curves_separate,
+    resolve_path,
+    save_correspondence_snapshot,
+    save_loss_history_csv,
+    save_mesh_ply,
+    slugify,
 )
-
-# OpenCV (+X right, +Y down, +Z forward) <-> PyTorch3D (+X left, +Y up, +Z forward)
-F_P3D_TO_CV = np.diag([-1.0, -1.0, 1.0]).astype(np.float32)
-
-
-@dataclass
-class MeshAsset:
-    name: str
-    slug: str
-    kind: str
-    source_mesh_path: Path
-    source_coord: str
-    verts_source: np.ndarray
-    faces: np.ndarray
-    source_to_cv: np.ndarray
-    mask_path: Path | None
-    mask: np.ndarray | None
-
-
-@dataclass
-class CorrespondenceSet:
-    mesh_points_base: np.ndarray  # (N,3)
-    depth_points: np.ndarray  # (N,3)
-    uv_ref: np.ndarray  # (N,2)
-    colors_rgb: np.ndarray  # (N,3) uint8
-    pixels_considered: int
-    pixels_used: int
-
-
-@dataclass
-class OptimizationResult:
-    status: str
-    message: str | None
-    correspondences: int
-    scale: float
-    log_scale: float
-    tz_init: float
-    delta_tz: float
-    tz: float
-    history: dict[str, list[float]]
-
-
-def slugify(text: str) -> str:
-    out = []
-    for ch in text.strip().lower():
-        if ch.isalnum():
-            out.append(ch)
-        else:
-            out.append("_")
-    slug = "".join(out)
-    while "__" in slug:
-        slug = slug.replace("__", "_")
-    return slug.strip("_") or "mesh"
-
-
-def resolve_path(path_str: str | None, base_dir: Path) -> Path | None:
-    if path_str is None:
-        return None
-    p = Path(path_str)
-    if not p.is_absolute():
-        p = base_dir / p
-    return p.resolve()
-
-
-def load_json(path: Path) -> dict[str, Any]:
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def ensure_3x3_intrinsics(raw: Any) -> np.ndarray:
-    arr = np.array(raw, dtype=np.float32)
-    while arr.ndim > 2:
-        arr = arr[0]
-    if arr.shape != (3, 3):
-        raise ValueError(f"Expected intrinsics shape (3,3), got {arr.shape}")
-    return arr
-
-
-def load_object_intrinsics(camera_intrinsics_json_path: Path) -> np.ndarray:
-    if not camera_intrinsics_json_path.exists():
-        raise FileNotFoundError(
-            f"camera_intrinsics.json not found: {camera_intrinsics_json_path}"
-        )
-    camera_intr = load_json(camera_intrinsics_json_path)
-    if "intrinsics_pixels_3x3" not in camera_intr:
-        raise KeyError(
-            f"Missing 'intrinsics_pixels_3x3' in {camera_intrinsics_json_path}"
-        )
-    return ensure_3x3_intrinsics(camera_intr.get("intrinsics_pixels_3x3"))
-
-
-def load_mesh(path: Path) -> tuple[np.ndarray, np.ndarray]:
-    mesh = trimesh.load(str(path), force="mesh")
-    if not isinstance(mesh, trimesh.Trimesh):
-        raise ValueError(f"Failed to load mesh: {path}")
-    if mesh.faces is None or len(mesh.faces) == 0:
-        raise ValueError(f"Mesh has no faces: {path}")
-    verts = np.asarray(mesh.vertices, dtype=np.float32)
-    faces = np.asarray(mesh.faces, dtype=np.int64)
-    return verts, faces
-
-
-def save_mesh_obj(path: Path, verts: np.ndarray, faces: np.ndarray) -> None:
-    mesh = trimesh.Trimesh(vertices=verts, faces=faces, process=False)
-    mesh.export(str(path))
-
-
-def load_binary_mask(path: Path, target_hw: tuple[int, int]) -> np.ndarray:
-    mask = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
-    if mask is None:
-        raise FileNotFoundError(f"Failed to read mask: {path}")
-    target_h, target_w = target_hw
-    if mask.shape[:2] != (target_h, target_w):
-        mask = cv2.resize(mask, (target_w, target_h), interpolation=cv2.INTER_NEAREST)
-    return (mask > 127).astype(np.float32)
-
-
-def find_first_human_obj(output_objs_dir: Path) -> Path:
-    obj_paths = sorted(output_objs_dir.glob("*.obj"))
-    if not obj_paths:
-        raise FileNotFoundError(f"No .obj files found in {output_objs_dir}")
-    return obj_paths[0]
-
-
-def parse_device(device_str: str) -> torch.device:
-    device_str = device_str.strip()
-    if not device_str:
-        return torch.device("cpu")
-    if device_str.startswith("cuda") and not torch.cuda.is_available():
-        print(
-            "CUDA device requested but unavailable; falling back to CPU for alignment."
-        )
-        return torch.device("cpu")
-    return torch.device(device_str)
-
-
-def build_cameras(
-    k: np.ndarray, width: int, height: int, device: torch.device
-) -> PerspectiveCameras:
-    fx = float(k[0, 0])
-    fy = float(k[1, 1])
-    cx = float(k[0, 2])
-    cy = float(k[1, 2])
-    return PerspectiveCameras(
-        focal_length=torch.tensor([[fx, fy]], dtype=torch.float32, device=device),
-        principal_point=torch.tensor([[cx, cy]], dtype=torch.float32, device=device),
-        image_size=torch.tensor([[height, width]], dtype=torch.float32, device=device),
-        in_ndc=False,
-        device=device,
-    )
-
-
-def maybe_resize_for_optimization(
-    depth: np.ndarray,
-    masks: list[np.ndarray | None],
-    frame: np.ndarray,
-    k: np.ndarray,
-    opt_max_side: int,
-) -> tuple[np.ndarray, list[np.ndarray | None], np.ndarray, np.ndarray, float]:
-    h, w = depth.shape
-    if opt_max_side <= 0 or max(h, w) <= opt_max_side:
-        return depth, masks, frame, k, 1.0
-
-    scale = float(opt_max_side) / float(max(h, w))
-    out_h = max(1, int(round(h * scale)))
-    out_w = max(1, int(round(w * scale)))
-
-    depth_rs = cv2.resize(depth, (out_w, out_h), interpolation=cv2.INTER_LINEAR)
-    frame_rs = cv2.resize(frame, (out_w, out_h), interpolation=cv2.INTER_LINEAR)
-    masks_rs: list[np.ndarray | None] = []
-    for m in masks:
-        if m is None:
-            masks_rs.append(None)
-            continue
-        mr = cv2.resize(m, (out_w, out_h), interpolation=cv2.INTER_NEAREST)
-        masks_rs.append((mr > 0.5).astype(np.float32))
-
-    k_rs = k.copy()
-    k_rs[0, :] *= scale
-    k_rs[1, :] *= scale
-    return (
-        depth_rs.astype(np.float32),
-        masks_rs,
-        frame_rs,
-        k_rs.astype(np.float32),
-        scale,
-    )
-
-
-def project_points_cv(points_cv: np.ndarray, k: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    z = points_cv[:, 2]
-    valid = np.isfinite(z) & (z > 1e-6)
-    uv = np.zeros((points_cv.shape[0], 2), dtype=np.float32)
-    if np.any(valid):
-        pts = points_cv[valid]
-        z_valid = pts[:, 2]
-        uv_valid = np.empty((pts.shape[0], 2), dtype=np.float32)
-        uv_valid[:, 0] = (pts[:, 0] * k[0, 0]) / z_valid + k[0, 2]
-        uv_valid[:, 1] = (pts[:, 1] * k[1, 1]) / z_valid + k[1, 2]
-        uv[valid] = uv_valid
-    return uv, valid
-
-
-def draw_overlay_points(
-    frame_bgr: np.ndarray,
-    verts_cv_list: list[np.ndarray],
-    names: list[str],
-    k: np.ndarray,
-    max_points_per_mesh: int = 30000,
-) -> np.ndarray:
-    h, w = frame_bgr.shape[:2]
-    out = frame_bgr.copy()
-    palette = [
-        (0, 255, 0),
-        (0, 128, 255),
-        (255, 255, 0),
-        (255, 128, 0),
-        (255, 0, 255),
-        (0, 255, 255),
-    ]
-    for idx, (verts, name) in enumerate(zip(verts_cv_list, names)):
-        if len(verts) == 0:
-            continue
-        if max_points_per_mesh > 0 and len(verts) > max_points_per_mesh:
-            stride = max(1, int(len(verts) / max_points_per_mesh))
-            pts = verts[::stride]
-        else:
-            pts = verts
-        uv, valid = project_points_cv(pts, k)
-        uv_i = np.round(uv[valid]).astype(np.int32)
-        inb = (
-            (uv_i[:, 0] >= 0)
-            & (uv_i[:, 0] < w)
-            & (uv_i[:, 1] >= 0)
-            & (uv_i[:, 1] < h)
-        )
-        uv_i = uv_i[inb]
-        color = palette[idx % len(palette)]
-        for x, y in uv_i:
-            cv2.circle(out, (int(x), int(y)), 1, color, -1)
-        cv2.putText(
-            out,
-            name,
-            (12, 28 + 24 * idx),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            color,
-            2,
-            cv2.LINE_AA,
-        )
-    return out
-
-
-def colorize_points_by_xyz(points: np.ndarray) -> np.ndarray:
-    if points.shape[0] == 0:
-        return np.zeros((0, 3), dtype=np.uint8)
-    pmin = points.min(axis=0)
-    pmax = points.max(axis=0)
-    denom = np.maximum(pmax - pmin, 1e-8)
-    rgb = (255.0 * (points - pmin) / denom).clip(0.0, 255.0)
-    return rgb.astype(np.uint8)
-
-
-def save_colored_point_cloud(path: Path, points: np.ndarray, colors_rgb: np.ndarray) -> None:
-    if points.shape[0] == 0:
-        cloud = trimesh.points.PointCloud(vertices=np.zeros((0, 3), dtype=np.float32))
-    else:
-        colors_rgba = np.concatenate(
-            [colors_rgb.astype(np.uint8), 255 * np.ones((points.shape[0], 1), dtype=np.uint8)],
-            axis=1,
-        )
-        cloud = trimesh.points.PointCloud(
-            vertices=points.astype(np.float32), colors=colors_rgba
-        )
-    cloud.export(str(path))
-
-
-def draw_colored_uv_points(
-    canvas_bgr: np.ndarray, uv: np.ndarray, colors_rgb: np.ndarray, radius: int
-) -> None:
-    h, w = canvas_bgr.shape[:2]
-    for (u, v), rgb in zip(uv, colors_rgb):
-        x = int(round(float(u)))
-        y = int(round(float(v)))
-        if 0 <= x < w and 0 <= y < h:
-            color_bgr = (int(rgb[2]), int(rgb[1]), int(rgb[0]))
-            cv2.circle(canvas_bgr, (x, y), radius, color_bgr, -1)
-
-
-def save_correspondence_snapshot(
-    out_dir: Path,
-    iter_idx: int,
-    depth_points: np.ndarray,
-    transformed_mesh_points: np.ndarray,
-    uv_ref: np.ndarray,
-    colors_rgb: np.ndarray,
-    intrinsics: np.ndarray,
-    frame_bgr: np.ndarray,
-    point_radius: int,
-) -> None:
-    out_dir.mkdir(parents=True, exist_ok=True)
-    save_colored_point_cloud(
-        out_dir / f"iter_{iter_idx:05d}_depth_fixed.ply",
-        depth_points,
-        colors_rgb,
-    )
-    save_colored_point_cloud(
-        out_dir / f"iter_{iter_idx:05d}_mesh_transformed.ply",
-        transformed_mesh_points,
-        colors_rgb,
-    )
-
-    depth_vis = frame_bgr.copy()
-    draw_colored_uv_points(
-        canvas_bgr=depth_vis,
-        uv=uv_ref,
-        colors_rgb=colors_rgb,
-        radius=point_radius,
-    )
-    cv2.putText(
-        depth_vis,
-        "Depth points (fixed correspondences)",
-        (12, 28),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.7,
-        (255, 255, 255),
-        2,
-        cv2.LINE_AA,
-    )
-
-    mesh_uv, mesh_valid = project_points_cv(transformed_mesh_points, intrinsics)
-    mesh_vis = frame_bgr.copy()
-    draw_colored_uv_points(
-        canvas_bgr=mesh_vis,
-        uv=mesh_uv[mesh_valid],
-        colors_rgb=colors_rgb[mesh_valid],
-        radius=point_radius,
-    )
-    cv2.putText(
-        mesh_vis,
-        "Transformed mesh points",
-        (12, 28),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.7,
-        (255, 255, 255),
-        2,
-        cv2.LINE_AA,
-    )
-
-    combined = np.concatenate([depth_vis, mesh_vis], axis=1)
-    cv2.imwrite(
-        str(out_dir / f"iter_{iter_idx:05d}_correspondence_projection.png"), combined
-    )
 
 
 def build_mesh_correspondences(
@@ -637,32 +296,6 @@ def compute_losses_torch(
         "tz": tz,
         "transformed": transformed,
     }
-
-
-def new_history_dict() -> dict[str, list[float]]:
-    return {
-        "iter": [],
-        "total": [],
-        "corr": [],
-        "reproj": [],
-        "scale_reg": [],
-        "tz_reg": [],
-        "scale": [],
-        "tz": [],
-    }
-
-
-def append_history(
-    history: dict[str, list[float]], iter_idx: int, losses: dict[str, torch.Tensor]
-) -> None:
-    history["iter"].append(int(iter_idx))
-    history["total"].append(float(losses["total"].detach().cpu().item()))
-    history["corr"].append(float(losses["corr"].detach().cpu().item()))
-    history["reproj"].append(float(losses["reproj"].detach().cpu().item()))
-    history["scale_reg"].append(float(losses["scale_reg"].detach().cpu().item()))
-    history["tz_reg"].append(float(losses["tz_reg"].detach().cpu().item()))
-    history["scale"].append(float(losses["scale"].detach().cpu().item()))
-    history["tz"].append(float(losses["tz"].detach().cpu().item()))
 
 
 def optimize_scale_tz(
@@ -832,111 +465,6 @@ def optimize_scale_tz(
     )
 
 
-def plot_single_loss_curve(
-    history: dict[str, list[float]],
-    key: str,
-    label: str,
-    out_path: Path,
-    title: str,
-) -> None:
-    if len(history["iter"]) == 0:
-        return
-    iters = np.array(history["iter"], dtype=np.int32)
-    values = np.array(history[key], dtype=np.float32)
-    plt.figure(figsize=(9, 5))
-    plt.plot(iters, values, label=label, linewidth=2.0)
-    plt.xlabel("Iteration")
-    plt.ylabel("Loss")
-    plt.title(title)
-    plt.grid(True, alpha=0.3)
-    plt.legend(loc="best")
-    plt.tight_layout()
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(str(out_path), dpi=160)
-    plt.close()
-
-
-def plot_loss_curves_separate(
-    history: dict[str, list[float]],
-    out_dir: Path,
-    slug: str,
-    mesh_name: str,
-) -> dict[str, str]:
-    loss_keys = {
-        "total": "E_total",
-        "corr": "E_corr",
-        "reproj": "E_reproj",
-        "scale_reg": "E_scale_reg",
-        "tz_reg": "E_tz_reg",
-    }
-    paths: dict[str, str] = {}
-    for key, label in loss_keys.items():
-        out_path = out_dir / f"{slug}_loss_{key}.png"
-        plot_single_loss_curve(
-            history=history,
-            key=key,
-            label=label,
-            out_path=out_path,
-            title=f"{mesh_name}: {label}",
-        )
-        paths[key] = str(out_path)
-    return paths
-
-
-def save_loss_history_csv(history: dict[str, list[float]], out_path: Path) -> None:
-    if len(history["iter"]) == 0:
-        return
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    arr = np.column_stack(
-        [
-            np.array(history["iter"], dtype=np.int32),
-            np.array(history["total"], dtype=np.float32),
-            np.array(history["corr"], dtype=np.float32),
-            np.array(history["reproj"], dtype=np.float32),
-            np.array(history["scale_reg"], dtype=np.float32),
-            np.array(history["tz_reg"], dtype=np.float32),
-            np.array(history["scale"], dtype=np.float32),
-            np.array(history["tz"], dtype=np.float32),
-        ]
-    )
-    np.savetxt(
-        str(out_path),
-        arr,
-        fmt=["%d", "%.8f", "%.8f", "%.8f", "%.8f", "%.8f", "%.8f", "%.8f"],
-        delimiter=",",
-        header="iter,total,corr,reproj,scale_reg,tz_reg,scale,tz",
-        comments="",
-    )
-
-
-def save_energy_terms_file(path: Path) -> None:
-    content = """Mesh-wise optimization variables:
-  alpha (log-scale), delta_t_z
-  s = exp(alpha), t_z = t_z_init + delta_t_z
-
-Per-correspondence transform:
-  m_i' = s * m_i + [0, 0, t_z]^T
-
-Projection:
-  u_i = fx * m'_ix / m'_iz + cx
-  v_i = fy * m'_iy / m'_iz + cy
-
-Loss terms:
-  E_corr      = (1/N) * sum_i || m_i' - d_i ||_2^2
-  E_reproj    = (1/N) * sum_i || [u_i, v_i] - [u_i^0, v_i^0] ||_2^2
-  E_scale_reg = alpha^2
-  E_tz_reg    = delta_t_z^2
-
-Combined:
-  E_total = w_corr * E_corr
-          + w_reproj * E_reproj
-          + w_scale_reg * E_scale_reg
-          + w_tz_reg * E_tz_reg
-"""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
@@ -944,7 +472,7 @@ def parse_args() -> argparse.Namespace:
             "and scale+t_z optimization."
         )
     )
-    parser.add_argument("--video_name", type=str, default="video_03")
+    parser.add_argument("--video_name", type=str, default="video_01")
 
     parser.add_argument(
         "--object_video_dir",
@@ -972,31 +500,18 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "--human_obj",
-        type=str,
-        default=None,
-        help="Optional explicit human OBJ path. Default: first OBJ in output_objs.",
-    )
-    parser.add_argument(
         "--human_mask",
         type=str,
         default=None,
         help="Optional binary human mask at frame_00 resolution.",
     )
     parser.add_argument(
-        "--human_coord",
+        "--output_coord",
         type=str,
         choices=["opencv", "pytorch3d"],
         default="opencv",
-        help="Coordinate frame of the input human OBJ.",
+        help="Coordinate frame for exported aligned .ply meshes.",
     )
-    parser.add_argument(
-        "--include_human",
-        action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Whether to include human mesh in alignment.",
-    )
-
     parser.add_argument(
         "--intrinsics_source",
         type=str,
@@ -1018,7 +533,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--opt_max_side", type=int, default=1280)
     parser.add_argument("--bin_size", type=int, default=0)
 
-    parser.add_argument("--iters", type=int, default=4000)
+    parser.add_argument("--iters", type=int, default=600)
     parser.add_argument("--lr", type=float, default=5e-3)
     parser.add_argument("--w_corr", type=float, default=1.0)
     parser.add_argument("--w_reproj", type=float, default=1e-3)
@@ -1072,7 +587,7 @@ def main() -> None:
         raise FileNotFoundError(f"Object dir not found: {object_video_dir}")
     if not depth_video_dir.exists():
         raise FileNotFoundError(f"Depth dir not found: {depth_video_dir}")
-    if args.include_human and not human_video_dir.exists():
+    if not human_video_dir.exists():
         raise FileNotFoundError(f"Human dir not found: {human_video_dir}")
 
     summary_path = object_video_dir / "frame_00_segmentation_summary.json"
@@ -1142,10 +657,10 @@ def main() -> None:
         else:
             obj_dir = (object_video_dir / out_dir_raw).resolve()
 
-        mesh_path = obj_dir / "mesh_posed.glb"
+        mesh_path = obj_dir / "mesh_posed.ply"
         if not mesh_path.exists():
             raise FileNotFoundError(
-                f"Missing mesh_posed.glb for object '{obj_name}': {mesh_path}"
+                f"Missing mesh_posed.ply for object '{obj_name}': {mesh_path}"
             )
         mask_rel = obj.get("mask_file")
         if mask_rel is None:
@@ -1160,14 +675,14 @@ def main() -> None:
 
         verts_src, faces = load_mesh(mesh_path)
         mask = load_binary_mask(mask_path, (depth_h, depth_w))
-        source_to_cv = (F_P3D_TO_CV @ R_Y_UP_TO_Z_UP).astype(np.float32)
+        source_to_cv = F_P3D_TO_CV.copy().astype(np.float32)
         assets.append(
             MeshAsset(
                 name=obj_name,
                 slug=slugify(obj_name),
                 kind="object",
                 source_mesh_path=mesh_path,
-                source_coord="mesh_posed_glb_y_up",
+                source_coord="pytorch3d_camera",
                 verts_source=verts_src,
                 faces=faces,
                 source_to_cv=source_to_cv,
@@ -1176,43 +691,37 @@ def main() -> None:
             )
         )
 
-    if args.include_human:
-        human_obj_path = resolve_path(args.human_obj, script_dir)
-        if human_obj_path is None:
-            human_obj_path = find_first_human_obj(human_video_dir / "output_objs")
-        if not human_obj_path.exists():
-            raise FileNotFoundError(f"Human OBJ not found: {human_obj_path}")
-
-        human_mask_path = resolve_path(args.human_mask, script_dir)
-        human_mask = None
-        if human_mask_path is not None:
-            human_mask = load_binary_mask(human_mask_path, (depth_h, depth_w))
-
-        human_verts_src, human_faces = load_mesh(human_obj_path)
-        human_source_to_cv = (
-            np.eye(3, dtype=np.float32)
-            if args.human_coord == "opencv"
-            else F_P3D_TO_CV.copy()
-        )
-        assets = [
-            MeshAsset(
-                name="human",
-                slug="human",
-                kind="human",
-                source_mesh_path=human_obj_path,
-                source_coord="opencv_camera"
-                if args.human_coord == "opencv"
-                else "pytorch3d_camera",
-                verts_source=human_verts_src,
-                faces=human_faces,
-                source_to_cv=human_source_to_cv.astype(np.float32),
-                mask_path=human_mask_path,
-                mask=human_mask,
-            )
-        ] + assets
-
     if len(assets) == 0:
-        raise RuntimeError("No meshes found to align.")
+        raise RuntimeError("No object meshes found to align.")
+
+    human_mesh_path = find_first_human_ply(human_video_dir / "output_plys")
+    if not human_mesh_path.exists():
+        raise FileNotFoundError(f"Human mesh not found: {human_mesh_path}")
+    if human_mesh_path.suffix.lower() != ".ply":
+        raise ValueError(
+            f"Human mesh must be a .ply file, got: {human_mesh_path}"
+        )
+
+    human_mask_path = resolve_path(args.human_mask, script_dir)
+    human_mask = None
+    if human_mask_path is not None:
+        human_mask = load_binary_mask(human_mask_path, (depth_h, depth_w))
+
+    human_verts_src, human_faces = load_mesh(human_mesh_path)
+    assets = [
+        MeshAsset(
+            name="human",
+            slug="human",
+            kind="human",
+            source_mesh_path=human_mesh_path,
+            source_coord="opencv_camera",
+            verts_source=human_verts_src,
+            faces=human_faces,
+            source_to_cv=np.eye(3, dtype=np.float32),
+            mask_path=human_mask_path,
+            mask=human_mask,
+        )
+    ] + assets
 
     names = [a.name for a in assets]
     print(f"Loaded meshes: {names}")
@@ -1344,24 +853,29 @@ def main() -> None:
     meshes_out_dir.mkdir(parents=True, exist_ok=True)
     transforms_out: list[dict[str, Any]] = []
     verts_after_np: list[np.ndarray] = []
+    cv_to_output = (
+        np.eye(3, dtype=np.float32)
+        if args.output_coord == "opencv"
+        else F_CV_TO_P3D.copy()
+    )
     for asset, verts_cv, result in zip(assets, verts_base_cv_np, optimization_results):
         scale = float(result.scale)
         tz = float(result.tz)
-        verts_aligned = (scale * verts_cv).astype(np.float32)
-        verts_aligned[:, 2] += tz
-        verts_after_np.append(verts_aligned)
+        verts_aligned_cv = (scale * verts_cv).astype(np.float32)
+        verts_aligned_cv[:, 2] += tz
+        verts_after_np.append(verts_aligned_cv)
 
-        out_mesh_path = meshes_out_dir / f"{asset.slug}.obj"
-        save_mesh_obj(out_mesh_path, verts_aligned, asset.faces)
+        verts_aligned_out = (
+            verts_aligned_cv @ cv_to_output.transpose(0, 1)
+        ).astype(np.float32)
+        out_mesh_path = meshes_out_dir / f"{asset.slug}.ply"
+        save_mesh_ply(out_mesh_path, verts_aligned_out, asset.faces)
 
-        source_to_cv_4x4 = np.eye(4, dtype=np.float32)
-        source_to_cv_4x4[:3, :3] = asset.source_to_cv.astype(np.float32)
-
-        source_to_aligned_4x4 = np.eye(4, dtype=np.float32)
-        source_to_aligned_4x4[:3, :3] = (
+        source_to_aligned_cv_4x4 = np.eye(4, dtype=np.float32)
+        source_to_aligned_cv_4x4[:3, :3] = (
             scale * asset.source_to_cv.astype(np.float32)
         )
-        source_to_aligned_4x4[:3, 3] = np.array([0.0, 0.0, tz], dtype=np.float32)
+        source_to_aligned_cv_4x4[:3, 3] = np.array([0.0, 0.0, tz], dtype=np.float32)
 
         transforms_out.append(
             {
@@ -1370,8 +884,8 @@ def main() -> None:
                 "kind": asset.kind,
                 "source_mesh_path": str(asset.source_mesh_path),
                 "source_coordinate": asset.source_coord,
-                "source_to_cv_rotation_3x3": asset.source_to_cv.tolist(),
-                "source_to_cv_matrix_4x4": source_to_cv_4x4.tolist(),
+                "output_coordinate": args.output_coord,
+                "aligned_mesh_ply": str(out_mesh_path),
                 "optimized_parameters": {
                     "status": result.status,
                     "message": result.message,
@@ -1382,8 +896,7 @@ def main() -> None:
                     "tz_total_m": float(tz),
                     "num_correspondences": int(result.correspondences),
                 },
-                "source_to_aligned_matrix_4x4": source_to_aligned_4x4.tolist(),
-                "aligned_mesh_obj": str(out_mesh_path),
+                "source_to_aligned_cv_matrix_4x4": source_to_aligned_cv_4x4.tolist(),
             }
         )
 
@@ -1394,8 +907,6 @@ def main() -> None:
         k=k_full,
     )
     cv2.imwrite(str(output_dir / "overlay_after.png"), overlay_after)
-
-    save_energy_terms_file(output_dir / "energy_terms.txt")
 
     summary_out = {
         "inputs": {
@@ -1430,6 +941,7 @@ def main() -> None:
             "corr_save_every": int(args.corr_save_every),
             "opt_max_side": int(args.opt_max_side),
             "resize_scale_for_optimization": float(resize_scale),
+            "output_coordinate": args.output_coord,
         },
         "energy_terms": {
             "transform": "m_i' = exp(alpha) * m_i + [0, 0, t_z_init + delta_t_z]^T",
@@ -1474,9 +986,10 @@ def main() -> None:
         "outputs": {
             "output_dir": str(output_dir),
             "meshes_dir": str(meshes_out_dir),
+            "mesh_format": "ply",
+            "output_coordinate": args.output_coord,
             "overlay_before": str(output_dir / "overlay_before.png"),
             "overlay_after": str(output_dir / "overlay_after.png"),
-            "energy_terms_txt": str(output_dir / "energy_terms.txt"),
         },
     }
 
