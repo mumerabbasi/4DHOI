@@ -65,7 +65,7 @@
     "max_abs_object_depth_intrinsics_diff_px": 295.5146484375
   },
   "optimization_settings": {
-    "iters": 4000,
+    "iters": 600,
     "lr": 0.005,
     "w_corr": 1.0,
     "w_reproj": 0.001,
@@ -78,7 +78,8 @@
     "min_correspondences_per_mesh": 128,
     "corr_save_every": 50,
     "opt_max_side": 1280,
-    "resize_scale_for_optimization": 1.0
+    "resize_scale_for_optimization": 1.0,
+    "output_coordinate": "opencv"
   },
   "energy_terms": {
     "transform": "m_i' = exp(alpha) * m_i + [0, 0, t_z_init + delta_t_z]^T",
@@ -104,16 +105,16 @@
       "slug": "dumbbell_left_hand",
       "kind": "object",
       "mask_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/dumbbell_(left_hand)/mask/frame_00.png",
-      "pixels_considered": 2170,
-      "pixels_used": 2170
+      "pixels_considered": 2234,
+      "pixels_used": 2234
     },
     {
       "name": "dumbbell (right hand)",
       "slug": "dumbbell_right_hand",
       "kind": "object",
       "mask_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/dumbbell_(right_hand)/mask/frame_00.png",
-      "pixels_considered": 1406,
-      "pixels_used": 1406
+      "pixels_considered": 1400,
+      "pixels_used": 1400
     }
   ],
   "per_mesh_optimization": [
@@ -123,8 +124,8 @@
       "status": "optimized",
       "message": null,
       "num_correspondences": 60000,
-      "final_scale": 1.397102494592107,
-      "final_tz_m": -0.0008169356151483953,
+      "final_scale": 1.3971023696814158,
+      "final_tz_m": -0.0008167050546035171,
       "final_total_loss": 0.07937578111886978,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/loss_curves/human_loss_total.png",
       "loss_curve_pngs": {
@@ -142,10 +143,10 @@
       "slug": "dumbbell_left_hand",
       "status": "optimized",
       "message": null,
-      "num_correspondences": 2170,
-      "final_scale": 2.7880527640211765,
-      "final_tz_m": -0.006410366389900446,
-      "final_total_loss": 0.01340753398835659,
+      "num_correspondences": 2234,
+      "final_scale": 2.716477499996725,
+      "final_tz_m": -0.006408568471670151,
+      "final_total_loss": 0.014195755124092102,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/loss_curves/dumbbell_left_hand_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/loss_curves/dumbbell_left_hand_loss_total.png",
@@ -162,10 +163,10 @@
       "slug": "dumbbell_right_hand",
       "status": "optimized",
       "message": null,
-      "num_correspondences": 1406,
-      "final_scale": 2.4235852347390034,
-      "final_tz_m": -0.0036859179381281137,
-      "final_total_loss": 0.008286773227155209,
+      "num_correspondences": 1400,
+      "final_scale": 2.4233710145694283,
+      "final_tz_m": -0.003672940656542778,
+      "final_total_loss": 0.008501619100570679,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/loss_curves/dumbbell_right_hand_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/loss_curves/dumbbell_right_hand_loss_total.png",
@@ -181,8 +182,9 @@
   "outputs": {
     "output_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02",
     "meshes_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/meshes",
+    "mesh_format": "ply",
+    "output_coordinate": "opencv",
     "overlay_before": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/overlay_before.png",
-    "overlay_after": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/overlay_after.png",
-    "energy_terms_txt": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/energy_terms.txt"
+    "overlay_after": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/overlay_after.png"
   }
 }

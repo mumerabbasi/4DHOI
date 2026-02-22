@@ -65,7 +65,7 @@
     "max_abs_object_depth_intrinsics_diff_px": 4.2781982421875
   },
   "optimization_settings": {
-    "iters": 4000,
+    "iters": 600,
     "lr": 0.005,
     "w_corr": 1.0,
     "w_reproj": 0.001,
@@ -78,7 +78,8 @@
     "min_correspondences_per_mesh": 128,
     "corr_save_every": 50,
     "opt_max_side": 1280,
-    "resize_scale_for_optimization": 1.0
+    "resize_scale_for_optimization": 1.0,
+    "output_coordinate": "opencv"
   },
   "energy_terms": {
     "transform": "m_i' = exp(alpha) * m_i + [0, 0, t_z_init + delta_t_z]^T",
@@ -123,9 +124,9 @@
       "status": "optimized",
       "message": null,
       "num_correspondences": 78191,
-      "final_scale": 0.9794155430193539,
-      "final_tz_m": -0.0026807738468050957,
-      "final_total_loss": 0.06509718298912048,
+      "final_scale": 0.9794046702301881,
+      "final_tz_m": -0.002694606315344572,
+      "final_total_loss": 0.06509719043970108,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/human_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/human_loss_total.png",
@@ -143,9 +144,9 @@
       "status": "optimized",
       "message": null,
       "num_correspondences": 1913,
-      "final_scale": 1.5587678939004945,
-      "final_tz_m": 0.010190905071794987,
-      "final_total_loss": 0.009939441457390785,
+      "final_scale": 1.5563498425304922,
+      "final_tz_m": 0.012970908544957638,
+      "final_total_loss": 0.009942281991243362,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/iron_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/iron_loss_total.png",
@@ -163,9 +164,9 @@
       "status": "optimized",
       "message": null,
       "num_correspondences": 8122,
-      "final_scale": 1.3400307639600586,
-      "final_tz_m": 0.00497343810275197,
-      "final_total_loss": 0.053128257393836975,
+      "final_scale": 1.3400337192294511,
+      "final_tz_m": 0.004973689094185829,
+      "final_total_loss": 0.05312757566571236,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/ironing_board_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/ironing_board_loss_total.png",
@@ -181,8 +182,9 @@
   "outputs": {
     "output_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01",
     "meshes_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/meshes",
+    "mesh_format": "ply",
+    "output_coordinate": "opencv",
     "overlay_before": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/overlay_before.png",
-    "overlay_after": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/overlay_after.png",
-    "energy_terms_txt": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/energy_terms.txt"
+    "overlay_after": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/overlay_after.png"
   }
 }
