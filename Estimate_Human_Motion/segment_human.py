@@ -55,7 +55,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--video",
-        default="../Generate_Video/output/video_01",
+        default="../Generate_Video/output/video_03",
         help="Directory containing exactly one video file.",
     )
     parser.add_argument("--outdir", default="./output")
