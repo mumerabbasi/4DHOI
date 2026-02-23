@@ -22,19 +22,27 @@ import numpy as np
 from tracking_utils import (
     apply_pose,
     close_ffmpeg,
-    discover_object_dirs,
+    compute_correspondence_debug,
+    draw_debug_correspondences,
     draw_overlay,
     ensure_dir,
     estimate_pose_pnp_ransac,
     list_images,
+    list_object_slugs,
     load_intrinsics_pixels_3x3,
     load_mesh,
     make_rasterizer,
     pixel_to_points,
     rasterize_gbuffer,
+    render_overlay_sequence,
     resolve_device,
+    resolve_intrinsics_path,
     resolve_path,
+    rotation_delta_deg,
+    save_debug_metrics_csv,
+    save_debug_plots,
     save_pose_outputs,
+    smooth_pose_sequence_post,
     start_ffmpeg_writer,
     y_up_to_z_up,
 )
@@ -50,27 +58,6 @@ def list_flows(flow_dir: Path) -> List[Path]:
     return sorted(files, key=_extract_index)
 
 
-def list_object_slugs(mesh_source: str, mesh_video_dir: Path) -> List[str]:
-    if mesh_source == "generate":
-        return discover_object_dirs(mesh_video_dir, None)
-    meshes_dir = mesh_video_dir / "meshes"
-    if not meshes_dir.exists() or not meshes_dir.is_dir():
-        raise NotADirectoryError(f"Aligned meshes dir not found: {meshes_dir}")
-    return sorted([p.stem for p in meshes_dir.glob("*.ply") if p.stem != "human"])
-
-
-def resolve_intrinsics_path(script_dir: Path, video_name: str, mesh_video_dir: Path) -> Path:
-    candidates = [
-        mesh_video_dir / "camera_intrinsics.json",
-        script_dir.parent / "Generate_Object_Mesh" / "output" / video_name / "camera_intrinsics.json",
-    ]
-    for path in candidates:
-        if path.exists():
-            return path
-    raise FileNotFoundError(
-        "camera_intrinsics.json not found. Tried: "
-        + ", ".join(str(p) for p in candidates)
-    )
 
 
 def erode(mask: np.ndarray, px: int) -> np.ndarray:
@@ -187,6 +174,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ransac_reproj_px", type=float, default=6.0)
     parser.add_argument("--ransac_iters", type=int, default=1000)
     parser.add_argument("--min_inliers", type=int, default=30)
+    parser.add_argument(
+        "--post_smooth_alpha",
+        type=float,
+        default=0.75,
+        help="Post-process smoothing factor on full trajectory. 0 disables smoothing.",
+    )
+    parser.add_argument(
+        "--debug_max_points",
+        type=int,
+        default=800,
+        help="Max correspondences drawn per frame in debug overlay.",
+    )
+    parser.add_argument(
+        "--debug_failure_p90_mult",
+        type=float,
+        default=2.0,
+        help="Failure snapshot threshold multiplier: reproj_p90 > multiplier * ransac_reproj_px.",
+    )
 
     parser.add_argument("--overlay_max_verts", type=int, default=20000)
     parser.add_argument("--overlay_point_radius", type=int, default=1)
@@ -212,8 +217,14 @@ def track_single_object(
     ensure_dir(out_dir)
     meshes_dir = out_dir / "meshes"
     overlays_dir = out_dir / "overlays"
+    overlays_smoothed_dir = out_dir / "overlays_smoothed"
+    debug_dir = out_dir / "debug"
+    failure_dir = debug_dir / "failures"
     ensure_dir(meshes_dir)
     ensure_dir(overlays_dir)
+    ensure_dir(overlays_smoothed_dir)
+    ensure_dir(debug_dir)
+    ensure_dir(failure_dir)
 
     frame_paths = list_images(frames_dir)
     flow_paths = list_flows(flow_dir)
@@ -283,12 +294,20 @@ def track_single_object(
 
     video_path = out_dir / "overlay.mp4"
     ffmpeg_writer = start_ffmpeg_writer(video_path, float(args.overlay_fps), (h, w))
+    debug_video_path = debug_dir / "correspondences_debug.mp4"
+    debug_writer = start_ffmpeg_writer(debug_video_path, float(args.overlay_fps), (h, w))
 
     def write_video_frame(frame_bgr: np.ndarray) -> None:
         if ffmpeg_writer.stdin is None:
             raise RuntimeError("ffmpeg stdin is closed")
         frame_bgr = np.ascontiguousarray(frame_bgr.astype(np.uint8))
         ffmpeg_writer.stdin.write(frame_bgr.tobytes())
+
+    def write_debug_frame(frame_bgr: np.ndarray) -> None:
+        if debug_writer.stdin is None:
+            raise RuntimeError("debug ffmpeg stdin is closed")
+        frame_bgr = np.ascontiguousarray(frame_bgr.astype(np.uint8))
+        debug_writer.stdin.write(frame_bgr.tobytes())
 
     def save_mesh(frame_idx: int, r_mat: np.ndarray, t_vec: np.ndarray) -> None:
         v_cam = apply_pose(v_obj, r_mat, t_vec)
@@ -304,6 +323,7 @@ def track_single_object(
 
     r_list: List[np.ndarray] = [r_prev.copy()]
     t_list: List[np.ndarray] = [t_prev.copy()]
+    metrics_rows: list[dict[str, float | int]] = []
 
     save_mesh(start, r_prev, t_prev)
     overlay0 = draw_overlay(
@@ -315,6 +335,47 @@ def track_single_object(
     )
     cv2.imwrite(str(overlays_dir / f"overlay_{start:04d}.png"), overlay0)
     write_video_frame(overlay0)
+
+    debug0 = compute_correspondence_debug(
+        x_obj=x_obj,
+        u=u,
+        alive=alive,
+        r_mat=r_prev,
+        t_vec=t_prev,
+        k=k,
+        reproj_px=float(args.ransac_reproj_px),
+    )
+    debug0_lines = [
+        f"frame={start:04d} (init)",
+        f"alive={debug0['num_alive']} reproj_inliers={debug0['num_reproj_inliers']}",
+        f"reproj_mean={float(debug0['reproj_mean']):.2f}px p90={float(debug0['reproj_p90']):.2f}px",
+        f"visibility_mean={float(debug0['visibility_mean']):.3f}",
+    ]
+    debug_frame0 = draw_debug_correspondences(
+        frame_bgr=frame0,
+        u_obs=debug0["u_alive"],  # type: ignore[arg-type]
+        u_proj=debug0["u_proj"],  # type: ignore[arg-type]
+        inlier_mask=debug0["inlier_mask"],  # type: ignore[arg-type]
+        max_points=int(args.debug_max_points),
+        text_lines=debug0_lines,
+    )
+    write_debug_frame(debug_frame0)
+    metrics_rows.append(
+        {
+            "frame_idx": int(start),
+            "pnp_ok": 1,
+            "num_alive": int(debug0["num_alive"]),
+            "ransac_inliers": int(debug0["num_reproj_inliers"]),
+            "reproj_inliers": int(debug0["num_reproj_inliers"]),
+            "reproj_inlier_ratio": float(debug0["inlier_ratio"]),
+            "reproj_mean": float(debug0["reproj_mean"]),
+            "reproj_median": float(debug0["reproj_median"]),
+            "reproj_p90": float(debug0["reproj_p90"]),
+            "visibility_mean": float(debug0["visibility_mean"]),
+            "delta_t": 0.0,
+            "delta_rot_deg": 0.0,
+        }
+    )
 
     for frame_idx in range(start + 1, end + 1):
         flow = np.load(str(flow_paths[frame_idx - 1])).astype(np.float32)
@@ -373,6 +434,9 @@ def track_single_object(
         if not ok_pose:
             r_curr, t_curr = r_prev.copy(), t_prev.copy()
 
+        delta_t = float(np.linalg.norm(t_curr - t_prev))
+        delta_rot = rotation_delta_deg(r_prev, r_curr)
+
         r_prev, t_prev = r_curr.copy(), t_curr.copy()
         r_list.append(r_prev.copy())
         t_list.append(t_prev.copy())
@@ -393,13 +457,101 @@ def track_single_object(
         cv2.imwrite(str(overlays_dir / f"overlay_{frame_idx:04d}.png"), overlay)
         write_video_frame(overlay)
 
+        dbg = compute_correspondence_debug(
+            x_obj=x_obj,
+            u=u,
+            alive=alive,
+            r_mat=r_prev,
+            t_vec=t_prev,
+            k=k,
+            reproj_px=float(args.ransac_reproj_px),
+        )
+        debug_lines = [
+            f"frame={frame_idx:04d} pnp_ok={int(ok_pose)}",
+            (
+                f"alive={dbg['num_alive']} ransac_inliers={int(inliers)} "
+                f"reproj_inliers={dbg['num_reproj_inliers']}"
+            ),
+            (
+                f"reproj_mean={float(dbg['reproj_mean']):.2f}px "
+                f"p90={float(dbg['reproj_p90']):.2f}px "
+                f"vis_mean={float(dbg['visibility_mean']):.3f}"
+            ),
+            (
+                f"delta_t={delta_t:.5f} delta_rot={delta_rot:.3f}deg"
+            ),
+        ]
+        debug_canvas = draw_debug_correspondences(
+            frame_bgr=frame,
+            u_obs=dbg["u_alive"],  # type: ignore[arg-type]
+            u_proj=dbg["u_proj"],  # type: ignore[arg-type]
+            inlier_mask=dbg["inlier_mask"],  # type: ignore[arg-type]
+            max_points=int(args.debug_max_points),
+            text_lines=debug_lines,
+        )
+        write_debug_frame(debug_canvas)
+
+        failure_by_inliers = int(inliers) < int(args.min_inliers)
+        failure_by_reproj = (
+            np.isfinite(float(dbg["reproj_p90"]))
+            and float(dbg["reproj_p90"]) > float(args.debug_failure_p90_mult) * float(args.ransac_reproj_px)
+        )
+        if failure_by_inliers or failure_by_reproj:
+            cv2.imwrite(str(failure_dir / f"frame_{frame_idx:04d}.png"), debug_canvas)
+
+        metrics_rows.append(
+            {
+                "frame_idx": int(frame_idx),
+                "pnp_ok": int(ok_pose),
+                "num_alive": int(dbg["num_alive"]),
+                "ransac_inliers": int(inliers),
+                "reproj_inliers": int(dbg["num_reproj_inliers"]),
+                "reproj_inlier_ratio": float(dbg["inlier_ratio"]),
+                "reproj_mean": float(dbg["reproj_mean"]),
+                "reproj_median": float(dbg["reproj_median"]),
+                "reproj_p90": float(dbg["reproj_p90"]),
+                "visibility_mean": float(dbg["visibility_mean"]),
+                "delta_t": float(delta_t),
+                "delta_rot_deg": float(delta_rot),
+            }
+        )
+
         if args.verbose:
             print(
                 f"[{object_slug}] frame={frame_idx:04d} "
-                f"ok_pose={ok_pose} inliers={inliers} alive={int(alive.sum())}"
+                f"ok_pose={ok_pose} inliers={inliers} alive={int(alive.sum())} "
+                f"reproj_p90={float(dbg['reproj_p90']):.2f}px"
             )
 
     close_ffmpeg(ffmpeg_writer)
+    close_ffmpeg(debug_writer)
+    save_debug_metrics_csv(debug_dir / "metrics.csv", metrics_rows)
+    save_debug_plots(debug_dir, metrics_rows, reproj_px=float(args.ransac_reproj_px))
+
+    if float(args.post_smooth_alpha) > 0.0:
+        r_sm, t_sm = smooth_pose_sequence_post(
+            r_seq=r_list,
+            t_seq=t_list,
+            alpha=float(args.post_smooth_alpha),
+        )
+        for local_idx, (r_mat, t_vec) in enumerate(zip(r_sm, t_sm)):
+            save_mesh(start + local_idx, r_mat, t_vec)
+        r_list, t_list = r_sm, t_sm
+
+    render_overlay_sequence(
+        frame_paths=frame_paths,
+        start=start,
+        r_seq=r_list,
+        t_seq=t_list,
+        verts_obj=v_obj,
+        k=k,
+        overlay_max_verts=int(args.overlay_max_verts),
+        overlay_point_radius=int(args.overlay_point_radius),
+        overlays_out_dir=overlays_smoothed_dir,
+        video_out_path=out_dir / "overlay_smoothed.mp4",
+        fps=float(args.overlay_fps),
+    )
+
     save_pose_outputs(out_dir, r_list, t_list)
 
 
