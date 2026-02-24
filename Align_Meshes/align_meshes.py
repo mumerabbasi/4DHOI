@@ -107,10 +107,11 @@ F) What is saved
   - `meshes/transforms.json`: source-to-aligned transform metadata.
   - `loss_curves/<slug>_loss_*.png`: separate loss plots for each term and total.
   - `loss_curves/<slug>_loss.csv`: numeric loss history.
-  - `correspondences/<slug>/iter_XXXXX_depth_fixed.ply`:
-    fixed depth correspondence cloud with colors.
+  - `correspondences/<slug>/iter_00000_depth_fixed.ply`:
+    fixed depth correspondence cloud with colors (saved once).
   - `correspondences/<slug>/iter_XXXXX_mesh_transformed.ply`:
-    transformed mesh correspondence cloud with same colors.
+    transformed full mesh cloud (grey) + transformed correspondence points
+    (same correspondence colors as depth points).
   - `correspondences/<slug>/iter_XXXXX_correspondence_projection.png`:
     side-by-side 2D projection visualization of fixed depth points and transformed
     mesh points at that iteration.
@@ -303,8 +304,10 @@ def compute_losses_torch(
     )
 
     z = torch.clamp(transformed[:, 2], min=1e-6)
-    u = intrinsics[0, 0] * transformed[:, 0] / z + intrinsics[0, 2]
-    v = intrinsics[1, 1] * transformed[:, 1] / z + intrinsics[1, 2]
+    # PyTorch3D rasterization uses pixel centers; uv_ref is stored as integer pixel
+    # indices. Subtract 0.5 so projected UVs are in the same index convention.
+    u = intrinsics[0, 0] * transformed[:, 0] / z + intrinsics[0, 2] - 0.5
+    v = intrinsics[1, 1] * transformed[:, 1] / z + intrinsics[1, 2] - 0.5
     uv = torch.stack([u, v], dim=1)
 
     e_corr = ((transformed - depth_points) ** 2).sum(dim=1).mean()
@@ -331,6 +334,7 @@ def compute_losses_torch(
 
 def optimize_scale_tz(
     corr: CorrespondenceSet,
+    full_mesh_points_base: np.ndarray,
     intrinsics: np.ndarray,
     device: torch.device,
     iters: int,
@@ -401,16 +405,22 @@ def optimize_scale_tz(
             w_tz_reg=w_tz_reg,
         )
         append_history(history, 0, init_losses)
+        init_full_mesh_points = (float(init_losses["scale"].detach().cpu().item()) * full_mesh_points_base).astype(
+            np.float32
+        )
+        init_full_mesh_points[:, 2] += float(init_losses["tz"].detach().cpu().item())
         save_correspondence_snapshot(
             out_dir=corr_vis_dir,
             iter_idx=0,
             depth_points=corr.depth_points,
             transformed_mesh_points=init_losses["transformed"].detach().cpu().numpy(),
+            full_transformed_mesh_points=init_full_mesh_points,
             uv_ref=corr.uv_ref,
             colors_rgb=corr.colors_rgb,
             intrinsics=intrinsics,
             frame_bgr=corr_vis_frame,
             point_radius=corr_vis_point_radius,
+            save_depth_fixed=True,
         )
 
     for iter_idx in range(1, int(iters) + 1):
@@ -463,6 +473,12 @@ def optimize_scale_tz(
                 corr_save_every > 0
                 and (iter_idx % int(corr_save_every) == 0 or iter_idx == int(iters))
             ):
+                eval_full_mesh_points = (
+                    float(eval_losses["scale"].detach().cpu().item()) * full_mesh_points_base
+                ).astype(np.float32)
+                eval_full_mesh_points[:, 2] += float(
+                    eval_losses["tz"].detach().cpu().item()
+                )
                 save_correspondence_snapshot(
                     out_dir=corr_vis_dir,
                     iter_idx=iter_idx,
@@ -471,11 +487,13 @@ def optimize_scale_tz(
                     .detach()
                     .cpu()
                     .numpy(),
+                    full_transformed_mesh_points=eval_full_mesh_points,
                     uv_ref=corr.uv_ref,
                     colors_rgb=corr.colors_rgb,
                     intrinsics=intrinsics,
                     frame_bgr=corr_vis_frame,
                     point_radius=corr_vis_point_radius,
+                    save_depth_fixed=False,
                 )
 
     scale_final = float(math.exp(float(log_scale.detach().cpu().item())))
@@ -885,6 +903,7 @@ def main() -> None:
         print(f"[{asset.name}] optimizing scale + t_z ...")
         result = optimize_scale_tz(
             corr=corr,
+            full_mesh_points_base=verts_cv,
             intrinsics=k_opt,
             device=device,
             iters=int(args.iters),
