@@ -1,24 +1,4 @@
-"""Rigid 4D tracking (MVP + Improvement 1) using CoTracker tracks + visibility.
-
-This script mirrors track_object_mesh.py outputs but consumes CoTracker outputs
-produced by estimate_optical_flow_cotracker.py.
-
-Input layout (per video):
-  Estimate_Optical_Flow/output_cotracker/video_xx/
-    |_ _frames/frame_XXXX.png
-    |_ <object>/
-        |_ seed_points_frame0.npy
-        |_ tracks.npy         # [T, N, 2]
-        |_ visibility.npy     # [T, N]
-
-Output layout:
-  ./output_cotracker/video_xx/<object>/
-    |_ meshes/frame_XXXX.ply
-    |_ overlays/overlay_XXXX.png
-    |_ overlay.mp4
-    |_ poses.npy
-    |_ poses.json
-"""
+"""Rigid 4D tracking (MVP + Improvement 1) using CoTracker tracks + visibility."""
 
 from __future__ import annotations
 
@@ -33,7 +13,6 @@ from tracking_utils import (
     apply_pose,
     close_ffmpeg,
     compute_correspondence_debug,
-    draw_debug_correspondences,
     draw_overlay,
     ensure_dir,
     estimate_pose_pnp_ransac,
@@ -50,7 +29,6 @@ from tracking_utils import (
     resolve_path,
     rotation_delta_deg,
     save_debug_metrics_csv,
-    save_debug_plots,
     save_pose_outputs,
     smooth_pose_sequence_post,
     start_ffmpeg_writer,
@@ -118,7 +96,7 @@ def parse_args() -> argparse.Namespace:
                         help="0 => naive rasterization")
 
     parser.add_argument("--ransac_reproj_px", type=float, default=6.0)
-    parser.add_argument("--ransac_iters", type=int, default=1000)
+    parser.add_argument("--ransac_iters", type=int, default=10000)
     parser.add_argument("--min_inliers", type=int, default=30)
     parser.add_argument(
         "--visibility_threshold",
@@ -127,25 +105,10 @@ def parse_args() -> argparse.Namespace:
         help="Drop tracks with visibility below this threshold.",
     )
     parser.add_argument(
-        "--post_smooth_alpha",
+        "--post_smooth_sigma",
         type=float,
-        default=0.75,
-        help="Post-process smoothing factor on full trajectory. 0 disables smoothing.",
-    )
-    parser.add_argument(
-        "--debug_max_points",
-        type=int,
-        default=800,
-        help="Max correspondences drawn per frame in debug overlay.",
-    )
-    parser.add_argument(
-        "--debug_failure_p90_mult",
-        type=float,
-        default=2.0,
-        help=(
-            "Failure snapshot threshold multiplier: reproj_p90 > multiplier * "
-            "ransac_reproj_px."
-        ),
+        default=1.0,
+        help="Gaussian smoothing sigma in frames. 0 disables smoothing.",
     )
 
     parser.add_argument("--overlay_max_verts", type=int, default=20000)
@@ -172,16 +135,16 @@ def track_single_object(
 ) -> None:
     """Track one object mesh over a sequence using CoTracker tracks."""
     ensure_dir(out_dir)
+    meshes_raw_dir = out_dir / "meshes_raw"
     meshes_dir = out_dir / "meshes"
     overlays_dir = out_dir / "overlays"
     overlays_smoothed_dir = out_dir / "overlays_smoothed"
     debug_dir = out_dir / "debug"
-    failure_dir = debug_dir / "failures"
+    ensure_dir(meshes_raw_dir)
     ensure_dir(meshes_dir)
     ensure_dir(overlays_dir)
     ensure_dir(overlays_smoothed_dir)
     ensure_dir(debug_dir)
-    ensure_dir(failure_dir)
 
     frame_paths = list_images(frames_dir)
 
@@ -295,9 +258,6 @@ def track_single_object(
     video_path = out_dir / "overlay.mp4"
     ffmpeg_writer = start_ffmpeg_writer(
         video_path, float(args.overlay_fps), (h, w))
-    debug_video_path = debug_dir / "correspondences_debug.mp4"
-    debug_writer = start_ffmpeg_writer(
-        debug_video_path, float(args.overlay_fps), (h, w))
 
     def write_video_frame(frame_bgr: np.ndarray) -> None:
         if ffmpeg_writer.stdin is None:
@@ -305,16 +265,11 @@ def track_single_object(
         frame_bgr = np.ascontiguousarray(frame_bgr.astype(np.uint8))
         ffmpeg_writer.stdin.write(frame_bgr.tobytes())
 
-    def write_debug_frame(frame_bgr: np.ndarray) -> None:
-        if debug_writer.stdin is None:
-            raise RuntimeError("debug ffmpeg stdin is closed")
-        frame_bgr = np.ascontiguousarray(frame_bgr.astype(np.uint8))
-        debug_writer.stdin.write(frame_bgr.tobytes())
-
     def save_mesh(
         frame_idx: int,
         r_mat: np.ndarray,
         t_vec: np.ndarray,
+        meshes_out_dir: Path,
     ) -> None:
         v_cam = apply_pose(v_obj, r_mat, t_vec)
         if args.output_coord == "opencv":
@@ -325,13 +280,13 @@ def track_single_object(
             v_save = v_cam
         mesh = mesh_template.copy()
         mesh.vertices = v_save.astype(np.float32)
-        mesh.export(str(meshes_dir / f"frame_{frame_idx:04d}.ply"))
+        mesh.export(str(meshes_out_dir / f"frame_{frame_idx:04d}.ply"))
 
     r_list: List[np.ndarray] = [r_prev.copy()]
     t_list: List[np.ndarray] = [t_prev.copy()]
     metrics_rows: list[dict[str, float | int]] = []
 
-    save_mesh(start, r_prev, t_prev)
+    save_mesh(start, r_prev, t_prev, meshes_raw_dir)
     overlay0 = draw_overlay(
         frame0,
         apply_pose(v_obj, r_prev, t_prev),
@@ -352,37 +307,13 @@ def track_single_object(
         reproj_px=float(args.ransac_reproj_px),
         visibility_values=vis_conf[start, track_ids],
     )
-    debug0_lines = [
-        f"frame={start:04d} (init)",
-        (
-            f"alive={debug0['num_alive']} "
-            f"reproj_inliers={debug0['num_reproj_inliers']}"
-        ),
-        (
-            f"reproj_mean={float(debug0['reproj_mean']):.2f}px "
-            f"p90={float(debug0['reproj_p90']):.2f}px"
-        ),
-        f"visibility_mean={float(debug0['visibility_mean']):.3f}",
-    ]
-    debug_frame0 = draw_debug_correspondences(
-        frame_bgr=frame0,
-        u_obs=debug0["u_alive"],  # type: ignore[arg-type]
-        u_proj=debug0["u_proj"],  # type: ignore[arg-type]
-        inlier_mask=debug0["inlier_mask"],  # type: ignore[arg-type]
-        max_points=int(args.debug_max_points),
-        text_lines=debug0_lines,
-    )
-    write_debug_frame(debug_frame0)
     metrics_rows.append(
         {
             "frame_idx": int(start),
             "pnp_ok": 1,
             "num_alive": int(debug0["num_alive"]),
             "ransac_inliers": int(debug0["num_reproj_inliers"]),
-            "reproj_inliers": int(debug0["num_reproj_inliers"]),
-            "reproj_inlier_ratio": float(debug0["inlier_ratio"]),
             "reproj_mean": float(debug0["reproj_mean"]),
-            "reproj_median": float(debug0["reproj_median"]),
             "reproj_p90": float(debug0["reproj_p90"]),
             "visibility_mean": float(debug0["visibility_mean"]),
             "delta_t": 0.0,
@@ -439,7 +370,7 @@ def track_single_object(
         r_list.append(r_prev.copy())
         t_list.append(t_prev.copy())
 
-        save_mesh(frame_idx, r_prev, t_prev)
+        save_mesh(frame_idx, r_prev, t_prev, meshes_raw_dir)
 
         frame = cv2.imread(str(frame_paths[frame_idx]))
         if frame is None:
@@ -467,39 +398,6 @@ def track_single_object(
             reproj_px=float(args.ransac_reproj_px),
             visibility_values=vis_conf[frame_idx, track_ids],
         )
-        debug_lines = [
-            f"frame={frame_idx:04d} pnp_ok={int(ok_pose)}",
-            (
-                f"alive={dbg['num_alive']} ransac_inliers={int(inliers)} "
-                f"reproj_inliers={dbg['num_reproj_inliers']}"
-            ),
-            (
-                f"reproj_mean={float(dbg['reproj_mean']):.2f}px "
-                f"p90={float(dbg['reproj_p90']):.2f}px "
-                f"vis_mean={float(dbg['visibility_mean']):.3f}"
-            ),
-            f"delta_t={delta_t:.5f} delta_rot={delta_rot:.3f}deg",
-        ]
-        debug_canvas = draw_debug_correspondences(
-            frame_bgr=frame,
-            u_obs=dbg["u_alive"],  # type: ignore[arg-type]
-            u_proj=dbg["u_proj"],  # type: ignore[arg-type]
-            inlier_mask=dbg["inlier_mask"],  # type: ignore[arg-type]
-            max_points=int(args.debug_max_points),
-            text_lines=debug_lines,
-        )
-        write_debug_frame(debug_canvas)
-
-        failure_by_inliers = int(inliers) < int(args.min_inliers)
-        failure_by_reproj = (
-            np.isfinite(float(dbg["reproj_p90"]))
-            and float(dbg["reproj_p90"])
-            > float(args.debug_failure_p90_mult)
-            * float(args.ransac_reproj_px)
-        )
-        if failure_by_inliers or failure_by_reproj:
-            cv2.imwrite(
-                str(failure_dir / f"frame_{frame_idx:04d}.png"), debug_canvas)
 
         metrics_rows.append(
             {
@@ -507,10 +405,7 @@ def track_single_object(
                 "pnp_ok": int(ok_pose),
                 "num_alive": int(dbg["num_alive"]),
                 "ransac_inliers": int(inliers),
-                "reproj_inliers": int(dbg["num_reproj_inliers"]),
-                "reproj_inlier_ratio": float(dbg["inlier_ratio"]),
                 "reproj_mean": float(dbg["reproj_mean"]),
-                "reproj_median": float(dbg["reproj_median"]),
                 "reproj_p90": float(dbg["reproj_p90"]),
                 "visibility_mean": float(dbg["visibility_mean"]),
                 "delta_t": float(delta_t),
@@ -527,26 +422,20 @@ def track_single_object(
             )
 
     close_ffmpeg(ffmpeg_writer)
-    close_ffmpeg(debug_writer)
     save_debug_metrics_csv(debug_dir / "metrics.csv", metrics_rows)
-    save_debug_plots(debug_dir, metrics_rows,
-                     reproj_px=float(args.ransac_reproj_px))
-
-    if float(args.post_smooth_alpha) > 0.0:
-        r_sm, t_sm = smooth_pose_sequence_post(
-            r_seq=r_list,
-            t_seq=t_list,
-            alpha=float(args.post_smooth_alpha),
-        )
-        for local_idx, (r_mat, t_vec) in enumerate(zip(r_sm, t_sm)):
-            save_mesh(start + local_idx, r_mat, t_vec)
-        r_list, t_list = r_sm, t_sm
+    r_sm, t_sm = smooth_pose_sequence_post(
+        r_seq=r_list,
+        t_seq=t_list,
+        sigma=float(args.post_smooth_sigma),
+    )
+    for local_idx, (r_mat, t_vec) in enumerate(zip(r_sm, t_sm)):
+        save_mesh(start + local_idx, r_mat, t_vec, meshes_dir)
 
     render_overlay_sequence(
         frame_paths=frame_paths,
         start=start,
-        r_seq=r_list,
-        t_seq=t_list,
+        r_seq=r_sm,
+        t_seq=t_sm,
         verts_obj=v_obj,
         k=k,
         overlay_max_verts=int(args.overlay_max_verts),
@@ -556,7 +445,7 @@ def track_single_object(
         fps=float(args.overlay_fps),
     )
 
-    save_pose_outputs(out_dir, r_list, t_list)
+    save_pose_outputs(out_dir, r_sm, t_sm)
 
 
 def main() -> None:

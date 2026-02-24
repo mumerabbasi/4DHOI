@@ -296,144 +296,60 @@ def project_points_via_f(pts_cam_p3d: np.ndarray, k: np.ndarray) -> np.ndarray:
     return u
 
 
-def _rotation_matrix_to_quaternion_wxyz(r: np.ndarray) -> np.ndarray:
-    """Convert a rotation matrix to normalized quaternion [w, x, y, z]."""
-    m00, m01, m02 = float(r[0, 0]), float(r[0, 1]), float(r[0, 2])
-    m10, m11, m12 = float(r[1, 0]), float(r[1, 1]), float(r[1, 2])
-    m20, m21, m22 = float(r[2, 0]), float(r[2, 1]), float(r[2, 2])
-    trace = m00 + m11 + m22
-
-    if trace > 0.0:
-        s = 2.0 * np.sqrt(trace + 1.0)
-        w = 0.25 * s
-        x = (m21 - m12) / s
-        y = (m02 - m20) / s
-        z = (m10 - m01) / s
-    elif m00 > m11 and m00 > m22:
-        s = 2.0 * np.sqrt(max(1e-12, 1.0 + m00 - m11 - m22))
-        w = (m21 - m12) / s
-        x = 0.25 * s
-        y = (m01 + m10) / s
-        z = (m02 + m20) / s
-    elif m11 > m22:
-        s = 2.0 * np.sqrt(max(1e-12, 1.0 + m11 - m00 - m22))
-        w = (m02 - m20) / s
-        x = (m01 + m10) / s
-        y = 0.25 * s
-        z = (m12 + m21) / s
-    else:
-        s = 2.0 * np.sqrt(max(1e-12, 1.0 + m22 - m00 - m11))
-        w = (m10 - m01) / s
-        x = (m02 + m20) / s
-        y = (m12 + m21) / s
-        z = 0.25 * s
-
-    q = np.array([w, x, y, z], dtype=np.float64)
-    n = np.linalg.norm(q)
-    if n < 1e-12:
-        return np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float64)
-    return q / n
+def _gaussian_kernel_1d(sigma: float) -> np.ndarray:
+    """Build a normalized 1D Gaussian kernel."""
+    if sigma <= 0.0:
+        return np.array([1.0], dtype=np.float64)
+    radius = max(1, int(np.ceil(3.0 * float(sigma))))
+    x = np.arange(-radius, radius + 1, dtype=np.float64)
+    k = np.exp(-0.5 * (x / float(sigma)) ** 2)
+    k /= np.sum(k)
+    return k
 
 
-def _quaternion_wxyz_to_rotation_matrix(q: np.ndarray) -> np.ndarray:
-    """Convert quaternion [w, x, y, z] to rotation matrix."""
-    q = q.astype(np.float64, copy=False)
-    n = np.linalg.norm(q)
-    if n < 1e-12:
-        return np.eye(3, dtype=np.float32)
-    w, x, y, z = q / n
+def _gaussian_smooth_series(arr: np.ndarray, sigma: float) -> np.ndarray:
+    """Apply 1D Gaussian smoothing over time axis for an [T, D] array."""
+    if arr.ndim != 2:
+        raise ValueError(f"Expected 2D array [T, D], got shape {arr.shape}")
+    if len(arr) == 0 or sigma <= 0.0:
+        return arr.copy()
 
-    xx, yy, zz = x * x, y * y, z * z
-    xy, xz, yz = x * y, x * z, y * z
-    wx, wy, wz = w * x, w * y, w * z
-    r = np.array(
-        [
-            [1.0 - 2.0 * (yy + zz), 2.0 * (xy - wz), 2.0 * (xz + wy)],
-            [2.0 * (xy + wz), 1.0 - 2.0 * (xx + zz), 2.0 * (yz - wx)],
-            [2.0 * (xz - wy), 2.0 * (yz + wx), 1.0 - 2.0 * (xx + yy)],
-        ],
-        dtype=np.float64,
-    )
-    return r.astype(np.float32)
-
-
-def _slerp_wxyz(q0: np.ndarray, q1: np.ndarray, t: float) -> np.ndarray:
-    """Spherical linear interpolation between two unit quaternions."""
-    q0 = q0.astype(np.float64, copy=False)
-    q1 = q1.astype(np.float64, copy=False)
-    dot = float(np.dot(q0, q1))
-    if dot < 0.0:
-        q1 = -q1
-        dot = -dot
-
-    dot = float(np.clip(dot, -1.0, 1.0))
-    if dot > 0.9995:
-        q = q0 + float(t) * (q1 - q0)
-        n = np.linalg.norm(q)
-        if n < 1e-12:
-            return q0
-        return q / n
-
-    theta_0 = float(np.arccos(dot))
-    sin_theta_0 = float(np.sin(theta_0))
-    theta = float(t) * theta_0
-    sin_theta = float(np.sin(theta))
-
-    s0 = float(np.sin(theta_0 - theta) / max(sin_theta_0, 1e-12))
-    s1 = float(sin_theta / max(sin_theta_0, 1e-12))
-    q = s0 * q0 + s1 * q1
-    n = np.linalg.norm(q)
-    if n < 1e-12:
-        return q0
-    return q / n
-
-
-def smooth_pose_ema_slerp(
-    r_prev: np.ndarray,
-    t_prev: np.ndarray,
-    r_curr: np.ndarray,
-    t_curr: np.ndarray,
-    alpha: float,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """EMA smoothing for translation + SLERP-EMA smoothing for rotation."""
-    a = float(np.clip(alpha, 0.0, 1.0))
-    if a <= 0.0:
-        return r_prev.copy(), t_prev.copy()
-    if a >= 1.0:
-        return r_curr.copy(), t_curr.copy()
-
-    t_sm = (1.0 - a) * t_prev + a * t_curr
-    q_prev = _rotation_matrix_to_quaternion_wxyz(r_prev)
-    q_curr = _rotation_matrix_to_quaternion_wxyz(r_curr)
-    q_sm = _slerp_wxyz(q_prev, q_curr, a)
-    r_sm = _quaternion_wxyz_to_rotation_matrix(q_sm)
-    return r_sm.astype(np.float32), t_sm.astype(np.float32)
+    kernel = _gaussian_kernel_1d(float(sigma))
+    radius = len(kernel) // 2
+    padded = np.pad(arr.astype(np.float64), ((radius, radius), (0, 0)), mode="edge")
+    out = np.empty_like(arr, dtype=np.float64)
+    for dim in range(arr.shape[1]):
+        out[:, dim] = np.convolve(padded[:, dim], kernel, mode="valid")
+    return out.astype(np.float32)
 
 
 def smooth_pose_sequence_post(
     r_seq: List[np.ndarray],
     t_seq: List[np.ndarray],
-    alpha: float,
+    sigma: float,
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
-    """Post-process a full pose trajectory with simple EMA+SLERP smoothing."""
+    """Post-process a full pose trajectory with Gaussian temporal smoothing."""
     if len(r_seq) == 0:
         return [], []
-    a = float(np.clip(alpha, 0.0, 1.0))
-    if a <= 0.0:
+    if len(r_seq) != len(t_seq):
+        raise ValueError("Rotation and translation sequence lengths must match")
+    if float(sigma) <= 0.0:
         return [r.copy() for r in r_seq], [t.copy() for t in t_seq]
 
-    r_out = [r_seq[0].copy()]
-    t_out = [t_seq[0].copy()]
-    for idx in range(1, len(r_seq)):
-        r_sm, t_sm = smooth_pose_ema_slerp(
-            r_prev=r_out[-1],
-            t_prev=t_out[-1],
-            r_curr=r_seq[idx],
-            t_curr=t_seq[idx],
-            alpha=a,
-        )
-        r_out.append(r_sm.copy())
-        t_out.append(t_sm.copy())
+    t_arr = np.stack(t_seq, axis=0).astype(np.float32)
+    t_sm = _gaussian_smooth_series(t_arr, float(sigma))
+
+    rotvec = np.zeros((len(r_seq), 3), dtype=np.float32)
+    for i, r in enumerate(r_seq):
+        rvec, _ = cv2.Rodrigues(r.astype(np.float32))
+        rotvec[i] = rvec.reshape(3).astype(np.float32)
+    rotvec_sm = _gaussian_smooth_series(rotvec, float(sigma))
+
+    r_out: List[np.ndarray] = []
+    for i in range(len(r_seq)):
+        r_sm, _ = cv2.Rodrigues(rotvec_sm[i].reshape(3, 1).astype(np.float32))
+        r_out.append(r_sm.astype(np.float32))
+    t_out = [t_sm[i].astype(np.float32) for i in range(len(t_seq))]
     return r_out, t_out
 
 
