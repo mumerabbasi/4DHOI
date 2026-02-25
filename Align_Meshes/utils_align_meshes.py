@@ -333,11 +333,23 @@ def save_correspondence_snapshot(
         full_transformed_mesh_points is not None
         and full_transformed_mesh_points.shape[0] > 0
     ):
+        gray_points = full_transformed_mesh_points.astype(np.float32)
+        num_corr = int(transformed_mesh_points.shape[0])
+        # Keep grey context points but prevent them from visually overwhelming
+        # the colored correspondence points in dense meshes.
+        if num_corr > 0:
+            max_gray = max(1, 2 * num_corr)
+            if gray_points.shape[0] > max_gray:
+                keep_idx = np.linspace(
+                    0, gray_points.shape[0] - 1, num=max_gray, dtype=np.int64
+                )
+                gray_points = gray_points[keep_idx]
+
         gray_rgb = np.full(
-            (full_transformed_mesh_points.shape[0], 3), 160, dtype=np.uint8
+            (gray_points.shape[0], 3), 160, dtype=np.uint8
         )
         mesh_points_for_export = np.concatenate(
-            [full_transformed_mesh_points.astype(np.float32), transformed_mesh_points],
+            [gray_points, transformed_mesh_points],
             axis=0,
         )
         mesh_colors_for_export = np.concatenate([gray_rgb, colors_rgb], axis=0)

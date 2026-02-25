@@ -108,7 +108,7 @@ F) What is saved
   - `loss_curves/<slug>_loss_*.png`: separate loss plots for each term and total.
   - `loss_curves/<slug>_loss.csv`: numeric loss history.
   - `correspondences/<slug>/iter_00000_depth_fixed.ply`:
-    fixed depth correspondence cloud with colors (saved once).
+    fixed depth correspondence cloud with colors, saved once.
   - `correspondences/<slug>/iter_XXXXX_mesh_transformed.ply`:
     transformed full mesh cloud (grey) + transformed correspondence points
     (same correspondence colors as depth points).
@@ -231,8 +231,8 @@ def build_mesh_correspondences(
     if mask is not None:
         valid &= mask > 0.5
 
-    ys, xs = np.nonzero(valid)
-    pixels_considered = int(ys.shape[0])
+    ys_all, xs_all = np.nonzero(valid)
+    pixels_considered = int(ys_all.shape[0])
     if pixels_considered == 0:
         return CorrespondenceSet(
             mesh_points_base=np.zeros((0, 3), dtype=np.float32),
@@ -243,11 +243,13 @@ def build_mesh_correspondences(
             pixels_used=0,
         )
 
+    keep_idx = np.arange(pixels_considered, dtype=np.int64)
     if max_points > 0 and pixels_considered > max_points:
         rng = np.random.default_rng(seed)
-        keep = rng.choice(pixels_considered, size=max_points, replace=False)
-        ys = ys[keep]
-        xs = xs[keep]
+        keep_idx = rng.choice(pixels_considered, size=max_points, replace=False)
+
+    ys = ys_all[keep_idx]
+    xs = xs_all[keep_idx]
 
     face_idx = pix_to_face[ys, xs].astype(np.int64)
     bary_sel = bary[ys, xs]  # (N,3)
@@ -878,7 +880,7 @@ def main() -> None:
     corr_dir_root = output_dir / "correspondences"
     optimization_results: list[OptimizationResult] = []
     loss_plot_paths_by_slug: dict[str, dict[str, str]] = {}
-    for asset, corr in zip(assets, correspondences):
+    for asset, corr, verts_cv in zip(assets, correspondences, verts_base_cv_np):
         mesh_corr_dir = corr_dir_root / asset.slug
         if corr.mesh_points_base.shape[0] < int(args.min_correspondences_per_mesh):
             msg = (
