@@ -323,12 +323,197 @@ def _gaussian_smooth_series(arr: np.ndarray, sigma: float) -> np.ndarray:
     return out.astype(np.float32)
 
 
+def _rotmat_to_quat(r: np.ndarray) -> np.ndarray:
+    """Convert a 3x3 rotation matrix to a unit quaternion [w, x, y, z]."""
+    m = r.astype(np.float64)
+    tr = m[0, 0] + m[1, 1] + m[2, 2]
+    if tr > 0:
+        s = 2.0 * np.sqrt(tr + 1.0)
+        w = 0.25 * s
+        x = (m[2, 1] - m[1, 2]) / s
+        y = (m[0, 2] - m[2, 0]) / s
+        z = (m[1, 0] - m[0, 1]) / s
+    elif m[0, 0] > m[1, 1] and m[0, 0] > m[2, 2]:
+        s = 2.0 * np.sqrt(1.0 + m[0, 0] - m[1, 1] - m[2, 2])
+        w = (m[2, 1] - m[1, 2]) / s
+        x = 0.25 * s
+        y = (m[0, 1] + m[1, 0]) / s
+        z = (m[0, 2] + m[2, 0]) / s
+    elif m[1, 1] > m[2, 2]:
+        s = 2.0 * np.sqrt(1.0 + m[1, 1] - m[0, 0] - m[2, 2])
+        w = (m[0, 2] - m[2, 0]) / s
+        x = (m[0, 1] + m[1, 0]) / s
+        y = 0.25 * s
+        z = (m[1, 2] + m[2, 1]) / s
+    else:
+        s = 2.0 * np.sqrt(1.0 + m[2, 2] - m[0, 0] - m[1, 1])
+        w = (m[1, 0] - m[0, 1]) / s
+        x = (m[0, 2] + m[2, 0]) / s
+        y = (m[1, 2] + m[2, 1]) / s
+        z = 0.25 * s
+    q = np.array([w, x, y, z], dtype=np.float64)
+    return q / np.linalg.norm(q)
+
+
+def _quat_to_rotmat(q: np.ndarray) -> np.ndarray:
+    """Convert a unit quaternion [w, x, y, z] to a 3x3 rotation matrix."""
+    q = q.astype(np.float64)
+    q = q / np.linalg.norm(q)
+    w, x, y, z = q
+    return np.array([
+        [1 - 2*(y*y + z*z),     2*(x*y - z*w),     2*(x*z + y*w)],
+        [2*(x*y + z*w), 1 - 2*(x*x + z*z),     2*(y*z - x*w)],
+        [2*(x*z - y*w),     2*(y*z + x*w), 1 - 2*(x*x + y*y)],
+    ], dtype=np.float32)
+
+
+def _geodesic_distance_deg(r1: np.ndarray, r2: np.ndarray) -> float:
+    """Geodesic angular distance between two rotation matrices, in degrees."""
+    r_rel = r1.astype(np.float64).T @ r2.astype(np.float64)
+    cos_theta = 0.5 * (np.trace(r_rel) - 1.0)
+    cos_theta = float(np.clip(cos_theta, -1.0, 1.0))
+    return float(np.degrees(np.arccos(cos_theta)))
+
+
+def _slerp(q0: np.ndarray, q1: np.ndarray, alpha: float) -> np.ndarray:
+    """Quaternion spherical linear interpolation (SLERP)."""
+    q0 = q0.astype(np.float64)
+    q1 = q1.astype(np.float64)
+    # Ensure shortest path.
+    if np.dot(q0, q1) < 0:
+        q1 = -q1
+    dot = float(np.clip(np.dot(q0, q1), -1.0, 1.0))
+    if abs(dot) > 0.9995:
+        q = (1.0 - alpha) * q0 + alpha * q1
+    else:
+        omega = np.arccos(abs(dot))
+        q = (
+            np.sin((1.0 - alpha) * omega) * q0
+            + np.sin(alpha * omega) * q1
+        ) / np.sin(omega)
+    return q / np.linalg.norm(q)
+
+
+def _replace_outlier_poses(
+    r_seq: List[np.ndarray],
+    t_seq: List[np.ndarray],
+    per_frame_threshold_deg: float = 15.0,
+    max_cumulative_deg: float = 30.0,
+    window: int = 7,
+    max_passes: int = 6,
+) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+    """Replace outlier frames using forward-consistency tracking.
+
+    Two-stage approach:
+    1. **Forward consistency**: walk from frame 0 (always trusted) and reject
+       any frame whose geodesic distance to the last accepted frame exceeds
+       ``min(per_frame_threshold_deg * gap, max_cumulative_deg)``.
+       The cap prevents the threshold from growing unbounded as the gap
+       widens, which would let wrong-regime frames slip through.
+    2. **Windowed median refinement** (iterative): catch remaining outliers
+       whose median geodesic distance to their local window is too large.
+
+    Outlier spans are replaced with SLERP / LERP interpolation between the
+    nearest non-outlier neighbours.
+    """
+    n = len(r_seq)
+    if n < 3:
+        return [r.copy() for r in r_seq], [t.copy() for t in t_seq]
+
+    r_out = [r.copy() for r in r_seq]
+    t_out = [t.copy() for t in t_seq]
+
+    # ---- Stage 1: Forward consistency ----
+    accepted = np.ones(n, dtype=bool)
+    last_good = 0  # frame 0 is always accepted
+    for i in range(1, n):
+        gap = i - last_good
+        max_jump = min(per_frame_threshold_deg * gap, max_cumulative_deg)
+        d = _geodesic_distance_deg(r_out[last_good], r_out[i])
+        if d > max_jump:
+            accepted[i] = False
+        else:
+            last_good = i
+
+    # SLERP-replace forward-rejected spans.
+    _interpolate_outlier_spans(r_out, t_out, ~accepted)
+
+    # ---- Stage 2: Windowed-median iterative refinement ----
+    half_w = window // 2
+    for _pass in range(max_passes):
+        outlier = np.zeros(n, dtype=bool)
+        for i in range(1, n - 1):
+            lo = max(0, i - half_w)
+            hi = min(n, i + half_w + 1)
+            dists = [
+                _geodesic_distance_deg(r_out[i], r_out[j])
+                for j in range(lo, hi) if j != i
+            ]
+            if np.median(dists) > per_frame_threshold_deg:
+                outlier[i] = True
+        if not outlier.any():
+            break
+        _interpolate_outlier_spans(r_out, t_out, outlier)
+
+    return r_out, t_out
+
+
+def _interpolate_outlier_spans(
+    r_list: List[np.ndarray],
+    t_list: List[np.ndarray],
+    outlier: np.ndarray,
+) -> None:
+    """In-place SLERP/LERP replacement of contiguous outlier spans."""
+    n = len(r_list)
+    i = 0
+    while i < n:
+        if not outlier[i]:
+            i += 1
+            continue
+        span_start = i
+        while i < n and outlier[i]:
+            i += 1
+        span_end = i - 1  # inclusive
+        left = max(span_start - 1, 0)
+        right = min(span_end + 1, n - 1)
+        # If entire prefix / suffix is outlier, clamp to boundary.
+        if left == span_start:
+            left = right
+        if right == span_end:
+            right = left
+        q_left = _rotmat_to_quat(r_list[left])
+        q_right = _rotmat_to_quat(r_list[right])
+        if np.dot(q_left, q_right) < 0:
+            q_right = -q_right
+        t_left = t_list[left].astype(np.float64)
+        t_right = t_list[right].astype(np.float64)
+        span_len = right - left
+        for j in range(span_start, span_end + 1):
+            alpha = float(j - left) / float(max(span_len, 1))
+            q_interp = _slerp(q_left, q_right, alpha)
+            r_list[j] = _quat_to_rotmat(q_interp)
+            t_list[j] = ((1.0 - alpha) * t_left + alpha * t_right).astype(np.float32)
+
+
 def smooth_pose_sequence_post(
     r_seq: List[np.ndarray],
     t_seq: List[np.ndarray],
     sigma: float,
+    max_rot_deviation_deg: float = 8.0,
+    max_trans_deviation_ratio: float = 0.15,
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
-    """Post-process a full pose trajectory with Gaussian temporal smoothing."""
+    """Post-process a full pose trajectory with Gaussian temporal smoothing.
+
+    Key design principles:
+    1. Rotations are smoothed in quaternion space with sign-continuity.
+    2. Outlier frames are replaced with SLERP-interpolated poses before smoothing.
+    3. **Deviation clamp**: the smoothed pose is never allowed to deviate
+       more than *max_rot_deviation_deg* (rotation) or *max_trans_deviation_ratio*
+       (translation, relative to object extent) from the original raw PnP pose.
+       This guarantees the projected mesh stays close to where PnP placed it,
+       since PnP reprojection is almost always approximately correct even when
+       frame-to-frame consistency is poor (e.g. semi-symmetric objects).
+    """
     if len(r_seq) == 0:
         return [], []
     if len(r_seq) != len(t_seq):
@@ -336,20 +521,66 @@ def smooth_pose_sequence_post(
     if float(sigma) <= 0.0:
         return [r.copy() for r in r_seq], [t.copy() for t in t_seq]
 
-    t_arr = np.stack(t_seq, axis=0).astype(np.float32)
+    # --- Step 1: Replace outlier frames caused by PnP failures ---
+    r_clean, t_clean = _replace_outlier_poses(r_seq, t_seq)
+
+    # --- Step 2: Smooth translations with Gaussian filter ---
+    t_arr = np.stack(t_clean, axis=0).astype(np.float32)
     t_sm = _gaussian_smooth_series(t_arr, float(sigma))
 
-    rotvec = np.zeros((len(r_seq), 3), dtype=np.float32)
-    for i, r in enumerate(r_seq):
-        rvec, _ = cv2.Rodrigues(r.astype(np.float32))
-        rotvec[i] = rvec.reshape(3).astype(np.float32)
-    rotvec_sm = _gaussian_smooth_series(rotvec, float(sigma))
+    # --- Step 3: Convert to quaternions with sign continuity ---
+    quats = np.zeros((len(r_clean), 4), dtype=np.float64)
+    for i, r in enumerate(r_clean):
+        quats[i] = _rotmat_to_quat(r)
+    # Enforce sign continuity: flip q_i if dot(q_{i-1}, q_i) < 0
+    for i in range(1, len(quats)):
+        if np.dot(quats[i - 1], quats[i]) < 0:
+            quats[i] = -quats[i]
 
+    # --- Step 4: Gaussian-smooth quaternions and renormalise ---
+    quats_f32 = quats.astype(np.float32)
+    quats_sm = _gaussian_smooth_series(quats_f32, float(sigma))
+    norms = np.linalg.norm(quats_sm, axis=1, keepdims=True)
+    norms = np.maximum(norms, 1e-8)
+    quats_sm = quats_sm / norms
+
+    # --- Step 5: Convert back and apply deviation clamp ---
+    # Clamp against the *cleaned* poses (not the original raw poses).
+    # The cleaned sequence is regime-consistent after outlier replacement,
+    # so clamping to it keeps the overlay stable.  Clamping to the original
+    # raw poses would pull back toward wrong-regime PnP solutions and
+    # reintroduce the large jumps we just removed.
+    max_rot_rad = float(np.radians(max_rot_deviation_deg))
     r_out: List[np.ndarray] = []
+    t_out: List[np.ndarray] = []
     for i in range(len(r_seq)):
-        r_sm, _ = cv2.Rodrigues(rotvec_sm[i].reshape(3, 1).astype(np.float32))
-        r_out.append(r_sm.astype(np.float32))
-    t_out = [t_sm[i].astype(np.float32) for i in range(len(t_seq))]
+        r_smooth = _quat_to_rotmat(quats_sm[i])
+        t_smooth = t_sm[i].astype(np.float32)
+
+        # Clamp rotation against cleaned pose.
+        q_ref = _rotmat_to_quat(r_clean[i])
+        q_sm = _rotmat_to_quat(r_smooth)
+        if np.dot(q_ref, q_sm) < 0:
+            q_sm = -q_sm
+        dot_val = float(np.clip(np.dot(q_ref, q_sm), -1.0, 1.0))
+        angle_dev = 2.0 * np.arccos(abs(dot_val))  # geodesic in rad
+        if angle_dev > max_rot_rad and angle_dev > 1e-8:
+            blend = max_rot_rad / angle_dev
+            q_clamped = _slerp(q_ref, q_sm, blend)
+            r_smooth = _quat_to_rotmat(q_clamped)
+
+        # Clamp translation against cleaned pose.
+        t_ref = t_clean[i].astype(np.float32)
+        t_diff = t_smooth - t_ref
+        t_diff_norm = float(np.linalg.norm(t_diff))
+        t_ref_norm = float(np.linalg.norm(t_ref))
+        max_t_drift = max(max_trans_deviation_ratio * max(t_ref_norm, 1e-3), 0.02)
+        if t_diff_norm > max_t_drift and t_diff_norm > 1e-8:
+            t_smooth = t_ref + t_diff * (max_t_drift / t_diff_norm)
+
+        r_out.append(r_smooth)
+        t_out.append(t_smooth)
+
     return r_out, t_out
 
 
@@ -718,15 +949,35 @@ def draw_overlay(
     return out
 
 
-def save_pose_outputs(out_dir: Path, r_list: List[np.ndarray], t_list: List[np.ndarray]) -> None:
-    """Save pose outputs as .npy and .json."""
-    r = np.stack(r_list, axis=0).astype(np.float32)
-    t = np.stack(t_list, axis=0).astype(np.float32)
-    np.save(str(out_dir / "poses.npy"), {"R": r, "t": t})
+def save_pose_outputs(
+    out_dir: Path,
+    r_raw: List[np.ndarray],
+    t_raw: List[np.ndarray],
+    r_smoothed: List[np.ndarray],
+    t_smoothed: List[np.ndarray],
+) -> None:
+    """Save pose outputs as JSON with both raw and smoothed trajectories."""
+    if not (
+        len(r_raw) == len(t_raw) == len(r_smoothed) == len(t_smoothed)
+    ):
+        raise ValueError(
+            "Pose sequence lengths must match: "
+            f"len(r_raw)={len(r_raw)}, len(t_raw)={len(t_raw)}, "
+            f"len(r_smoothed)={len(r_smoothed)}, len(t_smoothed)={len(t_smoothed)}"
+        )
 
     poses_json = [
-        {"frame": i, "R": r_list[i].tolist(), "t": t_list[i].tolist()}
-        for i in range(len(r_list))
+        {
+            "frame": i,
+            # Keep legacy keys for compatibility.
+            "R": r_smoothed[i].tolist(),
+            "t": t_smoothed[i].tolist(),
+            "R_raw": r_raw[i].tolist(),
+            "t_raw": t_raw[i].tolist(),
+            "R_smoothed": r_smoothed[i].tolist(),
+            "t_smoothed": t_smoothed[i].tolist(),
+        }
+        for i in range(len(r_raw))
     ]
     with open(out_dir / "poses.json", "w", encoding="utf-8") as f:
         json.dump(poses_json, f, indent=2)

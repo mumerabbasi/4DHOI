@@ -105,7 +105,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--flow_video_dir",
         type=str,
-        default="../Estimate_Optical_Flow/output_waft/video_01",
+        default="../Estimate_Optical_Flow/output_waft/video_03",
         help="Directory containing _frames and optical_flow.",
     )
     parser.add_argument(
@@ -465,7 +465,13 @@ def track_single_object(
         fps=float(args.overlay_fps),
     )
 
-    save_pose_outputs(out_dir, r_sm, t_sm)
+    save_pose_outputs(
+        out_dir=out_dir,
+        r_raw=r_list,
+        t_raw=t_list,
+        r_smoothed=r_sm,
+        t_smoothed=t_sm,
+    )
 
 
 def main() -> None:

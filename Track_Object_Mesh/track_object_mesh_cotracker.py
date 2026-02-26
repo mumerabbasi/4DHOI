@@ -101,13 +101,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--visibility_threshold",
         type=float,
-        default=0.95,
+        default=0.99,
         help="Drop tracks with visibility below this threshold.",
     )
     parser.add_argument(
         "--post_smooth_sigma",
         type=float,
-        default=1.0,
+        default=0.5,
         help="Gaussian smoothing sigma in frames. 0 disables smoothing.",
     )
 
@@ -445,7 +445,13 @@ def track_single_object(
         fps=float(args.overlay_fps),
     )
 
-    save_pose_outputs(out_dir, r_sm, t_sm)
+    save_pose_outputs(
+        out_dir=out_dir,
+        r_raw=r_list,
+        t_raw=t_list,
+        r_smoothed=r_sm,
+        t_smoothed=t_sm,
+    )
 
 
 def main() -> None:
