@@ -584,7 +584,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--opt_max_side", type=int, default=1280)
     parser.add_argument("--bin_size", type=int, default=0)
 
-    parser.add_argument("--iters", type=int, default=600)
+    parser.add_argument("--iters", type=int, default=1500)
     parser.add_argument("--lr", type=float, default=5e-3)
     parser.add_argument("--w_corr", type=float, default=1.0)
     parser.add_argument("--w_reproj", type=float, default=1e-3)

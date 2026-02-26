@@ -1,0 +1,192 @@
+{
+  "inputs": {
+    "video_name": "video_01",
+    "object_video_dir": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01",
+    "segmentation_video_dir": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_01",
+    "depth_video_dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_01",
+    "human_video_dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_01",
+    "summary_json": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_01/frame_00_segmentation_summary.json",
+    "depth_npy": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_01/metric_depth/metric_depth.npy",
+    "pose_json": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_01/pose_estimation.json",
+    "frame_00": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_01/frame_00.png"
+  },
+  "camera": {
+    "intrinsics_source": "object",
+    "intrinsics_3x3": [
+      [
+        940.4476318359375,
+        0.0,
+        640.0
+      ],
+      [
+        0.0,
+        940.4476318359375,
+        360.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "object_intrinsics_3x3": [
+      [
+        940.4476318359375,
+        0.0,
+        640.0
+      ],
+      [
+        0.0,
+        940.4476318359375,
+        360.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "depth_intrinsics_3x3": [
+      [
+        944.725830078125,
+        0.0,
+        637.0
+      ],
+      [
+        0.0,
+        942.0692749023438,
+        357.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "max_abs_object_depth_intrinsics_diff_px": 4.2781982421875
+  },
+  "optimization_settings": {
+    "iters": 1500,
+    "lr": 0.005,
+    "w_corr": 1.0,
+    "w_reproj": 0.001,
+    "w_scale_reg": 0.001,
+    "w_tz_reg": 0.001,
+    "min_scale": 0.2,
+    "max_scale": 5.0,
+    "max_abs_delta_tz": 2.0,
+    "max_correspondences_per_mesh": 80000,
+    "min_correspondences_per_mesh": 128,
+    "corr_save_every": 50,
+    "opt_max_side": 1280,
+    "resize_scale_for_optimization": 1.0,
+    "output_coordinate": "opencv",
+    "sam3_mask_erode_iters": 3
+  },
+  "energy_terms": {
+    "transform": "m_i' = exp(alpha) * m_i + [0, 0, t_z_init + delta_t_z]^T",
+    "projection_u": "u_i = fx * m'_ix / m'_iz + cx",
+    "projection_v": "v_i = fy * m'_iy / m'_iz + cy",
+    "E_corr": "(1/N) * sum_i ||m_i' - d_i||_2^2",
+    "E_reproj": "(1/N) * sum_i ||[u_i,v_i]-[u_i^0,v_i^0]||_2^2",
+    "E_scale_reg": "alpha^2",
+    "E_tz_reg": "delta_t_z^2",
+    "E_total": "w_corr*E_corr + w_reproj*E_reproj + w_scale_reg*E_scale_reg + w_tz_reg*E_tz_reg"
+  },
+  "correspondence_stats": [
+    {
+      "name": "human",
+      "slug": "human",
+      "kind": "human",
+      "mask_path": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_01/human/mask/frame_00.png",
+      "pixels_considered": 61467,
+      "pixels_used": 61467
+    },
+    {
+      "name": "iron",
+      "slug": "iron",
+      "kind": "object",
+      "mask_path": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_01/iron/mask/frame_00.png",
+      "pixels_considered": 1396,
+      "pixels_used": 1396
+    },
+    {
+      "name": "ironing board",
+      "slug": "ironing_board",
+      "kind": "object",
+      "mask_path": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_01/ironing_board/mask/frame_00.png",
+      "pixels_considered": 4214,
+      "pixels_used": 4214
+    }
+  ],
+  "per_mesh_optimization": [
+    {
+      "name": "human",
+      "slug": "human",
+      "status": "optimized",
+      "message": null,
+      "num_correspondences": 61467,
+      "final_scale": 0.9290379815892074,
+      "final_tz_m": 6.775458314223215e-05,
+      "final_total_loss": 0.004621353466063738,
+      "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/human_loss_total.png",
+      "loss_curve_pngs": {
+        "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/human_loss_total.png",
+        "corr": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/human_loss_corr.png",
+        "reproj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/human_loss_reproj.png",
+        "scale_reg": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/human_loss_scale_reg.png",
+        "tz_reg": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/human_loss_tz_reg.png"
+      },
+      "loss_curve_csv": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/human_loss.csv",
+      "correspondence_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/correspondences/human"
+    },
+    {
+      "name": "iron",
+      "slug": "iron",
+      "status": "optimized",
+      "message": null,
+      "num_correspondences": 1396,
+      "final_scale": 1.5430282846122385,
+      "final_tz_m": 0.0007771884556859732,
+      "final_total_loss": 0.0014924397692084312,
+      "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/iron_loss_total.png",
+      "loss_curve_pngs": {
+        "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/iron_loss_total.png",
+        "corr": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/iron_loss_corr.png",
+        "reproj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/iron_loss_reproj.png",
+        "scale_reg": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/iron_loss_scale_reg.png",
+        "tz_reg": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/iron_loss_tz_reg.png"
+      },
+      "loss_curve_csv": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/iron_loss.csv",
+      "correspondence_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/correspondences/iron"
+    },
+    {
+      "name": "ironing board",
+      "slug": "ironing_board",
+      "status": "optimized",
+      "message": null,
+      "num_correspondences": 4214,
+      "final_scale": 1.2842446667002583,
+      "final_tz_m": 0.00040988330147229135,
+      "final_total_loss": 0.030246354639530182,
+      "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/ironing_board_loss_total.png",
+      "loss_curve_pngs": {
+        "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/ironing_board_loss_total.png",
+        "corr": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/ironing_board_loss_corr.png",
+        "reproj": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/ironing_board_loss_reproj.png",
+        "scale_reg": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/ironing_board_loss_scale_reg.png",
+        "tz_reg": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/ironing_board_loss_tz_reg.png"
+      },
+      "loss_curve_csv": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/ironing_board_loss.csv",
+      "correspondence_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/correspondences/ironing_board"
+    }
+  ],
+  "outputs": {
+    "output_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01",
+    "meshes_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/meshes",
+    "mesh_format": "ply",
+    "output_coordinate": "opencv",
+    "overlay_before": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/overlay_before.png",
+    "overlay_after": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/overlay_after.png"
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "transforms": [
+    {
+      "name": "human",
+      "slug": "human",
+      "kind": "human",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_02/output_plys/frame_0000.ply",
+      "source_coordinate": "opencv_camera",
+      "output_coordinate": "opencv",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/meshes/human.ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 0.30306875705718994,
+        "scale_exp_alpha": 1.3540075588169613,
+        "tz_init_m": 0.0,
+        "delta_tz_m": -0.00044500615331344306,
+        "tz_total_m": -0.00044500615331344306,
+        "num_correspondences": 45371
+      },
+      "source_to_aligned_cv_matrix_4x4": [
+        [
+          1.354007601737976,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.354007601737976,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.354007601737976,
+          -0.00044500615331344306
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "dumbbell (left hand)",
+      "slug": "dumbbell_left_hand",
+      "kind": "object",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/dumbbell_(left_hand)/mesh_posed.ply",
+      "source_coordinate": "pytorch3d_camera",
+      "output_coordinate": "opencv",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/meshes/dumbbell_left_hand.ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 0.9899255633354187,
+        "scale_exp_alpha": 2.6910341532871684,
+        "tz_init_m": 0.0,
+        "delta_tz_m": 0.0002587986527942121,
+        "tz_total_m": 0.0002587986527942121,
+        "num_correspondences": 1491
+      },
+      "source_to_aligned_cv_matrix_4x4": [
+        [
+          -2.6910340785980225,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -2.6910340785980225,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          2.6910340785980225,
+          0.0002587986527942121
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "dumbbell (right hand)",
+      "slug": "dumbbell_right_hand",
+      "kind": "object",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/dumbbell_(right_hand)/mesh_posed.ply",
+      "source_coordinate": "pytorch3d_camera",
+      "output_coordinate": "opencv",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/meshes/dumbbell_right_hand.ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 0.8767663240432739,
+        "scale_exp_alpha": 2.4031162294061557,
+        "tz_init_m": 0.0,
+        "delta_tz_m": 0.00011170836660312489,
+        "tz_total_m": 0.00011170836660312489,
+        "num_correspondences": 871
+      },
+      "source_to_aligned_cv_matrix_4x4": [
+        [
+          -2.403116226196289,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -2.403116226196289,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          2.403116226196289,
+          0.00011170836660312489
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    }
+  ]
+}
