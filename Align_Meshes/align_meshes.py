@@ -584,7 +584,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--opt_max_side", type=int, default=1280)
     parser.add_argument("--bin_size", type=int, default=0)
 
-    parser.add_argument("--iters", type=int, default=1500)
+    parser.add_argument("--iters", type=int, default=600)
     parser.add_argument("--lr", type=float, default=5e-3)
     parser.add_argument("--w_corr", type=float, default=1.0)
     parser.add_argument("--w_reproj", type=float, default=1e-3)
@@ -959,11 +959,13 @@ def main() -> None:
         out_mesh_path = meshes_out_dir / f"{asset.slug}.ply"
         save_mesh_ply(out_mesh_path, verts_aligned_out, asset.faces)
 
-        source_to_aligned_cv_4x4 = np.eye(4, dtype=np.float32)
-        source_to_aligned_cv_4x4[:3, :3] = (
-            scale * asset.source_to_cv.astype(np.float32)
+        source_to_output_4x4 = np.eye(4, dtype=np.float32)
+        source_to_output_4x4[:3, :3] = (
+            scale
+            * (cv_to_output @ asset.source_to_cv.astype(np.float32))
         )
-        source_to_aligned_cv_4x4[:3, 3] = np.array([0.0, 0.0, tz], dtype=np.float32)
+        tz_cv = np.array([0.0, 0.0, tz], dtype=np.float32)
+        source_to_output_4x4[:3, 3] = tz_cv @ cv_to_output.transpose(0, 1)
 
         transforms_out.append(
             {
@@ -984,7 +986,7 @@ def main() -> None:
                     "tz_total_m": float(tz),
                     "num_correspondences": int(result.correspondences),
                 },
-                "source_to_aligned_cv_matrix_4x4": source_to_aligned_cv_4x4.tolist(),
+                "source_to_output_matrix_4x4": source_to_output_4x4.tolist(),
             }
         )
 

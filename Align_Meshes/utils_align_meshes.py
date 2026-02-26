@@ -60,7 +60,7 @@ class OptimizationResult:
 def slugify(text: str) -> str:
     out = []
     for ch in text.strip().lower():
-        if ch.isalnum():
+        if ch.isalnum() or ch in "()":
             out.append(ch)
         else:
             out.append("_")

@@ -10,7 +10,7 @@ Default behavior:
 - Output meshes: Align_Meshes/output/<video_name>/human_motion_aligned
 
 Required transform key in transforms.json:
-- source_to_aligned_cv_matrix_4x4
+- source_to_output_matrix_4x4
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ def _apply_affine(vertices: np.ndarray, matrix_4x4: np.ndarray) -> np.ndarray:
 
 
 def _resolve_human_transform(transforms_json_path: Path) -> np.ndarray:
-    """Return human source->aligned_cv transform matrix."""
+    """Return human source->output transform matrix."""
     transforms_data = load_json(transforms_json_path)
     transforms = transforms_data.get("transforms", [])
     if not isinstance(transforms, list):
@@ -54,13 +54,13 @@ def _resolve_human_transform(transforms_json_path: Path) -> np.ndarray:
     if human_entry is None:
         raise ValueError(f"No human transform entry found in {transforms_json_path}")
 
-    if "source_to_aligned_cv_matrix_4x4" not in human_entry:
+    if "source_to_output_matrix_4x4" not in human_entry:
         raise ValueError(
-            "Human transform missing required key: source_to_aligned_cv_matrix_4x4"
+            "Human transform missing required key: source_to_output_matrix_4x4"
         )
     return _as_4x4(
-        human_entry["source_to_aligned_cv_matrix_4x4"],
-        "source_to_aligned_cv_matrix_4x4",
+        human_entry["source_to_output_matrix_4x4"],
+        "source_to_output_matrix_4x4",
     )
 
 
@@ -139,7 +139,7 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     print(f"Input human meshes: {input_human_dir}")
     print(f"Transforms: {transforms_json_path}")
-    print("Transform key: source_to_aligned_cv_matrix_4x4")
+    print("Transform key: source_to_output_matrix_4x4")
     print(f"Saving aligned sequence to: {output_dir}")
 
     for mesh_path in ply_paths:

@@ -66,7 +66,7 @@
     "max_abs_object_depth_intrinsics_diff_px": 211.723388671875
   },
   "optimization_settings": {
-    "iters": 1500,
+    "iters": 600,
     "lr": 0.005,
     "w_corr": 1.0,
     "w_reproj": 0.001,
@@ -118,9 +118,9 @@
       "status": "optimized",
       "message": null,
       "num_correspondences": 30343,
-      "final_scale": 1.5735741966473296,
-      "final_tz_m": 0.00230622966773808,
-      "final_total_loss": 0.0075150588527321815,
+      "final_scale": 1.5735674436139866,
+      "final_tz_m": 0.002321424661204219,
+      "final_total_loss": 0.0075150602497160435,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03/loss_curves/human_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03/loss_curves/human_loss_total.png",
@@ -139,8 +139,8 @@
       "message": null,
       "num_correspondences": 14089,
       "final_scale": 3.193449939294623,
-      "final_tz_m": 7.463279325747862e-05,
-      "final_total_loss": 0.07987117022275925,
+      "final_tz_m": 7.46170335332863e-05,
+      "final_total_loss": 0.07987114787101746,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03/loss_curves/umbrella_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03/loss_curves/umbrella_loss_total.png",

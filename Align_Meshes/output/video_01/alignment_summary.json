@@ -66,7 +66,7 @@
     "max_abs_object_depth_intrinsics_diff_px": 4.2781982421875
   },
   "optimization_settings": {
-    "iters": 1500,
+    "iters": 600,
     "lr": 0.005,
     "w_corr": 1.0,
     "w_reproj": 0.001,
@@ -126,8 +126,8 @@
       "status": "optimized",
       "message": null,
       "num_correspondences": 61467,
-      "final_scale": 0.9290379815892074,
-      "final_tz_m": 6.775458314223215e-05,
+      "final_scale": 0.9290379400579741,
+      "final_tz_m": 6.769759784219787e-05,
       "final_total_loss": 0.004621353466063738,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/human_loss_total.png",
       "loss_curve_pngs": {
@@ -146,9 +146,9 @@
       "status": "optimized",
       "message": null,
       "num_correspondences": 1396,
-      "final_scale": 1.5430282846122385,
-      "final_tz_m": 0.0007771884556859732,
-      "final_total_loss": 0.0014924397692084312,
+      "final_scale": 1.5404905765048562,
+      "final_tz_m": 0.003705092938616872,
+      "final_total_loss": 0.00149543397128582,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/iron_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/iron_loss_total.png",
@@ -166,8 +166,8 @@
       "status": "optimized",
       "message": null,
       "num_correspondences": 4214,
-      "final_scale": 1.2842446667002583,
-      "final_tz_m": 0.00040988330147229135,
+      "final_scale": 1.2842445518798427,
+      "final_tz_m": 0.0004098647041246295,
       "final_total_loss": 0.030246354639530182,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/ironing_board_loss_total.png",
       "loss_curve_pngs": {
