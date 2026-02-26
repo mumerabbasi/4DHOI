@@ -36,12 +36,12 @@ def parse_args() -> argparse.Namespace:
         help="Path to directory like */videos/video_xx containing one .mp4.",
     )
     parser.add_argument(
-        "--object_mesh_dir",
+        "--segment_first_frame_dir",
         default=None,
         type=str,
         help=(
-            "Path to Generate_Object_Mesh output for this video. "
-            "Default: ../Generate_Object_Mesh/output/<video_xx>"
+            "Path to Segment_First_Frame output for this video. "
+            "Default: ../Segment_First_Frame/output/<video_xx>"
         ),
     )
     parser.add_argument(
@@ -73,7 +73,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--mask_erode_px",
-        default=2,
+        default=3,
         type=int,
         help="Erode mask by this many pixels before point sampling.",
     )
@@ -85,9 +85,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--vis_fps",
-        default=6,
+        default=6.0,
         type=float,
-        help="Visualization FPS override. Default: source video FPS.",
+        help="Visualization FPS.",
     )
     parser.add_argument(
         "--vis_point_percent",
@@ -224,15 +224,15 @@ def main() -> None:
     video_name = video_dir.name
     video_mp4 = find_single_mp4(video_dir)
 
-    if args.object_mesh_dir is None:
-        object_mesh_dir = (script_dir.parent / "Generate_Object_Mesh" / "output" / video_name).resolve()
+    if args.segment_first_frame_dir is not None:
+        segmentation_dir = resolve_path(args.segment_first_frame_dir, script_dir)
     else:
-        object_mesh_dir = resolve_path(args.object_mesh_dir, script_dir)
+        segmentation_dir = (script_dir.parent / "Segment_First_Frame" / "output" / video_name).resolve()
 
-    if not object_mesh_dir.exists() or not object_mesh_dir.is_dir():
-        raise NotADirectoryError(f"Object mesh dir not found: {object_mesh_dir}")
+    if not segmentation_dir.exists() or not segmentation_dir.is_dir():
+        raise NotADirectoryError(f"Segment_First_Frame dir not found: {segmentation_dir}")
 
-    summary_path = find_single_summary(object_mesh_dir)
+    summary_path = find_single_summary(segmentation_dir)
 
     if args.output_dir is None:
         output_video_dir = (script_dir / "output_cotracker" / video_name).resolve()
@@ -247,7 +247,7 @@ def main() -> None:
 
     print(f"[INFO] video_dir: {video_dir}")
     print(f"[INFO] video_mp4: {video_mp4.name}")
-    print(f"[INFO] object_mesh_dir: {object_mesh_dir}")
+    print(f"[INFO] segment_first_frame_dir: {segmentation_dir}")
     print(f"[INFO] summary: {summary_path.name}")
     print(f"[INFO] output_dir: {output_video_dir}")
     print(f"[INFO] device: {device}")
@@ -287,7 +287,7 @@ def main() -> None:
     for obj_idx, obj_info in enumerate(objects):
         obj_name = str(obj_info.get("object", f"object_{obj_idx}"))
         slug = normalize_slug(obj_info)
-        mask_path = resolve_mask_path(object_mesh_dir, obj_info)
+        mask_path = resolve_mask_path(segmentation_dir, obj_info)
 
         print(f"\n[OBJECT {obj_idx + 1}/{len(objects)}] {obj_name} ({slug})")
 

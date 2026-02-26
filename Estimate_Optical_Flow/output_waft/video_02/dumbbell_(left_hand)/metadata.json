@@ -1,15 +1,13 @@
 {
   "object": "dumbbell (left hand)",
   "slug": "dumbbell_(left_hand)",
-  "mask_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/dumbbell_(left_hand)/mask/frame_00.png",
-  "mask_area_px": 1884,
+  "mask_path": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_02/dumbbell_(left_hand)/mask/frame_00.png",
+  "mask_area_px": 1655,
   "track_point_density": 200.0,
-  "track_target_points": 377,
-  "seed_points": 377,
+  "track_target_points": 331,
+  "seed_points": 331,
   "num_frames": 81,
-  "tracks_file": "tracks.npy",
-  "visibility_file": "visibility.npy",
   "trails_video": "trails.mp4",
   "vis_point_percent": 10.0,
-  "vis_points_count": 38
+  "vis_points_count": 34
 }

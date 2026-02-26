@@ -1,7 +1,7 @@
 {
   "video_dir": "/my_workspace/4DHHOI/4DHOI/Generate_Video/output/video_01",
   "video_file": "/my_workspace/4DHHOI/4DHOI/Generate_Video/output/video_01/frame_00_video_Wan_AI_Wan2_2_I2V_A14B_Diffusers.mp4",
-  "summary_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01/frame_00_segmentation_summary.json",
+  "summary_path": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_01/frame_00_segmentation_summary.json",
   "num_frames": 81,
   "height": 720,
   "width": 1280,
@@ -11,32 +11,32 @@
     {
       "object": "iron",
       "slug": "iron",
-      "mask_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01/iron/mask/frame_00.png",
-      "mask_area_px": 2516,
+      "mask_path": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_01/iron/mask/frame_00.png",
+      "mask_area_px": 2254,
       "track_point_density": 200.0,
-      "track_target_points": 504,
-      "seed_points": 504,
+      "track_target_points": 451,
+      "seed_points": 451,
       "num_frames": 81,
       "tracks_file": "tracks.npy",
       "visibility_file": "visibility.npy",
       "trails_video": "trails.mp4",
       "vis_point_percent": 10.0,
-      "vis_points_count": 51
+      "vis_points_count": 46
     },
     {
       "object": "ironing board",
       "slug": "ironing_board",
-      "mask_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01/ironing_board/mask/frame_00.png",
-      "mask_area_px": 26540,
+      "mask_path": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_01/ironing_board/mask/frame_00.png",
+      "mask_area_px": 23554,
       "track_point_density": 200.0,
-      "track_target_points": 5308,
-      "seed_points": 5308,
+      "track_target_points": 4711,
+      "seed_points": 4711,
       "num_frames": 81,
       "tracks_file": "tracks.npy",
       "visibility_file": "visibility.npy",
       "trails_video": "trails.mp4",
       "vis_point_percent": 10.0,
-      "vis_points_count": 531
+      "vis_points_count": 472
     }
   ]
 }

@@ -1,7 +1,7 @@
 {
   "video_dir": "/my_workspace/4DHHOI/4DHOI/Generate_Video/output/video_02",
   "video_file": "/my_workspace/4DHHOI/4DHOI/Generate_Video/output/video_02/frame_00_video_Wan_AI_Wan2_2_I2V_A14B_Diffusers.mp4",
-  "summary_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/frame_00_segmentation_summary.json",
+  "summary_path": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_02/frame_00_segmentation_summary.json",
   "num_frames": 81,
   "height": 720,
   "width": 1280,
@@ -11,32 +11,28 @@
     {
       "object": "dumbbell (left hand)",
       "slug": "dumbbell_(left_hand)",
-      "mask_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/dumbbell_(left_hand)/mask/frame_00.png",
-      "mask_area_px": 1884,
+      "mask_path": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_02/dumbbell_(left_hand)/mask/frame_00.png",
+      "mask_area_px": 1655,
       "track_point_density": 200.0,
-      "track_target_points": 377,
-      "seed_points": 377,
+      "track_target_points": 331,
+      "seed_points": 331,
       "num_frames": 81,
-      "tracks_file": "tracks.npy",
-      "visibility_file": "visibility.npy",
       "trails_video": "trails.mp4",
       "vis_point_percent": 10.0,
-      "vis_points_count": 38
+      "vis_points_count": 34
     },
     {
       "object": "dumbbell (right hand)",
       "slug": "dumbbell_(right_hand)",
-      "mask_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/dumbbell_(right_hand)/mask/frame_00.png",
-      "mask_area_px": 1489,
+      "mask_path": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_02/dumbbell_(right_hand)/mask/frame_00.png",
+      "mask_area_px": 1258,
       "track_point_density": 200.0,
-      "track_target_points": 298,
-      "seed_points": 298,
+      "track_target_points": 252,
+      "seed_points": 252,
       "num_frames": 81,
-      "tracks_file": "tracks.npy",
-      "visibility_file": "visibility.npy",
       "trails_video": "trails.mp4",
       "vis_point_percent": 10.0,
-      "vis_points_count": 30
+      "vis_points_count": 26
     }
   ]
 }
