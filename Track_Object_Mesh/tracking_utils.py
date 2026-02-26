@@ -501,6 +501,10 @@ def smooth_pose_sequence_post(
     sigma: float,
     max_rot_deviation_deg: float = 8.0,
     max_trans_deviation_ratio: float = 0.15,
+    per_frame_threshold_deg: float = 15.0,
+    max_cumulative_deg: float = 30.0,
+    outlier_window: int = 7,
+    outlier_max_passes: int = 6,
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Post-process a full pose trajectory with Gaussian temporal smoothing.
 
@@ -522,7 +526,13 @@ def smooth_pose_sequence_post(
         return [r.copy() for r in r_seq], [t.copy() for t in t_seq]
 
     # --- Step 1: Replace outlier frames caused by PnP failures ---
-    r_clean, t_clean = _replace_outlier_poses(r_seq, t_seq)
+    r_clean, t_clean = _replace_outlier_poses(
+        r_seq, t_seq,
+        per_frame_threshold_deg=per_frame_threshold_deg,
+        max_cumulative_deg=max_cumulative_deg,
+        window=outlier_window,
+        max_passes=outlier_max_passes,
+    )
 
     # --- Step 2: Smooth translations with Gaussian filter ---
     t_arr = np.stack(t_clean, axis=0).astype(np.float32)

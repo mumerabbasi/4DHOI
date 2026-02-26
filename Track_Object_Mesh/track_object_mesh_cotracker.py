@@ -110,6 +110,42 @@ def parse_args() -> argparse.Namespace:
         default=0.5,
         help="Gaussian smoothing sigma in frames. 0 disables smoothing.",
     )
+    parser.add_argument(
+        "--post_smooth_max_rot_deg",
+        type=float,
+        default=8.0,
+        help="Max rotation deviation (degrees) allowed between smoothed and raw pose.",
+    )
+    parser.add_argument(
+        "--post_smooth_max_trans_ratio",
+        type=float,
+        default=0.15,
+        help="Max translation deviation ratio (relative to object extent) allowed between smoothed and raw pose.",
+    )
+    parser.add_argument(
+        "--outlier_per_frame_deg",
+        type=float,
+        default=15.0,
+        help="Max single-frame rotation jump (degrees) before a frame is flagged as an outlier.",
+    )
+    parser.add_argument(
+        "--outlier_cumulative_deg",
+        type=float,
+        default=30.0,
+        help="Max cumulative rotation jump (degrees) across a gap before a frame is flagged as an outlier.",
+    )
+    parser.add_argument(
+        "--outlier_window",
+        type=int,
+        default=7,
+        help="Window size for windowed-median outlier refinement pass.",
+    )
+    parser.add_argument(
+        "--outlier_max_passes",
+        type=int,
+        default=6,
+        help="Maximum number of iterative windowed-median outlier refinement passes.",
+    )
 
     parser.add_argument("--overlay_max_verts", type=int, default=20000)
     parser.add_argument("--overlay_point_radius", type=int, default=1)
@@ -427,6 +463,12 @@ def track_single_object(
         r_seq=r_list,
         t_seq=t_list,
         sigma=float(args.post_smooth_sigma),
+        max_rot_deviation_deg=float(args.post_smooth_max_rot_deg),
+        max_trans_deviation_ratio=float(args.post_smooth_max_trans_ratio),
+        per_frame_threshold_deg=float(args.outlier_per_frame_deg),
+        max_cumulative_deg=float(args.outlier_cumulative_deg),
+        outlier_window=int(args.outlier_window),
+        outlier_max_passes=int(args.outlier_max_passes),
     )
     for local_idx, (r_mat, t_vec) in enumerate(zip(r_sm, t_sm)):
         save_mesh(start + local_idx, r_mat, t_vec, meshes_dir)
