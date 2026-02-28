@@ -7,7 +7,7 @@
     "human_video_dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_01",
     "summary_json": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_01/frame_00_segmentation_summary.json",
     "depth_npy": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_01/metric_depth/metric_depth.npy",
-    "depth_intrinsics_json": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_01/camera_intrinsics.json",
+    "pose_json": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_01/pose_estimation.json",
     "frame_00": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_01/frame_00.png"
   },
   "camera": {
@@ -115,8 +115,8 @@
       "slug": "ironing_board",
       "kind": "object",
       "mask_path": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_01/ironing_board/mask/frame_00.png",
-      "pixels_considered": 4213,
-      "pixels_used": 4213
+      "pixels_considered": 4214,
+      "pixels_used": 4214
     }
   ],
   "per_mesh_optimization": [
@@ -126,9 +126,9 @@
       "status": "optimized",
       "message": null,
       "num_correspondences": 61467,
-      "final_scale": 0.9290043903499411,
-      "final_tz_m": 6.775174551876262e-05,
-      "final_total_loss": 0.004621025174856186,
+      "final_scale": 0.9290379400579741,
+      "final_tz_m": 6.769759784219787e-05,
+      "final_total_loss": 0.004621353466063738,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/human_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/human_loss_total.png",
@@ -146,9 +146,9 @@
       "status": "optimized",
       "message": null,
       "num_correspondences": 1396,
-      "final_scale": 1.5404376888660287,
-      "final_tz_m": 0.0037017164286226034,
-      "final_total_loss": 0.0014952957862988114,
+      "final_scale": 1.5404905765048562,
+      "final_tz_m": 0.003705092938616872,
+      "final_total_loss": 0.00149543397128582,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/iron_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/iron_loss_total.png",
@@ -165,10 +165,10 @@
       "slug": "ironing_board",
       "status": "optimized",
       "message": null,
-      "num_correspondences": 4213,
-      "final_scale": 1.28419437634067,
-      "final_tz_m": 0.00040996394818648696,
-      "final_total_loss": 0.03025198169052601,
+      "num_correspondences": 4214,
+      "final_scale": 1.2842445518798427,
+      "final_tz_m": 0.0004098647041246295,
+      "final_total_loss": 0.030246354639530182,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/ironing_board_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/loss_curves/ironing_board_loss_total.png",

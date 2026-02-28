@@ -132,7 +132,8 @@ def estimate_camera_intrinsics_from_moge(
         cy_px = float(intrinsics[1, 2]) * h
 
         focal_mm_x = fx_px * sensor_width_mm / float(w)
-        focal_mm_y = fy_px * sensor_height_mm / float(h)
+        # Not required in camera_intrinsics.json atm.
+        # focal_mm_y = fy_px * sensor_height_mm / float(h)
 
         intrinsics_px = np.array(
             [
@@ -148,18 +149,7 @@ def estimate_camera_intrinsics_from_moge(
 
         camera_info = {
             "source": "moge_from_sam3d_depth_model",
-            "image_size_px": {"width": int(w), "height": int(h)},
-            "intrinsics_normalized_3x3": intrinsics.tolist(),
             "intrinsics_pixels_3x3": intrinsics_px.tolist(),
-            "fx_px": fx_px,
-            "fy_px": fy_px,
-            "cx_px": cx_px,
-            "cy_px": cy_px,
-            "sensor_width_mm_assumed": float(sensor_width_mm),
-            "sensor_height_mm_assumed": float(sensor_height_mm),
-            "focal_length_mm_x": float(focal_mm_x),
-            "focal_length_mm_y": float(focal_mm_y),
-            "focal_length_mm_recommended": float(focal_mm_recommended),
             "blender_recommendation": {
                 "sensor_fit": "HORIZONTAL",
                 "lens_mm": float(focal_mm_recommended),
@@ -839,27 +829,34 @@ def process_from_summary(
 
     if camera_info is None:
         h, w = image_rgb.shape[:2]
+        fallback_fx = float(DEFAULT_FOCAL_LENGTH_MM) * float(w) / float(SENSOR_WIDTH_MM)
+        fallback_fy = float(DEFAULT_FOCAL_LENGTH_MM) * float(h) / float(SENSOR_HEIGHT_MM)
+        fallback_cx = float(w) / 2.0
+        fallback_cy = float(h) / 2.0
         camera_info = {
             "source": "fallback_default",
-            "image_size_px": {"width": int(w), "height": int(h)},
-            "sensor_width_mm_assumed": float(SENSOR_WIDTH_MM),
-            "sensor_height_mm_assumed": float(SENSOR_HEIGHT_MM),
-            "focal_length_mm_recommended": float(DEFAULT_FOCAL_LENGTH_MM),
-            "note": "MoGe intrinsics estimation failed; using default focal length.",
+            "intrinsics_pixels_3x3": [
+                [fallback_fx, 0.0, fallback_cx],
+                [0.0, fallback_fy, fallback_cy],
+                [0.0, 0.0, 1.0],
+            ],
+            "blender_recommendation": {
+                "sensor_fit": "HORIZONTAL",
+                "lens_mm": float(DEFAULT_FOCAL_LENGTH_MM),
+                "sensor_width_mm": float(SENSOR_WIDTH_MM),
+                "sensor_height_mm": float(SENSOR_HEIGHT_MM),
+                "note": "MoGe intrinsics estimation failed; using default focal length.",
+            },
         }
 
     if focal_length_mm is None:
         resolved_focal_length_mm = float(
-            camera_info.get("focal_length_mm_recommended", DEFAULT_FOCAL_LENGTH_MM)
+            camera_info["blender_recommendation"]["lens_mm"]
         )
         print(f"Using auto focal length: {resolved_focal_length_mm:.2f}mm")
     else:
         resolved_focal_length_mm = float(focal_length_mm)
         print(f"Using user-provided focal length: {resolved_focal_length_mm:.2f}mm")
-
-    camera_info["focal_length_mm_used_for_overlay"] = float(resolved_focal_length_mm)
-    if focal_length_mm is not None:
-        camera_info["focal_length_mm_user_override"] = float(focal_length_mm)
 
     camera_intrinsics_json = output_root / "camera_intrinsics.json"
     save_camera_intrinsics_json(camera_info, camera_intrinsics_json)

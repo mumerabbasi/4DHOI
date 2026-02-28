@@ -21,7 +21,7 @@ A) Inputs and coordinate preparation
     - `frame_00` path from `run_summary.json`.
   - Intrinsics:
     - Either object intrinsics (`camera_intrinsics.json`, SAM3D side)
-      or depth intrinsics (`pose_estimation.json`, DA3 side), selected by
+      or depth intrinsics (`camera_intrinsics.json`, DA3 side), selected by
       `--intrinsics_source`.
   - Meshes:
     - Objects: `mesh_posed.ply` from Generate_Object_Mesh output and per-object
@@ -570,7 +570,7 @@ def parse_args() -> argparse.Namespace:
         default="object",
         help=(
             "'object': camera_intrinsics.json intrinsics_pixels_3x3. "
-            "'depth': pose_estimation.json intrinsics."
+            "'depth': camera_intrinsics.json intrinsics_pixels_3x3 (DA3 side)."
         ),
     )
     parser.add_argument(
@@ -662,19 +662,25 @@ def main() -> None:
         raise FileNotFoundError(f"Segmentation summary not found: {summary_path}")
     summary = load_json(summary_path)
 
-    pose_json_path = depth_video_dir / "pose_estimation.json"
+    depth_intrinsics_json_path = depth_video_dir / "camera_intrinsics.json"
     run_summary_path = depth_video_dir / "run_summary.json"
     object_intrinsics_json_path = object_video_dir / "camera_intrinsics.json"
     depth_npy_path = depth_video_dir / "metric_depth" / "metric_depth.npy"
     if not run_summary_path.exists():
         raise FileNotFoundError(f"run_summary.json not found: {run_summary_path}")
-    if not pose_json_path.exists():
-        raise FileNotFoundError(f"pose_estimation.json not found: {pose_json_path}")
+    if not depth_intrinsics_json_path.exists():
+        raise FileNotFoundError(f"camera_intrinsics.json not found: {depth_intrinsics_json_path}")
     if not depth_npy_path.exists():
         raise FileNotFoundError(f"metric_depth.npy not found: {depth_npy_path}")
 
     run_summary = load_json(run_summary_path)
-    frame_00_raw = run_summary.get("frame_00")
+    frame_00_raw = None
+    outputs = run_summary.get("outputs")
+    if isinstance(outputs, dict):
+        frame_00_raw = outputs.get("frame_00")
+    if frame_00_raw is None:
+        # Backward compatibility with older run_summary schema.
+        frame_00_raw = run_summary.get("frame_00")
     if not isinstance(frame_00_raw, str) or not frame_00_raw.strip():
         raise KeyError(
             f"'frame_00' is missing or invalid in run_summary.json: {run_summary_path}"
@@ -693,9 +699,9 @@ def main() -> None:
     depth_obs = np.load(depth_npy_path).astype(np.float32)
     depth_h, depth_w = depth_obs.shape
 
-    pose = load_json(pose_json_path)
+    depth_intr = load_json(depth_intrinsics_json_path)
     k_object_full = load_object_intrinsics(object_intrinsics_json_path)
-    k_depth_full = ensure_3x3_intrinsics(pose.get("intrinsics"))
+    k_depth_full = ensure_3x3_intrinsics(depth_intr.get("intrinsics_pixels_3x3"))
     if args.intrinsics_source == "object":
         k_full = k_object_full
     else:
@@ -1007,7 +1013,7 @@ def main() -> None:
             "human_video_dir": str(human_video_dir),
             "summary_json": str(summary_path),
             "depth_npy": str(depth_npy_path),
-            "pose_json": str(pose_json_path),
+            "depth_intrinsics_json": str(depth_intrinsics_json_path),
             "frame_00": str(frame_path),
         },
         "camera": {

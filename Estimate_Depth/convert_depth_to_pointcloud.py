@@ -40,45 +40,14 @@ def ensure_3x3_intrinsics(raw: Any, source_name: str) -> np.ndarray:
     return k
 
 
-def load_da3_intrinsics(pose_json_path: Path) -> np.ndarray:
-    """Load DA3 intrinsics from pose_estimation.json."""
-    pose_data = load_json(pose_json_path)
-    if "intrinsics" not in pose_data:
-        raise KeyError(f"Missing 'intrinsics' in {pose_json_path}")
-
-    is_metric = pose_data.get("is_metric", None)
-    if is_metric is not None and int(is_metric) != 1:
-        raise RuntimeError(
-            f"{pose_json_path} reports is_metric={is_metric}. "
-            "Expected metric depth for point cloud conversion."
+def load_camera_intrinsics(json_path: Path, source_name: str = "") -> np.ndarray:
+    """Load intrinsics_pixels_3x3 from a camera_intrinsics.json file."""
+    data = load_json(json_path)
+    if "intrinsics_pixels_3x3" not in data:
+        raise KeyError(
+            f"Missing 'intrinsics_pixels_3x3' in {json_path}"
         )
-
-    return ensure_3x3_intrinsics(pose_data["intrinsics"], "DA3")
-
-
-def load_sam3d_intrinsics(camera_json_path: Path) -> np.ndarray:
-    """Load SAM3D intrinsics in pixel units from camera_intrinsics.json."""
-    camera_data = load_json(camera_json_path)
-
-    if "intrinsics_pixels_3x3" in camera_data:
-        return ensure_3x3_intrinsics(camera_data["intrinsics_pixels_3x3"], "SAM3D")
-
-    required_keys = ("fx_px", "fy_px", "cx_px", "cy_px")
-    if all(key in camera_data for key in required_keys):
-        k = np.array(
-            [
-                [float(camera_data["fx_px"]), 0.0, float(camera_data["cx_px"])],
-                [0.0, float(camera_data["fy_px"]), float(camera_data["cy_px"])],
-                [0.0, 0.0, 1.0],
-            ],
-            dtype=np.float32,
-        )
-        return ensure_3x3_intrinsics(k, "SAM3D")
-
-    raise KeyError(
-        f"Could not find SAM3D intrinsics in {camera_json_path}. "
-        "Expected 'intrinsics_pixels_3x3' or fx/fy/cx/cy entries."
-    )
+    return ensure_3x3_intrinsics(data["intrinsics_pixels_3x3"], source_name or str(json_path))
 
 
 def load_metric_depth(depth_path: Path) -> np.ndarray:
@@ -239,10 +208,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--depth_output_dir",
         type=str,
-        default="./output/video_03",
+        default="./output/video_01",
         help=(
             "Depth output directory (Estimate_Depth/output/video_xx). "
-            "Contains pose_estimation.json and depth subdirectories."
+            "Contains camera_intrinsics.json and depth subdirectories."
         ),
     )
     parser.add_argument(
@@ -267,10 +236,10 @@ def parse_args() -> argparse.Namespace:
         help="Metric depth file name inside metric depth directory.",
     )
     parser.add_argument(
-        "--pose_file",
+        "--da3_intrinsics_file",
         type=str,
-        default="pose_estimation.json",
-        help="DA3 pose/intrinsics JSON file name inside depth_output_dir.",
+        default="camera_intrinsics.json",
+        help="DA3 camera intrinsics JSON file name inside depth_output_dir.",
     )
     parser.add_argument(
         "--sam3d_intrinsics_file",
@@ -325,16 +294,15 @@ def main() -> None:
         metric_depth_dirname=args.metric_depth_dirname,
         depth_file=args.depth_file,
     )
-    metric_depth_output_dir = depth_path.parent
     pointcloud_output_dir = depth_output_dir / args.pointcloud_dirname
     pointcloud_output_dir.mkdir(parents=True, exist_ok=True)
-    pose_path = depth_output_dir / args.pose_file
+    da3_intrinsics_path = depth_output_dir / args.da3_intrinsics_file
     sam3d_intrinsics_path = sam3d_output_dir / args.sam3d_intrinsics_file
     color_image_path = depth_output_dir / args.color_image_file
 
     depth = load_metric_depth(depth_path)
-    da3_intrinsics = load_da3_intrinsics(pose_path)
-    sam3d_intrinsics = load_sam3d_intrinsics(sam3d_intrinsics_path)
+    da3_intrinsics = load_camera_intrinsics(da3_intrinsics_path, "DA3")
+    sam3d_intrinsics = load_camera_intrinsics(sam3d_intrinsics_path, "SAM3D")
 
     rgb_image = None
     if args.save_colors:
@@ -352,21 +320,14 @@ def main() -> None:
     write_ply_ascii(sam3d_ply_path, sam3d_points, sam3d_colors)
 
     summary = {
-        "depth_output_dir": str(depth_output_dir),
-        "metric_depth_output_dir": str(metric_depth_output_dir),
         "pointcloud_output_dir": str(pointcloud_output_dir),
-        "sam3d_output_dir": str(sam3d_output_dir),
         "inputs": {
             "metric_depth_npy": str(depth_path),
-            "da3_pose_json": str(pose_path),
+            "da3_intrinsics_json": str(da3_intrinsics_path),
             "sam3d_intrinsics_json": str(sam3d_intrinsics_path),
             "color_image": str(color_image_path) if args.save_colors else None,
         },
         "depth_shape_hw": [int(depth.shape[0]), int(depth.shape[1])],
-        "intrinsics": {
-            "da3_3x3": da3_intrinsics.astype(float).tolist(),
-            "sam3d_3x3": sam3d_intrinsics.astype(float).tolist(),
-        },
         "outputs": {
             "da3_intrinsics_pointcloud": {
                 "ply": str(da3_ply_path),

@@ -174,7 +174,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--video_dir",
         type=str,
-        default="../Generate_Video/videos/video_01",
+        default="../Generate_Video/output/video_01",
         help=(
             "Directory like */video_xx containing exactly one .mp4, "
             "or a direct path to an .mp4 file."
@@ -350,41 +350,42 @@ def main() -> None:
             output_hw=(frame_h, frame_w),
         )
 
-    sky_mask_path: str | None = None
-    if prediction.sky is not None and prediction.sky.shape[0] == 1:
-        sky_mask = (prediction.sky[0].astype(np.uint8)) * 255
-        path = output_dir / "sky_mask.png"
-        if not cv2.imwrite(str(path), sky_mask):
-            raise RuntimeError(f"Failed to save sky mask: {path}")
-        sky_mask_path = str(path)
+    # Build pixel-space 3x3 intrinsics from the DA3 prediction.
+    raw_intrinsics = np.asarray(prediction.intrinsics, dtype=np.float32)
+    while raw_intrinsics.ndim > 2:
+        raw_intrinsics = raw_intrinsics[0]
+    intrinsics_pixels_3x3 = raw_intrinsics.tolist()
 
-    # Keep pose values in JSON; no redundant .npy export.
-    pose_json_path = output_dir / "pose_estimation.json"
-    pose_json = {
-        "extrinsics": prediction.extrinsics.tolist(),
-        "intrinsics": prediction.intrinsics.tolist(),
-        "focal_length": focal_info,
-        "focal_length_mm": float(focal_info["focal_length_mm_mean"]),
-        "scale_factor": scale_factor_f,
-        "is_metric": int(prediction.is_metric),
-        "device": str(device),
-        "use_ray_pose": bool(args.use_ray_pose),
-        "estimate_relative_depth": bool(args.estimate_relative_depth),
+    sensor_width_mm = 36.0
+    sensor_height_mm = 24.0
+    lens_mm = float(focal_info["focal_length_mm_mean"])
+
+    camera_intrinsics_path = output_dir / "camera_intrinsics.json"
+    camera_intrinsics_json = {
+        "source": "da3",
+        "intrinsics_pixels_3x3": intrinsics_pixels_3x3,
+        "blender_recommendation": {
+            "sensor_fit": "HORIZONTAL",
+            "lens_mm": lens_mm,
+            "sensor_width_mm": sensor_width_mm,
+            "sensor_height_mm": sensor_height_mm,
+            "note": "Lens uses fx with full-frame horizontal fit.",
+        },
     }
-    with open(pose_json_path, "w", encoding="utf-8") as f:
-        json.dump(pose_json, f, indent=2)
+    with open(camera_intrinsics_path, "w", encoding="utf-8") as f:
+        json.dump(camera_intrinsics_json, f, indent=2)
 
     run_summary = {
-        "video_dir": str(video_dir),
-        "video_mp4": str(video_mp4),
         "output_dir": str(output_dir),
-        "frame_00": str(frame_path),
-        "model_id": args.model_id,
-        "device": str(device),
-        "process_res_used": int(process_res),
-        "focal_length_mm": float(focal_info["focal_length_mm_mean"]),
-        "estimate_relative_depth": bool(args.estimate_relative_depth),
-        "artifacts": {
+        "inputs": {
+            "video_dir": str(video_dir),
+            "video_mp4": str(video_mp4),
+            "model_id": args.model_id,
+            "device": str(device),
+            "process_res_used": int(process_res),
+        },
+        "outputs": {
+            "frame_00": str(frame_path),
             "relative_depth": (
                 None
                 if relative_artifacts is None
@@ -394,10 +395,9 @@ def main() -> None:
                 "dir": str(metric_depth_dir),
                 **metric_artifacts,
             },
-            "pose_estimation": {
-                "json": str(pose_json_path),
+            "camera_intrinsics": {
+                "json": str(camera_intrinsics_path),
             },
-            "sky_mask": sky_mask_path,
         },
     }
     summary_path = output_dir / "run_summary.json"

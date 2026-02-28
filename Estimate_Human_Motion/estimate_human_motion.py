@@ -32,7 +32,7 @@ def resolve_f_mm(video_dir_name: str, cli_f_mm: int | None | str) -> int | None:
         / "camera_intrinsics.json"
     )
     with intrinsics_path.open("r", encoding="utf-8") as f:
-        return int(round(float(json.load(f)["focal_length_mm_recommended"])))
+        return int(round(float(json.load(f)["blender_recommendation"]["lens_mm"])))
 
 
 def main() -> None:
@@ -54,7 +54,7 @@ def main() -> None:
         default=F_MM_AUTO,
         help=(
             "Focal length in full-frame millimeters passed to GVHMR (--f_mm). "
-            "Default: read focal_length_mm_recommended from "
+            "Default: read blender_recommendation.lens_mm from "
             "Generate_Object_Mesh/output/<video_dir>/camera_intrinsics.json and round to int. "
             "You can also pass --f_mm auto explicitly. "
             "Use --f_mm None to omit --f_mm and let GVHMR infer intrinsics. "
