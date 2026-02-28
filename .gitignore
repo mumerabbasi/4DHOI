@@ -1,13 +1,17 @@
 # --- Python & Caches ---
 __pycache__/
 *.py[cod]
+*.so
 *$py.class
 .pytest_cache/
 .cache/
+.ruff_cache/
+.ipynb_checkpoints/
 
 # --- Environment & Variables ---
 .env
 .venv
+.venv/
 env/
 venv/
 ENV/
@@ -23,6 +27,8 @@ venv.bak/
 *.njsproj
 *.sln
 *.swp
+*.swo
+*~
 
 # --- Linter & Formatters ---
 .flake8
@@ -61,6 +67,9 @@ first_frames/
 generated_videos/
 checkpoints/
 logs/
+outputs/
+runs/
+wandb/
 
 # --- Model Weights (Large Files) ---
 *.safetensors
@@ -74,3 +83,5 @@ logs/
 # --- OS Specific ---
 .DS_Store
 Thumbs.db
+._*
+__MACOSX/
