@@ -106,12 +106,12 @@ def parse_args() -> argparse.Namespace:
         help="Scale factor for arrow length in visualization (default 1.0).",
     )
     parser.add_argument(
-        "--object_mesh_dir",
+        "--segment_first_frame_dir",
         default=None,
         type=str,
         help=(
-            "Path to Generate_Object_Mesh output for this video. "
-            "Default: ../Generate_Object_Mesh/output/<video_xx>"
+            "Path to Segment_First_Frame output for this video. "
+            "Default: ../Segment_First_Frame/output/<video_xx>"
         ),
     )
     parser.add_argument(
@@ -121,14 +121,8 @@ def parse_args() -> argparse.Namespace:
         help="Tracking seed density: points per 1000 mask pixels.",
     )
     parser.add_argument(
-        "--mask_threshold",
-        default=127,
-        type=int,
-        help="Threshold applied to mask grayscale image.",
-    )
-    parser.add_argument(
         "--mask_erode_px",
-        default=2,
+        default=3,
         type=int,
         help="Erode mask by this many pixels before point sampling.",
     )
@@ -139,10 +133,10 @@ def parse_args() -> argparse.Namespace:
         help="Number of recent frames kept in trail visualization.",
     )
     parser.add_argument(
-        "--trails_fps",
+        "--vis_fps",
         default=6.0,
         type=float,
-        help="Per-object trails FPS. If <= 0, falls back to source video FPS.",
+        help="FPS for all output visualization videos (flow, arrows, trails).",
     )
     parser.add_argument(
         "--vis_point_percent",
@@ -484,21 +478,21 @@ def generate_object_trails(
     paths: Paths,
     args: argparse.Namespace,
     num_frames: int,
-    video_fps: float,
+    vis_fps: float,
 ) -> None:
     """Generate per-object colored trails.mp4 using frame-0 masks."""
     video_name = paths.input_dir.name
-    if args.object_mesh_dir is None:
-        object_mesh_dir = (
-            paths.script_dir.parent / "Generate_Object_Mesh" / "output" / video_name
+    if args.segment_first_frame_dir is None:
+        segmentation_dir = (
+            paths.script_dir.parent / "Segment_First_Frame" / "output" / video_name
         ).resolve()
     else:
-        object_mesh_dir = resolve_path(args.object_mesh_dir, paths.script_dir)
+        segmentation_dir = resolve_path(args.segment_first_frame_dir, paths.script_dir)
 
-    if not object_mesh_dir.exists() or not object_mesh_dir.is_dir():
-        raise NotADirectoryError(f"Object mesh dir not found: {object_mesh_dir}")
+    if not segmentation_dir.exists() or not segmentation_dir.is_dir():
+        raise NotADirectoryError(f"Segment_First_Frame dir not found: {segmentation_dir}")
 
-    summary_path = find_single_summary(object_mesh_dir)
+    summary_path = find_single_summary(segmentation_dir)
     with summary_path.open("r", encoding="utf-8") as f:
         summary = json.load(f)
 
@@ -509,8 +503,6 @@ def generate_object_trails(
 
     frames_bgr = load_frames_bgr(paths.frames_dir, num_frames)
     height, width = frames_bgr[0].shape[:2]
-    trails_fps = float(video_fps) if float(args.trails_fps) <= 0 else float(args.trails_fps)
-
     run_summary = {
         "video_dir": str(paths.input_dir),
         "video_file": str(paths.input_mp4),
@@ -523,13 +515,13 @@ def generate_object_trails(
         "objects": [],
     }
 
-    print(f"[INFO] object_mesh_dir: {object_mesh_dir}")
+    print(f"[INFO] segment_first_frame_dir: {segmentation_dir}")
     print(f"[INFO] summary: {summary_path.name}")
 
     for obj_idx, obj_info in enumerate(objects):
         obj_name = str(obj_info.get("object", f"object_{obj_idx}"))
         slug = normalize_slug(obj_info)
-        mask_path = resolve_mask_path(object_mesh_dir, obj_info)
+        mask_path = resolve_mask_path(segmentation_dir, obj_info)
 
         print(f"\n[OBJECT {obj_idx + 1}/{len(objects)}] {obj_name} ({slug})")
 
@@ -545,7 +537,7 @@ def generate_object_trails(
         if mask_gray.shape[:2] != (height, width):
             mask_gray = cv2.resize(mask_gray, (width, height), interpolation=cv2.INTER_NEAREST)
 
-        mask_bin = (mask_gray > int(args.mask_threshold)).astype(np.uint8)
+        mask_bin = (mask_gray > 0).astype(np.uint8)
         mask_bin = erode_mask(mask_bin, int(args.mask_erode_px))
         mask_area_px = int(mask_bin.sum())
         if mask_area_px <= 0:
@@ -582,16 +574,13 @@ def generate_object_trails(
 
         obj_out = paths.out_video_dir / slug
         clear_dir(obj_out)
-        np.save(str(obj_out / "seed_points_frame0.npy"), seed_xy.astype(np.float32))
-        np.save(str(obj_out / "tracks.npy"), tracks.astype(np.float32))
-        np.save(str(obj_out / "visibility.npy"), visibility.astype(np.bool_))
 
         render_trails_video(
             frames_bgr=frames_bgr,
             tracks=tracks,
             visibility=visibility,
             out_path=obj_out / "trails.mp4",
-            fps=trails_fps,
+            fps=float(vis_fps),
             trail_length=int(args.trail_length),
             point_indices=vis_indices,
         )
@@ -605,8 +594,6 @@ def generate_object_trails(
             "track_target_points": int(target_track_points),
             "seed_points": int(len(seed_xy)),
             "num_frames": int(tracks.shape[0]),
-            "tracks_file": "tracks.npy",
-            "visibility_file": "visibility.npy",
             "trails_video": "trails.mp4",
             "vis_point_percent": float(args.vis_point_percent),
             "vis_points_count": int(len(vis_indices)),
@@ -711,6 +698,7 @@ def main() -> None:
             mp4.unlink()
 
     num_frames, fps = extract_frames(paths.input_mp4, paths.frames_dir)
+    vis_fps = float(fps) if float(args.vis_fps) <= 0 else float(args.vis_fps)
     print(f"[OK] Extracted {num_frames} frames -> {paths.frames_dir}")
 
     add_waft_to_syspath(paths.waft_dir)
@@ -735,7 +723,7 @@ def main() -> None:
         arrows_mp4_path=paths.arrows_mp4_path,
         num_frames=num_frames,
         device=device,
-        fps=fps,
+        fps=vis_fps,
         arrow_scale=float(args.arrow_scale),
     )
     print("[OK] Saved dense optical flow and global visualizations")
@@ -744,7 +732,7 @@ def main() -> None:
         paths=paths,
         args=args,
         num_frames=num_frames,
-        video_fps=fps,
+        vis_fps=vis_fps,
     )
 
     print(f"[OK] Saved frames -> {paths.frames_dir}")

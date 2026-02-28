@@ -2,9 +2,10 @@
   "inputs": {
     "video_name": "video_03",
     "object_video_dir": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_03",
+    "segmentation_video_dir": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_03",
     "depth_video_dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_03",
     "human_video_dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_03",
-    "summary_json": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_03/frame_00_segmentation_summary.json",
+    "summary_json": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_03/frame_00_segmentation_summary.json",
     "depth_npy": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_03/metric_depth/metric_depth.npy",
     "pose_json": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_03/pose_estimation.json",
     "frame_00": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_03/frame_00.png"
@@ -79,7 +80,8 @@
     "corr_save_every": 50,
     "opt_max_side": 1280,
     "resize_scale_for_optimization": 1.0,
-    "output_coordinate": "opencv"
+    "output_coordinate": "opencv",
+    "sam3_mask_erode_iters": 3
   },
   "energy_terms": {
     "transform": "m_i' = exp(alpha) * m_i + [0, 0, t_z_init + delta_t_z]^T",
@@ -96,17 +98,17 @@
       "name": "human",
       "slug": "human",
       "kind": "human",
-      "mask_path": null,
-      "pixels_considered": 39144,
-      "pixels_used": 39144
+      "mask_path": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_03/human/mask/frame_00.png",
+      "pixels_considered": 30343,
+      "pixels_used": 30343
     },
     {
       "name": "umbrella",
       "slug": "umbrella",
       "kind": "object",
-      "mask_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_03/umbrella/mask/frame_00.png",
-      "pixels_considered": 15618,
-      "pixels_used": 15618
+      "mask_path": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_03/umbrella/mask/frame_00.png",
+      "pixels_considered": 14089,
+      "pixels_used": 14089
     }
   ],
   "per_mesh_optimization": [
@@ -115,10 +117,10 @@
       "slug": "human",
       "status": "optimized",
       "message": null,
-      "num_correspondences": 39144,
-      "final_scale": 1.6121785300250935,
-      "final_tz_m": 0.008877255022525787,
-      "final_total_loss": 0.11478345841169357,
+      "num_correspondences": 30343,
+      "final_scale": 1.5735674436139866,
+      "final_tz_m": 0.002321424661204219,
+      "final_total_loss": 0.0075150602497160435,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03/loss_curves/human_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03/loss_curves/human_loss_total.png",
@@ -135,10 +137,10 @@
       "slug": "umbrella",
       "status": "optimized",
       "message": null,
-      "num_correspondences": 15618,
-      "final_scale": 3.2222659849647663,
-      "final_tz_m": -0.006319782231003046,
-      "final_total_loss": 0.11087138950824738,
+      "num_correspondences": 14089,
+      "final_scale": 3.193449939294623,
+      "final_tz_m": 7.46170335332863e-05,
+      "final_total_loss": 0.07987114787101746,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03/loss_curves/umbrella_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03/loss_curves/umbrella_loss_total.png",

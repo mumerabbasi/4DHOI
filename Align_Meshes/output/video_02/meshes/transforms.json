@@ -11,31 +11,31 @@
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_alpha": 0.33440035581588745,
-        "scale_exp_alpha": 1.3971023696814158,
+        "log_scale_alpha": 0.3030688166618347,
+        "scale_exp_alpha": 1.3540076395221032,
         "tz_init_m": 0.0,
-        "delta_tz_m": -0.0008167050546035171,
-        "tz_total_m": -0.0008167050546035171,
-        "num_correspondences": 60000
+        "delta_tz_m": -0.00044501188676804304,
+        "tz_total_m": -0.00044501188676804304,
+        "num_correspondences": 45371
       },
-      "source_to_aligned_cv_matrix_4x4": [
+      "source_to_output_matrix_4x4": [
         [
-          1.3971023559570312,
+          1.354007601737976,
           0.0,
           0.0,
           0.0
         ],
         [
           0.0,
-          1.3971023559570312,
+          1.354007601737976,
           0.0,
           0.0
         ],
         [
           0.0,
           0.0,
-          1.3971023559570312,
-          -0.0008167050546035171
+          1.354007601737976,
+          -0.00044501188676804304
         ],
         [
           0.0,
@@ -47,40 +47,40 @@
     },
     {
       "name": "dumbbell (left hand)",
-      "slug": "dumbbell_left_hand",
+      "slug": "dumbbell_(left_hand)",
       "kind": "object",
       "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/dumbbell_(left_hand)/mesh_posed.ply",
       "source_coordinate": "pytorch3d_camera",
       "output_coordinate": "opencv",
-      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/meshes/dumbbell_left_hand.ply",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/meshes/dumbbell_(left_hand).ply",
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_alpha": 0.9993360042572021,
-        "scale_exp_alpha": 2.716477499996725,
+        "log_scale_alpha": 0.9899258017539978,
+        "scale_exp_alpha": 2.691034794879784,
         "tz_init_m": 0.0,
-        "delta_tz_m": -0.006408568471670151,
-        "tz_total_m": -0.006408568471670151,
-        "num_correspondences": 2234
+        "delta_tz_m": 0.0002587832568679005,
+        "tz_total_m": 0.0002587832568679005,
+        "num_correspondences": 1491
       },
-      "source_to_aligned_cv_matrix_4x4": [
+      "source_to_output_matrix_4x4": [
         [
-          -2.716477394104004,
+          -2.6910347938537598,
           0.0,
           0.0,
           0.0
         ],
         [
           0.0,
-          -2.716477394104004,
+          -2.6910347938537598,
           0.0,
           0.0
         ],
         [
           0.0,
           0.0,
-          2.716477394104004,
-          -0.006408568471670151
+          2.6910347938537598,
+          0.0002587832568679005
         ],
         [
           0.0,
@@ -92,40 +92,40 @@
     },
     {
       "name": "dumbbell (right hand)",
-      "slug": "dumbbell_right_hand",
+      "slug": "dumbbell_(right_hand)",
       "kind": "object",
       "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/dumbbell_(right_hand)/mesh_posed.ply",
       "source_coordinate": "pytorch3d_camera",
       "output_coordinate": "opencv",
-      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/meshes/dumbbell_right_hand.ply",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/meshes/dumbbell_(right_hand).ply",
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_alpha": 0.8851595520973206,
-        "scale_exp_alpha": 2.4233710145694283,
+        "log_scale_alpha": 0.8767663240432739,
+        "scale_exp_alpha": 2.4031162294061557,
         "tz_init_m": 0.0,
-        "delta_tz_m": -0.003672940656542778,
-        "tz_total_m": -0.003672940656542778,
-        "num_correspondences": 1400
+        "delta_tz_m": 0.00011169330537086353,
+        "tz_total_m": 0.00011169330537086353,
+        "num_correspondences": 871
       },
-      "source_to_aligned_cv_matrix_4x4": [
+      "source_to_output_matrix_4x4": [
         [
-          -2.4233710765838623,
+          -2.403116226196289,
           0.0,
           0.0,
           0.0
         ],
         [
           0.0,
-          -2.4233710765838623,
+          -2.403116226196289,
           0.0,
           0.0
         ],
         [
           0.0,
           0.0,
-          2.4233710765838623,
-          -0.003672940656542778
+          2.403116226196289,
+          0.00011169330537086353
         ],
         [
           0.0,

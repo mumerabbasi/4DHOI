@@ -39,7 +39,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--video",
-        default="../Generate_Video/videos/video_01",
+        default="../Generate_Video/output/video_01",
     )
     parser.add_argument("--outdir", default="./output")
     parser.add_argument(

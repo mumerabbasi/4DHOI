@@ -11,31 +11,31 @@
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_alpha": 0.47758638858795166,
-        "scale_exp_alpha": 1.6121785300250935,
+        "log_scale_alpha": 0.45334529876708984,
+        "scale_exp_alpha": 1.5735674436139866,
         "tz_init_m": 0.0,
-        "delta_tz_m": 0.008877255022525787,
-        "tz_total_m": 0.008877255022525787,
-        "num_correspondences": 39144
+        "delta_tz_m": 0.002321424661204219,
+        "tz_total_m": 0.002321424661204219,
+        "num_correspondences": 30343
       },
-      "source_to_aligned_cv_matrix_4x4": [
+      "source_to_output_matrix_4x4": [
         [
-          1.6121785640716553,
+          1.5735673904418945,
           0.0,
           0.0,
           0.0
         ],
         [
           0.0,
-          1.6121785640716553,
+          1.5735673904418945,
           0.0,
           0.0
         ],
         [
           0.0,
           0.0,
-          1.6121785640716553,
-          0.008877255022525787
+          1.5735673904418945,
+          0.002321424661204219
         ],
         [
           0.0,
@@ -56,31 +56,31 @@
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_alpha": 1.170084834098816,
-        "scale_exp_alpha": 3.2222659849647663,
+        "log_scale_alpha": 1.1611018180847168,
+        "scale_exp_alpha": 3.193449939294623,
         "tz_init_m": 0.0,
-        "delta_tz_m": -0.006319782231003046,
-        "tz_total_m": -0.006319782231003046,
-        "num_correspondences": 15618
+        "delta_tz_m": 7.46170335332863e-05,
+        "tz_total_m": 7.46170335332863e-05,
+        "num_correspondences": 14089
       },
-      "source_to_aligned_cv_matrix_4x4": [
+      "source_to_output_matrix_4x4": [
         [
-          -3.2222659587860107,
+          -3.1934499740600586,
           0.0,
           0.0,
           0.0
         ],
         [
           0.0,
-          -3.2222659587860107,
+          -3.1934499740600586,
           0.0,
           0.0
         ],
         [
           0.0,
           0.0,
-          3.2222659587860107,
-          -0.006319782231003046
+          3.1934499740600586,
+          7.46170335332863e-05
         ],
         [
           0.0,

@@ -60,7 +60,7 @@ class OptimizationResult:
 def slugify(text: str) -> str:
     out = []
     for ch in text.strip().lower():
-        if ch.isalnum():
+        if ch.isalnum() or ch in "()":
             out.append(ch)
         else:
             out.append("_")
@@ -212,8 +212,10 @@ def project_points_cv(points_cv: np.ndarray, k: np.ndarray) -> tuple[np.ndarray,
         pts = points_cv[valid]
         z_valid = pts[:, 2]
         uv_valid = np.empty((pts.shape[0], 2), dtype=np.float32)
-        uv_valid[:, 0] = (pts[:, 0] * k[0, 0]) / z_valid + k[0, 2]
-        uv_valid[:, 1] = (pts[:, 1] * k[1, 1]) / z_valid + k[1, 2]
+        # Keep projection in pixel-index coordinates (not pixel-center coordinates)
+        # to match rasterized pixel indices used by correspondences.
+        uv_valid[:, 0] = (pts[:, 0] * k[0, 0]) / z_valid + k[0, 2] - 0.5
+        uv_valid[:, 1] = (pts[:, 1] * k[1, 1]) / z_valid + k[1, 2] - 0.5
         uv[valid] = uv_valid
     return uv, valid
 
@@ -309,22 +311,53 @@ def save_correspondence_snapshot(
     iter_idx: int,
     depth_points: np.ndarray,
     transformed_mesh_points: np.ndarray,
+    full_transformed_mesh_points: np.ndarray | None,
     uv_ref: np.ndarray,
     colors_rgb: np.ndarray,
     intrinsics: np.ndarray,
     frame_bgr: np.ndarray,
     point_radius: int,
+    save_depth_fixed: bool,
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
-    save_colored_point_cloud(
-        out_dir / f"iter_{iter_idx:05d}_depth_fixed.ply",
-        depth_points,
-        colors_rgb,
-    )
+    if save_depth_fixed:
+        save_colored_point_cloud(
+            out_dir / f"iter_{iter_idx:05d}_depth_fixed.ply",
+            depth_points,
+            colors_rgb,
+        )
+
+    mesh_points_for_export = transformed_mesh_points
+    mesh_colors_for_export = colors_rgb
+    if (
+        full_transformed_mesh_points is not None
+        and full_transformed_mesh_points.shape[0] > 0
+    ):
+        gray_points = full_transformed_mesh_points.astype(np.float32)
+        num_corr = int(transformed_mesh_points.shape[0])
+        # Keep grey context points but prevent them from visually overwhelming
+        # the colored correspondence points in dense meshes.
+        if num_corr > 0:
+            max_gray = max(1, 2 * num_corr)
+            if gray_points.shape[0] > max_gray:
+                keep_idx = np.linspace(
+                    0, gray_points.shape[0] - 1, num=max_gray, dtype=np.int64
+                )
+                gray_points = gray_points[keep_idx]
+
+        gray_rgb = np.full(
+            (gray_points.shape[0], 3), 160, dtype=np.uint8
+        )
+        mesh_points_for_export = np.concatenate(
+            [gray_points, transformed_mesh_points],
+            axis=0,
+        )
+        mesh_colors_for_export = np.concatenate([gray_rgb, colors_rgb], axis=0)
+
     save_colored_point_cloud(
         out_dir / f"iter_{iter_idx:05d}_mesh_transformed.ply",
-        transformed_mesh_points,
-        colors_rgb,
+        mesh_points_for_export,
+        mesh_colors_for_export,
     )
 
     depth_vis = frame_bgr.copy()
@@ -471,4 +504,3 @@ def save_loss_history_csv(history: dict[str, list[float]], out_path: Path) -> No
         header="iter,total,corr,reproj,scale_reg,tz_reg,scale,tz",
         comments="",
     )
-

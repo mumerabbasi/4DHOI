@@ -1,14 +1,4 @@
-"""
-Rigid 4D tracking (MVP + Improvement 1 + Improvement 2).
-
-Key conventions (consistent everywhere):
-  - Internal camera/object coordinates follow PyTorch3D-style convention:
-      +X is left, +Y is up, +Z forward.
-  - We "stick with F" everywhere:
-      F = diag([-1, -1, 1])
-    - For PnP: convert 3D points to OpenCV coords with F before solvePnP.
-    - For projection: convert camera points to OpenCV coords with F, then project.
-"""
+"""Rigid 4D tracking (MVP + Improvement 1)."""
 
 from __future__ import annotations
 
@@ -21,24 +11,28 @@ import cv2
 import numpy as np
 from tracking_utils import (
     apply_pose,
-    build_intrinsics,
     close_ffmpeg,
-    dilate,
-    discover_object_dirs,
+    compute_correspondence_debug,
     draw_overlay,
     ensure_dir,
     estimate_pose_pnp_ransac,
     list_images,
-    load_mesh_glb_y_up,
+    list_object_slugs,
+    load_intrinsics_pixels_3x3,
+    load_mesh,
     make_rasterizer,
     pixel_to_points,
     rasterize_gbuffer,
+    render_overlay_sequence,
     resolve_device,
+    resolve_intrinsics_path,
     resolve_path,
+    rotation_delta_deg,
+    save_debug_metrics_csv,
     save_pose_outputs,
+    smooth_pose_sequence_post,
     start_ffmpeg_writer,
     y_up_to_z_up,
-    z_up_to_y_up,
 )
 
 
@@ -105,23 +99,29 @@ def stratified_sample(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Rigid tracking + Improvement 1 + Improvement 2."
+        description="Rigid tracking + Improvement 1."
     )
 
     parser.add_argument(
         "--flow_video_dir",
         type=str,
-        default="../Estimate_Optical_Flow/output_waft/video_01",
+        default="../Estimate_Optical_Flow/output_waft/video_03",
         help="Directory containing _frames and optical_flow.",
+    )
+    parser.add_argument(
+        "--mesh_source",
+        type=str,
+        choices=["generate", "align"],
+        default="align",
+        help="Mesh source: Generate_Object_Mesh(SAM3D-Objects) output or Align_Meshes output.",
     )
     parser.add_argument(
         "--mesh_video_dir",
         type=str,
         default=None,
         help=(
-            "Directory containing per-object mesh_posed.glb files. "
-            "Default: ../Generate_Object_Mesh/output/<video_name> "
-            "derived from --flow_video_dir."
+            "Directory containing source meshes for this video. "
+            "Default depends on --mesh_source and <video_name>."
         ),
     )
     parser.add_argument(
@@ -131,22 +131,17 @@ def parse_args() -> argparse.Namespace:
         help="Root directory for tracking outputs.",
     )
     parser.add_argument(
-        "--object",
+        "--output_coord",
         type=str,
-        default=None,
-        help="Optional single object slug to track (e.g., iron).",
+        choices=["opencv", "pytorch3d"],
+        default="opencv",
+        help="Coordinate system used when saving mesh .ply files.",
     )
 
     parser.add_argument(
-        "--focal_length_mm",
-        type=float,
-        default=23.0,
-        help="Focal length in mm (sensor width fixed to 36mm).",
-    )
-    parser.add_argument(
         "--overlay_fps",
         type=float,
-        default=24.0,
+        default=6.0,
         help="FPS for output overlay video.",
     )
 
@@ -163,15 +158,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--erode_px", type=int, default=8)
 
     parser.add_argument("--ransac_reproj_px", type=float, default=6.0)
-    parser.add_argument("--ransac_iters", type=int, default=1000)
+    parser.add_argument("--ransac_iters", type=int, default=10000)
     parser.add_argument("--min_inliers", type=int, default=30)
-
-    # Improvement 2
     parser.add_argument(
-        "--silhouette_dilate_px",
-        type=int,
-        default=3,
-        help="Dilate rendered silhouette by this many pixels before gating.",
+        "--post_smooth_sigma",
+        type=float,
+        default=1.0,
+        help="Gaussian smoothing sigma in frames. 0 disables smoothing.",
     )
 
     parser.add_argument("--overlay_max_verts", type=int, default=20000)
@@ -191,14 +184,21 @@ def track_single_object(
     flow_dir: Path,
     mesh_path: Path,
     out_dir: Path,
+    k: np.ndarray,
     args: argparse.Namespace,
 ) -> None:
     """Track one object mesh over a sequence using frame-to-frame optical flow."""
     ensure_dir(out_dir)
+    meshes_raw_dir = out_dir / "meshes_raw"
     meshes_dir = out_dir / "meshes"
     overlays_dir = out_dir / "overlays"
+    overlays_smoothed_dir = out_dir / "overlays_smoothed"
+    debug_dir = out_dir / "debug"
+    ensure_dir(meshes_raw_dir)
     ensure_dir(meshes_dir)
     ensure_dir(overlays_dir)
+    ensure_dir(overlays_smoothed_dir)
+    ensure_dir(debug_dir)
 
     frame_paths = list_images(frames_dir)
     flow_paths = list_flows(flow_dir)
@@ -219,13 +219,18 @@ def track_single_object(
         raise FileNotFoundError(f"Failed to read: {frame_paths[start]}")
     h, w = frame0.shape[:2]
 
-    k = build_intrinsics(w, h, float(args.focal_length_mm))
     device = resolve_device(args.device)
 
-    mesh0_y = load_mesh_glb_y_up(mesh_path)
-    v0_y = np.array(mesh0_y.vertices, dtype=np.float32)
-    faces = np.array(mesh0_y.faces, dtype=np.int64)
-    v_obj = y_up_to_z_up(v0_y)
+    mesh_template = load_mesh(mesh_path)
+    verts_in = np.array(mesh_template.vertices, dtype=np.float32)
+    faces = np.array(mesh_template.faces, dtype=np.int64)
+    if args.mesh_source == "generate":
+        v_obj = y_up_to_z_up(verts_in)
+    else:
+        # Align_Meshes outputs are OpenCV camera coordinates -> convert to PyTorch3D.
+        v_obj = verts_in.copy()
+        v_obj[:, 0] *= -1.0
+        v_obj[:, 1] *= -1.0
 
     rasterizer = make_rasterizer(
         device=device,
@@ -252,13 +257,13 @@ def track_single_object(
         raise RuntimeError(
             f"Too few seeded tracks: {len(x_seed)}. "
             f"(min required: {int(args.min_seed_points)}). "
-            "Check rasterization / K / focal length / pose alignment."
+            "Check rasterization / intrinsics / pose alignment."
         )
 
     x_obj = x_seed.astype(np.float32)
     u = seed_px.astype(np.float32)
 
-    # Track validity mask (used by Improvement 1 and Improvement 2)
+    # Track validity mask used by Improvement 1.
     alive = np.ones(len(u), dtype=bool)
 
     video_path = out_dir / "overlay.mp4"
@@ -270,17 +275,28 @@ def track_single_object(
         frame_bgr = np.ascontiguousarray(frame_bgr.astype(np.uint8))
         ffmpeg_writer.stdin.write(frame_bgr.tobytes())
 
-    def save_mesh(frame_idx: int, r_mat: np.ndarray, t_vec: np.ndarray) -> None:
+    def save_mesh(
+        frame_idx: int,
+        r_mat: np.ndarray,
+        t_vec: np.ndarray,
+        meshes_out_dir: Path,
+    ) -> None:
         v_cam = apply_pose(v_obj, r_mat, t_vec)
-        v_y = z_up_to_y_up(v_cam)
-        mesh = mesh0_y.copy()
-        mesh.vertices = v_y.astype(np.float32)
-        mesh.export(str(meshes_dir / f"frame_{frame_idx:04d}.glb"))
+        if args.output_coord == "opencv":
+            v_save = v_cam.copy()
+            v_save[:, 0] *= -1.0
+            v_save[:, 1] *= -1.0
+        else:
+            v_save = v_cam
+        mesh = mesh_template.copy()
+        mesh.vertices = v_save.astype(np.float32)
+        mesh.export(str(meshes_out_dir / f"frame_{frame_idx:04d}.ply"))
 
     r_list: List[np.ndarray] = [r_prev.copy()]
     t_list: List[np.ndarray] = [t_prev.copy()]
+    metrics_rows: list[dict[str, float | int]] = []
 
-    save_mesh(start, r_prev, t_prev)
+    save_mesh(start, r_prev, t_prev, meshes_raw_dir)
     overlay0 = draw_overlay(
         frame0,
         apply_pose(v_obj, r_prev, t_prev),
@@ -290,6 +306,29 @@ def track_single_object(
     )
     cv2.imwrite(str(overlays_dir / f"overlay_{start:04d}.png"), overlay0)
     write_video_frame(overlay0)
+
+    debug0 = compute_correspondence_debug(
+        x_obj=x_obj,
+        u=u,
+        alive=alive,
+        r_mat=r_prev,
+        t_vec=t_prev,
+        k=k,
+        reproj_px=float(args.ransac_reproj_px),
+    )
+    metrics_rows.append(
+        {
+            "frame_idx": int(start),
+            "pnp_ok": 1,
+            "num_alive": int(debug0["num_alive"]),
+            "ransac_inliers": int(debug0["num_reproj_inliers"]),
+            "reproj_mean": float(debug0["reproj_mean"]),
+            "reproj_p90": float(debug0["reproj_p90"]),
+            "visibility_mean": float(debug0["visibility_mean"]),
+            "delta_t": 0.0,
+            "delta_rot_deg": 0.0,
+        }
+    )
 
     for frame_idx in range(start + 1, end + 1):
         flow = np.load(str(flow_paths[frame_idx - 1])).astype(np.float32)
@@ -348,44 +387,14 @@ def track_single_object(
         if not ok_pose:
             r_curr, t_curr = r_prev.copy(), t_prev.copy()
 
-        # ---------------------------------------------------------------------
-        # Improvement 2: rendered-silhouette gating (after first pose estimate)
-        #   - Render silhouette of mesh at predicted pose
-        #   - Keep only tracks whose u lies inside (optionally dilated)
-        #   - Re-run PnP on gated subset
-        # ---------------------------------------------------------------------
-        v_cam_pred = apply_pose(v_obj, r_curr, t_curr)
-        _, _, sil_pred = rasterize_gbuffer(rasterizer, v_cam_pred, faces, device)
-        sil_pred = dilate(sil_pred, int(args.silhouette_dilate_px))
-
-        idx_alive = np.where(alive)[0]
-        if len(idx_alive) > 0:
-            xs = np.round(u[idx_alive, 0]).astype(np.int32)
-            ys = np.round(u[idx_alive, 1]).astype(np.int32)
-            xs = np.clip(xs, 0, w - 1)
-            ys = np.clip(ys, 0, h - 1)
-            keep = sil_pred[ys, xs] > 0
-            alive[idx_alive[~keep]] = False
-
-        idx_alive = np.where(alive)[0]
-        ok_pose2, r_ref, t_ref, inliers2 = estimate_pose_pnp_ransac(
-            x_obj_p3d=x_obj[idx_alive],
-            u_px=u[idx_alive],
-            k=k,
-            reproj_px=float(args.ransac_reproj_px),
-            iters=int(args.ransac_iters),
-            min_inliers=int(args.min_inliers),
-        )
-        if ok_pose2:
-            r_curr, t_curr = r_ref, t_ref
-            ok_pose = True
-            inliers = inliers2
+        delta_t = float(np.linalg.norm(t_curr - t_prev))
+        delta_rot = rotation_delta_deg(r_prev, r_curr)
 
         r_prev, t_prev = r_curr.copy(), t_curr.copy()
         r_list.append(r_prev.copy())
         t_list.append(t_prev.copy())
 
-        save_mesh(frame_idx, r_prev, t_prev)
+        save_mesh(frame_idx, r_prev, t_prev, meshes_raw_dir)
 
         frame = cv2.imread(str(frame_paths[frame_idx]))
         if frame is None:
@@ -401,14 +410,68 @@ def track_single_object(
         cv2.imwrite(str(overlays_dir / f"overlay_{frame_idx:04d}.png"), overlay)
         write_video_frame(overlay)
 
+        dbg = compute_correspondence_debug(
+            x_obj=x_obj,
+            u=u,
+            alive=alive,
+            r_mat=r_prev,
+            t_vec=t_prev,
+            k=k,
+            reproj_px=float(args.ransac_reproj_px),
+        )
+
+        metrics_rows.append(
+            {
+                "frame_idx": int(frame_idx),
+                "pnp_ok": int(ok_pose),
+                "num_alive": int(dbg["num_alive"]),
+                "ransac_inliers": int(inliers),
+                "reproj_mean": float(dbg["reproj_mean"]),
+                "reproj_p90": float(dbg["reproj_p90"]),
+                "visibility_mean": float(dbg["visibility_mean"]),
+                "delta_t": float(delta_t),
+                "delta_rot_deg": float(delta_rot),
+            }
+        )
+
         if args.verbose:
             print(
                 f"[{object_slug}] frame={frame_idx:04d} "
-                f"ok_pose={ok_pose} inliers={inliers} alive={int(alive.sum())}"
+                f"ok_pose={ok_pose} inliers={inliers} alive={int(alive.sum())} "
+                f"reproj_p90={float(dbg['reproj_p90']):.2f}px"
             )
 
     close_ffmpeg(ffmpeg_writer)
-    save_pose_outputs(out_dir, r_list, t_list)
+    save_debug_metrics_csv(debug_dir / "metrics.csv", metrics_rows)
+    r_sm, t_sm = smooth_pose_sequence_post(
+        r_seq=r_list,
+        t_seq=t_list,
+        sigma=float(args.post_smooth_sigma),
+    )
+    for local_idx, (r_mat, t_vec) in enumerate(zip(r_sm, t_sm)):
+        save_mesh(start + local_idx, r_mat, t_vec, meshes_dir)
+
+    render_overlay_sequence(
+        frame_paths=frame_paths,
+        start=start,
+        r_seq=r_sm,
+        t_seq=t_sm,
+        verts_obj=v_obj,
+        k=k,
+        overlay_max_verts=int(args.overlay_max_verts),
+        overlay_point_radius=int(args.overlay_point_radius),
+        overlays_out_dir=overlays_smoothed_dir,
+        video_out_path=out_dir / "overlay_smoothed.mp4",
+        fps=float(args.overlay_fps),
+    )
+
+    save_pose_outputs(
+        out_dir=out_dir,
+        r_raw=r_list,
+        t_raw=t_list,
+        r_smoothed=r_sm,
+        t_smoothed=t_sm,
+    )
 
 
 def main() -> None:
@@ -418,9 +481,14 @@ def main() -> None:
     flow_video_dir = resolve_path(args.flow_video_dir, script_dir)
     video_name = flow_video_dir.name
     if args.mesh_video_dir is None:
-        mesh_video_dir = (
-            script_dir.parent / "Generate_Object_Mesh" / "output" / video_name
-        ).resolve()
+        if args.mesh_source == "generate":
+            mesh_video_dir = (
+                script_dir.parent / "Generate_Object_Mesh" / "output" / video_name
+            ).resolve()
+        else:
+            mesh_video_dir = (
+                script_dir.parent / "Align_Meshes" / "output" / video_name
+            ).resolve()
     else:
         mesh_video_dir = resolve_path(args.mesh_video_dir, script_dir)
     output_root = resolve_path(args.output_root, script_dir)
@@ -429,6 +497,8 @@ def main() -> None:
         raise NotADirectoryError(f"Flow video dir not found: {flow_video_dir}")
     if not mesh_video_dir.exists() or not mesh_video_dir.is_dir():
         raise NotADirectoryError(f"Mesh video dir not found: {mesh_video_dir}")
+    intrinsics_path = resolve_intrinsics_path(script_dir, video_name, mesh_video_dir)
+    k = load_intrinsics_pixels_3x3(intrinsics_path)
 
     frames_dir = flow_video_dir / "_frames"
     flow_dir = flow_video_dir / "optical_flow"
@@ -437,7 +507,7 @@ def main() -> None:
     if not flow_dir.exists():
         raise FileNotFoundError(f"Optical flow dir not found: {flow_dir}")
 
-    object_slugs = discover_object_dirs(mesh_video_dir, args.object)
+    object_slugs = list_object_slugs(args.mesh_source, mesh_video_dir)
     if not object_slugs:
         raise RuntimeError(f"No object dirs found in: {mesh_video_dir}")
 
@@ -445,11 +515,14 @@ def main() -> None:
     print(f"[INFO] Objects: {object_slugs}")
 
     for object_slug in object_slugs:
-        mesh_path = mesh_video_dir / object_slug / "mesh_posed.glb"
+        if args.mesh_source == "generate":
+            mesh_path = mesh_video_dir / object_slug / "mesh_posed.glb"
+        else:
+            mesh_path = mesh_video_dir / "meshes" / f"{object_slug}.ply"
         out_dir = output_root / video_name / object_slug
 
         if not mesh_path.exists():
-            print(f"[WARN] Missing mesh_posed.glb, skipping {object_slug}: {mesh_path}")
+            print(f"[WARN] Missing mesh file, skipping {object_slug}: {mesh_path}")
             continue
 
         print(f"\n[OBJECT] {object_slug}")
@@ -459,6 +532,7 @@ def main() -> None:
             flow_dir=flow_dir,
             mesh_path=mesh_path,
             out_dir=out_dir,
+            k=k,
             args=args,
         )
         print(f"[OK] Saved tracking outputs: {out_dir}")

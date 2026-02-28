@@ -24,9 +24,9 @@ A) Inputs and coordinate preparation
       or depth intrinsics (`pose_estimation.json`, DA3 side), selected by
       `--intrinsics_source`.
   - Meshes:
-    - Objects: `mesh_posed.ply` and per-object mask from
-      `frame_00_segmentation_summary.json`.
-    - Human: first PLY in `output_plys` and optional mask.
+    - Objects: `mesh_posed.ply` from Generate_Object_Mesh output and per-object
+      mask from Segment_First_Frame `frame_00_segmentation_summary.json`.
+    - Human: first PLY in `output_plys` and human SAM3 mask from the same summary.
   - Coordinate conversion:
     - Object PLY vertices are treated as PyTorch3D camera coordinates and mapped
       to OpenCV camera coordinates using `F_P3D_TO_CV`.
@@ -107,10 +107,11 @@ F) What is saved
   - `meshes/transforms.json`: source-to-aligned transform metadata.
   - `loss_curves/<slug>_loss_*.png`: separate loss plots for each term and total.
   - `loss_curves/<slug>_loss.csv`: numeric loss history.
-  - `correspondences/<slug>/iter_XXXXX_depth_fixed.ply`:
-    fixed depth correspondence cloud with colors.
+  - `correspondences/<slug>/iter_00000_depth_fixed.ply`:
+    fixed depth correspondence cloud with colors, saved once.
   - `correspondences/<slug>/iter_XXXXX_mesh_transformed.ply`:
-    transformed mesh correspondence cloud with same colors.
+    transformed full mesh cloud (grey) + transformed correspondence points
+    (same correspondence colors as depth points).
   - `correspondences/<slug>/iter_XXXXX_correspondence_projection.png`:
     side-by-side 2D projection visualization of fixed depth points and transformed
     mesh points at that iteration.
@@ -159,6 +160,37 @@ from utils_align_meshes import (
 )
 
 
+def _resolve_summary_relative_path(path_like: str | None, base_dir: Path) -> Path | None:
+    """Resolve potentially-relative summary path against base_dir."""
+    if path_like is None:
+        return None
+    p = Path(str(path_like))
+    if not p.is_absolute():
+        p = base_dir / p
+    return p.resolve()
+
+
+def _object_dir_name_from_summary(obj: dict[str, Any]) -> str:
+    """Resolve object directory slug used for mesh output subfolders."""
+    out_dir_raw = obj.get("output_dir")
+    if out_dir_raw:
+        return Path(str(out_dir_raw)).name
+    return str(obj.get("object", "object")).replace(" ", "_")
+
+
+def _erode_mask(mask: np.ndarray | None, erode_iters: int) -> np.ndarray | None:
+    """Erode binary mask with a 3x3 kernel for tighter correspondence filtering."""
+    if mask is None:
+        return None
+    if erode_iters <= 0:
+        return (mask > 0.5).astype(np.float32)
+
+    kernel = np.ones((3, 3), dtype=np.uint8)
+    mask_u8 = ((mask > 0.5).astype(np.uint8) * 255)
+    eroded = cv2.erode(mask_u8, kernel, iterations=int(erode_iters))
+    return (eroded > 127).astype(np.float32)
+
+
 def build_mesh_correspondences(
     verts_cv: np.ndarray,
     faces: np.ndarray,
@@ -199,8 +231,8 @@ def build_mesh_correspondences(
     if mask is not None:
         valid &= mask > 0.5
 
-    ys, xs = np.nonzero(valid)
-    pixels_considered = int(ys.shape[0])
+    ys_all, xs_all = np.nonzero(valid)
+    pixels_considered = int(ys_all.shape[0])
     if pixels_considered == 0:
         return CorrespondenceSet(
             mesh_points_base=np.zeros((0, 3), dtype=np.float32),
@@ -211,11 +243,13 @@ def build_mesh_correspondences(
             pixels_used=0,
         )
 
+    keep_idx = np.arange(pixels_considered, dtype=np.int64)
     if max_points > 0 and pixels_considered > max_points:
         rng = np.random.default_rng(seed)
-        keep = rng.choice(pixels_considered, size=max_points, replace=False)
-        ys = ys[keep]
-        xs = xs[keep]
+        keep_idx = rng.choice(pixels_considered, size=max_points, replace=False)
+
+    ys = ys_all[keep_idx]
+    xs = xs_all[keep_idx]
 
     face_idx = pix_to_face[ys, xs].astype(np.int64)
     bary_sel = bary[ys, xs]  # (N,3)
@@ -272,8 +306,10 @@ def compute_losses_torch(
     )
 
     z = torch.clamp(transformed[:, 2], min=1e-6)
-    u = intrinsics[0, 0] * transformed[:, 0] / z + intrinsics[0, 2]
-    v = intrinsics[1, 1] * transformed[:, 1] / z + intrinsics[1, 2]
+    # PyTorch3D rasterization uses pixel centers; uv_ref is stored as integer pixel
+    # indices. Subtract 0.5 so projected UVs are in the same index convention.
+    u = intrinsics[0, 0] * transformed[:, 0] / z + intrinsics[0, 2] - 0.5
+    v = intrinsics[1, 1] * transformed[:, 1] / z + intrinsics[1, 2] - 0.5
     uv = torch.stack([u, v], dim=1)
 
     e_corr = ((transformed - depth_points) ** 2).sum(dim=1).mean()
@@ -300,6 +336,7 @@ def compute_losses_torch(
 
 def optimize_scale_tz(
     corr: CorrespondenceSet,
+    full_mesh_points_base: np.ndarray,
     intrinsics: np.ndarray,
     device: torch.device,
     iters: int,
@@ -370,16 +407,22 @@ def optimize_scale_tz(
             w_tz_reg=w_tz_reg,
         )
         append_history(history, 0, init_losses)
+        init_full_mesh_points = (float(init_losses["scale"].detach().cpu().item()) * full_mesh_points_base).astype(
+            np.float32
+        )
+        init_full_mesh_points[:, 2] += float(init_losses["tz"].detach().cpu().item())
         save_correspondence_snapshot(
             out_dir=corr_vis_dir,
             iter_idx=0,
             depth_points=corr.depth_points,
             transformed_mesh_points=init_losses["transformed"].detach().cpu().numpy(),
+            full_transformed_mesh_points=init_full_mesh_points,
             uv_ref=corr.uv_ref,
             colors_rgb=corr.colors_rgb,
             intrinsics=intrinsics,
             frame_bgr=corr_vis_frame,
             point_radius=corr_vis_point_radius,
+            save_depth_fixed=True,
         )
 
     for iter_idx in range(1, int(iters) + 1):
@@ -432,6 +475,12 @@ def optimize_scale_tz(
                 corr_save_every > 0
                 and (iter_idx % int(corr_save_every) == 0 or iter_idx == int(iters))
             ):
+                eval_full_mesh_points = (
+                    float(eval_losses["scale"].detach().cpu().item()) * full_mesh_points_base
+                ).astype(np.float32)
+                eval_full_mesh_points[:, 2] += float(
+                    eval_losses["tz"].detach().cpu().item()
+                )
                 save_correspondence_snapshot(
                     out_dir=corr_vis_dir,
                     iter_idx=iter_idx,
@@ -440,11 +489,13 @@ def optimize_scale_tz(
                     .detach()
                     .cpu()
                     .numpy(),
+                    full_transformed_mesh_points=eval_full_mesh_points,
                     uv_ref=corr.uv_ref,
                     colors_rgb=corr.colors_rgb,
                     intrinsics=intrinsics,
                     frame_bgr=corr_vis_frame,
                     point_radius=corr_vis_point_radius,
+                    save_depth_fixed=False,
                 )
 
     scale_final = float(math.exp(float(log_scale.detach().cpu().item())))
@@ -478,7 +529,13 @@ def parse_args() -> argparse.Namespace:
         "--object_video_dir",
         type=str,
         default=None,
-        help="Directory like ../Generate_Object_Mesh/output/video_xx",
+        help="Directory like ../Generate_Object_Mesh/output/video_xx (mesh + intrinsics).",
+    )
+    parser.add_argument(
+        "--segmentation_video_dir",
+        type=str,
+        default=None,
+        help="Directory like ../Segment_First_Frame/output/video_xx (summary + masks).",
     )
     parser.add_argument(
         "--depth_video_dir",
@@ -499,12 +556,6 @@ def parse_args() -> argparse.Namespace:
         help="Root output directory; results are written to output_root/video_name.",
     )
 
-    parser.add_argument(
-        "--human_mask",
-        type=str,
-        default=None,
-        help="Optional binary human mask at frame_00 resolution.",
-    )
     parser.add_argument(
         "--output_coord",
         type=str,
@@ -550,6 +601,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--corr_vis_point_radius", type=int, default=1)
     parser.add_argument("--log_every", type=int, default=10)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--sam3_mask_erode_iters",
+        type=int,
+        default=3,
+        help=(
+            "Number of 3x3 erosion iterations applied to SAM3 masks "
+            "(objects + human) before correspondence filtering."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -563,6 +623,8 @@ def main() -> None:
         raise ValueError("--iters must be > 0.")
     if args.max_correspondences_per_mesh <= 0:
         raise ValueError("--max_correspondences_per_mesh must be > 0.")
+    if args.sam3_mask_erode_iters < 0:
+        raise ValueError("--sam3_mask_erode_iters must be >= 0.")
 
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -571,6 +633,9 @@ def main() -> None:
     script_dir = Path(__file__).resolve().parent
     object_video_dir = resolve_path(args.object_video_dir, script_dir) or (
         script_dir.parent / "Generate_Object_Mesh" / "output" / args.video_name
+    ).resolve()
+    segmentation_video_dir = resolve_path(args.segmentation_video_dir, script_dir) or (
+        script_dir.parent / "Segment_First_Frame" / "output" / args.video_name
     ).resolve()
     depth_video_dir = resolve_path(args.depth_video_dir, script_dir) or (
         script_dir.parent / "Estimate_Depth" / "output" / args.video_name
@@ -585,12 +650,14 @@ def main() -> None:
 
     if not object_video_dir.exists():
         raise FileNotFoundError(f"Object dir not found: {object_video_dir}")
+    if not segmentation_video_dir.exists():
+        raise FileNotFoundError(f"Segmentation dir not found: {segmentation_video_dir}")
     if not depth_video_dir.exists():
         raise FileNotFoundError(f"Depth dir not found: {depth_video_dir}")
     if not human_video_dir.exists():
         raise FileNotFoundError(f"Human dir not found: {human_video_dir}")
 
-    summary_path = object_video_dir / "frame_00_segmentation_summary.json"
+    summary_path = segmentation_video_dir / "frame_00_segmentation_summary.json"
     if not summary_path.exists():
         raise FileNotFoundError(f"Segmentation summary not found: {summary_path}")
     summary = load_json(summary_path)
@@ -651,11 +718,8 @@ def main() -> None:
             continue
 
         obj_name = str(obj["object"])
-        out_dir_raw = Path(str(obj["output_dir"]))
-        if out_dir_raw.is_absolute():
-            obj_dir = out_dir_raw.resolve()
-        else:
-            obj_dir = (object_video_dir / out_dir_raw).resolve()
+        object_dir_name = _object_dir_name_from_summary(obj)
+        obj_dir = (object_video_dir / object_dir_name).resolve()
 
         mesh_path = obj_dir / "mesh_posed.ply"
         if not mesh_path.exists():
@@ -667,7 +731,12 @@ def main() -> None:
             raise KeyError(
                 f"Missing 'mask_file' for object '{obj_name}' in {summary_path}"
             )
-        mask_path = (obj_dir / str(mask_rel)).resolve()
+        seg_obj_dir = _resolve_summary_relative_path(
+            obj.get("output_dir"),
+            segmentation_video_dir,
+        ) or (segmentation_video_dir / object_dir_name).resolve()
+        mask_path = _resolve_summary_relative_path(str(mask_rel), seg_obj_dir)
+        assert mask_path is not None
         if not mask_path.exists():
             raise FileNotFoundError(
                 f"Missing mask for object '{obj_name}': {mask_path}"
@@ -675,6 +744,7 @@ def main() -> None:
 
         verts_src, faces = load_mesh(mesh_path)
         mask = load_binary_mask(mask_path, (depth_h, depth_w))
+        mask = _erode_mask(mask, int(args.sam3_mask_erode_iters))
         source_to_cv = F_P3D_TO_CV.copy().astype(np.float32)
         assets.append(
             MeshAsset(
@@ -702,10 +772,27 @@ def main() -> None:
             f"Human mesh must be a .ply file, got: {human_mesh_path}"
         )
 
-    human_mask_path = resolve_path(args.human_mask, script_dir)
-    human_mask = None
-    if human_mask_path is not None:
-        human_mask = load_binary_mask(human_mask_path, (depth_h, depth_w))
+    human_summary = summary.get("human")
+    if not isinstance(human_summary, dict):
+        raise KeyError(
+            f"Missing top-level 'human' entry in segmentation summary: {summary_path}"
+        )
+    if not human_summary.get("success", False):
+        raise RuntimeError(
+            f"Human segmentation failed according to summary: {summary_path}"
+        )
+    human_mask_rel = human_summary.get("mask_file")
+    if human_mask_rel is None:
+        raise KeyError(f"Missing human.mask_file in segmentation summary: {summary_path}")
+    human_seg_dir = _resolve_summary_relative_path(
+        human_summary.get("output_dir"),
+        segmentation_video_dir,
+    ) or (segmentation_video_dir / "human").resolve()
+    human_mask_path = _resolve_summary_relative_path(str(human_mask_rel), human_seg_dir)
+    if human_mask_path is None or not human_mask_path.exists():
+        raise FileNotFoundError(f"Human mask not found: {human_mask_path}")
+    human_mask = load_binary_mask(human_mask_path, (depth_h, depth_w))
+    human_mask = _erode_mask(human_mask, int(args.sam3_mask_erode_iters))
 
     human_verts_src, human_faces = load_mesh(human_mesh_path)
     assets = [
@@ -793,7 +880,7 @@ def main() -> None:
     corr_dir_root = output_dir / "correspondences"
     optimization_results: list[OptimizationResult] = []
     loss_plot_paths_by_slug: dict[str, dict[str, str]] = {}
-    for asset, corr in zip(assets, correspondences):
+    for asset, corr, verts_cv in zip(assets, correspondences, verts_base_cv_np):
         mesh_corr_dir = corr_dir_root / asset.slug
         if corr.mesh_points_base.shape[0] < int(args.min_correspondences_per_mesh):
             msg = (
@@ -818,6 +905,7 @@ def main() -> None:
         print(f"[{asset.name}] optimizing scale + t_z ...")
         result = optimize_scale_tz(
             corr=corr,
+            full_mesh_points_base=verts_cv,
             intrinsics=k_opt,
             device=device,
             iters=int(args.iters),
@@ -871,11 +959,13 @@ def main() -> None:
         out_mesh_path = meshes_out_dir / f"{asset.slug}.ply"
         save_mesh_ply(out_mesh_path, verts_aligned_out, asset.faces)
 
-        source_to_aligned_cv_4x4 = np.eye(4, dtype=np.float32)
-        source_to_aligned_cv_4x4[:3, :3] = (
-            scale * asset.source_to_cv.astype(np.float32)
+        source_to_output_4x4 = np.eye(4, dtype=np.float32)
+        source_to_output_4x4[:3, :3] = (
+            scale
+            * (cv_to_output @ asset.source_to_cv.astype(np.float32))
         )
-        source_to_aligned_cv_4x4[:3, 3] = np.array([0.0, 0.0, tz], dtype=np.float32)
+        tz_cv = np.array([0.0, 0.0, tz], dtype=np.float32)
+        source_to_output_4x4[:3, 3] = tz_cv @ cv_to_output.transpose(0, 1)
 
         transforms_out.append(
             {
@@ -896,7 +986,7 @@ def main() -> None:
                     "tz_total_m": float(tz),
                     "num_correspondences": int(result.correspondences),
                 },
-                "source_to_aligned_cv_matrix_4x4": source_to_aligned_cv_4x4.tolist(),
+                "source_to_output_matrix_4x4": source_to_output_4x4.tolist(),
             }
         )
 
@@ -912,6 +1002,7 @@ def main() -> None:
         "inputs": {
             "video_name": args.video_name,
             "object_video_dir": str(object_video_dir),
+            "segmentation_video_dir": str(segmentation_video_dir),
             "depth_video_dir": str(depth_video_dir),
             "human_video_dir": str(human_video_dir),
             "summary_json": str(summary_path),
@@ -942,6 +1033,7 @@ def main() -> None:
             "opt_max_side": int(args.opt_max_side),
             "resize_scale_for_optimization": float(resize_scale),
             "output_coordinate": args.output_coord,
+            "sam3_mask_erode_iters": int(args.sam3_mask_erode_iters),
         },
         "energy_terms": {
             "transform": "m_i' = exp(alpha) * m_i + [0, 0, t_z_init + delta_t_z]^T",
