@@ -12,14 +12,15 @@ Pipeline:
     2. Discover frames from Segment_Video/output/<video_xx>/_frames/
     3. Uniformly sample --num_frames frames (default 4)
     4. Estimate camera intrinsics once from the first sampled frame
-    5. For each sampled frame, for each object:
+    5. Build one canonical mesh per object from the first sampled frame only
+    6. For each sampled frame, for each object:
        - Load RGB frame and object mask
-       - Use SAM 3D Objects to estimate object pose
-       - Save that frame's canonical mesh and posed mesh independently
-    6. Save outputs to:
+       - Use SAM 3D Objects to estimate per-frame transforms
+       - Pose the first-frame canonical mesh with that frame's transforms
+    7. Save outputs to:
        Generate_Object_Mesh/output/<video_xx>/
          - <frame_XXXX>/camera_intrinsics.json
-         - <frame_XXXX>/<object>/mesh.ply
+         - <first_frame>/<object>/mesh.ply
          - <frame_XXXX>/<object>/pose.json
          - <frame_XXXX>/<object>/mesh_posed.ply
          - <frame_XXXX>/<object>/mesh_posed_overlay.png
@@ -505,7 +506,7 @@ def process_video_directory(
         <mesh_output_root>/<video_xx>/<frame_XXXX>/
             camera_intrinsics.json
             <object>/
-              mesh.ply
+              mesh.ply  # only written under first sampled frame
               pose.json
               mesh_posed.ply
               mesh_posed_overlay.png
@@ -556,6 +557,48 @@ def process_video_directory(
             f"(focal_for_projection={focal_overlay_mm:.3f}mm, f_scale ignored for projection)"
         )
 
+    canonical_meshes: Dict[str, trimesh.Trimesh] = {}
+    first_frame_outputs: Dict[str, Dict[str, Any]] = {}
+
+    print(f"\nPrecomputing canonical meshes from first sampled frame: {first_frame_stem}")
+    first_frame_output_dir = output_root / first_frame_stem
+    first_frame_output_dir.mkdir(parents=True, exist_ok=True)
+
+    for obj_name, mask_dir in objects:
+        print(f"\n{'=' * 50}")
+        print(f"  Canonical object: {obj_name}  |  Frame: {first_frame_stem}")
+
+        mask_path = mask_dir / f"{first_frame_stem}.png"
+        if not mask_path.exists():
+            print(f"    Warning: mask not found for canonical frame - {mask_path}; skipping object.")
+            continue
+
+        mask_gray = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
+        if mask_gray is None:
+            print(f"    Warning: failed to read mask for canonical frame - {mask_path}; skipping object.")
+            continue
+        mask = (mask_gray > 127).astype(np.uint8)
+
+        try:
+            output = generate_mesh(sam3d, first_frame_rgb, mask)
+            mesh_data = output["mesh"]
+            canonical_mesh = sam3d_mesh_to_trimesh(mesh_data[0])
+            if _get_vertex_colors(canonical_mesh) is None:
+                raise ValueError("Canonical mesh is missing vertex colors.")
+
+            canonical_meshes[obj_name] = canonical_mesh
+            first_frame_outputs[obj_name] = output
+
+            canonical_path = first_frame_output_dir / obj_name / "mesh.ply"
+            save_canonical_mesh(canonical_mesh, canonical_path)
+        except Exception as exc:
+            print(f"    Canonical mesh generation failed: {exc}")
+
+    if not canonical_meshes:
+        raise RuntimeError(
+            f"Failed to build canonical meshes from first sampled frame: {first_frame_stem}"
+        )
+
     for frame_idx, frame_stem in enumerate(sampled):
         print(f"\n{'#' * 60}")
         print(f"Frame {frame_idx + 1}/{len(sampled)}: {frame_stem}")
@@ -586,23 +629,32 @@ def process_video_directory(
             print(f"\n{'=' * 50}")
             print(f"  Object: {obj_name}  |  Frame: {frame_stem}")
 
-            mask_path = mask_dir / f"{frame_stem}.png"
-            if not mask_path.exists():
-                print(f"    Warning: mask not found - {mask_path}; skipping.")
+            canonical_mesh = canonical_meshes.get(obj_name)
+            if canonical_mesh is None:
+                print(
+                    "    Warning: canonical mesh unavailable from first sampled frame; "
+                    "skipping object."
+                )
                 continue
-
-            mask_gray = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
-            if mask_gray is None:
-                print(f"    Warning: failed to read mask - {mask_path}; skipping.")
-                continue
-            mask = (mask_gray > 127).astype(np.uint8)
 
             try:
-                output = generate_mesh(sam3d, image_rgb, mask)
-                mesh_data = output["mesh"]
-                canonical_mesh = sam3d_mesh_to_trimesh(mesh_data[0])
-                if _get_vertex_colors(canonical_mesh) is None:
-                    raise ValueError("Canonical mesh is missing vertex colors.")
+                if frame_stem == first_frame_stem:
+                    output = first_frame_outputs.get(obj_name)
+                    if output is None:
+                        print("    Warning: missing cached first-frame output; skipping object.")
+                        continue
+                else:
+                    mask_path = mask_dir / f"{frame_stem}.png"
+                    if not mask_path.exists():
+                        print(f"    Warning: mask not found - {mask_path}; skipping.")
+                        continue
+
+                    mask_gray = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
+                    if mask_gray is None:
+                        print(f"    Warning: failed to read mask - {mask_path}; skipping.")
+                        continue
+                    mask = (mask_gray > 127).astype(np.uint8)
+                    output = generate_mesh(sam3d, image_rgb, mask)
 
                 pose_data = extract_pose_data(output)
                 print(f"    Rotation (quat): {pose_data['rotation_quat']}")
@@ -612,7 +664,10 @@ def process_video_directory(
 
                 object_frame_dir = frame_output_dir / obj_name
                 object_frame_dir.mkdir(parents=True, exist_ok=True)
-                save_canonical_mesh(canonical_mesh, object_frame_dir / "mesh.ply")
+                if frame_stem == first_frame_stem:
+                    canonical_path = object_frame_dir / "mesh.ply"
+                    if not canonical_path.exists():
+                        save_canonical_mesh(canonical_mesh, canonical_path)
 
                 save_pose_json(
                     output=output,
