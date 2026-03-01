@@ -48,6 +48,15 @@ import cv2
 import numpy as np
 import torch
 import trimesh
+from rendering_utils import (
+    build_object_color_map,
+    camera_k_from_info,
+    ensure_quality_backend_available,
+    render_multi_object_overlay_legacy,
+    render_multi_object_overlay_quality,
+    render_single_object_overlay_legacy,
+    render_single_object_overlay_quality,
+)
 
 # Configuration
 SAM3D_PATH = "/my_workspace/4DHHOI/sam-3d-objects"
@@ -59,9 +68,6 @@ KEYS_TO_SAVE = {
     "scale",
     "translation_scale",
 }
-
-# P3D camera coords (+X left, +Y up, +Z forward) -> OpenCV (+X right, +Y down, +Z forward)
-F_P3D_TO_CV = np.diag([-1.0, -1.0, 1.0]).astype(np.float32)
 
 SENSOR_WIDTH_MM = 36.0
 SENSOR_HEIGHT_MM = 24.0
@@ -142,6 +148,23 @@ def scale_camera_intrinsics(camera_info: Dict[str, Any], f_scale: float) -> Dict
     return scaled
 
 
+def compute_overlay_focal_scale(
+    camera_info: Dict[str, Any],
+    focal_length_mm_override: Optional[float],
+) -> float:
+    """Convert focal override in mm into an fx/fy scale for pixel-space K."""
+    if focal_length_mm_override is None:
+        return 1.0
+
+    blender_rec = camera_info.get("blender_recommendation", {})
+    base_lens_mm = float(blender_rec.get("lens_mm", 0.0))
+    if base_lens_mm <= 0.0:
+        raise ValueError(
+            "camera_info.blender_recommendation.lens_mm must be > 0 to use --focal_length override."
+        )
+    return float(focal_length_mm_override) / base_lens_mm
+
+
 # =============================================================================
 # Tensor / numpy helpers
 # =============================================================================
@@ -177,36 +200,8 @@ def _to_jsonable(value: Any) -> Any:
 # =============================================================================
 
 
-def _project_mesh_vertices(
-    mesh: trimesh.Trimesh,
-    image_height: int,
-    image_width: int,
-    focal_length_mm: float,
-) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
-    """Project visible Z-up mesh vertices to pixel coordinates."""
-    vertices = np.asarray(mesh.vertices, dtype=np.float32)
-    if vertices.size == 0:
-        return None
-
-    valid_mask = vertices[:, 2] > 0.1
-    if not np.any(valid_mask):
-        return None
-
-    pts_cv = vertices[valid_mask] @ F_P3D_TO_CV.T
-    z = pts_cv[:, 2]
-    focal_px = focal_length_mm * image_width / SENSOR_WIDTH_MM
-    cx, cy = image_width / 2.0, image_height / 2.0
-
-    u = ((pts_cv[:, 0] * focal_px) / z + cx).astype(np.int32)
-    v = ((pts_cv[:, 1] * focal_px) / z + cy).astype(np.int32)
-
-    in_view = (u >= 0) & (u < image_width) & (v >= 0) & (v < image_height)
-    if not np.any(in_view):
-        return None
-    return u[in_view], v[in_view], valid_mask, in_view
-
-
 def _get_vertex_colors(mesh: trimesh.Trimesh) -> Optional[np.ndarray]:
+    """Read vertex colors from trimesh."""
     colors = getattr(getattr(mesh, "visual", None), "vertex_colors", None)
     if colors is None:
         return None
@@ -214,67 +209,6 @@ def _get_vertex_colors(mesh: trimesh.Trimesh) -> Optional[np.ndarray]:
     if colors_np.ndim != 2 or colors_np.shape[0] != len(mesh.vertices) or colors_np.shape[1] < 3:
         return None
     return colors_np[:, :3]
-
-
-def _draw_projected_vertices(
-    canvas_bgr: np.ndarray,
-    u: np.ndarray,
-    v: np.ndarray,
-    point_radius: int,
-    vertex_colors: Optional[np.ndarray],
-    valid_mask: Optional[np.ndarray],
-    in_view: Optional[np.ndarray],
-) -> None:
-    """Draw projected points using mesh vertex colors only."""
-    if vertex_colors is None or valid_mask is None or in_view is None:
-        raise ValueError("Mesh is missing vertex colors; fallback coloring is disabled.")
-
-    colors = np.asarray(vertex_colors)[valid_mask][in_view]
-    for x, y, c in zip(u, v, colors):
-        cv2.circle(
-            canvas_bgr,
-            (int(x), int(y)),
-            point_radius,
-            (int(c[2]), int(c[1]), int(c[0])),
-            -1,
-        )
-
-
-def render_posed_mesh_overlay(
-    image_rgb: np.ndarray,
-    posed_mesh: trimesh.Trimesh,
-    focal_length_mm: float,
-    point_radius: int = 1,
-) -> np.ndarray:
-    """Render Z-up posed mesh vertices overlaid on an image (returns BGR)."""
-    h, w = image_rgb.shape[:2]
-    result = cv2.cvtColor(image_rgb.copy(), cv2.COLOR_RGB2BGR)
-    proj = _project_mesh_vertices(posed_mesh, h, w, focal_length_mm)
-    if proj is None:
-        return result
-    u, v, vm, iv = proj
-    _draw_projected_vertices(result, u, v, point_radius, _get_vertex_colors(posed_mesh), vm, iv)
-    return result
-
-
-def render_all_posed_meshes_overlay(
-    image_rgb: np.ndarray,
-    posed_meshes: List[trimesh.Trimesh],
-    focal_length_mm: float,
-    point_radius: int = 1,
-) -> np.ndarray:
-    """Render multiple Z-up posed meshes overlaid on a single image (returns BGR)."""
-    h, w = image_rgb.shape[:2]
-    result = cv2.cvtColor(image_rgb.copy(), cv2.COLOR_RGB2BGR)
-
-    for mesh in posed_meshes:
-        proj = _project_mesh_vertices(mesh, h, w, focal_length_mm)
-        if proj is None:
-            continue
-        u, v, vm, iv = proj
-        _draw_projected_vertices(result, u, v, point_radius, _get_vertex_colors(mesh), vm, iv)
-
-    return result
 
 
 # =============================================================================
@@ -422,6 +356,9 @@ def save_posed_mesh_and_overlay(
     output_dir: Path,
     image_rgb: np.ndarray,
     focal_length_mm: float,
+    camera_k: np.ndarray,
+    overlay_quality: str,
+    object_color_bgr: Tuple[int, int, int],
 ) -> None:
     """Save posed mesh and overlay image for one frame/object pair."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -430,7 +367,23 @@ def save_posed_mesh_and_overlay(
     posed_mesh.export(str(posed_mesh_path))
     print(f"    Saved: {posed_mesh_path.name}")
 
-    overlay = render_posed_mesh_overlay(image_rgb, posed_mesh, focal_length_mm)
+    if overlay_quality == "quality":
+        overlay = render_single_object_overlay_quality(
+            image_rgb=image_rgb,
+            posed_mesh=posed_mesh,
+            camera_k=camera_k,
+            color_bgr=object_color_bgr,
+            fill_alpha=0.35,
+            contour_thickness=2,
+        )
+    else:
+        overlay = render_single_object_overlay_legacy(
+            image_rgb=image_rgb,
+            posed_mesh=posed_mesh,
+            focal_length_mm=focal_length_mm,
+            point_radius=1,
+        )
+
     overlay_path = output_dir / "mesh_posed_overlay.png"
     cv2.imwrite(str(overlay_path), overlay)
     print(f"    Saved: {overlay_path.name}")
@@ -497,6 +450,7 @@ def process_video_directory(
     num_frames: int = 4,
     focal_length_mm: Optional[float] = None,
     f_scale: float = 0.8,
+    overlay_quality: str = "quality",
 ) -> None:
     """Generate meshes for uniformly sampled frames.
 
@@ -528,6 +482,7 @@ def process_video_directory(
     print(f"Total frames: {len(frame_stems)}, sampled: {len(sampled)}")
     print(f"Sampled frames: {sampled}")
     print(f"Output: {output_root}\n")
+    object_color_map = build_object_color_map([name for name, _ in objects])
 
     first_frame_stem = sampled[0]
     first_frame_path = find_frame_image_path(frames_dir, first_frame_stem)
@@ -545,15 +500,17 @@ def process_video_directory(
     if focal_length_mm is None:
         camera_info_shared = scale_camera_intrinsics(camera_info_shared, f_scale)
         focal_overlay_mm = float(camera_info_shared["blender_recommendation"]["lens_mm"])
+        overlay_focal_scale = 1.0
         print(
             "Focal mode: auto+f_scale "
             f"(f_scale={f_scale}, focal_for_projection={focal_overlay_mm:.3f}mm)"
         )
     else:
         focal_overlay_mm = float(focal_length_mm)
+        overlay_focal_scale = compute_overlay_focal_scale(camera_info_shared, focal_overlay_mm)
         print(
             "Focal mode: explicit --focal_length "
-            f"(focal_for_projection={focal_overlay_mm:.3f}mm, f_scale ignored for projection)"
+            f"(focal_for_projection={focal_overlay_mm:.3f}mm, focal_scale={overlay_focal_scale:.4f})"
         )
 
     for frame_idx, frame_stem in enumerate(sampled):
@@ -579,8 +536,10 @@ def process_video_directory(
         with cam_json.open("w", encoding="utf-8") as f:
             json.dump(camera_info_shared, f, indent=2)
         print(f"  Saved frame intrinsics: {cam_json}")
+        camera_k_overlay = camera_k_from_info(camera_info_shared, focal_scale=overlay_focal_scale)
 
         posed_meshes: List[trimesh.Trimesh] = []
+        posed_mesh_colors: List[Tuple[int, int, int]] = []
 
         for obj_name, mask_dir in objects:
             print(f"\n{'=' * 50}")
@@ -633,8 +592,12 @@ def process_video_directory(
                     output_dir=object_frame_dir,
                     image_rgb=image_rgb,
                     focal_length_mm=focal_overlay_mm,
+                    camera_k=camera_k_overlay,
+                    overlay_quality=overlay_quality,
+                    object_color_bgr=object_color_map[obj_name],
                 )
                 posed_meshes.append(posed_mesh)
+                posed_mesh_colors.append(object_color_map[obj_name])
 
             except Exception as exc:
                 print(f"    Mesh generation failed: {exc}")
@@ -643,11 +606,22 @@ def process_video_directory(
             print(f"\n{'=' * 50}")
             print(f"Generating combined overlay for {frame_stem}...")
             try:
-                overlay = render_all_posed_meshes_overlay(
-                    image_rgb=image_rgb,
-                    posed_meshes=posed_meshes,
-                    focal_length_mm=focal_overlay_mm,
-                )
+                if overlay_quality == "quality":
+                    overlay = render_multi_object_overlay_quality(
+                        image_rgb=image_rgb,
+                        posed_meshes=posed_meshes,
+                        camera_k=camera_k_overlay,
+                        colors_bgr=posed_mesh_colors,
+                        fill_alpha=0.35,
+                        contour_thickness=2,
+                    )
+                else:
+                    overlay = render_multi_object_overlay_legacy(
+                        image_rgb=image_rgb,
+                        posed_meshes=posed_meshes,
+                        focal_length_mm=focal_overlay_mm,
+                        point_radius=1,
+                    )
                 overlay_path = frame_output_dir / "all_objects_overlay.png"
                 cv2.imwrite(str(overlay_path), overlay)
                 print(f"Saved: {overlay_path}")
@@ -694,6 +668,13 @@ def main():
         default=0.9,
         help="Scale factor for auto-estimated fx/fy/lens from first sampled frame (default: 0.8).",
     )
+    parser.add_argument(
+        "--overlay_quality",
+        type=str,
+        default="quality",
+        choices=["quality", "legacy"],
+        help="Overlay renderer preset: quality=PyTorch3D silhouette+outline, legacy=point projection.",
+    )
     args = parser.parse_args()
 
     input_dir = Path(args.input_dir)
@@ -706,6 +687,9 @@ def main():
         output_dir = Path(__file__).parent / output_dir
     output_dir = output_dir.resolve()
 
+    if args.overlay_quality == "quality":
+        ensure_quality_backend_available()
+
     print("Loading SAM 3D Objects...")
     sam3d = load_sam3d()
     print("SAM 3D Objects loaded successfully\n")
@@ -715,6 +699,7 @@ def main():
     print(f"Output: {output_dir}")
     print(f"Focal length: {focal_msg}")
     print(f"Focal scale (auto mode only): {args.f_scale}")
+    print(f"Overlay quality: {args.overlay_quality}")
     print(f"Num frames: {args.num_frames}\n")
 
     process_video_directory(
@@ -724,6 +709,7 @@ def main():
         num_frames=args.num_frames,
         focal_length_mm=args.focal_length,
         f_scale=args.f_scale,
+        overlay_quality=args.overlay_quality,
     )
 
     print(f"\n{'=' * 50}")
