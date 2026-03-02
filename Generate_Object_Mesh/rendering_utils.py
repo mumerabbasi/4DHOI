@@ -8,10 +8,6 @@ import cv2
 import numpy as np
 import trimesh
 
-# P3D camera coords (+X left, +Y up, +Z forward) -> OpenCV (+X right, +Y down, +Z forward)
-F_P3D_TO_CV = np.diag([-1.0, -1.0, 1.0]).astype(np.float32)
-SENSOR_WIDTH_MM = 36.0
-
 # High-contrast palette for object overlays (BGR).
 _OBJECT_PALETTE_BRG: List[Tuple[int, int, int]] = [
     (0, 255, 255),   # yellow
@@ -31,8 +27,7 @@ def ensure_quality_backend_available() -> None:
         _import_pytorch3d()
     except Exception as exc:
         raise RuntimeError(
-            "Overlay renderer 'quality' requires PyTorch3D. "
-            "Install pytorch3d or run with --overlay_quality legacy."
+            "Overlay rendering requires PyTorch3D. Install pytorch3d."
         ) from exc
 
 
@@ -198,132 +193,27 @@ def render_multi_object_overlay_quality(
     contour_thickness: int = 2,
     device="cuda",
 ) -> np.ndarray:
-    """Quality multi-object overlay with depth-aware compositing."""
+    """Quality multi-object overlay with sequential mask compositing."""
     h, w = image_rgb.shape[:2]
     result = cv2.cvtColor(image_rgb.copy(), cv2.COLOR_RGB2BGR)
     if not posed_meshes:
         return result
 
     rasterizer = build_p3d_rasterizer_from_k(camera_k, w, h, device=device)
-    all_masks: List[np.ndarray] = []
-    all_zbufs: List[np.ndarray] = []
-
-    for mesh in posed_meshes:
+    out = result
+    for i, mesh in enumerate(posed_meshes):
         verts = np.asarray(mesh.vertices, dtype=np.float32)
         faces = np.asarray(mesh.faces, dtype=np.int64)
-        mask, zbuf = rasterize_mesh_silhouette(verts, faces, rasterizer)
-        all_masks.append(mask)
-        all_zbufs.append(zbuf)
-
-    z_stack = np.stack(all_zbufs, axis=0)
-    valid_any = np.isfinite(z_stack).any(axis=0)
-    nearest_idx = np.argmin(z_stack, axis=0)
-
-    out = result
-    for i, _ in enumerate(posed_meshes):
-        visible_mask = valid_any & (nearest_idx == i)
+        mask, _ = rasterize_mesh_silhouette(verts, faces, rasterizer)
         color = colors_bgr[i] if i < len(colors_bgr) else _OBJECT_PALETTE_BRG[i % len(_OBJECT_PALETTE_BRG)]
         out = draw_mask_outline_overlay(
             out,
-            visible_mask.astype(np.uint8),
+            mask.astype(np.uint8),
             color_bgr=color,
             fill_alpha=fill_alpha,
             contour_thickness=contour_thickness,
         )
     return out
-
-
-def render_single_object_overlay_legacy(
-    image_rgb: np.ndarray,
-    posed_mesh: trimesh.Trimesh,
-    focal_length_mm: float,
-    point_radius: int = 1,
-) -> np.ndarray:
-    """Legacy overlay: project colored vertices as points."""
-    h, w = image_rgb.shape[:2]
-    result = cv2.cvtColor(image_rgb.copy(), cv2.COLOR_RGB2BGR)
-    proj = _project_mesh_vertices_legacy(posed_mesh, h, w, focal_length_mm)
-    if proj is None:
-        return result
-    u, v, vm, iv = proj
-    _draw_projected_vertices_legacy(result, u, v, point_radius, _get_vertex_colors(posed_mesh), vm, iv)
-    return result
-
-
-def render_multi_object_overlay_legacy(
-    image_rgb: np.ndarray,
-    posed_meshes: Sequence[trimesh.Trimesh],
-    focal_length_mm: float,
-    point_radius: int = 1,
-) -> np.ndarray:
-    """Legacy overlay for multiple meshes with per-vertex colors."""
-    h, w = image_rgb.shape[:2]
-    result = cv2.cvtColor(image_rgb.copy(), cv2.COLOR_RGB2BGR)
-    for mesh in posed_meshes:
-        proj = _project_mesh_vertices_legacy(mesh, h, w, focal_length_mm)
-        if proj is None:
-            continue
-        u, v, vm, iv = proj
-        _draw_projected_vertices_legacy(result, u, v, point_radius, _get_vertex_colors(mesh), vm, iv)
-    return result
-
-
-def _project_mesh_vertices_legacy(
-    mesh: trimesh.Trimesh,
-    image_height: int,
-    image_width: int,
-    focal_length_mm: float,
-) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
-    vertices = np.asarray(mesh.vertices, dtype=np.float32)
-    if vertices.size == 0:
-        return None
-
-    valid_mask = vertices[:, 2] > 0.1
-    if not np.any(valid_mask):
-        return None
-
-    pts_cv = vertices[valid_mask] @ F_P3D_TO_CV.T
-    z = pts_cv[:, 2]
-    focal_px = float(focal_length_mm) * float(image_width) / SENSOR_WIDTH_MM
-    cx, cy = image_width / 2.0, image_height / 2.0
-    u = ((pts_cv[:, 0] * focal_px) / z + cx).astype(np.int32)
-    v = ((pts_cv[:, 1] * focal_px) / z + cy).astype(np.int32)
-    in_view = (u >= 0) & (u < image_width) & (v >= 0) & (v < image_height)
-    if not np.any(in_view):
-        return None
-    return u[in_view], v[in_view], valid_mask, in_view
-
-
-def _get_vertex_colors(mesh: trimesh.Trimesh) -> Optional[np.ndarray]:
-    colors = getattr(getattr(mesh, "visual", None), "vertex_colors", None)
-    if colors is None:
-        return None
-    colors_np = np.asarray(colors)
-    if colors_np.ndim != 2 or colors_np.shape[0] != len(mesh.vertices) or colors_np.shape[1] < 3:
-        return None
-    return colors_np[:, :3]
-
-
-def _draw_projected_vertices_legacy(
-    canvas_bgr: np.ndarray,
-    u: np.ndarray,
-    v: np.ndarray,
-    point_radius: int,
-    vertex_colors: Optional[np.ndarray],
-    valid_mask: Optional[np.ndarray],
-    in_view: Optional[np.ndarray],
-) -> None:
-    if vertex_colors is None or valid_mask is None or in_view is None:
-        raise ValueError("Mesh is missing vertex colors; fallback coloring is disabled.")
-    colors = np.asarray(vertex_colors)[valid_mask][in_view]
-    for x, y, c in zip(u, v, colors):
-        cv2.circle(
-            canvas_bgr,
-            (int(x), int(y)),
-            int(point_radius),
-            (int(c[2]), int(c[1]), int(c[0])),
-            -1,
-        )
 
 
 def _import_pytorch3d():

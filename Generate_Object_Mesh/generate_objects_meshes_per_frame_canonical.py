@@ -1,9 +1,9 @@
-"""Generate meshes by reusing first-frame canonical meshes across sampled frames."""
+"""Generate meshes independently per sampled frame (new canonical per frame)."""
 
 import argparse
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import cv2
 import trimesh
@@ -120,40 +120,6 @@ def process_video_directory(
             f"(focal_for_projection={focal_overlay_mm:.3f}mm, focal_scale={overlay_focal_scale:.4f})"
         )
 
-    canonical_meshes: Dict[str, trimesh.Trimesh] = {}
-    first_frame_outputs: Dict[str, Dict[str, Any]] = {}
-
-    print(f"\nPrecomputing canonical meshes from first sampled frame: {first_frame_stem}")
-    first_frame_output_dir = output_root / first_frame_stem
-    first_frame_output_dir.mkdir(parents=True, exist_ok=True)
-
-    for obj_name, mask_dir in objects:
-        print(f"\n{'=' * 50}")
-        print(f"  Canonical object: {obj_name}  |  Frame: {first_frame_stem}")
-
-        mask_path = mask_dir / f"{first_frame_stem}.png"
-        if not mask_path.exists():
-            print(f"    Warning: mask not found for canonical frame - {mask_path}; skipping object.")
-            continue
-
-        mask_gray = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
-        if mask_gray is None:
-            print(f"    Warning: failed to read mask for canonical frame - {mask_path}; skipping object.")
-            continue
-        mask = (mask_gray > 127).astype("uint8")
-
-        try:
-            output = generate_mesh(sam3d, first_frame_rgb, mask)
-            canonical_mesh = sam3d_mesh_to_trimesh(output["mesh"][0])
-            canonical_meshes[obj_name] = canonical_mesh
-            first_frame_outputs[obj_name] = output
-            save_canonical_mesh(canonical_mesh, first_frame_output_dir / obj_name / "mesh.ply")
-        except Exception as exc:
-            print(f"    Canonical mesh generation failed: {exc}")
-
-    if not canonical_meshes:
-        raise RuntimeError(f"Failed to build canonical meshes from first sampled frame: {first_frame_stem}")
-
     for frame_idx, frame_stem in enumerate(sampled):
         print(f"\n{'#' * 60}")
         print(f"Frame {frame_idx + 1}/{len(sampled)}: {frame_stem}")
@@ -186,30 +152,22 @@ def process_video_directory(
             print(f"\n{'=' * 50}")
             print(f"  Object: {obj_name}  |  Frame: {frame_stem}")
 
-            canonical_mesh = canonical_meshes.get(obj_name)
-            if canonical_mesh is None:
-                print("    Warning: canonical mesh unavailable from first sampled frame; skipping object.")
+            mask_path = mask_dir / f"{frame_stem}.png"
+            if not mask_path.exists():
+                print(f"    Warning: mask not found - {mask_path}; skipping.")
                 continue
 
-            try:
-                if frame_stem == first_frame_stem:
-                    output = first_frame_outputs.get(obj_name)
-                    if output is None:
-                        print("    Warning: missing cached first-frame output; skipping object.")
-                        continue
-                else:
-                    mask_path = mask_dir / f"{frame_stem}.png"
-                    if not mask_path.exists():
-                        print(f"    Warning: mask not found - {mask_path}; skipping.")
-                        continue
-                    mask_gray = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
-                    if mask_gray is None:
-                        print(f"    Warning: failed to read mask - {mask_path}; skipping.")
-                        continue
-                    mask = (mask_gray > 127).astype("uint8")
-                    output = generate_mesh(sam3d, image_rgb, mask)
+            mask_gray = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
+            if mask_gray is None:
+                print(f"    Warning: failed to read mask - {mask_path}; skipping.")
+                continue
+            mask = (mask_gray > 127).astype("uint8")
 
+            try:
+                output = generate_mesh(sam3d, image_rgb, mask)
+                canonical_mesh = sam3d_mesh_to_trimesh(output["mesh"][0])
                 pose_data = extract_pose_data(output)
+
                 print(f"    Rotation (quat): {pose_data['rotation_quat']}")
                 print(f"    Rotation (euler xyz deg): {pose_data['euler_xyz_deg']}")
                 print(f"    Translation: {pose_data['translation']}")
@@ -217,11 +175,7 @@ def process_video_directory(
 
                 object_frame_dir = frame_output_dir / obj_name
                 object_frame_dir.mkdir(parents=True, exist_ok=True)
-
-                if frame_stem == first_frame_stem:
-                    canonical_path = object_frame_dir / "mesh.ply"
-                    if not canonical_path.exists():
-                        save_canonical_mesh(canonical_mesh, canonical_path)
+                save_canonical_mesh(canonical_mesh, object_frame_dir / "mesh.ply")
 
                 save_pose_json(
                     output=output,
@@ -238,7 +192,6 @@ def process_video_directory(
                     pose_data["translation"],
                     pose_data["scale"],
                 )
-
                 save_posed_mesh_and_overlay(
                     posed_mesh=posed_mesh,
                     output_dir=object_frame_dir,
@@ -246,7 +199,6 @@ def process_video_directory(
                     camera_k=camera_k_overlay,
                     object_color_bgr=object_color_map[obj_name],
                 )
-
                 posed_meshes.append(posed_mesh)
                 posed_mesh_colors.append(object_color_map[obj_name])
             except Exception as exc:
@@ -284,7 +236,7 @@ def main() -> None:
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="./output_first_frame_canonical",
+        default="./output_per_frame_canonical",
         help="Mesh output root (<output_dir>/<video_xx>/).",
     )
     parser.add_argument(

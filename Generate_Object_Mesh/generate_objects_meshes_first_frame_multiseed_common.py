@@ -9,17 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import cv2
 import numpy as np
 import trimesh
-from rendering_utils import (
-    build_object_color_map,
-    camera_k_from_info,
-    ensure_quality_backend_available,
-    render_multi_object_overlay_legacy,
-    render_multi_object_overlay_quality,
-    render_single_object_overlay_legacy,
-    render_single_object_overlay_quality,
-)
-
-from generate_objects_meshes_first_frame_canonical import (
+from mesh_generation_utils import (
     compute_overlay_focal_scale,
     create_posed_mesh,
     discover_frames,
@@ -27,100 +17,40 @@ from generate_objects_meshes_first_frame_canonical import (
     estimate_camera_intrinsics,
     extract_pose_data,
     find_frame_image_path,
+    generate_mesh,
     load_sam3d,
     sam3d_mesh_to_trimesh,
+    save_pose_json,
     scale_camera_intrinsics,
 )
-
-KEYS_TO_SAVE = {
-    "6drotation_normalized",
-    "rotation",
-    "translation",
-    "scale",
-    "translation_scale",
-}
-
-
-def _to_numpy(value: Any) -> Any:
-    if value is None:
-        return None
-    if hasattr(value, "detach"):
-        value = value.detach()
-    if hasattr(value, "cpu"):
-        value = value.cpu()
-    if hasattr(value, "numpy"):
-        value = value.numpy()
-    return value
-
-
-def _to_jsonable(value: Any) -> Any:
-    if value is None:
-        return None
-    value = _to_numpy(value)
-    if isinstance(value, np.ndarray):
-        return float(value.reshape(-1)[0]) if value.size == 1 else value.tolist()
-    if isinstance(value, (np.floating, np.integer)):
-        return value.item()
-    return value
-
+from rendering_utils import (
+    build_object_color_map,
+    camera_k_from_info,
+    ensure_quality_backend_available,
+    render_multi_object_overlay_quality,
+    render_single_object_overlay_quality,
+)
 
 def generate_mesh_with_seed(inference: Any, image: np.ndarray, mask: np.ndarray, seed: int) -> Dict[str, Any]:
     """Generate SAM3D output for a specific seed."""
-    if image.dtype != np.uint8:
-        image = (image * 255).astype(np.uint8)
-    if mask.dtype != bool:
-        mask = mask > 0
-    return inference(image, mask, seed=int(seed))
-
-
-def save_pose_json_with_seed(
-    output: Dict[str, Any],
-    pose_data: Dict[str, np.ndarray],
-    output_path: Path,
-    focal_length_mm: float,
-    camera_intrinsics_json: Path,
-    seed: int,
-) -> None:
-    transform_data: Dict[str, Any] = {"seed": int(seed)}
-    for key in sorted(KEYS_TO_SAVE):
-        if key in output:
-            transform_data[key] = _to_jsonable(output[key])
-
-    transform_data["rotation_quaternion_wxyz"] = pose_data["rotation_quat"].tolist()
-    transform_data["rotation_euler_xyz_degrees"] = pose_data["euler_xyz_deg"].tolist()
-    transform_data["focal_length_mm_used_for_overlay"] = float(focal_length_mm)
-    transform_data["camera_intrinsics_json"] = str(camera_intrinsics_json)
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with output_path.open("w", encoding="utf-8") as f:
-        json.dump(transform_data, f, indent=2)
+    return generate_mesh(inference, image, mask, seed=seed)
 
 
 def _save_single_overlay(
     image_rgb: np.ndarray,
     posed_mesh: trimesh.Trimesh,
     overlay_path: Path,
-    overlay_quality: str,
     color_bgr: Tuple[int, int, int],
     camera_k: np.ndarray,
-    focal_length_mm: float,
 ) -> None:
-    if overlay_quality == "quality":
-        overlay = render_single_object_overlay_quality(
-            image_rgb=image_rgb,
-            posed_mesh=posed_mesh,
-            camera_k=camera_k,
-            color_bgr=color_bgr,
-            fill_alpha=0.35,
-            contour_thickness=2,
-        )
-    else:
-        overlay = render_single_object_overlay_legacy(
-            image_rgb=image_rgb,
-            posed_mesh=posed_mesh,
-            focal_length_mm=focal_length_mm,
-            point_radius=1,
-        )
+    overlay = render_single_object_overlay_quality(
+        image_rgb=image_rgb,
+        posed_mesh=posed_mesh,
+        camera_k=camera_k,
+        color_bgr=color_bgr,
+        fill_alpha=0.35,
+        contour_thickness=2,
+    )
     cv2.imwrite(str(overlay_path), overlay)
 
 
@@ -140,7 +70,6 @@ def run_first_frame_multiseed(
     seed_stride: int,
     focal_length_mm: Optional[float],
     f_scale: float,
-    overlay_quality: str,
 ) -> None:
     """Run first-frame multi-seed generation in one of two modes.
 
@@ -155,8 +84,7 @@ def run_first_frame_multiseed(
         raise ValueError(f"--num_seeds must be > 0, got {num_seeds}")
     if seed_stride <= 0:
         raise ValueError(f"--seed_stride must be > 0, got {seed_stride}")
-    if overlay_quality == "quality":
-        ensure_quality_backend_available()
+    ensure_quality_backend_available()
 
     objects = discover_objects(input_dir)
     frame_stems = discover_frames(input_dir)
@@ -165,7 +93,7 @@ def run_first_frame_multiseed(
     first_seed = seeds[0]
 
     video_name = input_dir.name
-    output_root = mesh_output_root.resolve()
+    output_root = (mesh_output_root / video_name).resolve()
     output_root.mkdir(parents=True, exist_ok=True)
 
     frames_dir = input_dir / "_frames"
@@ -283,23 +211,21 @@ def run_first_frame_multiseed(
                 if seed == canonical_seed:
                     # Shared-canonical mode stores canonical mesh once, under the canonical seed only.
                     canonical_mesh_shared.export(str(seed_dir / "mesh.ply"))
-                save_pose_json_with_seed(
+                save_pose_json(
                     output=output,
                     pose_data=pose_data,
                     output_path=seed_dir / "pose.json",
                     focal_length_mm=focal_overlay_mm,
                     camera_intrinsics_json=camera_json_paths[seed],
-                    seed=seed,
+                    extra_fields={"seed": int(seed)},
                 )
                 posed_mesh.export(str(seed_dir / "mesh_posed.ply"))
                 _save_single_overlay(
                     image_rgb=image_rgb,
                     posed_mesh=posed_mesh,
                     overlay_path=seed_dir / "mesh_posed_overlay.png",
-                    overlay_quality=overlay_quality,
                     color_bgr=object_color_map[obj_name],
                     camera_k=camera_k_overlay,
-                    focal_length_mm=focal_overlay_mm,
                 )
                 seed_overlay_meshes[seed].append(posed_mesh)
                 seed_overlay_colors[seed].append(object_color_map[obj_name])
@@ -322,23 +248,21 @@ def run_first_frame_multiseed(
                 seed_dir.mkdir(parents=True, exist_ok=True)
                 _write_camera_intrinsics_json(seed_dir / "camera_intrinsics.json", camera_info)
                 canonical_mesh_seed.export(str(seed_dir / "mesh.ply"))
-                save_pose_json_with_seed(
+                save_pose_json(
                     output=output,
                     pose_data=pose_data,
                     output_path=seed_dir / "pose.json",
                     focal_length_mm=focal_overlay_mm,
                     camera_intrinsics_json=camera_json_paths[seed],
-                    seed=seed,
+                    extra_fields={"seed": int(seed)},
                 )
                 posed_mesh.export(str(seed_dir / "mesh_posed.ply"))
                 _save_single_overlay(
                     image_rgb=image_rgb,
                     posed_mesh=posed_mesh,
                     overlay_path=seed_dir / "mesh_posed_overlay.png",
-                    overlay_quality=overlay_quality,
                     color_bgr=object_color_map[obj_name],
                     camera_k=camera_k_overlay,
-                    focal_length_mm=focal_overlay_mm,
                 )
                 seed_overlay_meshes[seed].append(posed_mesh)
                 seed_overlay_colors[seed].append(object_color_map[obj_name])
@@ -348,22 +272,14 @@ def run_first_frame_multiseed(
         if not posed_meshes:
             continue
 
-        if overlay_quality == "quality":
-            overlay = render_multi_object_overlay_quality(
-                image_rgb=image_rgb,
-                posed_meshes=posed_meshes,
-                camera_k=camera_k_overlay,
-                colors_bgr=seed_overlay_colors[seed],
-                fill_alpha=0.35,
-                contour_thickness=2,
-            )
-        else:
-            overlay = render_multi_object_overlay_legacy(
-                image_rgb=image_rgb,
-                posed_meshes=posed_meshes,
-                focal_length_mm=focal_overlay_mm,
-                point_radius=1,
-            )
+        overlay = render_multi_object_overlay_quality(
+            image_rgb=image_rgb,
+            posed_meshes=posed_meshes,
+            camera_k=camera_k_overlay,
+            colors_bgr=seed_overlay_colors[seed],
+            fill_alpha=0.35,
+            contour_thickness=2,
+        )
         cv2.imwrite(str(seed_output_dirs[seed] / "all_objects_overlay.png"), overlay)
 
 def resolve_path(path_str: str) -> Path:

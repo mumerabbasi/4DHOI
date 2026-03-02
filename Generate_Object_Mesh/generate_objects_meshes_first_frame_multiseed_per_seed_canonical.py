@@ -29,7 +29,7 @@ def main() -> None:
         "--output_dir",
         type=str,
         default="./output_first_frame_multiseed_per_seed_canonical",
-        help="Output root (<output_dir>/<video>/<first_frame>/...).",
+        help="Output root (<output_dir>/<video>/seed_xxxx/...).",
     )
     parser.add_argument("--num_seeds", type=int, default=8, help="Number of seeds to run.")
     parser.add_argument("--seed_start", type=int, default=42, help="Starting seed.")
@@ -45,13 +45,6 @@ def main() -> None:
         type=float,
         default=0.9,
         help="Scale for auto-estimated intrinsics in auto focal mode.",
-    )
-    parser.add_argument(
-        "--overlay_quality",
-        type=str,
-        default="quality",
-        choices=["quality", "legacy"],
-        help="Overlay renderer preset.",
     )
     args = parser.parse_args()
 
@@ -69,7 +62,6 @@ def main() -> None:
         seed_stride=int(args.seed_stride),
         focal_length_mm=args.focal_length,
         f_scale=float(args.f_scale),
-        overlay_quality=args.overlay_quality,
     )
 
     print("\nDone!")
