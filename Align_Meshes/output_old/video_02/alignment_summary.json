@@ -7,7 +7,7 @@
     "human_video_dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_02",
     "summary_json": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_02/frame_00_segmentation_summary.json",
     "depth_npy": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02/metric_depth/metric_depth.npy",
-    "pose_json": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02/pose_estimation.json",
+    "depth_intrinsics_json": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02/camera_intrinsics.json",
     "frame_00": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02/frame_00.png"
   },
   "camera": {
@@ -126,9 +126,9 @@
       "status": "optimized",
       "message": null,
       "num_correspondences": 45371,
-      "final_scale": 1.3540076395221032,
-      "final_tz_m": -0.00044501188676804304,
-      "final_total_loss": 0.005016743671149015,
+      "final_scale": 1.3540087290419907,
+      "final_tz_m": -0.00044524669647216797,
+      "final_total_loss": 0.005016752518713474,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/loss_curves/human_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/loss_curves/human_loss_total.png",
@@ -146,9 +146,9 @@
       "status": "optimized",
       "message": null,
       "num_correspondences": 1491,
-      "final_scale": 2.691034794879784,
-      "final_tz_m": 0.0002587832568679005,
-      "final_total_loss": 0.009940181858837605,
+      "final_scale": 2.691012980816667,
+      "final_tz_m": 0.00025903130881488323,
+      "final_total_loss": 0.00994564313441515,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/loss_curves/dumbbell_(left_hand)_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/loss_curves/dumbbell_(left_hand)_loss_total.png",
@@ -166,9 +166,9 @@
       "status": "optimized",
       "message": null,
       "num_correspondences": 871,
-      "final_scale": 2.4031162294061557,
-      "final_tz_m": 0.00011169330537086353,
-      "final_total_loss": 0.004450238309800625,
+      "final_scale": 2.403106919026393,
+      "final_tz_m": 0.00011169993376825005,
+      "final_total_loss": 0.00445238221436739,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/loss_curves/dumbbell_(right_hand)_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/loss_curves/dumbbell_(right_hand)_loss_total.png",

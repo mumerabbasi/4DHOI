@@ -2,10 +2,9 @@
   "inputs": {
     "video_name": "video_02",
     "object_video_dir": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02",
-    "segmentation_video_dir": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_02",
+    "segmentation_video_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Video/output/video_02",
     "depth_video_dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02",
     "human_video_dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_02",
-    "summary_json": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_02/frame_00_segmentation_summary.json",
     "depth_npy": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02/metric_depth/metric_depth.npy",
     "depth_intrinsics_json": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02/camera_intrinsics.json",
     "frame_00": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02/frame_00.png"
@@ -14,13 +13,13 @@
     "intrinsics_source": "object",
     "intrinsics_3x3": [
       [
-        899.387451171875,
+        906.8265380859375,
         0.0,
         640.0
       ],
       [
         0.0,
-        899.387451171875,
+        906.8265380859375,
         360.0
       ],
       [
@@ -29,41 +28,7 @@
         1.0
       ]
     ],
-    "object_intrinsics_3x3": [
-      [
-        899.387451171875,
-        0.0,
-        640.0
-      ],
-      [
-        0.0,
-        899.387451171875,
-        360.0
-      ],
-      [
-        0.0,
-        0.0,
-        1.0
-      ]
-    ],
-    "depth_intrinsics_3x3": [
-      [
-        1194.902099609375,
-        0.0,
-        637.0
-      ],
-      [
-        0.0,
-        1194.3885498046875,
-        357.0
-      ],
-      [
-        0.0,
-        0.0,
-        1.0
-      ]
-    ],
-    "max_abs_object_depth_intrinsics_diff_px": 295.5146484375
+    "max_abs_object_depth_intrinsics_diff_px": 288.0755615234375
   },
   "optimization_settings": {
     "iters": 600,
@@ -98,25 +63,25 @@
       "name": "human",
       "slug": "human",
       "kind": "human",
-      "mask_path": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_02/human/mask/frame_00.png",
-      "pixels_considered": 45371,
-      "pixels_used": 45371
+      "mask_path": "/my_workspace/4DHHOI/4DHOI/Segment_Video/output/video_02/humans/person_1/masks/frame_0000.png",
+      "pixels_considered": 45142,
+      "pixels_used": 45142
     },
     {
       "name": "dumbbell (left hand)",
       "slug": "dumbbell_(left_hand)",
       "kind": "object",
-      "mask_path": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_02/dumbbell_(left_hand)/mask/frame_00.png",
-      "pixels_considered": 1491,
-      "pixels_used": 1491
+      "mask_path": "/my_workspace/4DHHOI/4DHOI/Segment_Video/output/video_02/objects/dumbbell_(left_hand)/object_segmentation/masks/frame_0000.png",
+      "pixels_considered": 835,
+      "pixels_used": 835
     },
     {
       "name": "dumbbell (right hand)",
       "slug": "dumbbell_(right_hand)",
       "kind": "object",
-      "mask_path": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_02/dumbbell_(right_hand)/mask/frame_00.png",
-      "pixels_considered": 871,
-      "pixels_used": 871
+      "mask_path": "/my_workspace/4DHHOI/4DHOI/Segment_Video/output/video_02/objects/dumbbell_(right_hand)/object_segmentation/masks/frame_0000.png",
+      "pixels_considered": 1528,
+      "pixels_used": 1528
     }
   ],
   "per_mesh_optimization": [
@@ -125,10 +90,10 @@
       "slug": "human",
       "status": "optimized",
       "message": null,
-      "num_correspondences": 45371,
-      "final_scale": 1.3540087290419907,
-      "final_tz_m": -0.00044524669647216797,
-      "final_total_loss": 0.005016752518713474,
+      "num_correspondences": 45142,
+      "final_scale": 1.3540472663278462,
+      "final_tz_m": -0.0004171186010353267,
+      "final_total_loss": 0.004931561648845673,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/loss_curves/human_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/loss_curves/human_loss_total.png",
@@ -145,10 +110,10 @@
       "slug": "dumbbell_(left_hand)",
       "status": "optimized",
       "message": null,
-      "num_correspondences": 1491,
-      "final_scale": 2.691012980816667,
-      "final_tz_m": 0.00025903130881488323,
-      "final_total_loss": 0.00994564313441515,
+      "num_correspondences": 835,
+      "final_scale": 2.393756783904318,
+      "final_tz_m": 0.00012456469994504005,
+      "final_total_loss": 0.004640611819922924,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/loss_curves/dumbbell_(left_hand)_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/loss_curves/dumbbell_(left_hand)_loss_total.png",
@@ -165,10 +130,10 @@
       "slug": "dumbbell_(right_hand)",
       "status": "optimized",
       "message": null,
-      "num_correspondences": 871,
-      "final_scale": 2.403106919026393,
-      "final_tz_m": 0.00011169993376825005,
-      "final_total_loss": 0.00445238221436739,
+      "num_correspondences": 1528,
+      "final_scale": 2.6153425543315083,
+      "final_tz_m": 0.00022112892474979162,
+      "final_total_loss": 0.00870856735855341,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/loss_curves/dumbbell_(right_hand)_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/loss_curves/dumbbell_(right_hand)_loss_total.png",

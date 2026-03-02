@@ -7,7 +7,7 @@
     "human_video_dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_03",
     "summary_json": "/my_workspace/4DHHOI/4DHOI/Segment_First_Frame/output/video_03/frame_00_segmentation_summary.json",
     "depth_npy": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_03/metric_depth/metric_depth.npy",
-    "pose_json": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_03/pose_estimation.json",
+    "depth_intrinsics_json": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_03/camera_intrinsics.json",
     "frame_00": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_03/frame_00.png"
   },
   "camera": {
@@ -118,9 +118,9 @@
       "status": "optimized",
       "message": null,
       "num_correspondences": 30343,
-      "final_scale": 1.5735674436139866,
-      "final_tz_m": 0.002321424661204219,
-      "final_total_loss": 0.0075150602497160435,
+      "final_scale": 1.5735682877415695,
+      "final_tz_m": 0.0023214221000671387,
+      "final_total_loss": 0.007515068165957928,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03/loss_curves/human_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03/loss_curves/human_loss_total.png",
@@ -138,9 +138,9 @@
       "status": "optimized",
       "message": null,
       "num_correspondences": 14089,
-      "final_scale": 3.193449939294623,
-      "final_tz_m": 7.46170335332863e-05,
-      "final_total_loss": 0.07987114787101746,
+      "final_scale": 3.193451842739683,
+      "final_tz_m": 7.463731162715703e-05,
+      "final_total_loss": 0.07987149059772491,
       "loss_curve_png": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03/loss_curves/umbrella_loss_total.png",
       "loss_curve_pngs": {
         "total": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03/loss_curves/umbrella_loss_total.png",
