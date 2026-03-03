@@ -1,0 +1,163 @@
+{
+  "transforms": [
+    {
+      "name": "human",
+      "slug": "human",
+      "kind": "human",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_02/output_plys/frame_0000.ply",
+      "source_coordinate": "opencv_camera",
+      "output_coordinate": "opencv",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_scale_txyz_chamfer_reproj/video_02/meshes/human.ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 0.23721987009048462,
+        "scale_exp_alpha": 1.2677198208066405,
+        "tx_init_m": 0.0,
+        "ty_init_m": 0.0,
+        "tz_init_m": 0.0,
+        "delta_tx_m": 0.002924809232354164,
+        "delta_ty_m": -0.042544279247522354,
+        "delta_tz_m": 0.22867080569267273,
+        "tx_total_m": 0.002924809232354164,
+        "ty_total_m": -0.042544279247522354,
+        "tz_total_m": 0.22867080569267273,
+        "obs_3d_count": 49320,
+        "obs_2d_count": 49320,
+        "model_sample_count": 20000
+      },
+      "source_to_output_matrix_4x4": [
+        [
+          1.2677198648452759,
+          0.0,
+          0.0,
+          0.002924809232354164
+        ],
+        [
+          0.0,
+          1.2677198648452759,
+          0.0,
+          -0.042544279247522354
+        ],
+        [
+          0.0,
+          0.0,
+          1.2677198648452759,
+          0.22867080569267273
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "dumbbell (left hand)",
+      "slug": "dumbbell_(left_hand)",
+      "kind": "object",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/dumbbell_(left_hand)/mesh_posed.ply",
+      "source_coordinate": "pytorch3d_camera",
+      "output_coordinate": "opencv",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_scale_txyz_chamfer_reproj/video_02/meshes/dumbbell_(left_hand).ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 0.6841781139373779,
+        "scale_exp_alpha": 1.9821420709462527,
+        "tx_init_m": 0.0,
+        "ty_init_m": 0.0,
+        "tz_init_m": 0.0,
+        "delta_tx_m": 0.04125537350773811,
+        "delta_ty_m": -0.25132396817207336,
+        "delta_tz_m": 0.6842238903045654,
+        "tx_total_m": 0.04125537350773811,
+        "ty_total_m": -0.25132396817207336,
+        "tz_total_m": 0.6842238903045654,
+        "obs_3d_count": 1171,
+        "obs_2d_count": 1171,
+        "model_sample_count": 20000
+      },
+      "source_to_output_matrix_4x4": [
+        [
+          -1.9821420907974243,
+          0.0,
+          0.0,
+          0.04125537350773811
+        ],
+        [
+          0.0,
+          -1.9821420907974243,
+          0.0,
+          -0.25132396817207336
+        ],
+        [
+          0.0,
+          0.0,
+          1.9821420907974243,
+          0.6842238903045654
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "dumbbell (right hand)",
+      "slug": "dumbbell_(right_hand)",
+      "kind": "object",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/dumbbell_(right_hand)/mesh_posed.ply",
+      "source_coordinate": "pytorch3d_camera",
+      "output_coordinate": "opencv",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_scale_txyz_chamfer_reproj/video_02/meshes/dumbbell_(right_hand).ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 0.7486713528633118,
+        "scale_exp_alpha": 2.1141891383484164,
+        "tx_init_m": 0.0,
+        "ty_init_m": 0.0,
+        "tz_init_m": 0.0,
+        "delta_tx_m": -0.02410045824944973,
+        "delta_ty_m": -0.26459136605262756,
+        "delta_tz_m": 0.7469733357429504,
+        "tx_total_m": -0.02410045824944973,
+        "ty_total_m": -0.26459136605262756,
+        "tz_total_m": 0.7469733357429504,
+        "obs_3d_count": 1563,
+        "obs_2d_count": 1563,
+        "model_sample_count": 20000
+      },
+      "source_to_output_matrix_4x4": [
+        [
+          -2.1141891479492188,
+          0.0,
+          0.0,
+          -0.02410045824944973
+        ],
+        [
+          0.0,
+          -2.1141891479492188,
+          0.0,
+          -0.26459136605262756
+        ],
+        [
+          0.0,
+          0.0,
+          2.1141891479492188,
+          0.7469733357429504
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    }
+  ]
+}

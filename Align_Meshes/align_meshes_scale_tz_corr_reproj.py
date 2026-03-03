@@ -538,7 +538,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output_root",
         type=str,
-        default="./output_scale_tz_corr_reproj",
+        default="./output_scale_tz_corr",
         help="Root output directory; results are written to output_root/video_name.",
     )
 
