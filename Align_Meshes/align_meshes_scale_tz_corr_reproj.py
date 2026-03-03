@@ -5,7 +5,7 @@ Overview
 This script aligns human and object meshes to frame_00 depth in camera
 coordinates using fixed point-to-point correspondences.
 
-The pipeline is intentionally simple:
+The pipeline is simple:
 1. Load frame_00 RGB, metric depth, intrinsics, human/object meshes, and masks.
 2. Convert each mesh to OpenCV camera coordinates.
 3. Render each mesh once to establish mesh<->depth correspondences.

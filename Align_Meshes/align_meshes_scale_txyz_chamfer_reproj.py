@@ -79,6 +79,40 @@ class OptimizationResultChamfer:
     ty: float
     tz: float
     history: dict[str, list[float]]
+    final_total_loss: float | None
+    final_cd3d_loss: float | None
+    final_cd2d_loss: float | None
+    resumed: bool
+    resume_source: str
+    start_iter: int
+    end_iter: int
+    iters_executed_this_run: int
+    early_stopped: bool
+    early_stop_iter: int | None
+    best_iter: int | None
+    best_total: float | None
+    checkpoint_path: str | None
+
+
+@dataclass
+class ResumeStateChamfer:
+    signature: dict[str, Any]
+    start_iter: int
+    history: dict[str, list[float]]
+    log_scale: float
+    delta_tx: float
+    delta_ty: float
+    delta_tz: float
+    tx_init: float
+    ty_init: float
+    tz_init: float
+    best_total: float | None
+    best_iter: int | None
+    best_log_scale: float | None
+    best_delta_tx: float | None
+    best_delta_ty: float | None
+    best_delta_tz: float | None
+    optimizer_state_dict: dict[str, Any] | None
 
 
 def geman_mcclure_func(residual: torch.Tensor, rho: float) -> torch.Tensor:
@@ -596,6 +630,212 @@ def append_history_chamfer(
     history["tz"].append(float(losses["tz"].detach().cpu().item()))
 
 
+def normalize_history_chamfer(
+    history: dict[str, list[Any]],
+) -> dict[str, list[float]]:
+    out = new_history_dict_chamfer()
+    for key in out:
+        vals = history.get(key, [])
+        if not isinstance(vals, list):
+            raise ValueError(f"History key '{key}' must be a list.")
+        if key == "iter":
+            out[key] = [int(v) for v in vals]
+        else:
+            out[key] = [float(v) for v in vals]
+
+    n = len(out["iter"])
+    for key, vals in out.items():
+        if len(vals) != n:
+            raise ValueError(f"History length mismatch for key '{key}'.")
+    return out
+
+
+def build_resume_signature(
+    *,
+    video_name: str,
+    mesh_slug: str,
+    mesh_name: str,
+    intrinsics_source: str,
+    opt_max_side: int,
+    sam3_mask_erode_iters: int,
+    seed: int,
+    lr: float,
+    w_cd3d: float,
+    w_cd2d: float,
+    w_scale_reg: float,
+    w_t_reg: float,
+    rho_geman_3d: float,
+    mesh_sample_points: int,
+    max_obs_3d_points_per_mesh: int,
+    max_obs_2d_points_per_mesh: int,
+    nn_chunk_size: int,
+    min_obs_3d_points_per_mesh: int,
+    min_obs_2d_points_per_mesh: int,
+    min_scale: float,
+    max_scale: float,
+    max_abs_delta_tx: float,
+    max_abs_delta_ty: float,
+    max_abs_delta_tz: float,
+) -> dict[str, Any]:
+    return {
+        "video_name": video_name,
+        "mesh_slug": mesh_slug,
+        "mesh_name": mesh_name,
+        "intrinsics_source": intrinsics_source,
+        "opt_max_side": int(opt_max_side),
+        "sam3_mask_erode_iters": int(sam3_mask_erode_iters),
+        "seed": int(seed),
+        "lr": float(lr),
+        "w_cd3d": float(w_cd3d),
+        "w_cd2d": float(w_cd2d),
+        "w_scale_reg": float(w_scale_reg),
+        "w_t_reg": float(w_t_reg),
+        "rho_geman_3d": float(rho_geman_3d),
+        "mesh_sample_points": int(mesh_sample_points),
+        "max_obs_3d_points_per_mesh": int(max_obs_3d_points_per_mesh),
+        "max_obs_2d_points_per_mesh": int(max_obs_2d_points_per_mesh),
+        "nn_chunk_size": int(nn_chunk_size),
+        "min_obs_3d_points_per_mesh": int(min_obs_3d_points_per_mesh),
+        "min_obs_2d_points_per_mesh": int(min_obs_2d_points_per_mesh),
+        "min_scale": float(min_scale),
+        "max_scale": float(max_scale),
+        "max_abs_delta_tx": float(max_abs_delta_tx),
+        "max_abs_delta_ty": float(max_abs_delta_ty),
+        "max_abs_delta_tz": float(max_abs_delta_tz),
+    }
+
+
+def compare_resume_signature_strict(
+    saved_signature: dict[str, Any],
+    current_signature: dict[str, Any],
+) -> list[str]:
+    mismatches: list[str] = []
+    all_keys = sorted(set(saved_signature.keys()) | set(current_signature.keys()))
+    for key in all_keys:
+        if key not in saved_signature:
+            mismatches.append(f"{key}: missing in checkpoint")
+            continue
+        if key not in current_signature:
+            mismatches.append(f"{key}: missing in current config")
+            continue
+
+        a = saved_signature[key]
+        b = current_signature[key]
+        if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+            if not math.isclose(float(a), float(b), rel_tol=0.0, abs_tol=1e-12):
+                mismatches.append(f"{key}: checkpoint={a} current={b}")
+        else:
+            if a != b:
+                mismatches.append(f"{key}: checkpoint={a!r} current={b!r}")
+    return mismatches
+
+
+def optimizer_state_to_device(optimizer: torch.optim.Optimizer, device: torch.device) -> None:
+    for state in optimizer.state.values():
+        for key, value in state.items():
+            if torch.is_tensor(value):
+                state[key] = value.to(device=device)
+
+
+def save_resume_checkpoint(
+    checkpoint_path: Path,
+    *,
+    signature: dict[str, Any],
+    start_iter: int,
+    history: dict[str, list[float]],
+    log_scale: torch.nn.Parameter,
+    delta_tx: torch.nn.Parameter,
+    delta_ty: torch.nn.Parameter,
+    delta_tz: torch.nn.Parameter,
+    tx_init: float,
+    ty_init: float,
+    tz_init: float,
+    optimizer: torch.optim.Optimizer,
+    best_total: float | None,
+    best_iter: int | None,
+    best_log_scale: float | None,
+    best_delta_tx: float | None,
+    best_delta_ty: float | None,
+    best_delta_tz: float | None,
+) -> None:
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "version": 1,
+        "signature": signature,
+        "start_iter": int(start_iter),
+        "history": normalize_history_chamfer(history),
+        "log_scale": float(log_scale.detach().cpu().item()),
+        "delta_tx": float(delta_tx.detach().cpu().item()),
+        "delta_ty": float(delta_ty.detach().cpu().item()),
+        "delta_tz": float(delta_tz.detach().cpu().item()),
+        "tx_init": float(tx_init),
+        "ty_init": float(ty_init),
+        "tz_init": float(tz_init),
+        "optimizer_state_dict": optimizer.state_dict(),
+        "best_total": None if best_total is None else float(best_total),
+        "best_iter": None if best_iter is None else int(best_iter),
+        "best_log_scale": None if best_log_scale is None else float(best_log_scale),
+        "best_delta_tx": None if best_delta_tx is None else float(best_delta_tx),
+        "best_delta_ty": None if best_delta_ty is None else float(best_delta_ty),
+        "best_delta_tz": None if best_delta_tz is None else float(best_delta_tz),
+    }
+    torch.save(payload, str(checkpoint_path))
+
+
+def load_resume_checkpoint(
+    checkpoint_path: Path,
+    *,
+    device: torch.device,
+) -> ResumeStateChamfer:
+    payload = torch.load(str(checkpoint_path), map_location=device)
+    if not isinstance(payload, dict):
+        raise ValueError(f"Invalid checkpoint format: {checkpoint_path}")
+    if int(payload.get("version", -1)) != 1:
+        raise ValueError(
+            f"Unsupported checkpoint version for {checkpoint_path}: {payload.get('version')}"
+        )
+
+    history_raw = payload.get("history")
+    if not isinstance(history_raw, dict):
+        raise ValueError(f"Checkpoint missing history: {checkpoint_path}")
+
+    signature = payload.get("signature")
+    if not isinstance(signature, dict):
+        raise ValueError(f"Checkpoint missing signature: {checkpoint_path}")
+
+    return ResumeStateChamfer(
+        signature=signature,
+        start_iter=int(payload.get("start_iter", 0)),
+        history=normalize_history_chamfer(history_raw),
+        log_scale=float(payload.get("log_scale", 0.0)),
+        delta_tx=float(payload.get("delta_tx", 0.0)),
+        delta_ty=float(payload.get("delta_ty", 0.0)),
+        delta_tz=float(payload.get("delta_tz", 0.0)),
+        tx_init=float(payload.get("tx_init", 0.0)),
+        ty_init=float(payload.get("ty_init", 0.0)),
+        tz_init=float(payload.get("tz_init", 0.0)),
+        best_total=(
+            None if payload.get("best_total") is None else float(payload["best_total"])
+        ),
+        best_iter=None if payload.get("best_iter") is None else int(payload["best_iter"]),
+        best_log_scale=(
+            None
+            if payload.get("best_log_scale") is None
+            else float(payload["best_log_scale"])
+        ),
+        best_delta_tx=(
+            None if payload.get("best_delta_tx") is None else float(payload["best_delta_tx"])
+        ),
+        best_delta_ty=(
+            None if payload.get("best_delta_ty") is None else float(payload["best_delta_ty"])
+        ),
+        best_delta_tz=(
+            None if payload.get("best_delta_tz") is None else float(payload["best_delta_tz"])
+        ),
+        optimizer_state_dict=payload.get("optimizer_state_dict"),
+    )
+
+
 def save_loss_history_csv_chamfer(
     history: dict[str, list[float]],
     out_path: Path,
@@ -798,7 +1038,6 @@ def optimize_scale_txyz_chamfer(
     max_abs_delta_tx: float,
     max_abs_delta_ty: float,
     max_abs_delta_tz: float,
-    tz_behind_offset: float,
     log_every: int,
     debug_save_every: int,
     debug_point_radius: int,
@@ -807,10 +1046,20 @@ def optimize_scale_txyz_chamfer(
     debug_seed: int,
     min_obs_3d_points_per_mesh: int,
     min_obs_2d_points_per_mesh: int,
+    checkpoint_path: Path,
+    resume_signature: dict[str, Any],
+    resume_state: ResumeStateChamfer | None,
+    checkpoint_every: int,
+    early_stop_patience: int,
+    early_stop_rel_min_delta: float,
+    early_stop_min_iter: int,
 ) -> OptimizationResultChamfer:
     n_obs3d = int(obs.obs_points_3d.shape[0])
     n_obs2d = int(obs.obs_pixels_2d.shape[0])
     n_model = int(model_points_base_np.shape[0])
+    resumed = resume_state is not None
+    resume_source = "checkpoint" if resumed else "fresh"
+    start_iter = 0 if resume_state is None else int(resume_state.start_iter)
 
     if n_model == 0:
         return OptimizationResultChamfer(
@@ -831,6 +1080,19 @@ def optimize_scale_txyz_chamfer(
             ty=0.0,
             tz=0.0,
             history=new_history_dict_chamfer(),
+            final_total_loss=None,
+            final_cd3d_loss=None,
+            final_cd2d_loss=None,
+            resumed=resumed,
+            resume_source=resume_source,
+            start_iter=start_iter,
+            end_iter=start_iter,
+            iters_executed_this_run=0,
+            early_stopped=False,
+            early_stop_iter=None,
+            best_iter=None,
+            best_total=None,
+            checkpoint_path=str(checkpoint_path),
         )
 
     enough_3d = n_obs3d >= int(min_obs_3d_points_per_mesh)
@@ -859,6 +1121,19 @@ def optimize_scale_txyz_chamfer(
             ty=0.0,
             tz=0.0,
             history=new_history_dict_chamfer(),
+            final_total_loss=None,
+            final_cd3d_loss=None,
+            final_cd2d_loss=None,
+            resumed=resumed,
+            resume_source=resume_source,
+            start_iter=start_iter,
+            end_iter=start_iter,
+            iters_executed_this_run=0,
+            early_stopped=False,
+            early_stop_iter=None,
+            best_iter=None,
+            best_total=None,
+            checkpoint_path=str(checkpoint_path),
         )
 
     obs3d_t = torch.from_numpy(obs.obs_points_3d).to(device=device, dtype=torch.float32)
@@ -868,28 +1143,61 @@ def optimize_scale_txyz_chamfer(
     )
     k_t = torch.from_numpy(intrinsics).to(device=device, dtype=torch.float32)
 
-    tx_init_val = 0.0
-    ty_init_val = 0.0
-    if n_obs3d > 0:
-        obs_z_median = float(np.median(obs.obs_points_3d[:, 2]))
-        model_z_median = float(np.median(model_points_base_np[:, 2]))
-        tz_init_val = obs_z_median - model_z_median + float(tz_behind_offset)
+    if resumed:
+        tx_init_val = float(resume_state.tx_init)
+        ty_init_val = float(resume_state.ty_init)
+        tz_init_val = float(resume_state.tz_init)
     else:
-        tz_init_val = 0.0
+        tx_init_val = 0.0
+        ty_init_val = 0.0
+        if n_obs3d > 0:
+            obs_z_median = float(np.median(obs.obs_points_3d[:, 2]))
+            model_z_median = float(np.median(model_points_base_np[:, 2]))
+            tz_init_val = obs_z_median - model_z_median
+        else:
+            tz_init_val = 0.0
     tx_init_t = torch.tensor(tx_init_val, device=device, dtype=torch.float32)
     ty_init_t = torch.tensor(ty_init_val, device=device, dtype=torch.float32)
     tz_init_t = torch.tensor(tz_init_val, device=device, dtype=torch.float32)
 
-    log_scale = torch.nn.Parameter(torch.zeros((), device=device, dtype=torch.float32))
-    delta_tx = torch.nn.Parameter(torch.zeros((), device=device, dtype=torch.float32))
-    delta_ty = torch.nn.Parameter(torch.zeros((), device=device, dtype=torch.float32))
-    delta_tz = torch.nn.Parameter(torch.zeros((), device=device, dtype=torch.float32))
+    log_scale_init = 0.0 if resume_state is None else float(resume_state.log_scale)
+    delta_tx_init = 0.0 if resume_state is None else float(resume_state.delta_tx)
+    delta_ty_init = 0.0 if resume_state is None else float(resume_state.delta_ty)
+    delta_tz_init = 0.0 if resume_state is None else float(resume_state.delta_tz)
+
+    log_scale = torch.nn.Parameter(
+        torch.tensor(log_scale_init, device=device, dtype=torch.float32)
+    )
+    delta_tx = torch.nn.Parameter(
+        torch.tensor(delta_tx_init, device=device, dtype=torch.float32)
+    )
+    delta_ty = torch.nn.Parameter(
+        torch.tensor(delta_ty_init, device=device, dtype=torch.float32)
+    )
+    delta_tz = torch.nn.Parameter(
+        torch.tensor(delta_tz_init, device=device, dtype=torch.float32)
+    )
     optimizer = torch.optim.Adam([log_scale, delta_tx, delta_ty, delta_tz], lr=float(lr))
+    if resumed and resume_state.optimizer_state_dict is not None:
+        optimizer.load_state_dict(resume_state.optimizer_state_dict)
+        optimizer_state_to_device(optimizer, device)
 
     min_log_scale = math.log(float(min_scale))
     max_log_scale = math.log(float(max_scale))
 
-    history = new_history_dict_chamfer()
+    if resumed:
+        history = normalize_history_chamfer(resume_state.history)
+        if len(history["iter"]) > 0 and int(history["iter"][-1]) != start_iter:
+            raise ValueError(
+                f"{mesh_name}: checkpoint start_iter={start_iter} does not match "
+                f"history last iter={history['iter'][-1]}."
+            )
+        if len(history["iter"]) == 0 and start_iter != 0:
+            raise ValueError(
+                f"{mesh_name}: checkpoint start_iter={start_iter} with empty history."
+            )
+    else:
+        history = new_history_dict_chamfer()
     obs3d_anchor_colors = colorize_points_by_xyz(obs.obs_points_3d)
     obs2d_anchor_colors = colorize_points_by_xy(obs.obs_pixels_2d)
 
@@ -992,30 +1300,112 @@ def optimize_scale_txyz_chamfer(
                 save_obs3d_fixed=save_fixed,
             )
 
-    with torch.no_grad():
-        init_losses = compute_losses_chamfer_torch(
-            model_points_base=model_base_t,
-            obs3d=obs3d_t,
-            obs2d=obs2d_t,
-            intrinsics=k_t,
+    best_total: float | None = None
+    best_iter: int | None = None
+    best_log_scale: float | None = None
+    best_delta_tx: float | None = None
+    best_delta_ty: float | None = None
+    best_delta_tz: float | None = None
+
+    if resumed:
+        best_total = (
+            None if resume_state.best_total is None else float(resume_state.best_total)
+        )
+        best_iter = None if resume_state.best_iter is None else int(resume_state.best_iter)
+        best_log_scale = (
+            None
+            if resume_state.best_log_scale is None
+            else float(resume_state.best_log_scale)
+        )
+        best_delta_tx = (
+            None if resume_state.best_delta_tx is None else float(resume_state.best_delta_tx)
+        )
+        best_delta_ty = (
+            None if resume_state.best_delta_ty is None else float(resume_state.best_delta_ty)
+        )
+        best_delta_tz = (
+            None if resume_state.best_delta_tz is None else float(resume_state.best_delta_tz)
+        )
+    else:
+        with torch.no_grad():
+            init_losses = compute_losses_chamfer_torch(
+                model_points_base=model_base_t,
+                obs3d=obs3d_t,
+                obs2d=obs2d_t,
+                intrinsics=k_t,
+                log_scale=log_scale,
+                delta_tx=delta_tx,
+                delta_ty=delta_ty,
+                delta_tz=delta_tz,
+                tx_init=tx_init_t,
+                ty_init=ty_init_t,
+                tz_init=tz_init_t,
+                w_cd3d=w_cd3d,
+                w_cd2d=w_cd2d,
+                w_scale_reg=w_scale_reg,
+                w_t_reg=w_t_reg,
+                rho_geman_3d=rho_geman_3d,
+                nn_chunk_size=nn_chunk_size,
+            )
+            append_history_chamfer(history, 0, init_losses)
+            _save_debug(iter_idx=0, losses_eval=init_losses, save_fixed=True)
+
+            best_total = float(init_losses["total"].detach().cpu().item())
+            best_iter = 0
+            best_log_scale = float(log_scale.detach().cpu().item())
+            best_delta_tx = float(delta_tx.detach().cpu().item())
+            best_delta_ty = float(delta_ty.detach().cpu().item())
+            best_delta_tz = float(delta_tz.detach().cpu().item())
+
+    if best_total is None:
+        if len(history["total"]) > 0:
+            best_total = float(np.min(np.array(history["total"], dtype=np.float64)))
+            best_idx_local = int(np.argmin(np.array(history["total"], dtype=np.float64)))
+            best_iter = int(history["iter"][best_idx_local])
+        else:
+            best_total = None
+            best_iter = None
+    if best_log_scale is None:
+        best_log_scale = float(log_scale.detach().cpu().item())
+    if best_delta_tx is None:
+        best_delta_tx = float(delta_tx.detach().cpu().item())
+    if best_delta_ty is None:
+        best_delta_ty = float(delta_ty.detach().cpu().item())
+    if best_delta_tz is None:
+        best_delta_tz = float(delta_tz.detach().cpu().item())
+
+    def _save_checkpoint(iter_done: int) -> None:
+        save_resume_checkpoint(
+            checkpoint_path=checkpoint_path,
+            signature=resume_signature,
+            start_iter=int(iter_done),
+            history=history,
             log_scale=log_scale,
             delta_tx=delta_tx,
             delta_ty=delta_ty,
             delta_tz=delta_tz,
-            tx_init=tx_init_t,
-            ty_init=ty_init_t,
-            tz_init=tz_init_t,
-            w_cd3d=w_cd3d,
-            w_cd2d=w_cd2d,
-            w_scale_reg=w_scale_reg,
-            w_t_reg=w_t_reg,
-            rho_geman_3d=rho_geman_3d,
-            nn_chunk_size=nn_chunk_size,
+            tx_init=tx_init_val,
+            ty_init=ty_init_val,
+            tz_init=tz_init_val,
+            optimizer=optimizer,
+            best_total=best_total,
+            best_iter=best_iter,
+            best_log_scale=best_log_scale,
+            best_delta_tx=best_delta_tx,
+            best_delta_ty=best_delta_ty,
+            best_delta_tz=best_delta_tz,
         )
-        append_history_chamfer(history, 0, init_losses)
-        _save_debug(iter_idx=0, losses_eval=init_losses, save_fixed=True)
 
-    for iter_idx in range(1, int(iters) + 1):
+    _save_checkpoint(iter_done=start_iter)
+
+    target_additional_iters = int(iters)
+    early_stopped = False
+    early_stop_iter: int | None = None
+    executed_iters = 0
+    end_iter = start_iter
+
+    for local_iter in range(1, target_additional_iters + 1):
+        global_iter = start_iter + local_iter
         optimizer.zero_grad(set_to_none=True)
         losses = compute_losses_chamfer_torch(
             model_points_base=model_base_t,
@@ -1064,11 +1454,31 @@ def optimize_scale_txyz_chamfer(
                 rho_geman_3d=rho_geman_3d,
                 nn_chunk_size=nn_chunk_size,
             )
-            append_history_chamfer(history, iter_idx, eval_losses)
+            append_history_chamfer(history, global_iter, eval_losses)
+            executed_iters = local_iter
+            end_iter = global_iter
 
-            if log_every > 0 and (iter_idx % int(log_every) == 0 or iter_idx == int(iters)):
+            current_total = float(eval_losses["total"].detach().cpu().item())
+            improved = False
+            if best_total is None or not np.isfinite(best_total):
+                improved = True
+            else:
+                rel_gain = (best_total - current_total) / max(abs(best_total), 1e-12)
+                improved = rel_gain >= float(early_stop_rel_min_delta)
+            if improved:
+                best_total = current_total
+                best_iter = int(global_iter)
+                best_log_scale = float(log_scale.detach().cpu().item())
+                best_delta_tx = float(delta_tx.detach().cpu().item())
+                best_delta_ty = float(delta_ty.detach().cpu().item())
+                best_delta_tz = float(delta_tz.detach().cpu().item())
+
+            if log_every > 0 and (
+                global_iter % int(log_every) == 0
+                or local_iter == int(target_additional_iters)
+            ):
                 print(
-                    f"iter={iter_idx:04d} total={history['total'][-1]:.6f} "
+                    f"iter={global_iter:05d} total={history['total'][-1]:.6f} "
                     f"cd3d={history['cd3d'][-1]:.6f} "
                     f"cd2d={history['cd2d'][-1]:.6f} "
                     f"scale={history['scale'][-1]:.6f} "
@@ -1078,9 +1488,63 @@ def optimize_scale_txyz_chamfer(
                 )
 
             if debug_save_every > 0 and (
-                iter_idx % int(debug_save_every) == 0 or iter_idx == int(iters)
+                global_iter % int(debug_save_every) == 0
+                or local_iter == int(target_additional_iters)
             ):
-                _save_debug(iter_idx=iter_idx, losses_eval=eval_losses, save_fixed=False)
+                _save_debug(iter_idx=global_iter, losses_eval=eval_losses, save_fixed=False)
+
+            if checkpoint_every > 0 and global_iter % int(checkpoint_every) == 0:
+                _save_checkpoint(iter_done=global_iter)
+
+            if (
+                int(early_stop_patience) > 0
+                and global_iter >= int(early_stop_min_iter)
+                and best_iter is not None
+                and global_iter - int(best_iter) >= int(early_stop_patience)
+            ):
+                early_stopped = True
+                early_stop_iter = int(global_iter)
+                print(
+                    f"[{mesh_name}] early stopping at iter={global_iter:05d} "
+                    f"(best_iter={best_iter:05d}, best_total={best_total:.6f})"
+                )
+                break
+
+    if early_stopped:
+        with torch.no_grad():
+            assert best_log_scale is not None
+            assert best_delta_tx is not None
+            assert best_delta_ty is not None
+            assert best_delta_tz is not None
+            log_scale.copy_(torch.tensor(best_log_scale, device=device, dtype=torch.float32))
+            delta_tx.copy_(torch.tensor(best_delta_tx, device=device, dtype=torch.float32))
+            delta_ty.copy_(torch.tensor(best_delta_ty, device=device, dtype=torch.float32))
+            delta_tz.copy_(torch.tensor(best_delta_tz, device=device, dtype=torch.float32))
+            log_scale.clamp_(min_log_scale, max_log_scale)
+            delta_tx.clamp_(-float(max_abs_delta_tx), float(max_abs_delta_tx))
+            delta_ty.clamp_(-float(max_abs_delta_ty), float(max_abs_delta_ty))
+            delta_tz.clamp_(-float(max_abs_delta_tz), float(max_abs_delta_tz))
+
+    with torch.no_grad():
+        final_losses = compute_losses_chamfer_torch(
+            model_points_base=model_base_t,
+            obs3d=obs3d_t,
+            obs2d=obs2d_t,
+            intrinsics=k_t,
+            log_scale=log_scale,
+            delta_tx=delta_tx,
+            delta_ty=delta_ty,
+            delta_tz=delta_tz,
+            tx_init=tx_init_t,
+            ty_init=ty_init_t,
+            tz_init=tz_init_t,
+            w_cd3d=w_cd3d,
+            w_cd2d=w_cd2d,
+            w_scale_reg=w_scale_reg,
+            w_t_reg=w_t_reg,
+            rho_geman_3d=rho_geman_3d,
+            nn_chunk_size=nn_chunk_size,
+        )
 
     scale_final = float(math.exp(float(log_scale.detach().cpu().item())))
     log_scale_final = float(log_scale.detach().cpu().item())
@@ -1090,6 +1554,8 @@ def optimize_scale_txyz_chamfer(
     tx_final = float(tx_init_val + delta_tx_final)
     ty_final = float(ty_init_val + delta_ty_final)
     tz_final = float(tz_init_val + delta_tz_final)
+
+    _save_checkpoint(iter_done=end_iter)
 
     return OptimizationResultChamfer(
         status="optimized",
@@ -1109,6 +1575,19 @@ def optimize_scale_txyz_chamfer(
         ty=ty_final,
         tz=tz_final,
         history=history,
+        final_total_loss=float(final_losses["total"].detach().cpu().item()),
+        final_cd3d_loss=float(final_losses["cd3d"].detach().cpu().item()),
+        final_cd2d_loss=float(final_losses["cd2d"].detach().cpu().item()),
+        resumed=resumed,
+        resume_source=resume_source,
+        start_iter=start_iter,
+        end_iter=end_iter,
+        iters_executed_this_run=int(executed_iters),
+        early_stopped=early_stopped,
+        early_stop_iter=early_stop_iter,
+        best_iter=best_iter,
+        best_total=best_total,
+        checkpoint_path=str(checkpoint_path),
     )
 
 
@@ -1151,7 +1630,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output_root",
         type=str,
-        default="./output_scale_txyz_chamfer_reproj",
+        default="./output_scale_txyz_chamfer",
         help="Root output directory; results are written to output_root/video_name.",
     )
 
@@ -1185,7 +1664,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", type=str, default="cuda:0")
     parser.add_argument("--opt_max_side", type=int, default=1280)
 
-    parser.add_argument("--iters", type=int, default=1000)
+    parser.add_argument("--iters", type=int, default=4000)
     parser.add_argument("--lr", type=float, default=5e-3)
 
     parser.add_argument("--w_cd3d", type=float, default=1e3)
@@ -1204,7 +1683,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max_abs_delta_tx", type=float, default=2.0)
     parser.add_argument("--max_abs_delta_ty", type=float, default=2.0)
     parser.add_argument("--max_abs_delta_tz", type=float, default=2.0)
-    parser.add_argument("--tz_behind_offset", type=float, default=0.00)
 
     parser.add_argument("--min_obs_3d_points_per_mesh", type=int, default=32)
     parser.add_argument("--min_obs_2d_points_per_mesh", type=int, default=64)
@@ -1216,6 +1694,35 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--log_every", type=int, default=10)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--no_resume",
+        action="store_true",
+        help="Disable automatic checkpoint resume and start fresh optimization.",
+    )
+    parser.add_argument(
+        "--checkpoint_every",
+        type=int,
+        default=50,
+        help="Save per-mesh optimization checkpoint every N global iterations.",
+    )
+    parser.add_argument(
+        "--early_stop_patience",
+        type=int,
+        default=100,
+        help="Patience in global iterations for early stopping (0 disables).",
+    )
+    parser.add_argument(
+        "--early_stop_rel_min_delta",
+        type=float,
+        default=1e-4,
+        help="Minimum relative improvement in total loss to reset early-stop patience.",
+    )
+    parser.add_argument(
+        "--early_stop_min_iter",
+        type=int,
+        default=300,
+        help="Earliest global iteration to start applying early stopping checks.",
+    )
     parser.add_argument(
         "--sam3_mask_erode_iters",
         type=int,
@@ -1254,6 +1761,14 @@ def main() -> None:
         raise ValueError("--max_abs_delta_tz must be > 0.")
     if args.rho_geman_3d <= 0.0:
         raise ValueError("--rho_geman_3d must be > 0.")
+    if args.checkpoint_every <= 0:
+        raise ValueError("--checkpoint_every must be > 0.")
+    if args.early_stop_patience < 0:
+        raise ValueError("--early_stop_patience must be >= 0.")
+    if args.early_stop_rel_min_delta < 0.0:
+        raise ValueError("--early_stop_rel_min_delta must be >= 0.")
+    if args.early_stop_min_iter < 0:
+        raise ValueError("--early_stop_min_iter must be >= 0.")
     if args.sam3_mask_erode_iters < 0:
         raise ValueError("--sam3_mask_erode_iters must be >= 0.")
 
@@ -1521,6 +2036,8 @@ def main() -> None:
 
     losses_dir = output_dir / "loss_curves"
     debug_root = output_dir / "debug"
+    checkpoints_dir = output_dir / "checkpoints"
+    checkpoints_dir.mkdir(parents=True, exist_ok=True)
 
     optimization_results: list[OptimizationResultChamfer] = []
     loss_plot_paths_by_slug: dict[str, dict[str, str]] = {}
@@ -1529,7 +2046,52 @@ def main() -> None:
         zip(assets, observations, model_samples_list, verts_base_cv_np)
     ):
         debug_dir = debug_root / asset.slug
-        print(f"[{asset.name}] optimizing chamfer objective ...")
+        checkpoint_path = checkpoints_dir / f"{asset.slug}_resume.pt"
+        resume_signature = build_resume_signature(
+            video_name=args.video_name,
+            mesh_slug=asset.slug,
+            mesh_name=asset.name,
+            intrinsics_source=args.intrinsics_source,
+            opt_max_side=int(args.opt_max_side),
+            sam3_mask_erode_iters=int(args.sam3_mask_erode_iters),
+            seed=int(args.seed),
+            lr=float(args.lr),
+            w_cd3d=float(args.w_cd3d),
+            w_cd2d=float(args.w_cd2d),
+            w_scale_reg=float(args.w_scale_reg),
+            w_t_reg=float(args.w_t_reg),
+            rho_geman_3d=float(args.rho_geman_3d),
+            mesh_sample_points=int(args.mesh_sample_points),
+            max_obs_3d_points_per_mesh=int(args.max_obs_3d_points_per_mesh),
+            max_obs_2d_points_per_mesh=int(args.max_obs_2d_points_per_mesh),
+            nn_chunk_size=int(args.nn_chunk_size),
+            min_obs_3d_points_per_mesh=int(args.min_obs_3d_points_per_mesh),
+            min_obs_2d_points_per_mesh=int(args.min_obs_2d_points_per_mesh),
+            min_scale=float(args.min_scale),
+            max_scale=float(args.max_scale),
+            max_abs_delta_tx=float(args.max_abs_delta_tx),
+            max_abs_delta_ty=float(args.max_abs_delta_ty),
+            max_abs_delta_tz=float(args.max_abs_delta_tz),
+        )
+
+        resume_state: ResumeStateChamfer | None = None
+        if not args.no_resume and checkpoint_path.exists():
+            resume_state = load_resume_checkpoint(checkpoint_path, device=device)
+            mismatches = compare_resume_signature_strict(
+                saved_signature=resume_state.signature,
+                current_signature=resume_signature,
+            )
+            if len(mismatches) > 0:
+                details = "\n  - ".join([""] + mismatches)
+                raise RuntimeError(
+                    f"[{asset.name}] checkpoint signature mismatch for {checkpoint_path}:{details}"
+                )
+            print(
+                f"[{asset.name}] resuming from iter {resume_state.start_iter} "
+                f"for +{int(args.iters)} iterations ..."
+            )
+        else:
+            print(f"[{asset.name}] optimizing from scratch for {int(args.iters)} iterations ...")
 
         result = optimize_scale_txyz_chamfer(
             mesh_name=asset.name,
@@ -1552,7 +2114,6 @@ def main() -> None:
             max_abs_delta_tx=float(args.max_abs_delta_tx),
             max_abs_delta_ty=float(args.max_abs_delta_ty),
             max_abs_delta_tz=float(args.max_abs_delta_tz),
-            tz_behind_offset=float(args.tz_behind_offset),
             log_every=int(args.log_every),
             debug_save_every=int(args.debug_save_every),
             debug_point_radius=int(args.debug_point_radius),
@@ -1561,6 +2122,13 @@ def main() -> None:
             debug_seed=int(args.seed + 2029 * (idx + 1)),
             min_obs_3d_points_per_mesh=int(args.min_obs_3d_points_per_mesh),
             min_obs_2d_points_per_mesh=int(args.min_obs_2d_points_per_mesh),
+            checkpoint_path=checkpoint_path,
+            resume_signature=resume_signature,
+            resume_state=resume_state,
+            checkpoint_every=int(args.checkpoint_every),
+            early_stop_patience=int(args.early_stop_patience),
+            early_stop_rel_min_delta=float(args.early_stop_rel_min_delta),
+            early_stop_min_iter=int(args.early_stop_min_iter),
         )
         optimization_results.append(result)
 
@@ -1672,6 +2240,7 @@ def main() -> None:
         },
         "optimization_settings": {
             "iters": int(args.iters),
+            "iters_semantics_with_resume": "additive",
             "lr": float(args.lr),
             "w_cd3d": float(args.w_cd3d),
             "w_cd2d": float(args.w_cd2d),
@@ -1689,7 +2258,11 @@ def main() -> None:
             "max_abs_delta_tx": float(args.max_abs_delta_tx),
             "max_abs_delta_ty": float(args.max_abs_delta_ty),
             "max_abs_delta_tz": float(args.max_abs_delta_tz),
-            "tz_behind_offset": float(args.tz_behind_offset),
+            "no_resume": bool(args.no_resume),
+            "checkpoint_every": int(args.checkpoint_every),
+            "early_stop_patience": int(args.early_stop_patience),
+            "early_stop_rel_min_delta": float(args.early_stop_rel_min_delta),
+            "early_stop_min_iter": int(args.early_stop_min_iter),
             "debug_save_every": int(args.debug_save_every),
             "debug_point_radius": int(args.debug_point_radius),
             "debug_max_points_vis": int(args.debug_max_points_vis),
@@ -1726,15 +2299,19 @@ def main() -> None:
                 "final_tx_m": float(result.tx),
                 "final_ty_m": float(result.ty),
                 "final_tz_m": float(result.tz),
-                "final_total_loss": None
-                if len(result.history["total"]) == 0
-                else float(result.history["total"][-1]),
-                "final_cd3d_loss": None
-                if len(result.history["cd3d"]) == 0
-                else float(result.history["cd3d"][-1]),
-                "final_cd2d_loss": None
-                if len(result.history["cd2d"]) == 0
-                else float(result.history["cd2d"][-1]),
+                "final_total_loss": result.final_total_loss,
+                "final_cd3d_loss": result.final_cd3d_loss,
+                "final_cd2d_loss": result.final_cd2d_loss,
+                "resumed": bool(result.resumed),
+                "resume_source": result.resume_source,
+                "start_iter": int(result.start_iter),
+                "end_iter": int(result.end_iter),
+                "iters_executed_this_run": int(result.iters_executed_this_run),
+                "early_stopped": bool(result.early_stopped),
+                "early_stop_iter": result.early_stop_iter,
+                "best_iter": result.best_iter,
+                "best_total": result.best_total,
+                "checkpoint_path": result.checkpoint_path,
                 "loss_curve_png": (
                     loss_plot_paths_by_slug.get(asset.slug, {}).get("total")
                     if len(result.history["iter"]) > 0
@@ -1760,6 +2337,7 @@ def main() -> None:
             "overlay_before": str(output_dir / "overlay_before.png"),
             "overlay_after": str(output_dir / "overlay_after.png"),
             "debug_root": str(debug_root),
+            "checkpoints_dir": str(checkpoints_dir),
         },
     }
 
