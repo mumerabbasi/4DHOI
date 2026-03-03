@@ -1630,7 +1630,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output_root",
         type=str,
-        default="./output_scale_txyz_chamfer",
+        default="./output",
         help="Root output directory; results are written to output_root/video_name.",
     )
 
@@ -1664,7 +1664,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", type=str, default="cuda:0")
     parser.add_argument("--opt_max_side", type=int, default=1280)
 
-    parser.add_argument("--iters", type=int, default=4000)
+    parser.add_argument("--iters", type=int, default=5000)
     parser.add_argument("--lr", type=float, default=5e-3)
 
     parser.add_argument("--w_cd3d", type=float, default=1e3)
@@ -1673,9 +1673,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--w_t_reg", type=float, default=1e-3)
     parser.add_argument("--rho_geman_3d", type=float, default=0.2)
 
-    parser.add_argument("--mesh_sample_points", type=int, default=20000)
-    parser.add_argument("--max_obs_3d_points_per_mesh", type=int, default=60000)
-    parser.add_argument("--max_obs_2d_points_per_mesh", type=int, default=80000)
+    # Note: Original defaults were 20000, 60000, 80000. Reduced for faster debugging.
+    parser.add_argument("--mesh_sample_points", type=int, default=3000)
+    parser.add_argument("--max_obs_3d_points_per_mesh", type=int, default=6000)
+    parser.add_argument("--max_obs_2d_points_per_mesh", type=int, default=8000)
     parser.add_argument("--nn_chunk_size", type=int, default=1024)
 
     parser.add_argument("--min_scale", type=float, default=0.2)
@@ -1855,15 +1856,6 @@ def main() -> None:
 
     k_diff = np.abs(k_object_full - k_depth_full)
     max_k_diff = float(np.max(k_diff))
-    if max_k_diff > float(args.intrinsics_warn_threshold_px):
-        print(
-            "WARNING: object/depth intrinsics mismatch is large "
-            f"(max abs diff: {max_k_diff:.3f}px)."
-        )
-        print(
-            f"Using '{args.intrinsics_source}' intrinsics for "
-            "projection/back-projection in optimization."
-        )
 
     assets: list[MeshAsset] = []
     for obj_dir in sorted(object_video_dir.iterdir()):
