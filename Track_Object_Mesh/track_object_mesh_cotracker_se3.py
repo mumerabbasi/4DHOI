@@ -728,24 +728,17 @@ def _transform_points_cv_np(points_cv: np.ndarray, t_44: np.ndarray) -> np.ndarr
     return points_cv.astype(np.float32) @ r.T + t[None, :]
 
 
-def _save_pose_json_compat(
+def _save_pose_json(
     out_path: Path,
     t_mats_np: np.ndarray,
     frame_offset: int,
 ) -> None:
     rows = []
-    for i in range(t_mats_np.shape[0]):
-        r = t_mats_np[i, :3, :3].astype(np.float32)
-        t = t_mats_np[i, :3, 3].astype(np.float32)
+    for i in range(int(t_mats_np.shape[0])):
         rows.append(
             {
                 "frame": int(frame_offset + i),
-                "R": r.tolist(),
-                "t": t.tolist(),
-                "R_raw": r.tolist(),
-                "t_raw": t.tolist(),
-                "R_smoothed": r.tolist(),
-                "t_smoothed": t.tolist(),
+                "T_4x4": t_mats_np[i].astype(np.float32).tolist(),
             }
         )
     with out_path.open("w", encoding="utf-8") as f:
@@ -756,12 +749,10 @@ def _save_mesh_sequences(
     mesh_template: trimesh.Trimesh,
     verts0_cv: np.ndarray,
     t_mats_np: np.ndarray,
-    meshes_raw_dir: Path,
     meshes_dir: Path,
     output_coord: str,
     frame_offset: int,
 ) -> None:
-    ensure_dir(meshes_raw_dir)
     ensure_dir(meshes_dir)
     for i in range(t_mats_np.shape[0]):
         frame_idx = frame_offset + i
@@ -771,13 +762,9 @@ def _save_mesh_sequences(
         else:
             verts_save = _cv_to_p3d_np(verts_t_cv)
 
-        mesh_raw = mesh_template.copy()
-        mesh_raw.vertices = verts_save.astype(np.float32)
-        mesh_raw.export(str(meshes_raw_dir / f"frame_{frame_idx:04d}.ply"))
-
-        mesh_sm = mesh_template.copy()
-        mesh_sm.vertices = verts_save.astype(np.float32)
-        mesh_sm.export(str(meshes_dir / f"frame_{frame_idx:04d}.ply"))
+        mesh = mesh_template.copy()
+        mesh.vertices = verts_save.astype(np.float32)
+        mesh.export(str(meshes_dir / f"frame_{frame_idx:04d}.ply"))
 
 
 def _render_overlays(
@@ -792,9 +779,7 @@ def _render_overlays(
     point_radius: int,
 ) -> tuple[bool, str]:
     overlays_dir = out_dir / "overlays"
-    overlays_smoothed_dir = out_dir / "overlays_smoothed"
     ensure_dir(overlays_dir)
-    ensure_dir(overlays_smoothed_dir)
 
     if not frame_paths:
         return False, "No frame images available; skipped overlay rendering."
@@ -811,7 +796,6 @@ def _render_overlays(
     h, w = first.shape[:2]
 
     overlay_writer = start_ffmpeg_writer(out_dir / "overlay.mp4", float(fps), (h, w))
-    overlay_sm_writer = start_ffmpeg_writer(out_dir / "overlay_smoothed.mp4", float(fps), (h, w))
 
     try:
         local_idx = 0
@@ -830,18 +814,13 @@ def _render_overlays(
             )
 
             out_png = overlays_dir / f"overlay_{frame_idx:04d}.png"
-            out_sm_png = overlays_smoothed_dir / f"overlay_{frame_idx:04d}.png"
             cv2.imwrite(str(out_png), overlay)
-            cv2.imwrite(str(out_sm_png), overlay)
 
             if overlay_writer.stdin is not None:
                 overlay_writer.stdin.write(np.ascontiguousarray(overlay.astype(np.uint8)).tobytes())
-            if overlay_sm_writer.stdin is not None:
-                overlay_sm_writer.stdin.write(np.ascontiguousarray(overlay.astype(np.uint8)).tobytes())
             local_idx += 1
     finally:
         close_ffmpeg(overlay_writer)
-        close_ffmpeg(overlay_sm_writer)
 
     return True, "Rendered overlays."
 
@@ -900,10 +879,8 @@ def _run_single_object(
 
     ensure_dir(out_dir)
     debug_dir = out_dir / "debug"
-    meshes_raw_dir = out_dir / "meshes_raw"
     meshes_dir = out_dir / "meshes"
     ensure_dir(debug_dir)
-    ensure_dir(meshes_raw_dir)
     ensure_dir(meshes_dir)
 
     mesh_template = trimesh.load(str(mesh_path), force="mesh")
@@ -1124,9 +1101,8 @@ def _run_single_object(
         bundle=final_bundle,
     )
     t_mats_np = final_bundle.T_mats.detach().cpu().numpy().astype(np.float32)
-    np.save(str(out_dir / "T_mats.npy"), t_mats_np)
 
-    _save_pose_json_compat(
+    _save_pose_json(
         out_path=out_dir / "poses.json",
         t_mats_np=t_mats_np,
         frame_offset=int(args.start_frame),
@@ -1135,7 +1111,6 @@ def _run_single_object(
         mesh_template=mesh_template,
         verts0_cv=verts_cv_np,
         t_mats_np=t_mats_np,
-        meshes_raw_dir=meshes_raw_dir,
         meshes_dir=meshes_dir,
         output_coord=str(args.output_coord),
         frame_offset=int(args.start_frame),
@@ -1225,8 +1200,6 @@ def _run_single_object(
         "frame_metrics_csv": str(frame_csv),
         "elapsed_seconds": elapsed_s,
     }
-    with (out_dir / "object_summary.json").open("w", encoding="utf-8") as f:
-        json.dump(object_summary, f, indent=2)
     return object_summary
 
 
@@ -1269,6 +1242,36 @@ def main() -> None:
             "pag_file": str(pag_path),
             "intrinsics_source": str(intrinsics_summary_path),
             "frames_dir": None if frames_dir is None else str(frames_dir),
+        },
+        "optimization_settings": {
+            "huber_delta_px": float(args.huber_delta_px),
+            "lambda_a": float(args.lambda_a),
+            "lambda_v": float(args.lambda_v),
+            "visibility_threshold": float(args.visibility_threshold),
+            "mask_gate_threshold": float(args.mask_gate_threshold),
+            "adam_iters": int(args.adam_iters),
+            "adam_lr": float(args.adam_lr),
+            "lbfgs_enabled": bool(not args.disable_lbfgs),
+            "lbfgs_iters": int(args.lbfgs_iters),
+            "lbfgs_lr": float(args.lbfgs_lr),
+        },
+        "energy_terms": {
+            "pose_parameterization": "T_1 = I (fixed), T_t = exp(xi_t) for t=2..T",
+            "seed_mapping": (
+                "X_i = barycentric interpolation of frame-0 aligned mesh triangle at seed pixel; "
+                "drop seeds with invalid face id or outside frame-0 mask"
+            ),
+            "projection": "u = fx * X/Z + cx, v = fy * Y/Z + cy",
+            "mask_gate": (
+                "mask_gate(i,t)=1 if bilinear_sample(mask_t, u_obs(i,t)) >= mask_gate_threshold else 0"
+            ),
+            "weights": "w_{i,t} = vis_{i,t} * mask_gate(i,t) * z_valid(i,t)",
+            "rho_huber": "rho(s)=s if s<=d^2 else 2*d*sqrt(s)-d^2, with d=huber_delta_px",
+            "E_img": "sum_{i,t} w_{i,t} * rho(||u_obs(i,t)-u_pred(i,t)||_2^2)",
+            "delta_t": "delta_t = log(inv(T_t) @ T_{t+1})",
+            "E_smooth": "sum_{t=2..T-2} ||delta_t - delta_{t-1}||_2^2",
+            "E_vel": "sum_{t=1..T-1} ||delta_t||_2^2",
+            "E_total": "E_img + lambda_a * E_smooth + lambda_v * E_vel",
         },
         "device": str(device),
         "output_dir": str(output_video_dir),
