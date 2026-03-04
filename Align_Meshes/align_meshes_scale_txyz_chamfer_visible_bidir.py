@@ -623,9 +623,8 @@ def save_chamfer_debug_snapshot(
     obs2d_anchor_colors_rgb: np.ndarray,
     model3d_all: np.ndarray,
     model3d_all_colors: np.ndarray,
-    model2d_all: np.ndarray,
-    model2d_all_colors_rgb: np.ndarray,
     model2d_visible: np.ndarray,
+    model2d_visible_colors_rgb: np.ndarray,
     nn2d_idx: np.ndarray,
     nn2d_d2: np.ndarray,
     nn3d_d2: np.ndarray,
@@ -661,8 +660,8 @@ def save_chamfer_debug_snapshot(
     )
     draw_points_per_point_color(
         canvas_bgr=right,
-        uv=model2d_all,
-        colors_rgb=model2d_all_colors_rgb,
+        uv=model2d_visible,
+        colors_rgb=model2d_visible_colors_rgb,
         radius=point_radius,
         max_points=max_points_vis,
     )
@@ -679,7 +678,7 @@ def save_chamfer_debug_snapshot(
     )
     cv2.putText(
         right,
-        "Projected samples (visible=colored, non-visible=gray)",
+        "Projected visible subset (colored only)",
         (12, 28),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.7,
@@ -699,7 +698,7 @@ def save_chamfer_debug_snapshot(
     )
     cv2.putText(
         right,
-        f"N={model2d_all.shape[0]} visible={visible_subset_count} mode={visible_subset_mode}",
+        f"N={model2d_visible.shape[0]} visible={visible_subset_count} mode={visible_subset_mode}",
         (12, 56),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.5,
@@ -1628,11 +1627,9 @@ def optimize_scale_txyz_chamfer(
     def _save_debug(iter_idx: int, losses_eval: dict[str, torch.Tensor], save_fixed: bool) -> None:
         with torch.no_grad():
             model3d_all_t = losses_eval["model3d_all"]
-            model2d_all_t = losses_eval["model2d_all"]
             model3d_visible_t = losses_eval["model3d_visible"]
             model2d_visible_t = losses_eval["model2d_visible"]
             model3d_all_np = model3d_all_t.detach().cpu().numpy()
-            model2d_all_np = model2d_all_t.detach().cpu().numpy()
             model3d_visible_np = model3d_visible_t.detach().cpu().numpy()
             model2d_visible_np = model2d_visible_t.detach().cpu().numpy()
 
@@ -1678,9 +1675,8 @@ def optimize_scale_txyz_chamfer(
                         ]
                 model3d_all_colors[visible_subset_indices] = visible3d_colors
 
-            model2d_all_colors_rgb = np.tile(gray_rgb[None, :], (model2d_all_np.shape[0], 1))
+            model2d_visible_colors_rgb = colorize_points_by_xy(model2d_visible_np)
             if model2d_visible_np.shape[0] > 0:
-                visible2d_colors = colorize_points_by_xy(model2d_visible_np)
                 if model2d_to_obs2d_idx_t is not None and obs2d_anchor_colors.shape[0] > 0:
                     model2d_to_obs2d_idx = (
                         model2d_to_obs2d_idx_t.detach().cpu().numpy().astype(np.int64)
@@ -1690,10 +1686,9 @@ def optimize_scale_txyz_chamfer(
                         & (model2d_to_obs2d_idx < obs2d_anchor_colors.shape[0])
                     )
                     if np.any(valid_model2d_idx):
-                        visible2d_colors[valid_model2d_idx] = obs2d_anchor_colors[
+                        model2d_visible_colors_rgb[valid_model2d_idx] = obs2d_anchor_colors[
                             model2d_to_obs2d_idx[valid_model2d_idx]
                         ]
-                model2d_all_colors_rgb[visible_subset_indices] = visible2d_colors
 
             save_chamfer_debug_snapshot(
                 out_dir=debug_dir,
@@ -1706,9 +1701,8 @@ def optimize_scale_txyz_chamfer(
                 obs2d_anchor_colors_rgb=obs2d_anchor_colors,
                 model3d_all=model3d_all_np,
                 model3d_all_colors=model3d_all_colors,
-                model2d_all=model2d_all_np,
-                model2d_all_colors_rgb=model2d_all_colors_rgb,
                 model2d_visible=model2d_visible_np,
+                model2d_visible_colors_rgb=model2d_visible_colors_rgb,
                 nn2d_idx=np.zeros((0,), dtype=np.int64)
                 if idx2d_t is None
                 else idx2d_t.detach().cpu().numpy().astype(np.int64),
@@ -2102,7 +2096,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", type=str, default="cuda:0")
     parser.add_argument("--opt_max_side", type=int, default=1280)
 
-    parser.add_argument("--iters", type=int, default=5000)
+    parser.add_argument("--iters", type=int, default=10000)
     parser.add_argument("--lr", type=float, default=5e-3)
 
     parser.add_argument("--w_cd3d", type=float, default=1e3)
