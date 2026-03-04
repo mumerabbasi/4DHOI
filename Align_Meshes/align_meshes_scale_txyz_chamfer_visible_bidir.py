@@ -2030,7 +2030,7 @@ def parse_args() -> argparse.Namespace:
             "scale+t_xyz optimization."
         )
     )
-    parser.add_argument("--video_name", type=str, default="video_02")
+    parser.add_argument("--video_name", type=str, default="video_01")
 
     parser.add_argument(
         "--object_video_dir",
@@ -2105,7 +2105,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--w_t_reg", type=float, default=1e-3)
     parser.add_argument("--rho_geman_3d", type=float, default=0.2)
 
-    # Note: Original defaults were 20000, 60000, 80000. Reduced for faster debugging.
     parser.add_argument("--mesh_sample_points", type=int, default=6000)
     parser.add_argument("--max_obs_3d_points_per_mesh", type=int, default=6000)
     parser.add_argument("--max_obs_2d_points_per_mesh", type=int, default=6000)
