@@ -1,0 +1,163 @@
+{
+  "transforms": [
+    {
+      "name": "human",
+      "slug": "human",
+      "kind": "human",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_01/output_plys/frame_0000.ply",
+      "source_coordinate": "opencv_camera",
+      "output_coordinate": "opencv",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_scale_txyz_chamfer/video_01/meshes/human.ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": -0.07159971445798874,
+        "scale_exp_alpha": 0.9309034484339336,
+        "tx_init_m": 0.0,
+        "ty_init_m": 0.0,
+        "tz_init_m": -0.27039074897766113,
+        "delta_tx_m": 0.021663973107933998,
+        "delta_ty_m": 0.015994995832443237,
+        "delta_tz_m": 0.2657126486301422,
+        "tx_total_m": 0.021663973107933998,
+        "ty_total_m": 0.015994995832443237,
+        "tz_total_m": -0.004678100347518921,
+        "obs_3d_count": 6000,
+        "obs_2d_count": 8000,
+        "model_sample_count": 2000
+      },
+      "source_to_output_matrix_4x4": [
+        [
+          0.930903434753418,
+          0.0,
+          0.0,
+          0.021663973107933998
+        ],
+        [
+          0.0,
+          0.930903434753418,
+          0.0,
+          0.015994995832443237
+        ],
+        [
+          0.0,
+          0.0,
+          0.930903434753418,
+          -0.004678100347518921
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "iron",
+      "slug": "iron",
+      "kind": "object",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01/iron/mesh_posed.ply",
+      "source_coordinate": "pytorch3d_camera",
+      "output_coordinate": "opencv",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_scale_txyz_chamfer/video_01/meshes/iron.ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 0.2189057469367981,
+        "scale_exp_alpha": 1.2447139530556766,
+        "tx_init_m": 0.0,
+        "ty_init_m": 0.0,
+        "tz_init_m": 0.6692230701446533,
+        "delta_tx_m": -0.002022012136876583,
+        "delta_ty_m": 0.013178014196455479,
+        "delta_tz_m": -0.29530033469200134,
+        "tx_total_m": -0.002022012136876583,
+        "ty_total_m": 0.013178014196455479,
+        "tz_total_m": 0.373922735452652,
+        "obs_3d_count": 2170,
+        "obs_2d_count": 2170,
+        "model_sample_count": 2000
+      },
+      "source_to_output_matrix_4x4": [
+        [
+          -1.2447139024734497,
+          0.0,
+          0.0,
+          -0.002022012136876583
+        ],
+        [
+          0.0,
+          -1.2447139024734497,
+          0.0,
+          0.013178014196455479
+        ],
+        [
+          0.0,
+          0.0,
+          1.2447139024734497,
+          0.373922735452652
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "ironing board",
+      "slug": "ironing_board",
+      "kind": "object",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01/ironing_board/mesh_posed.ply",
+      "source_coordinate": "pytorch3d_camera",
+      "output_coordinate": "opencv",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_scale_txyz_chamfer/video_01/meshes/ironing_board.ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 0.08439718931913376,
+        "scale_exp_alpha": 1.0880609741918044,
+        "tx_init_m": 0.0,
+        "ty_init_m": 0.0,
+        "tz_init_m": 0.4294135570526123,
+        "delta_tx_m": 0.04376573488116264,
+        "delta_ty_m": 0.09432674944400787,
+        "delta_tz_m": -0.0006179587217047811,
+        "tx_total_m": 0.04376573488116264,
+        "ty_total_m": 0.09432674944400787,
+        "tz_total_m": 0.4287955983309075,
+        "obs_3d_count": 6000,
+        "obs_2d_count": 8000,
+        "model_sample_count": 2000
+      },
+      "source_to_output_matrix_4x4": [
+        [
+          -1.088060975074768,
+          0.0,
+          0.0,
+          0.04376573488116264
+        ],
+        [
+          0.0,
+          -1.088060975074768,
+          0.0,
+          0.09432674944400787
+        ],
+        [
+          0.0,
+          0.0,
+          1.088060975074768,
+          0.42879560589790344
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    }
+  ]
+}
