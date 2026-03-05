@@ -1,21 +1,4 @@
-"""Multi-frame SE(3) object mesh tracking from CoTracker tracks (corrected).
-
-Fixes over original track_object_mesh.py:
-  1. **Convention mismatch**: PyTorch3D's se3_exp_map returns 4x4 matrices in
-     *row-vector* convention (translation in bottom row, R^T in top-left).
-     The original code treated them as standard *column-vector* matrices,
-     causing all translations to be zero and rotations transposed.
-  2. **Pose parameterization**: Uses axis_angle_to_matrix (standard convention)
-     + explicit translation vector. This avoids any convention ambiguity.
-  3. **SE(3) velocity/smoothness**: Computes body-frame relative transforms
-     properly using matrix operations, not mixed conventions.
-
-Coordinate convention used throughout: **OpenCV** (X-right, Y-down, Z-forward).
-The 4x4 matrices are in standard column-vector convention: [[R, t], [0, 1]].
-Projection: u = fx * X/Z + cx,  v = fy * Y/Z + cy.
-
-Usage is identical to the original script.
-"""
+"""Multi-frame SE(3) object mesh tracking from CoTracker tracks"""
 
 from __future__ import annotations
 
@@ -122,6 +105,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--start_frame", type=int, default=0)
     p.add_argument("--end_frame", type=int, default=-1)
     p.add_argument("--overlay_fps", type=float, default=6.0)
+    p.add_argument("--overlay_save_pngs", action=argparse.BooleanOptionalAction, default=True,
+                   help="Save per-frame overlay PNGs (disable for faster runs)")
     p.add_argument("--debug_save_interval", type=int, default=20)
     p.add_argument("--verbose", action="store_true")
     return p.parse_args()
@@ -496,9 +481,11 @@ def _render_overlays(
     out_dir: Path,
     frame_offset: int,
     fps: float,
+    save_pngs: bool = True,
 ) -> tuple[bool, str]:
     overlays_dir = out_dir / "overlays"
-    ensure_dir(overlays_dir)
+    if save_pngs:
+        ensure_dir(overlays_dir)
     if not frame_paths or len(frame_paths) <= frame_offset or faces.shape[0] == 0:
         return False, "Skipped overlays (no frames or faces)."
 
@@ -508,7 +495,8 @@ def _render_overlays(
         return False, f"Cannot read first frame: {frame_paths[frame_offset]}"
     h, w = first.shape[:2]
 
-    writer = start_ffmpeg_writer(out_dir / "overlay.mp4", fps, (h, w))
+    writer = start_ffmpeg_writer(out_dir / "overlay.mp4", float(fps), (h, w))
+    rendered_count = 0
     try:
         for local_i, fi in enumerate(range(frame_offset, end)):
             frame = cv2.imread(str(frame_paths[fi]))
@@ -520,12 +508,14 @@ def _render_overlays(
                 fill_alpha=OVERLAY_FILL_ALPHA, contour_thickness=OVERLAY_CONTOUR_THICKNESS,
                 color_bgr=OVERLAY_COLOR_BGR,
             )
-            cv2.imwrite(str(overlays_dir / f"overlay_{fi:04d}.png"), overlay)
+            if save_pngs:
+                cv2.imwrite(str(overlays_dir / f"overlay_{fi:04d}.png"), overlay)
             if writer.stdin is not None:
                 writer.stdin.write(np.ascontiguousarray(overlay).tobytes())
+            rendered_count += 1
     finally:
         close_ffmpeg(writer)
-    return True, f"Rendered overlays ({faces.shape[0]} faces)."
+    return True, f"Rendered overlays ({faces.shape[0]} faces, {rendered_count} frames, save_pngs={save_pngs})."
 
 
 # ---------------------------------------------------------------------------
@@ -1156,6 +1146,7 @@ def _run_single_object(
     overlay_ok, overlay_msg = _render_overlays(
         frame_paths, verts_cv, faces_np, T_mats_np, k,
         out_dir, args.start_frame, float(args.overlay_fps),
+        save_pngs=bool(args.overlay_save_pngs),
     )
 
     # --- Save metrics ---

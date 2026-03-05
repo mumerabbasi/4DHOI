@@ -571,7 +571,10 @@ def _rasterize_mask_from_projected_triangles(
     if uv.shape[0] == 0 or faces.shape[0] == 0:
         return mask
 
-    faces_i32 = np.asarray(faces, dtype=np.int32)
+    if faces.dtype == np.int32:
+        faces_i32 = np.ascontiguousarray(faces)
+    else:
+        faces_i32 = np.asarray(faces, dtype=np.int32)
     face_valid = valid_vertices[faces_i32].all(axis=1)
     if not np.any(face_valid):
         return mask
@@ -589,9 +592,12 @@ def _rasterize_mask_from_projected_triangles(
     if tri.shape[0] == 0:
         return mask
 
-    for tri_uv in tri:
-        tri_i = np.round(tri_uv).astype(np.int32)
-        cv2.fillConvexPoly(mask, tri_i, 255, lineType=cv2.LINE_8)
+    # Batch fill in one OpenCV call to avoid per-triangle Python overhead.
+    tri_i32 = np.round(tri).astype(np.int32)
+    try:
+        cv2.fillPoly(mask, tri_i32, 255, lineType=cv2.LINE_8)
+    except cv2.error:
+        cv2.fillPoly(mask, [poly for poly in tri_i32], 255, lineType=cv2.LINE_8)
     return mask
 
 
