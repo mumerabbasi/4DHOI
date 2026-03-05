@@ -55,60 +55,145 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Track aligned object meshes with corrected SE(3) optimizer."
     )
-    p.add_argument("--video_name", type=str, default="video_01")
-    p.add_argument("--cotracker_video_dir", type=str, default=None)
-    p.add_argument("--aligned_mesh_video_dir", type=str, default=None)
-    p.add_argument("--segment_video_dir", type=str, default=None)
-    p.add_argument("--pag_file", type=str, default=None)
-    p.add_argument("--output_root", type=str, default="./output")
+    p.add_argument(
+        "--video_name",
+        type=str,
+        default="video_01",
+        help="Video name used to resolve default input paths.",
+    )
+    p.add_argument(
+        "--cotracker_video_dir",
+        type=str,
+        default=None,
+        help="CoTracker dir (default: ../Estimate_Optical_Flow/output_cotracker/<video_name>).",
+    )
+    p.add_argument(
+        "--aligned_mesh_video_dir",
+        type=str,
+        default=None,
+        help="Aligned-mesh dir (default: ../Align_Meshes/output/<video_name>).",
+    )
+    p.add_argument(
+        "--segment_video_dir",
+        type=str,
+        default=None,
+        help="Segmentation dir (default: ../Segment_Video/output/<video_name>).",
+    )
+    p.add_argument(
+        "--pag_file",
+        type=str,
+        default=None,
+        help=(
+            "PAG JSON path (default: first output_pag_*.json in "
+            "../Generate_PAG/output/<video_name>)."
+        ),
+    )
+    p.add_argument(
+        "--output_root",
+        type=str,
+        default="./output",
+        help="Output root dir (default: ./output, relative to this script).",
+    )
 
-    p.add_argument("--output_coord", type=str, choices=["opencv", "pytorch3d"], default="opencv")
-    p.add_argument("--device", type=str, default="cuda")
-    p.add_argument("--bin_size", type=int, default=0)
-    p.add_argument("--mask_threshold", type=int, default=127)
-    p.add_argument("--mask_gate_threshold", type=float, default=0.5)
-    p.add_argument("--visibility_threshold", type=float, default=0.0)
-    p.add_argument("--min_valid_tracks", type=int, default=50)
+    p.add_argument(
+        "--output_coord",
+        type=str,
+        choices=["opencv", "pytorch3d"],
+        default="opencv",
+        help="Coordinate convention for exported outputs.",
+    )
+    p.add_argument("--device", type=str, default="cuda", help="Torch device (e.g., cuda or cpu).")
+    p.add_argument(
+        "--bin_size",
+        type=int,
+        default=0,
+        help="PyTorch3D rasterizer bin size (0 lets PyTorch3D choose).",
+    )
+    p.add_argument(
+        "--mask_threshold",
+        type=int,
+        default=127,
+        help="Binary threshold for loading grayscale masks.",
+    )
+    p.add_argument(
+        "--mask_gate_threshold",
+        type=float,
+        default=0.5,
+        help="Mask gate threshold for valid seed points.",
+    )
+    p.add_argument(
+        "--visibility_threshold",
+        type=float,
+        default=0.0,
+        help="Minimum CoTracker visibility to keep a sample.",
+    )
+    p.add_argument(
+        "--min_valid_tracks",
+        type=int,
+        default=50,
+        help="Minimum valid tracks required to optimize an object.",
+    )
 
-    p.add_argument("--huber_delta_px", type=float, default=3.0)
-    p.add_argument("--lambda_img", type=float, default=1.0)
-    p.add_argument("--lambda_a", type=float, default=10.0)
-    p.add_argument("--lambda_v", type=float, default=10.0)
-    p.add_argument("--adam_iters", type=int, default=4000)
-    p.add_argument("--adam_lr", type=float, default=1e-2)
-    p.add_argument("--early_stop_patience", type=int, default=0)
-    p.add_argument("--early_stop_rel_min_delta", type=float, default=1e-4)
-    p.add_argument("--early_stop_min_iter", type=int, default=300)
-    p.add_argument("--disable_lbfgs", action="store_true")
-    p.add_argument("--lbfgs_iters", type=int, default=120)
-    p.add_argument("--lbfgs_lr", type=float, default=0.5)
-    p.add_argument("--log_every", type=int, default=20)
+    p.add_argument(
+        "--huber_delta_px",
+        type=float,
+        default=3.0,
+        help="Huber delta for reprojection residuals (px).",
+    )
+    p.add_argument("--lambda_img", type=float, default=1.0, help="Weight for image reprojection loss.")
+    p.add_argument("--lambda_a", type=float, default=10.0, help="Weight for acceleration smoothness loss.")
+    p.add_argument("--lambda_v", type=float, default=10.0, help="Weight for velocity smoothness loss.")
+    p.add_argument("--adam_iters", type=int, default=4000, help="Number of Adam iterations.")
+    p.add_argument("--adam_lr", type=float, default=1e-2, help="Adam learning rate.")
+    p.add_argument(
+        "--early_stop_patience",
+        type=int,
+        default=0,
+        help="Early-stop patience in checks (0 disables).",
+    )
+    p.add_argument(
+        "--early_stop_rel_min_delta",
+        type=float,
+        default=1e-4,
+        help="Minimum relative improvement for early stopping.",
+    )
+    p.add_argument(
+        "--early_stop_min_iter",
+        type=int,
+        default=300,
+        help="Minimum iterations before early stopping is allowed.",
+    )
+    p.add_argument("--disable_lbfgs", action="store_true", help="Skip LBFGS refinement.")
+    p.add_argument("--lbfgs_iters", type=int, default=120, help="Maximum LBFGS iterations.")
+    p.add_argument("--lbfgs_lr", type=float, default=0.5, help="LBFGS step size.")
+    p.add_argument("--log_every", type=int, default=20, help="Log optimization stats every N iterations.")
 
     # --- Optimisation improvements ---
     p.add_argument("--disable_pnp_init", action="store_true",
-                   help="Disable PnP-RANSAC sequential initialization (use zeros)")
+                   help="Disable sequential PnP-RANSAC initialization (use zeros).")
     p.add_argument("--pnp_ransac_thresh", type=float, default=8.0,
-                   help="RANSAC reprojection threshold in PnP init (px)")
+                   help="RANSAC reprojection threshold for PnP init (px).")
     p.add_argument("--outlier_reproj_thresh_px", type=float, default=20.0,
-                   help="Tracks with mean reproj > this after PnP init are outliers (0=disable)")
+                   help="Post-PnP mean reprojection outlier threshold (px, 0 disables).")
     p.add_argument("--outlier_max_fraction", type=float, default=0.4,
-                   help="Max fraction of tracks to reject as outliers")
+                   help="Maximum fraction of tracks to reject as outliers.")
     p.add_argument("--lr_schedule", type=str, choices=["none", "cosine"], default="cosine",
-                   help="LR schedule for Adam optimizer")
+                   help="Learning-rate schedule for Adam.")
     p.add_argument("--graduated_huber", action=argparse.BooleanOptionalAction, default=True,
-                   help="Anneal Huber delta from 3x to 1x over first half of Adam")
+                   help="Anneal Huber delta from 3x to 1x in early Adam.")
     p.add_argument("--retrim_interval", type=int, default=1000,
-                   help="Every N Adam iters, zero out per-frame outlier tracks (0=disable)")
+                   help="Re-trim per-frame outlier tracks every N Adam iterations (0 disables).")
     p.add_argument("--retrim_percentile", type=float, default=90.0,
-                   help="Per-frame residual percentile threshold for retrimming (e.g., 90=keep best 90%%)")
+                   help="Per-frame residual percentile to keep during re-trimming.")
 
-    p.add_argument("--start_frame", type=int, default=0)
-    p.add_argument("--end_frame", type=int, default=-1)
-    p.add_argument("--overlay_fps", type=float, default=6.0)
+    p.add_argument("--start_frame", type=int, default=0, help="First frame index (must be 0).")
+    p.add_argument("--end_frame", type=int, default=-1, help="Last frame index (inclusive, -1 uses all).")
+    p.add_argument("--overlay_fps", type=float, default=6.0, help="FPS for overlay videos.")
     p.add_argument("--overlay_save_pngs", action=argparse.BooleanOptionalAction, default=True,
-                   help="Save per-frame overlay PNGs (disable for faster runs)")
-    p.add_argument("--debug_save_interval", type=int, default=20)
-    p.add_argument("--verbose", action="store_true")
+                   help="Save per-frame overlay PNGs (--no-overlay_save_pngs for speed).")
+    p.add_argument("--debug_save_interval", type=int, default=20,
+                   help="Save debug visuals every N iterations.")
+    p.add_argument("--verbose", action="store_true", help="Enable verbose logging.")
     return p.parse_args()
 
 
