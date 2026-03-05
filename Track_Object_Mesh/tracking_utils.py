@@ -619,15 +619,16 @@ def _draw_mask_outline_overlay(
         cv2.CHAIN_APPROX_SIMPLE,
     )
     contours = contours_info[0] if len(contours_info) == 2 else contours_info[1]
-    outline = tuple(int(np.clip(c + 48, 0, 255)) for c in color_bgr)
-    cv2.drawContours(
-        out_u8,
-        contours,
-        contourIdx=-1,
-        color=outline,
-        thickness=max(1, int(contour_thickness)),
-        lineType=cv2.LINE_AA,
-    )
+    if int(contour_thickness) > 0:
+        outline = tuple(int(np.clip(c + 48, 0, 255)) for c in color_bgr)
+        cv2.drawContours(
+            out_u8,
+            contours,
+            contourIdx=-1,
+            color=outline,
+            thickness=int(contour_thickness),
+            lineType=cv2.LINE_AA,
+        )
     return out_u8
 
 

@@ -54,8 +54,9 @@ from tracking_utils import (
 
 
 F_CV_TO_P3D = np.diag([-1.0, -1.0, 1.0]).astype(np.float32)
-OVERLAY_FILL_ALPHA = 0.35
-OVERLAY_CONTOUR_THICKNESS = 2
+OVERLAY_FILL_ALPHA = 0.60
+OVERLAY_CONTOUR_THICKNESS = 0
+OVERLAY_COLOR_BGR = (0, 255, 255)  # yellow-cyan
 
 
 @dataclass
@@ -622,6 +623,7 @@ def _render_overlays(
                 k=k,
                 fill_alpha=OVERLAY_FILL_ALPHA,
                 contour_thickness=OVERLAY_CONTOUR_THICKNESS,
+                color_bgr=OVERLAY_COLOR_BGR,
             )
             out_png = overlays_dir / f"overlay_{frame_idx:04d}.png"
             cv2.imwrite(str(out_png), overlay)
