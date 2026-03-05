@@ -2062,7 +2062,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output_root",
         type=str,
-        default="./output_scale_txyz_chamfer_visible_bidir",
+        default="./output",
         help="Root output directory; results are written to output_root/video_name.",
     )
 
@@ -2332,7 +2332,7 @@ def main() -> None:
             )
         mask_path = resolve_frame_0000_mask(mask_dir)
 
-        verts_src, faces = load_mesh(mesh_path)
+        verts_src, faces, vertex_colors = load_mesh(mesh_path)
         mask = load_binary_mask(mask_path, (depth_h, depth_w))
         mask = erode_mask(mask, int(args.sam3_mask_erode_iters))
         source_to_cv = F_P3D_TO_CV.copy().astype(np.float32)
@@ -2345,6 +2345,7 @@ def main() -> None:
                 source_coord="pytorch3d_camera",
                 verts_source=verts_src,
                 faces=faces,
+                vertex_colors=vertex_colors,
                 source_to_cv=source_to_cv,
                 mask_path=mask_path,
                 mask=mask,
@@ -2378,7 +2379,7 @@ def main() -> None:
     human_mask = load_binary_mask(human_mask_path, (depth_h, depth_w))
     human_mask = erode_mask(human_mask, int(args.sam3_mask_erode_iters))
 
-    human_verts_src, human_faces = load_mesh(human_mesh_path)
+    human_verts_src, human_faces, human_vertex_colors = load_mesh(human_mesh_path)
     assets = [
         MeshAsset(
             name="human",
@@ -2388,6 +2389,7 @@ def main() -> None:
             source_coord="opencv_camera",
             verts_source=human_verts_src,
             faces=human_faces,
+            vertex_colors=human_vertex_colors,
             source_to_cv=np.eye(3, dtype=np.float32),
             mask_path=human_mask_path,
             mask=human_mask,
@@ -2630,7 +2632,12 @@ def main() -> None:
             np.float32
         )
         out_mesh_path = meshes_out_dir / f"{asset.slug}.ply"
-        save_mesh_ply(out_mesh_path, verts_aligned_out, asset.faces)
+        save_mesh_ply(
+            out_mesh_path,
+            verts_aligned_out,
+            asset.faces,
+            vertex_colors=asset.vertex_colors,
+        )
 
         source_to_output_4x4 = np.eye(4, dtype=np.float32)
         source_to_output_4x4[:3, :3] = (

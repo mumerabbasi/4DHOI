@@ -41,6 +41,7 @@ class MeshAsset:
     source_coord: str
     verts_source: np.ndarray
     faces: np.ndarray
+    vertex_colors: np.ndarray | None
     source_to_cv: np.ndarray
     mask_path: Path | None
     mask: np.ndarray | None
@@ -118,7 +119,29 @@ def load_object_intrinsics(camera_intrinsics_json_path: Path) -> np.ndarray:
     return ensure_3x3_intrinsics(camera_intr.get("intrinsics_pixels_3x3"))
 
 
-def load_mesh(path: Path) -> tuple[np.ndarray, np.ndarray]:
+def _normalize_vertex_colors_rgba(colors: np.ndarray) -> np.ndarray | None:
+    """Normalize vertex colors to uint8 RGBA."""
+    arr = np.asarray(colors)
+    if arr.ndim != 2 or arr.shape[1] < 3:
+        return None
+    if arr.shape[1] == 3:
+        alpha = np.full((arr.shape[0], 1), 255, dtype=arr.dtype)
+        arr = np.concatenate([arr, alpha], axis=1)
+    else:
+        arr = arr[:, :4]
+
+    if np.issubdtype(arr.dtype, np.floating):
+        # Trimesh colors are typically [0,255], but support normalized [0,1].
+        max_val = float(np.nanmax(arr)) if arr.size else 0.0
+        if max_val <= 1.0:
+            arr = arr * 255.0
+        arr = np.clip(np.round(arr), 0.0, 255.0).astype(np.uint8)
+    else:
+        arr = np.clip(arr, 0, 255).astype(np.uint8)
+    return arr
+
+
+def load_mesh(path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
     mesh = trimesh.load(str(path), force="mesh")
     if not isinstance(mesh, trimesh.Trimesh):
         raise ValueError(f"Failed to load mesh: {path}")
@@ -126,11 +149,28 @@ def load_mesh(path: Path) -> tuple[np.ndarray, np.ndarray]:
         raise ValueError(f"Mesh has no faces: {path}")
     verts = np.asarray(mesh.vertices, dtype=np.float32)
     faces = np.asarray(mesh.faces, dtype=np.int64)
-    return verts, faces
+    vertex_colors: np.ndarray | None = None
+    visual = getattr(mesh, "visual", None)
+    if visual is not None:
+        raw_colors = getattr(visual, "vertex_colors", None)
+        if raw_colors is not None and len(raw_colors) == verts.shape[0]:
+            vertex_colors = _normalize_vertex_colors_rgba(np.asarray(raw_colors))
+    return verts, faces, vertex_colors
 
 
-def save_mesh_ply(path: Path, verts: np.ndarray, faces: np.ndarray) -> None:
-    mesh = trimesh.Trimesh(vertices=verts, faces=faces, process=False)
+def save_mesh_ply(
+    path: Path,
+    verts: np.ndarray,
+    faces: np.ndarray,
+    vertex_colors: np.ndarray | None = None,
+) -> None:
+    visual = None
+    if vertex_colors is not None:
+        colors_rgba = _normalize_vertex_colors_rgba(vertex_colors)
+        if colors_rgba is not None and colors_rgba.shape[0] == verts.shape[0]:
+            visual = trimesh.visual.ColorVisuals(vertex_colors=colors_rgba)
+
+    mesh = trimesh.Trimesh(vertices=verts, faces=faces, process=False, visual=visual)
     mesh.export(str(path))
 
 
