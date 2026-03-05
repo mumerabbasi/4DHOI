@@ -7,35 +7,47 @@
       "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_03/output_plys/frame_0000.ply",
       "source_coordinate": "opencv_camera",
       "output_coordinate": "opencv",
-      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03/meshes/human.ply",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_scale_txyz_chamfer_visible_bidir/video_03/meshes/human.ply",
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_alpha": 0.45334529876708984,
-        "scale_exp_alpha": 1.5735674436139866,
+        "log_scale_alpha": 0.3445720970630646,
+        "scale_exp_alpha": 1.411385854284003,
+        "tx_init_m": 0.0,
+        "ty_init_m": 0.0,
         "tz_init_m": 0.0,
-        "delta_tz_m": 0.002321424661204219,
-        "tz_total_m": 0.002321424661204219,
-        "num_correspondences": 30343
+        "delta_tx_m": -0.004137581679970026,
+        "delta_ty_m": 0.03859329596161842,
+        "delta_tz_m": 0.4257791340351105,
+        "tx_total_m": -0.004137581679970026,
+        "ty_total_m": 0.03859329596161842,
+        "tz_total_m": 0.4257791340351105,
+        "obs_3d_count": 6000,
+        "obs_2d_count": 6000,
+        "model_sample_count": 2956,
+        "model_sample_count_total": 6000,
+        "model_sample_count_visible_fixed": 2956,
+        "model_sample_visible_ratio": 0.49266666666666664,
+        "visible_subset_mode": "strict_visible"
       },
       "source_to_output_matrix_4x4": [
         [
-          1.5735673904418945,
+          1.4113858938217163,
           0.0,
           0.0,
-          0.0
+          -0.004137581679970026
         ],
         [
           0.0,
-          1.5735673904418945,
+          1.4113858938217163,
           0.0,
-          0.0
+          0.03859329596161842
         ],
         [
           0.0,
           0.0,
-          1.5735673904418945,
-          0.002321424661204219
+          1.4113858938217163,
+          0.4257791340351105
         ],
         [
           0.0,
@@ -52,35 +64,47 @@
       "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_03/umbrella/mesh_posed.ply",
       "source_coordinate": "pytorch3d_camera",
       "output_coordinate": "opencv",
-      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03/meshes/umbrella.ply",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_scale_txyz_chamfer_visible_bidir/video_03/meshes/umbrella.ply",
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_alpha": 1.1611018180847168,
-        "scale_exp_alpha": 3.193449939294623,
+        "log_scale_alpha": 0.9495290517807007,
+        "scale_exp_alpha": 2.584492210656307,
+        "tx_init_m": 0.0,
+        "ty_init_m": 0.0,
         "tz_init_m": 0.0,
-        "delta_tz_m": 7.46170335332863e-05,
-        "tz_total_m": 7.46170335332863e-05,
-        "num_correspondences": 14089
+        "delta_tx_m": -0.11249417811632156,
+        "delta_ty_m": -0.3164393901824951,
+        "delta_tz_m": 1.1346867084503174,
+        "tx_total_m": -0.11249417811632156,
+        "ty_total_m": -0.3164393901824951,
+        "tz_total_m": 1.1346867084503174,
+        "obs_3d_count": 6000,
+        "obs_2d_count": 6000,
+        "model_sample_count": 4138,
+        "model_sample_count_total": 6000,
+        "model_sample_count_visible_fixed": 4138,
+        "model_sample_visible_ratio": 0.6896666666666667,
+        "visible_subset_mode": "strict_visible"
       },
       "source_to_output_matrix_4x4": [
         [
-          -3.1934499740600586,
+          -2.5844922065734863,
           0.0,
           0.0,
-          0.0
+          -0.11249417811632156
         ],
         [
           0.0,
-          -3.1934499740600586,
+          -2.5844922065734863,
           0.0,
-          0.0
+          -0.3164393901824951
         ],
         [
           0.0,
           0.0,
-          3.1934499740600586,
-          7.46170335332863e-05
+          2.5844922065734863,
+          1.1346867084503174
         ],
         [
           0.0,

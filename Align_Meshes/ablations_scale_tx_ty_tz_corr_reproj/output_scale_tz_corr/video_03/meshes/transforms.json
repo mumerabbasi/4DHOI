@@ -1,0 +1,94 @@
+{
+  "transforms": [
+    {
+      "name": "human",
+      "slug": "human",
+      "kind": "human",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_03/output_plys/frame_0000.ply",
+      "source_coordinate": "opencv_camera",
+      "output_coordinate": "opencv",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_scale_tz_corr/video_03/meshes/human.ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 0.4344174563884735,
+        "scale_exp_alpha": 1.5440633126874654,
+        "tz_init_m": 0.0,
+        "delta_tz_m": 0.08462337404489517,
+        "tz_total_m": 0.08462337404489517,
+        "num_correspondences": 29766
+      },
+      "source_to_output_matrix_4x4": [
+        [
+          1.5440633296966553,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.5440633296966553,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.5440633296966553,
+          0.08462337404489517
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "umbrella",
+      "slug": "umbrella",
+      "kind": "object",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_03/umbrella/mesh_posed.ply",
+      "source_coordinate": "pytorch3d_camera",
+      "output_coordinate": "opencv",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_scale_tz_corr/video_03/meshes/umbrella.ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 1.1556471586227417,
+        "scale_exp_alpha": 3.1760781789576122,
+        "tz_init_m": 0.0,
+        "delta_tz_m": -0.0030720194336026907,
+        "tz_total_m": -0.0030720194336026907,
+        "num_correspondences": 14685
+      },
+      "source_to_output_matrix_4x4": [
+        [
+          -3.1760780811309814,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -3.1760780811309814,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          3.1760780811309814,
+          -0.0030720194336026907
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    }
+  ]
+}

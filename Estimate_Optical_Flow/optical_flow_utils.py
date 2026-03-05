@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import Any, Optional, Sequence, Tuple
+from typing import Optional, Sequence, Tuple
 
 import cv2
 import numpy as np
@@ -83,23 +83,6 @@ def find_single_mp4(video_dir: Path) -> Path:
         names = [p.name for p in mp4_files]
         raise RuntimeError(f"Expected exactly one .mp4 in {video_dir}, found: {names}")
     return mp4_files[0]
-
-
-def find_single_summary(object_mesh_dir: Path) -> Path:
-    """Find exactly one segmentation summary file in object_mesh_dir."""
-    files = sorted(object_mesh_dir.glob("*_segmentation_summary.json"))
-    if not files:
-        raise FileNotFoundError(
-            "No segmentation summary JSON found in object mesh dir: "
-            f"{object_mesh_dir}"
-        )
-    if len(files) > 1:
-        names = [p.name for p in files]
-        raise RuntimeError(
-            "Expected exactly one segmentation summary JSON in "
-            f"{object_mesh_dir}, found: {names}"
-        )
-    return files[0]
 
 
 def make_track_colors(points_xy: np.ndarray) -> np.ndarray:
@@ -232,27 +215,3 @@ def compute_target_track_points(
 
     target = int(np.ceil((float(mask_area_px) * density_per_1kpx) / 1000.0))
     return max(1, target)
-
-
-def normalize_slug(obj_info: dict[str, Any]) -> str:
-    """Resolve stable object slug from summary object entry."""
-    if "output_dir" in obj_info and obj_info["output_dir"]:
-        return Path(str(obj_info["output_dir"])).name
-    return str(obj_info.get("object", "object")).replace(" ", "_")
-
-
-def resolve_mask_path(object_mesh_dir: Path, obj_info: dict[str, Any]) -> Path:
-    """Resolve frame-0 mask path for one object."""
-    slug = normalize_slug(obj_info)
-
-    if "output_dir" in obj_info and obj_info["output_dir"]:
-        obj_dir = Path(str(obj_info["output_dir"]))
-    else:
-        obj_dir = object_mesh_dir / slug
-
-    mask_rel = str(obj_info.get("mask_file", "mask/frame_00.png"))
-    mask_path = obj_dir / mask_rel
-    if mask_path.exists():
-        return mask_path
-
-    return object_mesh_dir / slug / "mask" / "frame_00.png"

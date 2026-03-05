@@ -1,61 +1,48 @@
-"""Estimate optical flow on a video using WAFT and generate per-object trail visualizations."""
+"""Estimate per-object WAFT tracks from Segment_Video frame-0 masks."""
 
 from __future__ import annotations
 
 import argparse
 import json
 import os
+import shutil
 import sys
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Tuple
 
 import cv2
 import numpy as np
 import torch
 
 from optical_flow_utils import (
-    close_ffmpeg,
     compute_target_track_points,
     erode_mask,
     find_single_mp4,
-    find_single_summary,
-    normalize_slug,
     render_trails_video,
-    resolve_mask_path,
     resolve_path,
     sample_points_from_mask,
     sample_visualization_indices,
-    start_ffmpeg_writer,
 )
-
-
-@dataclass(frozen=True)
-class Paths:
-    """Derived input/output paths."""
-    script_dir: Path
-    waft_dir: Path
-    input_dir: Path
-    input_mp4: Path
-    out_video_dir: Path
-    frames_dir: Path
-    frames_vis_dir: Path
-    arrows_vis_dir: Path
-    flow_dir: Path
-    vis_mp4_path: Path
-    arrows_mp4_path: Path
 
 
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments."""
     parser = argparse.ArgumentParser(
-        description="Run WAFT optical flow on a video directory (video_xx)."
+        description="Run WAFT-based tracking per object for a video_xx directory."
     )
     parser.add_argument(
         "--video_dir",
         default="../Generate_Video/output/video_01",
         type=str,
-        help="Path to a directory like */output/video_xx containing an .mp4.",
+        help="Path to directory like */output/video_xx containing one .mp4.",
+    )
+    parser.add_argument(
+        "--segment_video_dir",
+        default=None,
+        type=str,
+        help=(
+            "Path to Segment_Video output for this video. "
+            "Default: ../Segment_Video/output/<video_xx>"
+        ),
     )
     parser.add_argument(
         "--output_dir",
@@ -70,7 +57,7 @@ def parse_args() -> argparse.Namespace:
         "--waft_dir",
         default="/my_workspace/4DHHOI/WAFT",
         type=str,
-        help="Path to WAFT repo root. Default: <script_dir>/WAFT",
+        help="Path to WAFT repo root.",
     )
     parser.add_argument(
         "--cfg",
@@ -85,13 +72,13 @@ def parse_args() -> argparse.Namespace:
         "--ckpt",
         default=None,
         type=str,
-        help="Checkpoint .pth. Default: <waft_dir>/ckpts/a2/dinov3/spring.pth",
+        help="WAFT checkpoint .pth. Default: <waft_dir>/ckpts/a2/dinov3/spring.pth",
     )
     parser.add_argument(
         "--device",
         default="cuda",
         type=str,
-        help="torch device string, e.g. 'cuda' or 'cuda:0' or 'cpu'.",
+        help="torch device string, e.g. 'cuda', 'cuda:0', or 'cpu'.",
     )
     parser.add_argument(
         "--scale",
@@ -100,25 +87,22 @@ def parse_args() -> argparse.Namespace:
         help="WAFT InferenceWrapper scale factor (0.0 keeps native).",
     )
     parser.add_argument(
-        "--arrow_scale",
-        default=1.0,
-        type=float,
-        help="Scale factor for arrow length in visualization (default 1.0).",
-    )
-    parser.add_argument(
-        "--segment_first_frame_dir",
-        default=None,
-        type=str,
-        help=(
-            "Path to Segment_First_Frame output for this video. "
-            "Default: ../Segment_First_Frame/output/<video_xx>"
-        ),
-    )
-    parser.add_argument(
         "--track_point_density",
-        default=200.0,
+        default=1000.0,
         type=float,
         help="Tracking seed density: points per 1000 mask pixels.",
+    )
+    parser.add_argument(
+        "--track_point_max",
+        default=5000,
+        type=int,
+        help="Maximum number of tracking seed points per object.",
+    )
+    parser.add_argument(
+        "--mask_threshold",
+        default=127,
+        type=int,
+        help="Threshold applied to mask grayscale image.",
     )
     parser.add_argument(
         "--mask_erode_px",
@@ -128,21 +112,24 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--trail_length",
-        default=10,
+        default=0,
         type=int,
-        help="Number of recent frames kept in trail visualization.",
+        help="Number of recent frames kept in track trails for visualization.",
     )
     parser.add_argument(
         "--vis_fps",
         default=6.0,
         type=float,
-        help="FPS for all output visualization videos (flow, arrows, trails).",
+        help="Visualization FPS.",
     )
     parser.add_argument(
         "--vis_point_percent",
-        default=10,
+        default=5.0,
         type=float,
-        help="Percentage of tracked points to visualize in trails.mp4. Range: (0, 100].",
+        help=(
+            "Percentage of tracked points to visualize in trails.mp4. "
+            "Tracking outputs still keep all points. Range: (0, 100]."
+        ),
     )
     parser.add_argument(
         "--vis_seed",
@@ -153,98 +140,28 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def build_paths(args: argparse.Namespace) -> Paths:
-    """Build Paths object from CLI args."""
-    script_dir = Path(__file__).resolve().parent
-    input_dir = Path(args.video_dir).resolve()
-    if not input_dir.exists():
-        raise FileNotFoundError(f"video_dir does not exist: {input_dir}")
-    if not input_dir.is_dir():
-        raise NotADirectoryError(f"video_dir is not a directory: {input_dir}")
-
-    input_mp4 = find_single_mp4(input_dir)
-    video_name = input_dir.name
-
-    waft_dir = Path(args.waft_dir).resolve() if args.waft_dir else (script_dir / "WAFT")
-    if not waft_dir.exists():
-        raise FileNotFoundError(
-            f"WAFT repo not found at: {waft_dir}. "
-            "Pass --waft_dir to point to your WAFT clone."
-        )
-
-    if args.output_dir:
-        out_video_dir = Path(args.output_dir)
-        if not out_video_dir.is_absolute():
-            out_video_dir = script_dir / out_video_dir
-        out_video_dir = out_video_dir.resolve()
-    else:
-        out_video_dir = (script_dir / "output_waft" / video_name).resolve()
-
-    frames_dir = out_video_dir / "_frames"
-    frames_vis_dir = out_video_dir / "_frames_visualization"
-    arrows_vis_dir = out_video_dir / "_frames_arrows"
-    flow_dir = out_video_dir / "optical_flow"
-    vis_mp4_path = out_video_dir / "visualization.mp4"
-    arrows_mp4_path = out_video_dir / "visualization_arrows.mp4"
-
-    return Paths(
-        script_dir=script_dir,
-        waft_dir=waft_dir,
-        input_dir=input_dir,
-        input_mp4=input_mp4,
-        out_video_dir=out_video_dir,
-        frames_dir=frames_dir,
-        frames_vis_dir=frames_vis_dir,
-        arrows_vis_dir=arrows_vis_dir,
-        flow_dir=flow_dir,
-        vis_mp4_path=vis_mp4_path,
-        arrows_mp4_path=arrows_mp4_path,
-    )
-
-
-def clear_dir(path: Path) -> None:
-    """Delete directory contents if it exists, then recreate it."""
-    if path.exists():
-        for child in path.glob("*"):
-            if child.is_file():
-                child.unlink()
-            else:
-                for sub in child.rglob("*"):
-                    if sub.is_file():
-                        sub.unlink()
-                for sub in sorted(child.rglob("*"), reverse=True):
-                    if sub.is_dir():
-                        sub.rmdir()
-                child.rmdir()
-    path.mkdir(parents=True, exist_ok=True)
-
-
-def extract_frames(mp4_path: Path, frames_dir: Path) -> Tuple[int, float]:
-    """
-    Extract all frames from mp4 into frames_dir as PNG.
-
-    Returns:
-        (num_frames, fps)
-    """
-    cap = cv2.VideoCapture(str(mp4_path))
+def load_video_frames(video_mp4: Path) -> tuple[list[np.ndarray], float]:
+    """Load MP4 as BGR frames and return video FPS."""
+    cap = cv2.VideoCapture(str(video_mp4))
     if not cap.isOpened():
-        raise RuntimeError(f"Could not open video: {mp4_path}")
+        raise RuntimeError(f"Could not open video: {video_mp4}")
 
     fps = cap.get(cv2.CAP_PROP_FPS)
     if fps is None or fps <= 0:
         fps = 24.0
 
-    idx = 0
+    frames_bgr: list[np.ndarray] = []
     while True:
         ok, frame_bgr = cap.read()
         if not ok:
             break
-        out_path = frames_dir / f"frame_{idx:04d}.png"
-        cv2.imwrite(str(out_path), frame_bgr)
-        idx += 1
+        frames_bgr.append(frame_bgr)
 
     cap.release()
-    return idx, float(fps)
+
+    if len(frames_bgr) < 2:
+        raise RuntimeError(f"Need at least 2 frames, found {len(frames_bgr)}")
+    return frames_bgr, float(fps)
 
 
 def add_waft_to_syspath(waft_dir: Path) -> None:
@@ -256,8 +173,6 @@ def add_waft_to_syspath(waft_dir: Path) -> None:
 
 def _patch_waft_dinov3_weights() -> None:
     """Patch WAFT's dinov3 module to use direct download URLs."""
-    # Direct download URLs for DINOv3 weights (licensed from Meta)
-    # These are signed URLs that bypass the public endpoint restrictions
     dinov3_urls = {
         "vits": (
             "https://dinov3.llamameta.net/dinov3_vits16/"
@@ -303,7 +218,6 @@ def _patch_waft_dinov3_weights() -> None:
         ),
     }
 
-    # Patch the WEIGHTS_URLS in WAFT's dinov3 backbone module
     import model.backbone.dinov3 as waft_dinov3  # type: ignore
 
     waft_dinov3.WEIGHTS_URLS = dinov3_urls
@@ -316,12 +230,7 @@ def load_waft_model(
     scale: float,
     waft_dir: Path,
 ):
-    """
-    Load WAFT model and wrap it with InferenceWrapper.
-
-    Imports happen after sys.path modification.
-    """
-    # WAFT uses relative paths for thirdparty modules
+    """Load WAFT model and wrap it with InferenceWrapper."""
     original_cwd = os.getcwd()
     os.chdir(waft_dir)
 
@@ -331,10 +240,8 @@ def load_waft_model(
         from model import fetch_model  # type: ignore
         from utils.utils import load_ckpt  # type: ignore
 
-        # Patch dinov3 weights before model creation
         _patch_waft_dinov3_weights()
 
-        # Load config from JSON and set required attributes
         waft_args = json_to_args(str(cfg_path))
         waft_args.cfg = str(cfg_path)
         waft_args.ckpt = str(ckpt_path)
@@ -356,67 +263,41 @@ def load_waft_model(
         os.chdir(original_cwd)
 
 
-def read_frame_rgb(frames_dir: Path, idx: int) -> np.ndarray:
-    """Read frame as RGB uint8 (H, W, 3)."""
-    frame_path = frames_dir / f"frame_{idx:04d}.png"
-    bgr = cv2.imread(str(frame_path), cv2.IMREAD_COLOR)
-    if bgr is None:
-        raise RuntimeError(f"Failed to read frame: {frame_path}")
-    return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+def compute_dense_flows(
+    wrapped_model,
+    frames_bgr: list[np.ndarray],
+    device: torch.device,
+) -> list[np.ndarray]:
+    """Compute WAFT dense flow for all consecutive frame pairs."""
+    num_frames = len(frames_bgr)
+    if num_frames < 2:
+        raise RuntimeError(f"Need at least 2 frames, found {num_frames}")
+
+    flows: list[np.ndarray] = []
+    for t in range(num_frames - 1):
+        rgb1 = cv2.cvtColor(frames_bgr[t], cv2.COLOR_BGR2RGB)
+        rgb2 = cv2.cvtColor(frames_bgr[t + 1], cv2.COLOR_BGR2RGB)
+
+        im1 = torch.from_numpy(rgb1).float().permute(2, 0, 1)[None].to(device)
+        im2 = torch.from_numpy(rgb2).float().permute(2, 0, 1)[None].to(device)
+
+        with torch.no_grad():
+            out = wrapped_model.calc_flow(im1, im2)
+
+        flow = out["flow"][-1][0].permute(1, 2, 0).detach().cpu().numpy().astype(np.float32)
+        flows.append(flow)
+
+    return flows
 
 
-def _sample_grid_points(
-    h: int, w: int, step: int = 20,
-) -> np.ndarray:
-    """Return uniformly sampled (y, x) grid points as (N, 2) int array."""
-    ys = np.arange(step // 2, h, step)
-    xs = np.arange(step // 2, w, step)
-    grid = np.stack(np.meshgrid(ys, xs, indexing="ij"), axis=-1)
-    return grid.reshape(-1, 2)
-
-
-def draw_flow_arrows(
-    frame_bgr: np.ndarray,
-    flow: np.ndarray,
-    points: np.ndarray,
-    arrow_scale: float = 1.0,
-    arrow_color: Tuple[int, int, int] = (0, 255, 0),
-    thickness: int = 1,
-    tip_length: float = 0.3,
-) -> np.ndarray:
-    """Draw flow arrows on a copy of *frame_bgr* at the given sample *points*."""
-    vis = frame_bgr.copy()
-    for y, x in points:
-        dx, dy = flow[y, x]
-        x2 = int(round(x + arrow_scale * dx))
-        y2 = int(round(y + arrow_scale * dy))
-        cv2.arrowedLine(
-            vis, (int(x), int(y)), (x2, y2),
-            color=arrow_color, thickness=thickness, tipLength=tip_length,
-        )
-    return vis
-
-
-def load_frames_bgr(frames_dir: Path, num_frames: int) -> list[np.ndarray]:
-    """Load extracted frames as BGR arrays."""
-    frames_bgr = []
-    for idx in range(num_frames):
-        frame_path = frames_dir / f"frame_{idx:04d}.png"
-        frame = cv2.imread(str(frame_path), cv2.IMREAD_COLOR)
-        if frame is None:
-            raise RuntimeError(f"Failed to read frame: {frame_path}")
-        frames_bgr.append(frame)
-    return frames_bgr
-
-
-def propagate_tracks_from_flow(
+def propagate_tracks_from_flows(
     seed_xy: np.ndarray,
-    flow_dir: Path,
-    num_frames: int,
+    flows: list[np.ndarray],
     width: int,
     height: int,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Propagate seed points using dense frame-to-frame optical flow."""
+    num_frames = len(flows) + 1
     num_points = int(seed_xy.shape[0])
     tracks = np.zeros((num_frames, num_points, 2), dtype=np.float32)
     visibility = np.zeros((num_frames, num_points), dtype=np.bool_)
@@ -428,14 +309,9 @@ def propagate_tracks_from_flow(
     tracks[0] = u
     visibility[0] = alive
 
-    for t in range(num_frames - 1):
-        flow_path = flow_dir / f"frame_{t:04d}.npy"
-        if not flow_path.exists():
-            raise FileNotFoundError(f"Missing flow file: {flow_path}")
-
-        flow = np.load(str(flow_path)).astype(np.float32)
+    for t, flow in enumerate(flows):
         if flow.shape[:2] != (height, width) or flow.shape[2] != 2:
-            raise ValueError(f"Bad flow shape {flow.shape} at {flow_path}")
+            raise ValueError(f"Bad flow shape {flow.shape} at frame {t}")
 
         idx_alive = np.where(alive)[0]
         if len(idx_alive) > 0:
@@ -474,54 +350,157 @@ def propagate_tracks_from_flow(
     return tracks, visibility
 
 
-def generate_object_trails(
-    paths: Paths,
-    args: argparse.Namespace,
-    num_frames: int,
-    vis_fps: float,
-) -> None:
-    """Generate per-object colored trails.mp4 using frame-0 masks."""
-    video_name = paths.input_dir.name
-    if args.segment_first_frame_dir is None:
-        segmentation_dir = (
-            paths.script_dir.parent / "Segment_First_Frame" / "output" / video_name
-        ).resolve()
+def _find_first_frame_mask(mask_dir: Path) -> Path | None:
+    """Return frame-0 mask path, with fallback to first frame_*.png."""
+    preferred = sorted(mask_dir.glob("frame_0000.*"))
+    if preferred:
+        return preferred[0]
+
+    fallback = sorted(mask_dir.glob("frame_*.png"))
+    if fallback:
+        return fallback[0]
+
+    fallback_any = sorted(mask_dir.glob("frame_*.*"))
+    if fallback_any:
+        return fallback_any[0]
+    return None
+
+
+def discover_segment_video_object_masks(segment_video_dir: Path) -> list[tuple[str, Path]]:
+    """Discover object slugs and first-frame masks from Segment_Video output."""
+    objects_root = segment_video_dir / "objects"
+    if not objects_root.exists() or not objects_root.is_dir():
+        raise NotADirectoryError(f"Segment_Video objects dir not found: {objects_root}")
+
+    discovered: list[tuple[str, Path]] = []
+    for object_dir in sorted(p for p in objects_root.iterdir() if p.is_dir()):
+        mask_dir = object_dir / "object_segmentation" / "masks"
+        if not mask_dir.exists() or not mask_dir.is_dir():
+            print(f"[WARN] Missing mask dir, skipping object '{object_dir.name}': {mask_dir}")
+            continue
+
+        frame0_mask = _find_first_frame_mask(mask_dir)
+        if frame0_mask is None:
+            print(f"[WARN] No frame masks found, skipping object '{object_dir.name}': {mask_dir}")
+            continue
+
+        discovered.append((object_dir.name, frame0_mask))
+
+    if not discovered:
+        raise RuntimeError(f"No object masks found in Segment_Video dir: {segment_video_dir}")
+    return discovered
+
+
+def cleanup_waft_extras(output_video_dir: Path) -> None:
+    """Remove legacy WAFT-only artifacts so output mirrors CoTracker layout."""
+    legacy_paths = [
+        output_video_dir / "optical_flow",
+        output_video_dir / "visualization.mp4",
+        output_video_dir / "visualization_arrows.mp4",
+    ]
+    for path in legacy_paths:
+        if path.is_dir():
+            shutil.rmtree(path)
+        elif path.exists():
+            path.unlink()
+
+
+def main() -> None:
+    args = parse_args()
+    script_dir = Path(__file__).resolve().parent
+
+    if int(args.track_point_max) <= 0:
+        raise ValueError(f"--track_point_max must be > 0, got {args.track_point_max}")
+
+    video_dir = resolve_path(args.video_dir, script_dir)
+    if not video_dir.exists() or not video_dir.is_dir():
+        raise NotADirectoryError(f"Video dir not found: {video_dir}")
+
+    video_name = video_dir.name
+    video_mp4 = find_single_mp4(video_dir)
+
+    if args.segment_video_dir is not None:
+        segmentation_dir = resolve_path(args.segment_video_dir, script_dir)
     else:
-        segmentation_dir = resolve_path(args.segment_first_frame_dir, paths.script_dir)
+        segmentation_dir = (script_dir.parent / "Segment_Video" / "output" / video_name).resolve()
 
     if not segmentation_dir.exists() or not segmentation_dir.is_dir():
-        raise NotADirectoryError(f"Segment_First_Frame dir not found: {segmentation_dir}")
+        raise NotADirectoryError(f"Segment_Video dir not found: {segmentation_dir}")
 
-    summary_path = find_single_summary(segmentation_dir)
-    with summary_path.open("r", encoding="utf-8") as f:
-        summary = json.load(f)
+    if args.output_dir is None:
+        output_video_dir = (script_dir / "output_waft" / video_name).resolve()
+    else:
+        output_video_dir = resolve_path(args.output_dir, script_dir)
+    output_video_dir.mkdir(parents=True, exist_ok=True)
+    cleanup_waft_extras(output_video_dir)
 
-    objects = [obj for obj in summary.get("objects", []) if obj.get("success", False)]
-    if not objects:
-        print(f"[WARN] No successful objects found in summary: {summary_path}")
-        return
+    waft_dir = resolve_path(args.waft_dir, script_dir)
+    if not waft_dir.exists() or not waft_dir.is_dir():
+        raise NotADirectoryError(f"WAFT repo not found: {waft_dir}")
 
-    frames_bgr = load_frames_bgr(paths.frames_dir, num_frames)
+    cfg_default = waft_dir / "config" / "a2" / "dinov3" / "tar-c-t-spring-540p.json"
+    ckpt_default = waft_dir / "ckpts" / "a2" / "dinov3" / "spring.pth"
+    cfg_path = resolve_path(args.cfg, script_dir) if args.cfg else cfg_default
+    ckpt_path = resolve_path(args.ckpt, script_dir) if args.ckpt else ckpt_default
+
+    if not cfg_path.exists():
+        raise FileNotFoundError(f"Config not found: {cfg_path}")
+    if not ckpt_path.exists():
+        raise FileNotFoundError(f"Checkpoint not found: {ckpt_path}")
+
+    device = torch.device(
+        "cuda" if args.device.startswith("cuda") and torch.cuda.is_available() else "cpu"
+    )
+
+    print(f"[INFO] video_dir: {video_dir}")
+    print(f"[INFO] video_mp4: {video_mp4.name}")
+    print(f"[INFO] segment_video_dir: {segmentation_dir}")
+    print(f"[INFO] output_dir: {output_video_dir}")
+    print(f"[INFO] waft_dir: {waft_dir}")
+    print(f"[INFO] cfg: {cfg_path}")
+    print(f"[INFO] ckpt: {ckpt_path}")
+    print(f"[INFO] device: {device}")
+
+    print("[INFO] Loading video frames...")
+    frames_bgr, video_fps = load_video_frames(video_mp4)
+    num_frames = len(frames_bgr)
     height, width = frames_bgr[0].shape[:2]
+    print(f"[OK] loaded {num_frames} frames")
+    vis_fps = float(args.vis_fps) if args.vis_fps is not None else float(video_fps)
+
+    print("[INFO] Loading WAFT model...")
+    add_waft_to_syspath(waft_dir)
+    wrapped_model = load_waft_model(
+        cfg_path=cfg_path,
+        ckpt_path=ckpt_path,
+        device=device,
+        scale=float(args.scale),
+        waft_dir=waft_dir,
+    )
+    print("[OK] WAFT loaded")
+
+    print("[INFO] Computing dense WAFT flow...")
+    flows = compute_dense_flows(wrapped_model=wrapped_model, frames_bgr=frames_bgr, device=device)
+    print(f"[OK] computed {len(flows)} flow fields")
+
+    objects = discover_segment_video_object_masks(segmentation_dir)
+    print(f"[INFO] discovered {len(objects)} object masks from Segment_Video")
+
     run_summary = {
-        "video_dir": str(paths.input_dir),
-        "video_file": str(paths.input_mp4),
-        "summary_path": str(summary_path),
+        "video_dir": str(video_dir),
+        "video_file": str(video_mp4),
+        "segment_video_dir": str(segmentation_dir),
         "num_frames": int(num_frames),
         "height": int(height),
         "width": int(width),
         "track_point_density": float(args.track_point_density),
+        "track_point_max": int(args.track_point_max),
         "vis_point_percent": float(args.vis_point_percent),
         "objects": [],
     }
 
-    print(f"[INFO] segment_first_frame_dir: {segmentation_dir}")
-    print(f"[INFO] summary: {summary_path.name}")
-
-    for obj_idx, obj_info in enumerate(objects):
-        obj_name = str(obj_info.get("object", f"object_{obj_idx}"))
-        slug = normalize_slug(obj_info)
-        mask_path = resolve_mask_path(segmentation_dir, obj_info)
+    for obj_idx, (slug, mask_path) in enumerate(objects):
+        obj_name = slug
 
         print(f"\n[OBJECT {obj_idx + 1}/{len(objects)}] {obj_name} ({slug})")
 
@@ -537,17 +516,23 @@ def generate_object_trails(
         if mask_gray.shape[:2] != (height, width):
             mask_gray = cv2.resize(mask_gray, (width, height), interpolation=cv2.INTER_NEAREST)
 
-        mask_bin = (mask_gray > 0).astype(np.uint8)
+        mask_bin = (mask_gray > int(args.mask_threshold)).astype(np.uint8)
         mask_bin = erode_mask(mask_bin, int(args.mask_erode_px))
         mask_area_px = int(mask_bin.sum())
         if mask_area_px <= 0:
             print("[WARN] Empty mask area after threshold/erosion, skipping")
             continue
 
-        target_track_points = compute_target_track_points(
+        target_track_points_uncapped = compute_target_track_points(
             mask_area_px=mask_area_px,
             density_per_1kpx=float(args.track_point_density),
         )
+        target_track_points = min(target_track_points_uncapped, int(args.track_point_max))
+        if target_track_points < target_track_points_uncapped:
+            print(
+                "[INFO] Capped target points "
+                f"from {target_track_points_uncapped} to {target_track_points}"
+            )
 
         seed_xy = sample_points_from_mask(
             mask=mask_bin,
@@ -558,29 +543,30 @@ def generate_object_trails(
             print("[WARN] No valid seed points after mask filtering, skipping")
             continue
 
-        tracks, visibility = propagate_tracks_from_flow(
+        tracks, visibility = propagate_tracks_from_flows(
             seed_xy=seed_xy,
-            flow_dir=paths.flow_dir,
-            num_frames=num_frames,
+            flows=flows,
             width=width,
             height=height,
         )
 
+        obj_out = output_video_dir / slug
+        obj_out.mkdir(parents=True, exist_ok=True)
+
+        np.save(str(obj_out / "seed_points_frame0.npy"), seed_xy.astype(np.float32))
+        np.save(str(obj_out / "tracks.npy"), tracks.astype(np.float32))
+        np.save(str(obj_out / "visibility.npy"), visibility.astype(np.bool_))
         vis_indices = sample_visualization_indices(
             num_points=tracks.shape[1],
             percent=float(args.vis_point_percent),
             seed=int(args.vis_seed) + obj_idx,
         )
-
-        obj_out = paths.out_video_dir / slug
-        clear_dir(obj_out)
-
         render_trails_video(
             frames_bgr=frames_bgr,
             tracks=tracks,
             visibility=visibility,
             out_path=obj_out / "trails.mp4",
-            fps=float(vis_fps),
+            fps=vis_fps,
             trail_length=int(args.trail_length),
             point_indices=vis_indices,
         )
@@ -591,157 +577,27 @@ def generate_object_trails(
             "mask_path": str(mask_path),
             "mask_area_px": mask_area_px,
             "track_point_density": float(args.track_point_density),
+            "track_point_max": int(args.track_point_max),
+            "track_target_points_uncapped": int(target_track_points_uncapped),
             "track_target_points": int(target_track_points),
             "seed_points": int(len(seed_xy)),
             "num_frames": int(tracks.shape[0]),
+            "tracks_file": "tracks.npy",
+            "visibility_file": "visibility.npy",
             "trails_video": "trails.mp4",
             "vis_point_percent": float(args.vis_point_percent),
             "vis_points_count": int(len(vis_indices)),
         }
-        with (obj_out / "metadata.json").open("w", encoding="utf-8") as f:
+        with (obj_out / "metadata.json").open("w") as f:
             json.dump(metadata, f, indent=2)
 
         run_summary["objects"].append(metadata)
         print(f"[OK] Saved: {obj_out}")
 
-    with (paths.out_video_dir / "run_summary.json").open("w", encoding="utf-8") as f:
+    with (output_video_dir / "run_summary.json").open("w") as f:
         json.dump(run_summary, f, indent=2)
 
-
-def run_flow(
-    wrapped_model,
-    frames_dir: Path,
-    frames_vis_dir: Path,
-    arrows_vis_dir: Path,
-    flow_dir: Path,
-    vis_mp4_path: Path,
-    arrows_mp4_path: Path,
-    num_frames: int,
-    device: torch.device,
-    fps: float,
-    arrow_scale: float = 1.0,
-) -> None:
-    """Compute optical flow for consecutive pairs and save outputs."""
-    from utils.flow_viz import flow_to_image  # type: ignore
-
-    if num_frames < 2:
-        raise RuntimeError(f"Need at least 2 frames, found {num_frames}")
-
-    first_rgb = read_frame_rgb(frames_dir, 0)
-    h, w = first_rgb.shape[:2]
-    sample_pts = _sample_grid_points(h, w, step=20)
-
-    vis_writer = start_ffmpeg_writer(vis_mp4_path, fps, (h, w))
-    arrow_writer = start_ffmpeg_writer(arrows_mp4_path, fps, (h, w))
-
-    for i in range(num_frames - 1):
-        rgb1 = read_frame_rgb(frames_dir, i)
-        rgb2 = read_frame_rgb(frames_dir, i + 1)
-
-        im1 = torch.from_numpy(rgb1).float().permute(2, 0, 1)[None].to(device)
-        im2 = torch.from_numpy(rgb2).float().permute(2, 0, 1)[None].to(device)
-
-        with torch.no_grad():
-            out = wrapped_model.calc_flow(im1, im2)
-
-        flow = out["flow"][-1][0].permute(1, 2, 0).detach().cpu().numpy()
-        np.save(str(flow_dir / f"frame_{i:04d}.npy"), flow)
-
-        # Color flow visualization
-        vis_bgr = flow_to_image(flow, convert_to_bgr=True)
-        cv2.imwrite(str(frames_vis_dir / f"frame_{i:04d}.png"), vis_bgr)
-        if vis_writer.stdin is not None:
-            vis_writer.stdin.write(vis_bgr.tobytes())
-
-        # Arrow visualization on source frame
-        frame_bgr = cv2.cvtColor(rgb1, cv2.COLOR_RGB2BGR)
-        arrow_bgr = draw_flow_arrows(
-            frame_bgr, flow, sample_pts, arrow_scale=arrow_scale
-        )
-        cv2.imwrite(str(arrows_vis_dir / f"frame_{i:04d}.png"), arrow_bgr)
-        if arrow_writer.stdin is not None:
-            arrow_writer.stdin.write(arrow_bgr.tobytes())
-
-    close_ffmpeg(vis_writer)
-    close_ffmpeg(arrow_writer)
-
-
-def main() -> None:
-    """Entry point."""
-    args = parse_args()
-    paths = build_paths(args)
-
-    cfg_default = (
-        paths.waft_dir
-        / "config"
-        / "a2"
-        / "dinov3"
-        / "tar-c-t-spring-540p.json"
-    )
-    ckpt_default = paths.waft_dir / "ckpts" / "a2" / "dinov3" / "spring.pth"
-
-    cfg_path = Path(args.cfg).resolve() if args.cfg else cfg_default
-    ckpt_path = Path(args.ckpt).resolve() if args.ckpt else ckpt_default
-
-    if not cfg_path.exists():
-        raise FileNotFoundError(f"Config not found: {cfg_path}")
-    if not ckpt_path.exists():
-        raise FileNotFoundError(f"Checkpoint not found: {ckpt_path}")
-
-    # Overwrite outputs by default
-    clear_dir(paths.frames_dir)
-    clear_dir(paths.frames_vis_dir)
-    clear_dir(paths.arrows_vis_dir)
-    clear_dir(paths.flow_dir)
-    for mp4 in (paths.vis_mp4_path, paths.arrows_mp4_path):
-        if mp4.exists():
-            mp4.unlink()
-
-    num_frames, fps = extract_frames(paths.input_mp4, paths.frames_dir)
-    vis_fps = float(fps) if float(args.vis_fps) <= 0 else float(args.vis_fps)
-    print(f"[OK] Extracted {num_frames} frames -> {paths.frames_dir}")
-
-    add_waft_to_syspath(paths.waft_dir)
-    device = torch.device(args.device)
-
-    wrapped_model = load_waft_model(
-        cfg_path=cfg_path,
-        ckpt_path=ckpt_path,
-        device=device,
-        scale=float(args.scale),
-        waft_dir=paths.waft_dir,
-    )
-    print(f"[OK] Loaded WAFT checkpoint: {ckpt_path.name}")
-
-    run_flow(
-        wrapped_model=wrapped_model,
-        frames_dir=paths.frames_dir,
-        frames_vis_dir=paths.frames_vis_dir,
-        arrows_vis_dir=paths.arrows_vis_dir,
-        flow_dir=paths.flow_dir,
-        vis_mp4_path=paths.vis_mp4_path,
-        arrows_mp4_path=paths.arrows_mp4_path,
-        num_frames=num_frames,
-        device=device,
-        fps=vis_fps,
-        arrow_scale=float(args.arrow_scale),
-    )
-    print("[OK] Saved dense optical flow and global visualizations")
-
-    generate_object_trails(
-        paths=paths,
-        args=args,
-        num_frames=num_frames,
-        vis_fps=vis_fps,
-    )
-
-    print(f"[OK] Saved frames -> {paths.frames_dir}")
-    print(f"[OK] Saved flow PNGs -> {paths.frames_vis_dir}")
-    print(f"[OK] Saved arrow PNGs -> {paths.arrows_vis_dir}")
-    print(f"[OK] Saved flows -> {paths.flow_dir}")
-    print(f"[OK] Saved video -> {paths.vis_mp4_path}")
-    print(f"[OK] Saved arrows video -> {paths.arrows_mp4_path}")
-    print(f"[OK] Saved object trails summary -> {paths.out_video_dir / 'run_summary.json'}")
+    print("\nDone.")
 
 
 if __name__ == "__main__":

@@ -10,7 +10,8 @@ import matplotlib
 import numpy as np
 import torch
 import trimesh
-from pytorch3d.renderer import PerspectiveCameras
+from pytorch3d.renderer import MeshRasterizer, PerspectiveCameras, RasterizationSettings
+from pytorch3d.structures import Meshes
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -18,6 +19,17 @@ import matplotlib.pyplot as plt  # noqa: E402
 # OpenCV (+X right, +Y down, +Z forward) <-> PyTorch3D (+X left, +Y up, +Z forward)
 F_P3D_TO_CV = np.diag([-1.0, -1.0, 1.0]).astype(np.float32)
 F_CV_TO_P3D = F_P3D_TO_CV.copy()
+
+OVERLAY_PALETTE_BGR: list[tuple[int, int, int]] = [
+    (0, 255, 255),
+    (255, 140, 0),
+    (0, 255, 0),
+    (255, 0, 255),
+    (255, 255, 0),
+    (0, 165, 255),
+    (0, 0, 255),
+    (255, 0, 0),
+]
 
 
 @dataclass
@@ -132,6 +144,30 @@ def load_binary_mask(path: Path, target_hw: tuple[int, int]) -> np.ndarray:
     return (mask > 127).astype(np.float32)
 
 
+def resolve_frame_0000_mask(mask_dir: Path) -> Path:
+    """Resolve frame_0000 mask path in a SAM3 video mask directory."""
+    frame_0000 = (mask_dir / "frame_0000.png").resolve()
+    if frame_0000.exists():
+        return frame_0000
+    first_mask = next(iter(sorted(mask_dir.glob("*.png"))), None)
+    if first_mask is None:
+        raise FileNotFoundError(f"No PNG masks found in: {mask_dir}")
+    return first_mask.resolve()
+
+
+def erode_mask(mask: np.ndarray | None, erode_iters: int) -> np.ndarray | None:
+    """Erode binary mask with a 3x3 kernel for tighter correspondence filtering."""
+    if mask is None:
+        return None
+    if erode_iters <= 0:
+        return (mask > 0.5).astype(np.float32)
+
+    kernel = np.ones((3, 3), dtype=np.uint8)
+    mask_u8 = ((mask > 0.5).astype(np.uint8) * 255)
+    eroded = cv2.erode(mask_u8, kernel, iterations=int(erode_iters))
+    return (eroded > 127).astype(np.float32)
+
+
 def find_first_human_ply(output_plys_dir: Path) -> Path:
     ply_paths = sorted(output_plys_dir.glob("*.ply"))
     if not ply_paths:
@@ -204,7 +240,10 @@ def maybe_resize_for_optimization(
     )
 
 
-def project_points_cv(points_cv: np.ndarray, k: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def project_points_cv(
+    points_cv: np.ndarray,
+    k: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
     z = points_cv[:, 2]
     valid = np.isfinite(z) & (z > 1e-6)
     uv = np.zeros((points_cv.shape[0], 2), dtype=np.float32)
@@ -220,52 +259,121 @@ def project_points_cv(points_cv: np.ndarray, k: np.ndarray) -> tuple[np.ndarray,
     return uv, valid
 
 
-def draw_overlay_points(
+def build_overlay_color_map(names: list[str]) -> dict[str, tuple[int, int, int]]:
+    color_map: dict[str, tuple[int, int, int]] = {}
+    for idx, name in enumerate(names):
+        color_map[name] = OVERLAY_PALETTE_BGR[idx % len(OVERLAY_PALETTE_BGR)]
+    return color_map
+
+
+def draw_mask_outline_overlay(
+    image_bgr: np.ndarray,
+    mask: np.ndarray,
+    color_bgr: tuple[int, int, int],
+    fill_alpha: float = 0.35,
+    contour_thickness: int = 2,
+) -> np.ndarray:
+    if mask is None:
+        return image_bgr.copy()
+
+    mask_bool = mask.astype(bool)
+    if not np.any(mask_bool):
+        return image_bgr.copy()
+
+    out = image_bgr.astype(np.float32).copy()
+    color_arr = np.array(color_bgr, dtype=np.float32)
+    alpha = float(np.clip(fill_alpha, 0.0, 1.0))
+    out[mask_bool] = (1.0 - alpha) * out[mask_bool] + alpha * color_arr
+    out_u8 = np.clip(out, 0.0, 255.0).astype(np.uint8)
+
+    mask_u8 = (mask_bool.astype(np.uint8) * 255)
+    contours_info = cv2.findContours(
+        mask_u8,
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_SIMPLE,
+    )
+    contours = contours_info[0] if len(contours_info) == 2 else contours_info[1]
+
+    outline = tuple(int(np.clip(c + 48, 0, 255)) for c in color_bgr)
+    cv2.drawContours(
+        out_u8,
+        contours,
+        contourIdx=-1,
+        color=outline,
+        thickness=max(1, int(contour_thickness)),
+        lineType=cv2.LINE_AA,
+    )
+    return out_u8
+
+
+def rasterize_silhouette_mask_cv_mesh(
+    verts_cv: np.ndarray,
+    faces: np.ndarray,
+    k: np.ndarray,
+    width: int,
+    height: int,
+    device: torch.device,
+) -> np.ndarray:
+    cameras = build_cameras(k, width, height, device)
+    raster_settings = RasterizationSettings(
+        image_size=(height, width),
+        blur_radius=0.0,
+        faces_per_pixel=1,
+        bin_size=0,
+        max_faces_per_bin=300000,
+    )
+    rasterizer = MeshRasterizer(cameras=cameras, raster_settings=raster_settings)
+
+    verts_t = torch.from_numpy(verts_cv.astype(np.float32)).to(
+        device=device,
+        dtype=torch.float32,
+    )
+    cv_to_p3d = torch.from_numpy(F_CV_TO_P3D).to(device=device, dtype=torch.float32)
+    verts_p3d = verts_t @ cv_to_p3d.transpose(0, 1)
+    faces_t = torch.from_numpy(faces.astype(np.int64)).to(device=device)
+    mesh = Meshes(verts=[verts_p3d], faces=[faces_t])
+
+    with torch.no_grad():
+        fragments = rasterizer(mesh)
+
+    pix_to_face = fragments.pix_to_face[0, ..., 0]
+    zbuf = fragments.zbuf[0, ..., 0]
+    valid = (pix_to_face >= 0) & torch.isfinite(zbuf) & (zbuf > 1e-6)
+    return valid.detach().cpu().numpy().astype(np.uint8)
+
+
+def render_quality_overlay_from_cv_meshes(
     frame_bgr: np.ndarray,
     verts_cv_list: list[np.ndarray],
+    faces_list: list[np.ndarray],
     names: list[str],
     k: np.ndarray,
-    max_points_per_mesh: int = 30000,
+    device: torch.device,
 ) -> np.ndarray:
+    """Render multi-mesh silhouette+outline overlay from OpenCV-camera meshes."""
+    if len(verts_cv_list) != len(faces_list) or len(verts_cv_list) != len(names):
+        raise ValueError("verts/faces/names lengths must match for overlay rendering.")
+
     h, w = frame_bgr.shape[:2]
+    color_map = build_overlay_color_map(names)
     out = frame_bgr.copy()
-    palette = [
-        (0, 255, 0),
-        (0, 128, 255),
-        (255, 255, 0),
-        (255, 128, 0),
-        (255, 0, 255),
-        (0, 255, 255),
-    ]
-    for idx, (verts, name) in enumerate(zip(verts_cv_list, names)):
-        if len(verts) == 0:
+    for name, verts_cv, faces in zip(names, verts_cv_list, faces_list):
+        if verts_cv.size == 0 or faces.size == 0:
             continue
-        if max_points_per_mesh > 0 and len(verts) > max_points_per_mesh:
-            stride = max(1, int(len(verts) / max_points_per_mesh))
-            pts = verts[::stride]
-        else:
-            pts = verts
-        uv, valid = project_points_cv(pts, k)
-        uv_i = np.round(uv[valid]).astype(np.int32)
-        inb = (
-            (uv_i[:, 0] >= 0)
-            & (uv_i[:, 0] < w)
-            & (uv_i[:, 1] >= 0)
-            & (uv_i[:, 1] < h)
+        mask = rasterize_silhouette_mask_cv_mesh(
+            verts_cv=verts_cv,
+            faces=faces,
+            k=k,
+            width=w,
+            height=h,
+            device=device,
         )
-        uv_i = uv_i[inb]
-        color = palette[idx % len(palette)]
-        for x, y in uv_i:
-            cv2.circle(out, (int(x), int(y)), 1, color, -1)
-        cv2.putText(
-            out,
-            name,
-            (12, 28 + 24 * idx),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            color,
-            2,
-            cv2.LINE_AA,
+        out = draw_mask_outline_overlay(
+            image_bgr=out,
+            mask=mask,
+            color_bgr=color_map[name],
+            fill_alpha=0.35,
+            contour_thickness=2,
         )
     return out
 
@@ -280,12 +388,19 @@ def colorize_points_by_xyz(points: np.ndarray) -> np.ndarray:
     return rgb.astype(np.uint8)
 
 
-def save_colored_point_cloud(path: Path, points: np.ndarray, colors_rgb: np.ndarray) -> None:
+def save_colored_point_cloud(
+    path: Path,
+    points: np.ndarray,
+    colors_rgb: np.ndarray,
+) -> None:
     if points.shape[0] == 0:
         cloud = trimesh.points.PointCloud(vertices=np.zeros((0, 3), dtype=np.float32))
     else:
         colors_rgba = np.concatenate(
-            [colors_rgb.astype(np.uint8), 255 * np.ones((points.shape[0], 1), dtype=np.uint8)],
+            [
+                colors_rgb.astype(np.uint8),
+                255 * np.ones((points.shape[0], 1), dtype=np.uint8),
+            ],
             axis=1,
         )
         cloud = trimesh.points.PointCloud(

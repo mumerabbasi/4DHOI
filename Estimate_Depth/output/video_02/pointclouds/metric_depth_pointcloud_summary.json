@@ -1,11 +1,8 @@
 {
-  "depth_output_dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02",
-  "metric_depth_output_dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02/metric_depth",
   "pointcloud_output_dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02/pointclouds",
-  "sam3d_output_dir": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02",
   "inputs": {
     "metric_depth_npy": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02/metric_depth/metric_depth.npy",
-    "da3_pose_json": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02/pose_estimation.json",
+    "da3_intrinsics_json": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02/camera_intrinsics.json",
     "sam3d_intrinsics_json": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/camera_intrinsics.json",
     "color_image": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02/frame_00.png"
   },
@@ -13,56 +10,20 @@
     720,
     1280
   ],
-  "intrinsics": {
-    "da3_3x3": [
-      [
-        1194.902099609375,
-        0.0,
-        637.0
-      ],
-      [
-        0.0,
-        1194.3885498046875,
-        357.0
-      ],
-      [
-        0.0,
-        0.0,
-        1.0
-      ]
-    ],
-    "sam3d_3x3": [
-      [
-        899.387451171875,
-        0.0,
-        640.0
-      ],
-      [
-        0.0,
-        899.387451171875,
-        360.0
-      ],
-      [
-        0.0,
-        0.0,
-        1.0
-      ]
-    ]
-  },
   "outputs": {
     "da3_intrinsics_pointcloud": {
       "ply": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02/pointclouds/metric_depth_pointcloud_da3_intrinsics.ply",
       "has_color": true,
       "num_points": 921600,
       "bounds_min_xyz": [
-        -2.0686259269714355,
-        -1.3123960494995117,
-        3.398953676223755
+        -2.0686206817626953,
+        -1.3123927116394043,
+        3.3989450931549072
       ],
       "bounds_max_xyz": [
-        1.9137063026428223,
-        1.1491626501083374,
-        4.613752365112305
+        1.9137015342712402,
+        1.1491596698760986,
+        4.61374044418335
       ]
     },
     "sam3d_intrinsics_pointcloud": {
@@ -70,14 +31,14 @@
       "has_color": true,
       "num_points": 921600,
       "bounds_min_xyz": [
-        -2.761284828186035,
-        -1.757510781288147,
-        3.398953676223755
+        -2.761277914047241,
+        -1.757506251335144,
+        3.3989450931549072
       ],
       "bounds_max_xyz": [
-        2.530618190765381,
-        1.5134084224700928,
-        4.613752365112305
+        2.530611753463745,
+        1.5134046077728271,
+        4.61374044418335
       ]
     }
   }

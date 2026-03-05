@@ -1,0 +1,118 @@
+{
+  "transforms": [
+    {
+      "name": "human",
+      "slug": "human",
+      "kind": "human",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_03/output_plys/frame_0000.ply",
+      "source_coordinate": "opencv_camera",
+      "output_coordinate": "opencv",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_scale_txyz_chamfer_visible/video_03/meshes/human.ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 0.38038426637649536,
+        "scale_exp_alpha": 1.4628466042095865,
+        "tx_init_m": 0.0,
+        "ty_init_m": 0.0,
+        "tz_init_m": 0.0,
+        "delta_tx_m": -0.015307163819670677,
+        "delta_ty_m": 0.019452160224318504,
+        "delta_tz_m": 0.29327449202537537,
+        "tx_total_m": -0.015307163819670677,
+        "ty_total_m": 0.019452160224318504,
+        "tz_total_m": 0.29327449202537537,
+        "obs_3d_count": 6000,
+        "obs_2d_count": 6000,
+        "model_sample_count": 3040,
+        "model_sample_count_total": 6000,
+        "model_sample_count_visible_fixed": 3040,
+        "model_sample_visible_ratio": 0.5066666666666667,
+        "visible_subset_mode": "strict_visible"
+      },
+      "source_to_output_matrix_4x4": [
+        [
+          1.4628466367721558,
+          0.0,
+          0.0,
+          -0.015307163819670677
+        ],
+        [
+          0.0,
+          1.4628466367721558,
+          0.0,
+          0.019452160224318504
+        ],
+        [
+          0.0,
+          0.0,
+          1.4628466367721558,
+          0.29327449202537537
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "umbrella",
+      "slug": "umbrella",
+      "kind": "object",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_03/umbrella/mesh_posed.ply",
+      "source_coordinate": "pytorch3d_camera",
+      "output_coordinate": "opencv",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_scale_txyz_chamfer_visible/video_03/meshes/umbrella.ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 0.9950788617134094,
+        "scale_exp_alpha": 2.7049376488860966,
+        "tx_init_m": 0.0,
+        "ty_init_m": 0.0,
+        "tz_init_m": 0.0,
+        "delta_tx_m": -0.1265859454870224,
+        "delta_ty_m": -0.2570461928844452,
+        "delta_tz_m": 0.9979049563407898,
+        "tx_total_m": -0.1265859454870224,
+        "ty_total_m": -0.2570461928844452,
+        "tz_total_m": 0.9979049563407898,
+        "obs_3d_count": 6000,
+        "obs_2d_count": 6000,
+        "model_sample_count": 3956,
+        "model_sample_count_total": 6000,
+        "model_sample_count_visible_fixed": 3956,
+        "model_sample_visible_ratio": 0.6593333333333333,
+        "visible_subset_mode": "strict_visible"
+      },
+      "source_to_output_matrix_4x4": [
+        [
+          -2.704937696456909,
+          0.0,
+          0.0,
+          -0.1265859454870224
+        ],
+        [
+          0.0,
+          -2.704937696456909,
+          0.0,
+          -0.2570461928844452
+        ],
+        [
+          0.0,
+          0.0,
+          2.704937696456909,
+          0.9979049563407898
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    }
+  ]
+}

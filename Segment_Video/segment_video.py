@@ -1,60 +1,54 @@
 """
-Segment objects and parts from generated video using Qwen-VL + SAM2 video predictor.
+Segment objects, parts, and humans from generated video using Qwen-VL + SAM3.
 
-Algorithm (from 3.3):
-1. Detect objects in frame 1 using open-vocabulary detection (Qwen-VL)
-2. Use SAM2 to track/segment objects across frames → object masks {M^o_t}
-3. Similarly obtain part masks {M^p_t} for each object part
+1. Parse PAG file to extract objects (with parts) and humans (with descriptions)
+2. Detect objects and humans in frame 0 using open-vocabulary detection (Qwen-VL)
+3. Use SAM3 to track/segment objects and humans across frames -> masks
+4. Similarly obtain part masks for each object part
+5. No part segmentation for humans
 
-Output structure:
-    Segment_Video/
-    └── video_xx/
-        └── <object_name>/
-            ├── object_segmentation/
-            │   ├── masks/       # Binary masks per frame
-            │   └── visualizations/  # Overlay visualizations
-            └── parts_segmentation/
-                ├── masks/       # Binary masks per frame per part
-                └── visualizations/  # Overlay visualizations
-
-Usage:
-    python segment_video.py --video_path ../Generate_Video/videos/video_01 \
-                            --pag_file ../Generate_PAG/pags/video_01/output_pag_deepseek_r1_32b.json
-
-    python segment_video.py --video_path ../Generate_Video/videos/video_01 \
-                            --object iron --parts "handle,soleplate"
+Directory structure:
+    video_xx/
+        _frames/frame_xxxx.jpg
+        objects/<object_name>/
+            object_segmentation/masks/frame_xxxx.png
+            object_segmentation/visualizations/frame_xxxx.png
+            parts_segmentation/masks/<part_name>/frame_xxxx.png
+            parts_segmentation/visualizations/frame_xxxx.png
+        humans/<person_name>/
+            masks/frame_xxxx.png
+            visualizations/frame_xxxx.png
 """
 
 import argparse
 import base64
 import json
 import re
-import sys
 from pathlib import Path
 
 import cv2
 import numpy as np
 import requests
-import torch
-
-# SAM2 imports
-sys.path.insert(0, "/my_workspace/4DHHOI/sam2")  # noqa: E402
-from sam2.build_sam import build_sam2_video_predictor  # noqa: E402
 
 
 # Ollama configuration
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
 QWEN_MODEL = "qwen3-vl:32b"
 
-# SAM2 configuration
-SAM2_CHECKPOINT = "/my_workspace/4DHHOI/sam2/checkpoints/sam2.1_hiera_large.pt"
-SAM2_CONFIG = "configs/sam2.1/sam2.1_hiera_l.yaml"
+# SAM3 configuration
+SAM3_CHECKPOINT = None
+SAM3_BPE_PATH = "/my_workspace/4DHHOI/sam3/sam3/assets/bpe_simple_vocab_16e6.txt.gz"
 
-
-def encode_image_base64(image_path: str) -> str:
-    """Encode image to base64 string."""
-    with open(image_path, "rb") as f:
-        return base64.b64encode(f.read()).decode("utf-8")
+VIZ_COLORS = [
+    (0, 255, 0),    # Green
+    (255, 0, 0),    # Blue
+    (0, 0, 255),    # Red
+    (255, 255, 0),  # Cyan
+    (255, 0, 255),  # Magenta
+    (0, 255, 255),  # Yellow
+    (128, 255, 0),  # Light green
+    (255, 128, 0),  # Light blue
+]
 
 
 def encode_numpy_image_base64(image: np.ndarray) -> str:
@@ -63,27 +57,63 @@ def encode_numpy_image_base64(image: np.ndarray) -> str:
     return base64.b64encode(buffer).decode("utf-8")
 
 
+def _parse_bbox_response(
+    response_text: str,
+    names: list[str],
+    image_width: int,
+    image_height: int,
+) -> dict[str, list[int] | None]:
+    """Parse Qwen-VL bounding box response into pixel coordinates."""
+    response_text = re.sub(
+        r"<think>.*?</think>", "", response_text, flags=re.DOTALL
+    )
+
+    normalized = {name: None for name in names}
+
+    pattern = (
+        r"<ref>([^<]+)</ref>\s*<box>\s*"
+        r"(\[\s*\[?\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\]?\s*\]|null)"
+        r"\s*</box>"
+    )
+    matches = re.findall(pattern, response_text, re.IGNORECASE)
+
+    for ref_name, box_str in matches:
+        ref_name = ref_name.strip()
+        matched_name = None
+        for name in names:
+            if name.lower() == ref_name.lower():
+                matched_name = name
+                break
+
+        if matched_name is None:
+            continue
+
+        if box_str.strip().lower() == "null":
+            normalized[matched_name] = None
+        else:
+            coord_match = re.search(
+                r"(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)", box_str
+            )
+            if coord_match:
+                x1 = int(int(coord_match.group(1)) * image_width / 1000)
+                y1 = int(int(coord_match.group(2)) * image_height / 1000)
+                x2 = int(int(coord_match.group(3)) * image_width / 1000)
+                y2 = int(int(coord_match.group(4)) * image_height / 1000)
+                normalized[matched_name] = [x1, y1, x2, y2]
+
+    return normalized
+
+
 def detect_objects_qwen(
     image: np.ndarray,
     objects: list[str],
     image_width: int,
     image_height: int,
 ) -> dict[str, list[int] | None]:
-    """Use Qwen-VL to detect bounding boxes for objects in the first frame.
-
-    Args:
-        image: BGR image as numpy array.
-        objects: List of object names to detect.
-        image_width: Width of the image in pixels.
-        image_height: Height of the image in pixels.
-
-    Returns:
-        Dictionary mapping object names to bounding boxes or None.
-    """
+    """Use Qwen-VL to detect bounding boxes for objects in the first frame."""
     image_b64 = encode_numpy_image_base64(image)
+    objects_request = "\n".join([f"- {name}" for name in objects])
 
-    # Build detection request
-    objects_request = "\n".join([f"- {obj}" for obj in objects])
     prompt = f"""You are analyzing an image. Detect bounding boxes for these objects:
 {objects_request}
 
@@ -103,7 +133,7 @@ Detect all objects listed above."""
         "options": {
             "temperature": 0.1,
             "num_predict": 2048,
-        }
+        },
     }
 
     try:
@@ -111,51 +141,65 @@ Detect all objects listed above."""
         response.raise_for_status()
         result = response.json()
         response_text = result.get("response", "")
-
-        # Remove think tags if present
-        response_text = re.sub(
-            r"<think>.*?</think>", "", response_text, flags=re.DOTALL
+        return _parse_bbox_response(
+            response_text, objects, image_width, image_height
         )
-
-        # Parse all <ref>object</ref><box>[[x1,y1,x2,y2]]</box> patterns
-        normalized = {obj: None for obj in objects}
-
-        pattern = (
-            r"<ref>([^<]+)</ref>\s*<box>\s*"
-            r"(\[\s*\[?\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\]?\s*\]|null)"
-            r"\s*</box>"
-        )
-        matches = re.findall(pattern, response_text, re.IGNORECASE)
-
-        for ref_name, box_str in matches:
-            ref_name = ref_name.strip()
-            matched_obj = None
-            for obj in objects:
-                if obj.lower() == ref_name.lower():
-                    matched_obj = obj
-                    break
-
-            if matched_obj is None:
-                continue
-
-            if box_str.strip().lower() == "null":
-                normalized[matched_obj] = None
-            else:
-                coord_match = re.search(
-                    r"(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)", box_str
-                )
-                if coord_match:
-                    x1 = int(int(coord_match.group(1)) * image_width / 1000)
-                    y1 = int(int(coord_match.group(2)) * image_height / 1000)
-                    x2 = int(int(coord_match.group(3)) * image_width / 1000)
-                    y2 = int(int(coord_match.group(4)) * image_height / 1000)
-                    normalized[matched_obj] = [x1, y1, x2, y2]
-
-        return normalized
-
     except Exception as e:
         print(f"  Error calling Qwen-VL: {e}")
-        return {obj: None for obj in objects}
+        return {name: None for name in objects}
+
+
+def detect_humans_qwen(
+    image: np.ndarray,
+    humans: dict[str, str],
+    image_width: int,
+    image_height: int,
+) -> dict[str, list[int] | None]:
+    """Use Qwen-VL to detect bounding boxes for humans in the first frame."""
+    image_b64 = encode_numpy_image_base64(image)
+
+    items_list = []
+    for name, desc in humans.items():
+        if desc:
+            items_list.append(f"- {name}: {desc}")
+        else:
+            items_list.append(f"- {name}")
+    humans_request = "\n".join(items_list)
+
+    prompt = f"""You are analyzing an image. Detect bounding boxes for these people:
+{humans_request}
+
+For each person, output in this format (use the person name only, not the description):
+<ref>person_name</ref><box>[[x1,y1,x2,y2]]</box>
+
+The bounding box should tightly enclose the entire person (head to feet).
+Coordinates should be on a 0-1000 normalized scale (not pixels).
+If a person is not visible, output: <ref>person_name</ref><box>null</box>
+
+Detect all people listed above."""
+
+    payload = {
+        "model": QWEN_MODEL,
+        "prompt": prompt,
+        "images": [image_b64],
+        "stream": False,
+        "options": {
+            "temperature": 0.1,
+            "num_predict": 2048,
+        },
+    }
+
+    try:
+        response = requests.post(OLLAMA_URL, json=payload, timeout=180)
+        response.raise_for_status()
+        result = response.json()
+        response_text = result.get("response", "")
+        return _parse_bbox_response(
+            response_text, list(humans.keys()), image_width, image_height
+        )
+    except Exception as e:
+        print(f"  Error calling Qwen-VL: {e}")
+        return {name: None for name in humans}
 
 
 def detect_parts_qwen(
@@ -165,21 +209,10 @@ def detect_parts_qwen(
     image_width: int,
     image_height: int,
 ) -> dict[str, list[int] | None]:
-    """Use Qwen-VL to detect bounding boxes for object parts.
-
-    Args:
-        image: BGR image as numpy array.
-        parts: List of part names to detect.
-        object_name: Name of the object (e.g., "iron").
-        image_width: Width of the image in pixels.
-        image_height: Height of the image in pixels.
-
-    Returns:
-        Dictionary mapping part names to bounding boxes or None.
-    """
+    """Use Qwen-VL to detect bounding boxes for object parts."""
     image_b64 = encode_numpy_image_base64(image)
-
     parts_request = "\n".join([f"- {part}" for part in parts])
+
     prompt = f"""You are analyzing an image of a {object_name}. \
 Detect bounding boxes for these parts:
 {parts_request}
@@ -200,7 +233,7 @@ Detect all parts listed above."""
         "options": {
             "temperature": 0.1,
             "num_predict": 2048,
-        }
+        },
     }
 
     try:
@@ -208,79 +241,39 @@ Detect all parts listed above."""
         response.raise_for_status()
         result = response.json()
         response_text = result.get("response", "")
-
-        response_text = re.sub(
-            r"<think>.*?</think>", "", response_text, flags=re.DOTALL
+        return _parse_bbox_response(
+            response_text, parts, image_width, image_height
         )
-
-        normalized = {part: None for part in parts}
-
-        pattern = (
-            r"<ref>([^<]+)</ref>\s*<box>\s*"
-            r"(\[\s*\[?\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\]?\s*\]|null)"
-            r"\s*</box>"
-        )
-        matches = re.findall(pattern, response_text, re.IGNORECASE)
-
-        for ref_name, box_str in matches:
-            ref_name = ref_name.strip()
-            matched_part = None
-            for part in parts:
-                if part.lower() == ref_name.lower():
-                    matched_part = part
-                    break
-
-            if matched_part is None:
-                continue
-
-            if box_str.strip().lower() == "null":
-                normalized[matched_part] = None
-            else:
-                coord_match = re.search(
-                    r"(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)", box_str
-                )
-                if coord_match:
-                    x1 = int(int(coord_match.group(1)) * image_width / 1000)
-                    y1 = int(int(coord_match.group(2)) * image_height / 1000)
-                    x2 = int(int(coord_match.group(3)) * image_width / 1000)
-                    y2 = int(int(coord_match.group(4)) * image_height / 1000)
-                    normalized[matched_part] = [x1, y1, x2, y2]
-
-        return normalized
-
     except Exception as e:
         print(f"  Error calling Qwen-VL: {e}")
         return {part: None for part in parts}
 
 
-def load_sam2_video_predictor():
-    """Load SAM2 video predictor."""
-    print("Loading SAM2 video predictor...")
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    predictor = build_sam2_video_predictor(
-        SAM2_CONFIG,
-        SAM2_CHECKPOINT,
-        device=device,
+def load_sam3_tracker():
+    """Load SAM3 video model and return its tracker module."""
+    import torch
+    from sam3.model_builder import build_sam3_video_model
+
+    print("Loading SAM3 video tracker...")
+    model = build_sam3_video_model(
+        checkpoint_path=SAM3_CHECKPOINT,
+        bpe_path=SAM3_BPE_PATH,
     )
-    print(f"SAM2 video predictor loaded on {device}")
-    return predictor
+    tracker = model.tracker
+    tracker.backbone = model.detector.backbone
+    tracker.eval()
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"SAM3 video tracker loaded on {device}")
+    return tracker
 
 
 def extract_video_frames(video_path: str, output_dir: Path) -> tuple[list[Path], int, int]:
-    """Extract frames from video file to JPEG files.
-
-    Args:
-        video_path: Path to video file.
-        output_dir: Directory to save frames.
-
-    Returns:
-        Tuple of (list of frame paths, video width, video height).
-    """
+    """Extract frames from video file to numeric JPEG files."""
     output_dir.mkdir(parents=True, exist_ok=True)
+    for existing_frame in output_dir.glob("*.jpg"):
+        existing_frame.unlink()
 
     cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        raise RuntimeError(f"Cannot open video: {video_path}")
 
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -293,7 +286,7 @@ def extract_video_frames(video_path: str, output_dir: Path) -> tuple[list[Path],
         if not ret:
             break
 
-        frame_path = output_dir / f"frame_{frame_idx:04d}.png"
+        frame_path = output_dir / f"{frame_idx:04d}.jpg"
         cv2.imwrite(str(frame_path), frame)
         frame_paths.append(frame_path)
         frame_idx += 1
@@ -313,60 +306,112 @@ def create_visualization(
     frame: np.ndarray,
     masks: dict[str, np.ndarray],
     alpha: float = 0.4,
+    color_map: dict[str, tuple[int, int, int]] | None = None,
 ) -> np.ndarray:
-    """Create visualization with masks overlaid on frame.
-
-    Args:
-        frame: BGR frame as numpy array.
-        masks: Dictionary mapping names to binary masks.
-        alpha: Transparency for mask overlay.
-
-    Returns:
-        Visualization image.
-    """
+    """Create visualization with masks overlaid on frame."""
     result = frame.copy()
 
-    colors = [
-        (0, 255, 0),    # Green
-        (255, 0, 0),    # Blue
-        (0, 0, 255),    # Red
-        (255, 255, 0),  # Cyan
-        (255, 0, 255),  # Magenta
-        (0, 255, 255),  # Yellow
-        (128, 255, 0),  # Light green
-        (255, 128, 0),  # Light blue
-    ]
+    def get_color(name: str, index: int) -> tuple[int, int, int]:
+        if color_map is not None and name in color_map:
+            return color_map[name]
+        return VIZ_COLORS[index % len(VIZ_COLORS)]
 
     for i, (name, mask) in enumerate(masks.items()):
         if mask is None:
             continue
 
-        color = colors[i % len(colors)]
+        color = get_color(name, i)
         overlay = result.copy()
         overlay[mask > 0] = color
         result = cv2.addWeighted(overlay, alpha, result, 1 - alpha, 0)
 
-        # Draw label at centroid
-        ys, xs = np.where(mask > 0)
-        if len(xs) > 0 and len(ys) > 0:
-            cx, cy = int(np.mean(xs)), int(np.mean(ys))
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            font_scale = 0.6
-            thickness = 2
-            (text_w, text_h), _ = cv2.getTextSize(name, font, font_scale, thickness)
-            cv2.rectangle(
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.6
+    thickness = 1
+    text_line_type = cv2.LINE_AA
+    line_height = 24
+    x_start = 10
+    y_start = 24
+
+    visible_items = [
+        (name, get_color(name, i))
+        for i, (name, mask) in enumerate(masks.items())
+        if mask is not None and np.any(mask > 0)
+    ]
+
+    if visible_items:
+        max_text_w = max(
+            cv2.getTextSize(name, font, font_scale, thickness)[0][0]
+            for name, _ in visible_items
+        )
+        legend_w = 20 + max_text_w + 10
+        overlay_bg = result.copy()
+        cv2.rectangle(
+            overlay_bg,
+            (x_start - 5, y_start - line_height + 2),
+            (x_start + legend_w, y_start + (len(visible_items) - 1) * line_height + 10),
+            (0, 0, 0),
+            -1,
+        )
+        result = cv2.addWeighted(overlay_bg, 0.5, result, 0.5, 0)
+
+        for idx, (name, color) in enumerate(visible_items):
+            y = y_start + idx * line_height
+            cv2.rectangle(result, (x_start, y - 10), (x_start + 14, y + 4), color, -1)
+            cv2.putText(
                 result,
-                (cx - 2, cy - text_h - 4),
-                (cx + text_w + 4, cy + 4),
-                color,
-                -1
+                name,
+                (x_start + 20, y),
+                font,
+                font_scale,
+                (255, 255, 255),
+                thickness,
+                text_line_type,
             )
-            cv2.putText(result, name, (cx, cy), font, font_scale, (0, 0, 0), thickness)
 
     return result
 
 
-def track_with_sam2(
+def smooth_mask(mask: np.ndarray, kernel_size: int = 5) -> np.ndarray:
+    """Apply morphological smoothing to a binary mask."""
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+    smoothed = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    smoothed = cv2.morphologyEx(smoothed, cv2.MORPH_OPEN, kernel)
+    blurred = cv2.GaussianBlur(smoothed.astype(np.float32), (kernel_size, kernel_size), 0)
+    smoothed = (blurred > 0.5).astype(np.uint8)
+    return smoothed
+
+
+def resolve_overlapping_masks(
+    masks: dict[str, np.ndarray],
+    confidences: dict[str, float],
+) -> dict[str, np.ndarray]:
+    """Resolve overlaps by assigning each pixel to the highest-confidence mask."""
+    if not masks:
+        return {}
+
+    names = sorted(masks.keys(), key=lambda n: confidences.get(n, 0.0), reverse=True)
+    stacked = np.stack([(masks[n] > 0) for n in names], axis=0)
+    any_positive = stacked.any(axis=0)
+
+    first_idx = np.argmax(stacked.astype(np.uint8), axis=0)
+    result = {}
+    for i, name in enumerate(names):
+        result[name] = ((first_idx == i) & any_positive).astype(np.uint8)
+    return result
+
+
+def maybe_postprocess_masks(
+    masks: dict[str, np.ndarray],
+    apply_mask_postprocess: bool,
+) -> dict[str, np.ndarray]:
+    """Optionally apply morphology-based postprocessing to each mask."""
+    if not apply_mask_postprocess:
+        return masks
+    return {name: smooth_mask(mask) for name, mask in masks.items()}
+
+
+def track_with_sam3(
     predictor,
     frames_dir: Path,
     bboxes: dict[str, list[int] | None],
@@ -374,25 +419,13 @@ def track_with_sam2(
     output_viz_dir: Path,
     item_type: str = "object",
     use_subdirs: bool = True,
+    resolve_overlaps: bool = False,
+    apply_mask_postprocess: bool = False,
 ) -> dict:
-    """Track objects/parts across video frames using SAM2.
-
-    Args:
-        predictor: SAM2 video predictor.
-        frames_dir: Directory containing extracted JPEG frames.
-        bboxes: Dictionary mapping names to bounding boxes (detected in frame 0).
-        output_masks_dir: Directory to save masks.
-        output_viz_dir: Directory to save visualizations.
-        item_type: "object" or "part" for logging.
-        use_subdirs: If True, create subdirectories per item inside masks dir.
-
-    Returns:
-        Dictionary with tracking results.
-"""
+    """Track objects/parts/humans across video frames using SAM3 tracker."""
     output_masks_dir.mkdir(parents=True, exist_ok=True)
     output_viz_dir.mkdir(parents=True, exist_ok=True)
 
-    # Initialize inference state from frames directory
     inference_state = predictor.init_state(video_path=str(frames_dir))
     num_frames = inference_state["num_frames"]
     video_height = inference_state["video_height"]
@@ -400,14 +433,12 @@ def track_with_sam2(
 
     print(f"  Video: {num_frames} frames, {video_width}x{video_height}")
 
-    # Add bounding box prompts for each detected item on frame 0
     obj_id_to_name = {}
     for obj_id, (name, bbox) in enumerate(bboxes.items()):
         if bbox is None:
             print(f"    Skipping {name}: not detected in frame 0")
             continue
 
-        # Clamp bbox to valid range
         x1, y1, x2, y2 = bbox
         x1 = max(0, min(x1, video_width - 1))
         y1 = max(0, min(y1, video_height - 1))
@@ -418,140 +449,212 @@ def track_with_sam2(
         print(f"    Adding {item_type} '{name}' with bbox {bbox}")
         obj_id_to_name[obj_id] = name
 
-        # Add box prompt on frame 0
-        _, _, _ = predictor.add_new_points_or_box(
+        norm_box = np.array(
+            [
+                x1 / video_width,
+                y1 / video_height,
+                x2 / video_width,
+                y2 / video_height,
+            ],
+            dtype=np.float32,
+        )
+        _, _, _, _ = predictor.add_new_points_or_box(
             inference_state=inference_state,
             frame_idx=0,
             obj_id=obj_id,
-            box=bbox,
+            box=norm_box,
+            rel_coordinates=True,
         )
 
     if not obj_id_to_name:
         print(f"  No {item_type}s detected, skipping tracking")
         return {"tracked": False, "items": {}}
 
-    # Propagate through video
+    color_map = {
+        name: VIZ_COLORS[i % len(VIZ_COLORS)]
+        for i, name in enumerate(sorted(obj_id_to_name.values()))
+    }
+
     print(f"  Propagating masks through {num_frames} frames...")
     results = {"tracked": True, "items": {}, "num_frames": num_frames}
 
-    # Get frame file list for visualization
-    frame_files = sorted(frames_dir.glob("*.png"))
+    frame_files = sorted(frames_dir.glob("*.jpg"))
 
-    for frame_idx, obj_ids, video_res_masks in predictor.propagate_in_video(inference_state):
-        # video_res_masks shape: (num_objects, 1, H, W)
-        masks_dict = {}
-
+    for frame_idx, obj_ids, _, video_res_masks, obj_scores in predictor.propagate_in_video(
+        inference_state=inference_state,
+        start_frame_idx=0,
+        max_frame_num_to_track=num_frames,
+        reverse=False,
+        propagate_preflight=True,
+    ):
+        masks_dict: dict[str, np.ndarray] = {}
+        conf_dict: dict[str, float] = {}
         for i, obj_id in enumerate(obj_ids):
             if obj_id not in obj_id_to_name:
                 continue
-
             name = obj_id_to_name[obj_id]
             mask = (video_res_masks[i, 0] > 0.0).cpu().numpy().astype(np.uint8)
             masks_dict[name] = mask
+            conf_dict[name] = float(obj_scores[i].item())
 
-            # Determine mask output directory
+        if resolve_overlaps and len(masks_dict) > 1:
+            masks_dict = resolve_overlapping_masks(masks_dict, conf_dict)
+
+        masks_dict = maybe_postprocess_masks(
+            masks=masks_dict,
+            apply_mask_postprocess=apply_mask_postprocess,
+        )
+
+        for name, mask in masks_dict.items():
             if use_subdirs:
                 item_mask_dir = output_masks_dir / name.replace(" ", "_")
                 item_mask_dir.mkdir(exist_ok=True)
             else:
                 item_mask_dir = output_masks_dir
 
-            # Save mask
             mask_filename = f"frame_{frame_idx:04d}.png"
             save_mask(mask, str(item_mask_dir / mask_filename))
 
-            # Store in results
             if name not in results["items"]:
                 results["items"][name] = {"masks": [], "bbox_frame0": bboxes[name]}
             results["items"][name]["masks"].append(mask_filename)
 
-        # Create and save visualization
         if frame_idx < len(frame_files):
             frame = cv2.imread(str(frame_files[frame_idx]))
-            viz = create_visualization(frame, masks_dict)
+            viz = create_visualization(frame, masks_dict, color_map=color_map)
             viz_filename = f"frame_{frame_idx:04d}.png"
             cv2.imwrite(str(output_viz_dir / viz_filename), viz)
 
-    # Reset state for next use
-    predictor.reset_state(inference_state)
-
+    predictor.clear_all_points_in_video(inference_state)
     return results
 
 
-def parse_pag_file(pag_path: str) -> dict[str, list[str]]:
-    """Parse PAG file to extract objects and their parts.
-
-    Args:
-        pag_path: Path to PAG JSON file.
-
-    Returns:
-        Dictionary mapping object names to list of part names.
-    """
+def parse_pag_file(pag_path: str) -> tuple[dict[str, dict], list[dict]]:
+    """Parse PAG file to extract objects (with parts and descriptions) and humans."""
     with open(pag_path) as f:
         pag = json.load(f)
 
-    objects_parts = {}
+    obj_descriptions = {}
+    for obj_state in pag.get("object states", []):
+        name = obj_state.get("name", "")
+        desc = obj_state.get("description", "")
+        if name:
+            obj_descriptions[name] = desc
+
+    objects_info: dict[str, dict] = {}
     for node in pag.get("object part nodes", []):
         parts = node.split(", ", 1)
         if len(parts) == 2:
             obj_name, part_name = parts
-            if obj_name not in objects_parts:
-                objects_parts[obj_name] = []
-            objects_parts[obj_name].append(part_name)
+            if obj_name not in objects_info:
+                objects_info[obj_name] = {
+                    "description": obj_descriptions.get(obj_name, ""),
+                    "parts": [],
+                }
+            objects_info[obj_name]["parts"].append(part_name)
 
-    return objects_parts
+    for name, desc in obj_descriptions.items():
+        if name not in objects_info:
+            objects_info[name] = {"description": desc, "parts": []}
+
+    humans_info = []
+    for human_state in pag.get("human states", []):
+        humans_info.append({
+            "name": human_state.get("name", ""),
+            "description": human_state.get("description", ""),
+        })
+
+    return objects_info, humans_info
 
 
-def find_video_file(video_dir: Path) -> Path | None:
+def find_video_file(video_dir: Path) -> Path:
     """Find the first video file in directory."""
     video_extensions = [".mp4", ".MP4", ".avi", ".AVI", ".mov", ".MOV"]
     for ext in video_extensions:
-        videos = list(video_dir.glob(f"*{ext}"))
+        videos = sorted(video_dir.glob(f"*{ext}"))
         if videos:
             return videos[0]
-    return None
+    raise FileNotFoundError(f"No video file found in {video_dir}")
+
+
+def rename_numeric_frames_to_prefixed(frames_dir: Path) -> None:
+    """Rename numeric tracker frames to frame_xxxx.jpg for final output."""
+    for jpg_path in sorted(frames_dir.glob("*.jpg")):
+        stem = jpg_path.stem
+        if stem.startswith("frame_"):
+            continue
+        try:
+            idx = int(stem)
+            new_path = frames_dir / f"frame_{idx:04d}.jpg"
+            jpg_path.rename(new_path)
+        except ValueError:
+            pass
 
 
 def process_video(
     video_path: Path,
-    objects_parts: dict[str, list[str]],
+    objects_info: dict[str, dict],
+    humans_info: list[dict],
     output_root: Path,
     predictor,
+    mask_postprocess: bool = False,
 ) -> None:
-    """Process a video to segment objects and their parts.
-
-    Args:
-        video_path: Path to video file.
-        objects_parts: Dictionary mapping object names to their parts.
-        output_root: Root output directory (e.g., Segment_Video/video_01).
-        predictor: SAM2 video predictor.
-    """
+    """Process a video to segment objects, parts, and humans."""
     print(f"\n{'='*60}")
     print(f"Processing video: {video_path.name}")
     print(f"{'='*60}")
 
-    # Extract frames
     frames_dir = output_root / "_frames"
-    if not frames_dir.exists() or not list(frames_dir.glob("*.png")):
-        frame_paths, width, height = extract_video_frames(str(video_path), frames_dir)
-    else:
-        frame_paths = sorted(frames_dir.glob("*.png"))
-        first_frame = cv2.imread(str(frame_paths[0]))
-        height, width = first_frame.shape[:2]
-        print(f"Using existing {len(frame_paths)} frames from {frames_dir}")
+    frame_paths, width, height = extract_video_frames(str(video_path), frames_dir)
+    first_frame = cv2.imread(str(frame_paths[0]))
 
-    # Load first frame for detection
-    first_frame = cv2.imread(str(frames_dir / "frame_0000.png"))
-    if first_frame is None:
-        print("Error: Could not load first frame")
+    if humans_info:
+        print(f"\nHumans to segment: {[h['name'] for h in humans_info]}")
+        humans_dict = {h["name"]: h["description"] for h in humans_info}
+
+        print("\n[Human Step 1] Detecting humans in frame 0 with Qwen-VL...")
+        human_bboxes = detect_humans_qwen(first_frame, humans_dict, width, height)
+
+        for name, bbox in human_bboxes.items():
+            if bbox:
+                print(f"  {name}: {bbox}")
+            else:
+                print(f"  {name}: NOT DETECTED")
+
+        for human_name, human_bbox in human_bboxes.items():
+            human_dir_name = human_name.replace(" ", "_")
+            human_output_dir = output_root / "humans" / human_dir_name
+
+            print(f"\n{'─'*40}")
+            print(f"Processing human: {human_name}")
+            print(f"{'─'*40}")
+
+            if human_bbox is None:
+                print(f"  Skipping {human_name}: not detected in frame 0")
+                continue
+
+            print(f"\n[Human Step 2] Tracking {human_name} across frames with SAM3...")
+            track_with_sam3(
+                predictor=predictor,
+                frames_dir=frames_dir,
+                bboxes={human_name: human_bbox},
+                output_masks_dir=human_output_dir / "masks",
+                output_viz_dir=human_output_dir / "visualizations",
+                item_type="human",
+                use_subdirs=False,
+                apply_mask_postprocess=mask_postprocess,
+            )
+    else:
+        print("\nNo humans specified in PAG, skipping human segmentation")
+
+    if not objects_info:
+        print("\nNo objects specified, skipping object segmentation")
         return
 
-    # Get all object names
-    objects = list(objects_parts.keys())
+    objects = list(objects_info.keys())
     print(f"\nObjects to segment: {objects}")
 
-    # Step 1: Detect all objects in frame 0
-    print("\n[Step 1] Detecting objects in frame 0 with Qwen-VL...")
+    print("\n[Object Step 1] Detecting objects in frame 0 with Qwen-VL...")
     object_bboxes = detect_objects_qwen(first_frame, objects, width, height)
 
     for obj, bbox in object_bboxes.items():
@@ -560,42 +663,40 @@ def process_video(
         else:
             print(f"  {obj}: NOT DETECTED")
 
-    # Process each object
-    for obj_name, parts in objects_parts.items():
+    for obj_name, obj_info in objects_info.items():
+        parts = obj_info["parts"]
         obj_dir_name = obj_name.replace(" ", "_")
-        obj_output_dir = output_root / obj_dir_name
+        obj_output_dir = output_root / "objects" / obj_dir_name
 
         print(f"\n{'='*40}")
         print(f"Processing object: {obj_name}")
         print(f"{'='*40}")
 
-        # Step 2: Track object across frames
-        print("\n[Step 2] Tracking object across frames with SAM2...")
+        print("\n[Object Step 2] Tracking object across frames with SAM3...")
         obj_seg_dir = obj_output_dir / "object_segmentation"
 
         if object_bboxes.get(obj_name) is not None:
-            obj_results = track_with_sam2(
+            track_with_sam3(
                 predictor=predictor,
                 frames_dir=frames_dir,
                 bboxes={obj_name: object_bboxes[obj_name]},
                 output_masks_dir=obj_seg_dir / "masks",
                 output_viz_dir=obj_seg_dir / "visualizations",
                 item_type="object",
-                use_subdirs=False,  # No subdirs needed for single object
+                use_subdirs=False,
+                apply_mask_postprocess=mask_postprocess,
             )
-
-            # Save object segmentation results
-            results_path = obj_seg_dir / "segmentation_results.json"
-            results_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(results_path, "w") as f:
-                json.dump(obj_results, f, indent=2)
-            print(f"  Saved object results to: {results_path}")
         else:
             print(f"  Skipping object tracking: {obj_name} not detected")
 
-        # Step 3: Detect and track parts
-        print(f"\n[Step 3] Detecting parts {parts} in frame 0...")
-        part_bboxes = detect_parts_qwen(first_frame, parts, obj_name, width, height)
+        if not parts:
+            print(f"  No parts defined for {obj_name}, skipping part segmentation")
+            continue
+
+        print(f"\n[Object Step 3] Detecting parts {parts} in frame 0...")
+        part_bboxes = detect_parts_qwen(
+            first_frame, parts, obj_name, width, height
+        )
 
         for part, bbox in part_bboxes.items():
             if bbox:
@@ -603,62 +704,46 @@ def process_video(
             else:
                 print(f"  {part}: NOT DETECTED")
 
-        # Track parts across frames
-        print("\n[Step 4] Tracking parts across frames with SAM2...")
+        print("\n[Object Step 4] Tracking parts across frames with SAM3...")
         parts_seg_dir = obj_output_dir / "parts_segmentation"
-
-        # Filter out undetected parts
         detected_parts = {p: b for p, b in part_bboxes.items() if b is not None}
 
         if detected_parts:
-            parts_results = track_with_sam2(
+            track_with_sam3(
                 predictor=predictor,
                 frames_dir=frames_dir,
                 bboxes=detected_parts,
                 output_masks_dir=parts_seg_dir / "masks",
                 output_viz_dir=parts_seg_dir / "visualizations",
                 item_type="part",
-                use_subdirs=True,  # Subdirs for each part
+                use_subdirs=True,
+                resolve_overlaps=True,
+                apply_mask_postprocess=mask_postprocess,
             )
-
-            # Save parts segmentation results
-            results_path = parts_seg_dir / "segmentation_results.json"
-            results_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(results_path, "w") as f:
-                json.dump(parts_results, f, indent=2)
-            print(f"  Saved parts results to: {results_path}")
         else:
             print("  Skipping parts tracking: no parts detected")
+
+    print("\nRenaming frames to frame_xxxx.jpg naming...")
+    rename_numeric_frames_to_prefixed(frames_dir)
+    print("  Frames renamed.")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Segment objects and parts from video using Qwen-VL + SAM2."
+        description="Segment objects, parts, and humans from video using Qwen-VL + SAM3."
     )
     parser.add_argument(
         "--video_path",
         type=str,
-        default="../Generate_Video/videos/video_01",
-        help="Path to video directory (e.g., ../Generate_Video/videos/video_01).",
+        default="../Generate_Video/output/video_03",
+        help="Path to video directory (e.g., ../Generate_Video/output/video_01).",
     )
     parser.add_argument(
         "--pag_file",
         type=str,
         default=None,
-        help="PAG JSON file to extract objects and parts. "
-        "If not specified, will look in ../Generate_PAG/pags/video_xx/.",
-    )
-    parser.add_argument(
-        "--object",
-        type=str,
-        default=None,
-        help="Single object name to segment (e.g., 'iron').",
-    )
-    parser.add_argument(
-        "--parts",
-        type=str,
-        default=None,
-        help="Comma-separated list of part names (e.g., 'handle,soleplate').",
+        help="PAG JSON file to extract objects, parts, and humans. "
+        "If not specified, will look in ../Generate_PAG/output/video_xx/.",
     )
     parser.add_argument(
         "--output_root",
@@ -666,84 +751,63 @@ def main():
         default=None,
         help="Root output directory. Defaults to Segment_Video/<video_name>/.",
     )
+    parser.add_argument(
+        "--mask_postprocess",
+        action="store_true",
+        help="Enable mask morphology post-processing (close -> open -> blur-threshold).",
+    )
 
     args = parser.parse_args()
 
-    # Resolve video path
     video_dir = Path(args.video_path).resolve()
-    if not video_dir.exists():
-        print(f"Error: Video directory not found: {video_dir}")
-        return
-
-    # Find video file
     video_file = find_video_file(video_dir)
-    if video_file is None:
-        print(f"Error: No video file found in {video_dir}")
-        return
 
     print(f"Video file: {video_file}")
-
-    # Determine video name (e.g., video_01)
     video_name = video_dir.name
 
-    # Determine output root
     if args.output_root:
         output_root = Path(args.output_root).resolve()
     else:
         script_dir = Path(__file__).parent.resolve()
-        output_root = script_dir / video_name
+        output_root = script_dir / "output" / video_name
 
     print(f"Output directory: {output_root}")
 
-    # Get objects and parts
-    if args.object and args.parts:
-        # Single object mode
-        parts = [p.strip() for p in args.parts.split(",")]
-        objects_parts = {args.object: parts}
-        print(f"Single object mode: {args.object} with parts {parts}")
+    if args.pag_file:
+        pag_path = Path(args.pag_file).resolve()
     else:
-        # PAG file mode
-        if args.pag_file:
-            pag_path = Path(args.pag_file).resolve()
-        else:
-            # Try to find PAG file automatically
-            pag_dir = Path(__file__).parent.parent / "Generate_PAG" / "pags" / video_name
-            pag_candidates = list(pag_dir.glob("output_pag_*.json"))
-            if pag_candidates:
-                pag_path = pag_candidates[0]
-            else:
-                print("Error: No PAG file found. Specify --pag_file or --object + --parts")
-                return
+        pag_dir = Path(__file__).parent.parent / "Generate_PAG" / "output" / video_name
+        pag_path = next(pag_dir.glob("output_pag_*.json"))
 
-        if not pag_path.exists():
-            print(f"Error: PAG file not found: {pag_path}")
-            return
+    print(f"PAG file: {pag_path}")
+    objects_info, humans_info = parse_pag_file(str(pag_path))
 
-        print(f"PAG file: {pag_path}")
-        objects_parts = parse_pag_file(str(pag_path))
+    if objects_info:
+        print(f"Found {len(objects_info)} objects:")
+        for obj, info in objects_info.items():
+            desc = f" ({info['description']})" if info["description"] else ""
+            print(f"  {obj}{desc}: parts={info['parts']}")
 
-        if not objects_parts:
-            print("No object parts found in PAG file")
-            return
+    if humans_info:
+        print(f"Found {len(humans_info)} humans:")
+        for h in humans_info:
+            desc = f" ({h['description']})" if h["description"] else ""
+            print(f"  {h['name']}{desc}")
 
-        print(f"Found {len(objects_parts)} objects:")
-        for obj, parts in objects_parts.items():
-            print(f"  {obj}: {parts}")
+    predictor = load_sam3_tracker()
 
-    # Load SAM2 video predictor
-    predictor = load_sam2_video_predictor()
-
-    # Process video
     process_video(
         video_path=video_file,
-        objects_parts=objects_parts,
+        objects_info=objects_info,
+        humans_info=humans_info,
         output_root=output_root,
         predictor=predictor,
+        mask_postprocess=args.mask_postprocess,
     )
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("All done!")
-    print("="*60)
+    print("=" * 60)
 
 
 if __name__ == "__main__":
