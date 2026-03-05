@@ -6,18 +6,6 @@ Segment objects, parts, and humans from generated video using Qwen-VL + SAM3.
 3. Use SAM3 to track/segment objects and humans across frames -> masks
 4. Similarly obtain part masks for each object part
 5. No part segmentation for humans
-
-Directory structure:
-    video_xx/
-        _frames/frame_xxxx.jpg
-        objects/<object_name>/
-            object_segmentation/masks/frame_xxxx.png
-            object_segmentation/visualizations/frame_xxxx.png
-            parts_segmentation/masks/<part_name>/frame_xxxx.png
-            parts_segmentation/visualizations/frame_xxxx.png
-        humans/<person_name>/
-            masks/frame_xxxx.png
-            visualizations/frame_xxxx.png
 """
 
 import argparse
@@ -28,11 +16,12 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-import requests
+from openai import OpenAI
 
 
 # Ollama configuration
-OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
+OLLAMA_HOST = "http://127.0.0.1:11434/v1"
+OLLAMA_API_KEY = "ollama"
 QWEN_MODEL = "qwen3-vl:32b"
 
 # SAM3 configuration
@@ -104,7 +93,64 @@ def _parse_bbox_response(
     return normalized
 
 
+def _extract_text_content(content) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for item in content:
+            if isinstance(item, dict):
+                if item.get("type") == "text":
+                    text = item.get("text")
+                    if isinstance(text, str):
+                        parts.append(text)
+                continue
+            item_type = getattr(item, "type", None)
+            if item_type == "text":
+                text = getattr(item, "text", None)
+                if isinstance(text, str):
+                    parts.append(text)
+        return "\n".join(parts).strip()
+    return ""
+
+
+def _detect_bboxes_qwen(
+    client: OpenAI,
+    model: str,
+    image_b64: str,
+    prompt: str,
+    names: list[str],
+    image_width: int,
+    image_height: int,
+) -> dict[str, list[int] | None]:
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"},
+                        },
+                    ],
+                }
+            ],
+            temperature=0.1,
+            max_tokens=2048,
+        )
+        response_text = _extract_text_content(response.choices[0].message.content)
+        return _parse_bbox_response(response_text, names, image_width, image_height)
+    except Exception as e:
+        print(f"  Error calling Qwen-VL: {e}")
+        return {name: None for name in names}
+
+
 def detect_objects_qwen(
+    client: OpenAI,
+    model: str,
     image: np.ndarray,
     objects: list[str],
     image_width: int,
@@ -124,32 +170,20 @@ Coordinates should be on a 0-1000 normalized scale (not pixels).
 If an object is not visible, output: <ref>object_name</ref><box>null</box>
 
 Detect all objects listed above."""
-
-    payload = {
-        "model": QWEN_MODEL,
-        "prompt": prompt,
-        "images": [image_b64],
-        "stream": False,
-        "options": {
-            "temperature": 0.1,
-            "num_predict": 2048,
-        },
-    }
-
-    try:
-        response = requests.post(OLLAMA_URL, json=payload, timeout=180)
-        response.raise_for_status()
-        result = response.json()
-        response_text = result.get("response", "")
-        return _parse_bbox_response(
-            response_text, objects, image_width, image_height
-        )
-    except Exception as e:
-        print(f"  Error calling Qwen-VL: {e}")
-        return {name: None for name in objects}
+    return _detect_bboxes_qwen(
+        client=client,
+        model=model,
+        image_b64=image_b64,
+        prompt=prompt,
+        names=objects,
+        image_width=image_width,
+        image_height=image_height,
+    )
 
 
 def detect_humans_qwen(
+    client: OpenAI,
+    model: str,
     image: np.ndarray,
     humans: dict[str, str],
     image_width: int,
@@ -177,32 +211,20 @@ Coordinates should be on a 0-1000 normalized scale (not pixels).
 If a person is not visible, output: <ref>person_name</ref><box>null</box>
 
 Detect all people listed above."""
-
-    payload = {
-        "model": QWEN_MODEL,
-        "prompt": prompt,
-        "images": [image_b64],
-        "stream": False,
-        "options": {
-            "temperature": 0.1,
-            "num_predict": 2048,
-        },
-    }
-
-    try:
-        response = requests.post(OLLAMA_URL, json=payload, timeout=180)
-        response.raise_for_status()
-        result = response.json()
-        response_text = result.get("response", "")
-        return _parse_bbox_response(
-            response_text, list(humans.keys()), image_width, image_height
-        )
-    except Exception as e:
-        print(f"  Error calling Qwen-VL: {e}")
-        return {name: None for name in humans}
+    return _detect_bboxes_qwen(
+        client=client,
+        model=model,
+        image_b64=image_b64,
+        prompt=prompt,
+        names=list(humans.keys()),
+        image_width=image_width,
+        image_height=image_height,
+    )
 
 
 def detect_parts_qwen(
+    client: OpenAI,
+    model: str,
     image: np.ndarray,
     parts: list[str],
     object_name: str,
@@ -224,29 +246,15 @@ Coordinates should be on a 0-1000 normalized scale (not pixels).
 If a part is not visible, output: <ref>part_name</ref><box>null</box>
 
 Detect all parts listed above."""
-
-    payload = {
-        "model": QWEN_MODEL,
-        "prompt": prompt,
-        "images": [image_b64],
-        "stream": False,
-        "options": {
-            "temperature": 0.1,
-            "num_predict": 2048,
-        },
-    }
-
-    try:
-        response = requests.post(OLLAMA_URL, json=payload, timeout=180)
-        response.raise_for_status()
-        result = response.json()
-        response_text = result.get("response", "")
-        return _parse_bbox_response(
-            response_text, parts, image_width, image_height
-        )
-    except Exception as e:
-        print(f"  Error calling Qwen-VL: {e}")
-        return {part: None for part in parts}
+    return _detect_bboxes_qwen(
+        client=client,
+        model=model,
+        image_b64=image_b64,
+        prompt=prompt,
+        names=parts,
+        image_width=image_width,
+        image_height=image_height,
+    )
 
 
 def load_sam3_tracker():
@@ -597,6 +605,8 @@ def process_video(
     humans_info: list[dict],
     output_root: Path,
     predictor,
+    qwen_client: OpenAI,
+    qwen_model: str,
     mask_postprocess: bool = False,
 ) -> None:
     """Process a video to segment objects, parts, and humans."""
@@ -613,7 +623,9 @@ def process_video(
         humans_dict = {h["name"]: h["description"] for h in humans_info}
 
         print("\n[Human Step 1] Detecting humans in frame 0 with Qwen-VL...")
-        human_bboxes = detect_humans_qwen(first_frame, humans_dict, width, height)
+        human_bboxes = detect_humans_qwen(
+            qwen_client, qwen_model, first_frame, humans_dict, width, height
+        )
 
         for name, bbox in human_bboxes.items():
             if bbox:
@@ -655,7 +667,9 @@ def process_video(
     print(f"\nObjects to segment: {objects}")
 
     print("\n[Object Step 1] Detecting objects in frame 0 with Qwen-VL...")
-    object_bboxes = detect_objects_qwen(first_frame, objects, width, height)
+    object_bboxes = detect_objects_qwen(
+        qwen_client, qwen_model, first_frame, objects, width, height
+    )
 
     for obj, bbox in object_bboxes.items():
         if bbox:
@@ -695,7 +709,7 @@ def process_video(
 
         print(f"\n[Object Step 3] Detecting parts {parts} in frame 0...")
         part_bboxes = detect_parts_qwen(
-            first_frame, parts, obj_name, width, height
+            qwen_client, qwen_model, first_frame, parts, obj_name, width, height
         )
 
         for part, bbox in part_bboxes.items():
@@ -756,6 +770,24 @@ def main():
         action="store_true",
         help="Enable mask morphology post-processing (close -> open -> blur-threshold).",
     )
+    parser.add_argument(
+        "--ollama_host",
+        type=str,
+        default=OLLAMA_HOST,
+        help="OpenAI-compatible Ollama host (e.g., http://127.0.0.1:11434/v1).",
+    )
+    parser.add_argument(
+        "--ollama_api_key",
+        type=str,
+        default=OLLAMA_API_KEY,
+        help="API key used by OpenAI client for Ollama (default: ollama).",
+    )
+    parser.add_argument(
+        "--qwen_model",
+        type=str,
+        default=QWEN_MODEL,
+        help="Qwen-VL model name served by Ollama.",
+    )
 
     args = parser.parse_args()
 
@@ -772,6 +804,8 @@ def main():
         output_root = script_dir / "output" / video_name
 
     print(f"Output directory: {output_root}")
+    print(f"Ollama host: {args.ollama_host}")
+    print(f"Qwen model: {args.qwen_model}")
 
     if args.pag_file:
         pag_path = Path(args.pag_file).resolve()
@@ -795,6 +829,7 @@ def main():
             print(f"  {h['name']}{desc}")
 
     predictor = load_sam3_tracker()
+    qwen_client = OpenAI(base_url=args.ollama_host, api_key=args.ollama_api_key)
 
     process_video(
         video_path=video_file,
@@ -802,6 +837,8 @@ def main():
         humans_info=humans_info,
         output_root=output_root,
         predictor=predictor,
+        qwen_client=qwen_client,
+        qwen_model=args.qwen_model,
         mask_postprocess=args.mask_postprocess,
     )
 
