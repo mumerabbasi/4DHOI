@@ -1,16 +1,20 @@
-"""Multi-frame SE(3) object mesh tracking from CoTracker tracks.
+"""Multi-frame SE(3) object mesh tracking from CoTracker tracks (corrected).
 
-This script estimates a smooth rigid pose trajectory for each PAG-listed object
-using:
-- aligned frame-0 mesh in camera coordinates (OpenCV convention),
-- CoTracker tracks + visibility,
-- per-frame segmentation masks.
+Fixes over original track_object_mesh.py:
+  1. **Convention mismatch**: PyTorch3D's se3_exp_map returns 4x4 matrices in
+     *row-vector* convention (translation in bottom row, R^T in top-left).
+     The original code treated them as standard *column-vector* matrices,
+     causing all translations to be zero and rotations transposed.
+  2. **Pose parameterization**: Uses axis_angle_to_matrix (standard convention)
+     + explicit translation vector. This avoids any convention ambiguity.
+  3. **SE(3) velocity/smoothness**: Computes body-frame relative transforms
+     properly using matrix operations, not mixed conventions.
 
-The optimization is end-to-end (no post-smoothing):
-    E = lambda_img * E_img + lambda_a * E_smooth + lambda_v * E_vel
+Coordinate convention used throughout: **OpenCV** (X-right, Y-down, Z-forward).
+The 4x4 matrices are in standard column-vector convention: [[R, t], [0, 1]].
+Projection: u = fx * X/Z + cx,  v = fy * Y/Z + cy.
 
-Where E_img is a robust (Huber) reprojection term and the temporal terms are
-computed in SE(3) via Lie log maps.
+Usage is identical to the original script.
 """
 
 from __future__ import annotations
@@ -29,7 +33,7 @@ import torch.nn.functional as F
 import trimesh
 from pytorch3d.renderer import MeshRasterizer, PerspectiveCameras, RasterizationSettings
 from pytorch3d.structures import Meshes
-from pytorch3d.transforms import se3_exp_map, se3_log_map
+from pytorch3d.transforms import axis_angle_to_matrix, matrix_to_axis_angle
 
 from tracking_utils import (
     _draw_frame0_correspondence,
@@ -53,133 +57,103 @@ from tracking_utils import (
 )
 
 
-F_CV_TO_P3D = np.diag([-1.0, -1.0, 1.0]).astype(np.float32)
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
 OVERLAY_FILL_ALPHA = 0.60
 OVERLAY_CONTOUR_THICKNESS = 0
 OVERLAY_COLOR_BGR = (0, 255, 255)  # yellow-cyan
 
 
-@dataclass
-class SeedMappingResult:
-    points_cv: torch.Tensor  # [M, 3]
-    valid_seed_mask: np.ndarray  # [N] bool, keeps track ids that survive mapping
-    invalid_face_count: int
-    outside_mask0_count: int
-    nonfinite_seed_count: int
-
-
+# ---------------------------------------------------------------------------
+# Argument parsing (same interface as original)
+# ---------------------------------------------------------------------------
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description=(
-            "Track aligned object meshes with a multi-frame SE(3) optimizer from "
-            "CoTracker tracks."
-        )
+    p = argparse.ArgumentParser(
+        description="Track aligned object meshes with corrected SE(3) optimizer."
     )
-    parser.add_argument(
-        "--video_name",
-        type=str,
-        default="video_01",
-        help="Video identifier, e.g. video_01.",
-    )
+    p.add_argument("--video_name", type=str, default="video_01")
+    p.add_argument("--cotracker_video_dir", type=str, default=None)
+    p.add_argument("--aligned_mesh_video_dir", type=str, default=None)
+    p.add_argument("--segment_video_dir", type=str, default=None)
+    p.add_argument("--pag_file", type=str, default=None)
+    p.add_argument("--output_root", type=str, default="./output")
 
-    parser.add_argument(
-        "--cotracker_video_dir",
-        type=str,
-        default=None,
-        help="Override CoTracker output dir. Default: ../Estimate_Optical_Flow/output_cotracker/<video_name>",
-    )
-    parser.add_argument(
-        "--aligned_mesh_video_dir",
-        type=str,
-        default=None,
-        help="Override aligned mesh dir. Default: ../Align_Meshes/output/<video_name>",
-    )
-    parser.add_argument(
-        "--segment_video_dir",
-        type=str,
-        default=None,
-        help="Override Segment_Video dir. Default: ../Segment_Video/output/<video_name>",
-    )
-    parser.add_argument(
-        "--pag_file",
-        type=str,
-        default=None,
-        help="Override PAG file. Default: first output_pag_*.json in ../Generate_PAG/output/<video_name>/",
-    )
-    parser.add_argument(
-        "--output_root",
-        type=str,
-        default="./output",
-        help="Root directory for tracking outputs.",
-    )
+    p.add_argument("--output_coord", type=str, choices=["opencv", "pytorch3d"], default="opencv")
+    p.add_argument("--device", type=str, default="cuda")
+    p.add_argument("--bin_size", type=int, default=0)
+    p.add_argument("--mask_threshold", type=int, default=127)
+    p.add_argument("--mask_gate_threshold", type=float, default=0.5)
+    p.add_argument("--visibility_threshold", type=float, default=0.0)
+    p.add_argument("--min_valid_tracks", type=int, default=50)
 
-    parser.add_argument(
-        "--output_coord",
-        type=str,
-        choices=["opencv", "pytorch3d"],
-        default="opencv",
-        help="Coordinate convention for saved .ply sequence.",
-    )
-    parser.add_argument("--device", type=str, default="cuda")
-    parser.add_argument("--bin_size", type=int, default=0, help="Rasterizer bin size. 0 means naive.")
-    parser.add_argument("--mask_threshold", type=int, default=127)
-    parser.add_argument("--mask_gate_threshold", type=float, default=0.5)
-    parser.add_argument("--visibility_threshold", type=float, default=0.0)
-    parser.add_argument("--min_valid_tracks", type=int, default=50)
+    p.add_argument("--huber_delta_px", type=float, default=3.0)
+    p.add_argument("--lambda_img", type=float, default=1.0)
+    p.add_argument("--lambda_a", type=float, default=10.0)
+    p.add_argument("--lambda_v", type=float, default=10.0)
+    p.add_argument("--adam_iters", type=int, default=4000)
+    p.add_argument("--adam_lr", type=float, default=1e-2)
+    p.add_argument("--early_stop_patience", type=int, default=0)
+    p.add_argument("--early_stop_rel_min_delta", type=float, default=1e-4)
+    p.add_argument("--early_stop_min_iter", type=int, default=300)
+    p.add_argument("--disable_lbfgs", action="store_true")
+    p.add_argument("--lbfgs_iters", type=int, default=120)
+    p.add_argument("--lbfgs_lr", type=float, default=0.5)
+    p.add_argument("--log_every", type=int, default=20)
 
-    parser.add_argument("--huber_delta_px", type=float, default=3.0)
-    parser.add_argument("--lambda_img", type=float, default=1.0)
-    parser.add_argument("--lambda_a", type=float, default=10.0)
-    parser.add_argument("--lambda_v", type=float, default=0.1)
-    parser.add_argument("--adam_iters", type=int, default=2000)
-    parser.add_argument("--adam_lr", type=float, default=1e-2)
-    parser.add_argument(
-        "--early_stop_patience",
-        type=int,
-        default=100,
-        help=(
-            "Stop Adam if best total loss has not improved for this many "
-            "iterations (0 disables)."
-        ),
-    )
-    parser.add_argument(
-        "--early_stop_rel_min_delta",
-        type=float,
-        default=1e-4,
-        help=(
-            "Minimum relative improvement in total loss to reset "
-            "early-stop patience."
-        ),
-    )
-    parser.add_argument(
-        "--early_stop_min_iter",
-        type=int,
-        default=300,
-        help="Do not allow early stopping before this Adam iteration.",
-    )
-    parser.add_argument("--disable_lbfgs", action="store_true")
-    parser.add_argument("--lbfgs_iters", type=int, default=120)
-    parser.add_argument("--lbfgs_lr", type=float, default=0.5)
-    parser.add_argument("--log_every", type=int, default=20)
+    # --- Optimisation improvements ---
+    p.add_argument("--disable_pnp_init", action="store_true",
+                   help="Disable PnP-RANSAC sequential initialization (use zeros)")
+    p.add_argument("--pnp_ransac_thresh", type=float, default=8.0,
+                   help="RANSAC reprojection threshold in PnP init (px)")
+    p.add_argument("--outlier_reproj_thresh_px", type=float, default=20.0,
+                   help="Tracks with mean reproj > this after PnP init are outliers (0=disable)")
+    p.add_argument("--outlier_max_fraction", type=float, default=0.4,
+                   help="Max fraction of tracks to reject as outliers")
+    p.add_argument("--lr_schedule", type=str, choices=["none", "cosine"], default="cosine",
+                   help="LR schedule for Adam optimizer")
+    p.add_argument("--graduated_huber", action=argparse.BooleanOptionalAction, default=True,
+                   help="Anneal Huber delta from 3x to 1x over first half of Adam")
+    p.add_argument("--retrim_interval", type=int, default=1000,
+                   help="Every N Adam iters, zero out per-frame outlier tracks (0=disable)")
+    p.add_argument("--retrim_percentile", type=float, default=90.0,
+                   help="Per-frame residual percentile threshold for retrimming (e.g., 90=keep best 90%%)")
 
-    parser.add_argument("--start_frame", type=int, default=0)
-    parser.add_argument("--end_frame", type=int, default=-1)
-    parser.add_argument("--overlay_fps", type=float, default=6.0)
-    parser.add_argument("--debug_save_interval", type=int, default=20)
-    parser.add_argument("--verbose", action="store_true")
-    return parser.parse_args()
+    p.add_argument("--start_frame", type=int, default=0)
+    p.add_argument("--end_frame", type=int, default=-1)
+    p.add_argument("--overlay_fps", type=float, default=6.0)
+    p.add_argument("--debug_save_interval", type=int, default=20)
+    p.add_argument("--verbose", action="store_true")
+    return p.parse_args()
 
 
+# ---------------------------------------------------------------------------
+# Coordinate helpers
+# ---------------------------------------------------------------------------
+def _cv_to_p3d_torch(pts: torch.Tensor) -> torch.Tensor:
+    """OpenCV (X-right Y-down Z-fwd) → PyTorch3D (X-left Y-up Z-fwd)."""
+    out = pts.clone()
+    out[..., 0] *= -1.0
+    out[..., 1] *= -1.0
+    return out
+
+
+def _cv_to_p3d_np(pts: np.ndarray) -> np.ndarray:
+    out = pts.copy().astype(np.float32)
+    out[..., 0] *= -1.0
+    out[..., 1] *= -1.0
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Rasterizer (for seed-point mapping at frame 0 only)
+# ---------------------------------------------------------------------------
 def _build_rasterizer(
     device: torch.device,
-    fx: float,
-    fy: float,
-    cx: float,
-    cy: float,
-    h: int,
-    w: int,
-    bin_size: int,
+    fx: float, fy: float, cx: float, cy: float,
+    h: int, w: int, bin_size: int,
 ) -> MeshRasterizer:
+    """PyTorch3D rasterizer using screen-space (non-NDC) cameras."""
     cameras = PerspectiveCameras(
         focal_length=torch.tensor([[fx, fy]], device=device, dtype=torch.float32),
         principal_point=torch.tensor([[cx, cy]], device=device, dtype=torch.float32),
@@ -192,160 +166,179 @@ def _build_rasterizer(
         blur_radius=0.0,
         faces_per_pixel=1,
         bin_size=int(bin_size),
-        max_faces_per_bin=300000,
+        max_faces_per_bin=300_000,
     )
     return MeshRasterizer(cameras=cameras, raster_settings=raster_settings)
 
 
-def _cv_to_p3d_torch(points_cv: torch.Tensor) -> torch.Tensor:
-    out = points_cv.clone()
-    out[..., 0] *= -1.0
-    out[..., 1] *= -1.0
-    return out
-
-
-def _cv_to_p3d_np(points_cv: np.ndarray) -> np.ndarray:
-    out = points_cv.copy().astype(np.float32)
-    out[..., 0] *= -1.0
-    out[..., 1] *= -1.0
-    return out
-
-
-def _sample_mask_bilinear_single(mask_hw: torch.Tensor, uv_n2: torch.Tensor) -> torch.Tensor:
-    """Sample one mask with sub-pixel bilinear interpolation.
-
-    Returns:
-        values [N], in [0, 1].
-    """
-    if uv_n2.numel() == 0:
-        return torch.zeros((0,), dtype=torch.float32, device=mask_hw.device)
-
-    h, w = int(mask_hw.shape[0]), int(mask_hw.shape[1])
-    mask_nchw = mask_hw.view(1, 1, h, w)
-    x_norm = (2.0 * uv_n2[:, 0] / max(float(w - 1), 1.0)) - 1.0
-    y_norm = (2.0 * uv_n2[:, 1] / max(float(h - 1), 1.0)) - 1.0
-    grid = torch.stack([x_norm, y_norm], dim=-1).view(1, -1, 1, 2)
+# ---------------------------------------------------------------------------
+# Mask sampling
+# ---------------------------------------------------------------------------
+def _sample_mask_bilinear_single(mask_hw: torch.Tensor, uv: torch.Tensor) -> torch.Tensor:
+    """Sample one [H,W] mask at sub-pixel positions uv [N,2]. Returns [N]."""
+    if uv.numel() == 0:
+        return torch.zeros(0, dtype=torch.float32, device=mask_hw.device)
+    h, w = mask_hw.shape
+    grid_x = (2.0 * uv[:, 0] / max(w - 1, 1)) - 1.0
+    grid_y = (2.0 * uv[:, 1] / max(h - 1, 1)) - 1.0
+    grid = torch.stack([grid_x, grid_y], dim=-1).view(1, -1, 1, 2)
     sampled = F.grid_sample(
-        mask_nchw,
-        grid,
-        mode="bilinear",
-        padding_mode="zeros",
-        align_corners=True,
+        mask_hw.view(1, 1, h, w), grid,
+        mode="bilinear", padding_mode="zeros", align_corners=True,
     )
     return sampled.view(-1)
 
 
-def _sample_masks_bilinear_sequence(masks_thw: torch.Tensor, uv_tm2: torch.Tensor) -> torch.Tensor:
-    """Sample masks for all frames.
-
-    Args:
-        masks_thw: [T, H, W]
-        uv_tm2: [T, M, 2] in pixel coordinates
-    Returns:
-        sampled values [T, M]
-    """
-    if uv_tm2.numel() == 0:
-        t = int(masks_thw.shape[0])
-        return torch.zeros((t, 0), dtype=torch.float32, device=masks_thw.device)
-
-    t, h, w = masks_thw.shape
-    if uv_tm2.shape[0] != t:
-        raise ValueError(f"Mask frame count {t} != uv frame count {uv_tm2.shape[0]}")
-
-    masks_tchw = masks_thw.unsqueeze(1)  # [T,1,H,W]
-    x_norm = (2.0 * uv_tm2[..., 0] / max(float(w - 1), 1.0)) - 1.0
-    y_norm = (2.0 * uv_tm2[..., 1] / max(float(h - 1), 1.0)) - 1.0
-    grid = torch.stack([x_norm, y_norm], dim=-1).unsqueeze(2)  # [T,M,1,2]
+def _sample_masks_bilinear_seq(masks: torch.Tensor, uv: torch.Tensor) -> torch.Tensor:
+    """Sample masks [T,H,W] at positions uv [T,M,2]. Returns [T,M]."""
+    if uv.numel() == 0:
+        return torch.zeros(masks.shape[0], 0, dtype=torch.float32, device=masks.device)
+    t, h, w = masks.shape
+    grid_x = (2.0 * uv[..., 0] / max(w - 1, 1)) - 1.0
+    grid_y = (2.0 * uv[..., 1] / max(h - 1, 1)) - 1.0
+    grid = torch.stack([grid_x, grid_y], dim=-1).unsqueeze(2)  # [T,M,1,2]
     sampled = F.grid_sample(
-        masks_tchw,
-        grid,
-        mode="bilinear",
-        padding_mode="zeros",
-        align_corners=True,
+        masks.unsqueeze(1), grid,  # [T,1,H,W]
+        mode="bilinear", padding_mode="zeros", align_corners=True,
     )
     return sampled.squeeze(1).squeeze(-1)  # [T,M]
 
 
+# ---------------------------------------------------------------------------
+# Seed-point mapping (frame 0)
+# ---------------------------------------------------------------------------
+@dataclass
+class SeedMappingResult:
+    points_cv: torch.Tensor       # [M, 3] in OpenCV coords
+    valid_seed_mask: np.ndarray    # [N_total] bool
+    invalid_face_count: int
+    outside_mask0_count: int
+    nonfinite_seed_count: int
+
+
 def _map_seed_points_to_mesh(
-    seed_uv_n2: np.ndarray,
-    verts_cv_np: np.ndarray,
-    faces_np: np.ndarray,
-    mask0_hw_np: np.ndarray,
-    fx: float,
-    fy: float,
-    cx: float,
-    cy: float,
-    h: int,
-    w: int,
+    seed_uv: np.ndarray,         # [N, 2] pixel coords at frame 0
+    verts_cv: np.ndarray,        # [V, 3] in OpenCV coords
+    faces: np.ndarray,           # [F, 3]
+    mask0: np.ndarray,           # [H, W] float 0/1
+    fx: float, fy: float, cx: float, cy: float,
+    h: int, w: int,
     device: torch.device,
     bin_size: int,
     mask_gate_threshold: float,
 ) -> SeedMappingResult:
-    rasterizer = _build_rasterizer(
-        device=device, fx=fx, fy=fy, cx=cx, cy=cy, h=h, w=w, bin_size=bin_size
-    )
+    """Map 2D seed points to 3D via rasterised depth + barycentric interp."""
+    rasterizer = _build_rasterizer(device, fx, fy, cx, cy, h, w, bin_size)
 
-    verts_cv = torch.from_numpy(verts_cv_np).to(device=device, dtype=torch.float32)
-    verts_p3d = _cv_to_p3d_torch(verts_cv)
-    faces = torch.from_numpy(faces_np.astype(np.int64)).to(device=device)
-    mesh = Meshes(verts=[verts_p3d], faces=[faces])
+    verts_cv_t = torch.from_numpy(verts_cv).to(device=device, dtype=torch.float32)
+    # PyTorch3D rasterizer needs PyTorch3D-convention vertices
+    verts_p3d = _cv_to_p3d_torch(verts_cv_t)
+    faces_t = torch.from_numpy(faces.astype(np.int64)).to(device)
+    mesh = Meshes(verts=[verts_p3d], faces=[faces_t])
+
     with torch.no_grad():
         fragments = rasterizer(mesh)
 
-    pix_to_face = fragments.pix_to_face[0, ..., 0]  # [H,W]
-    bary = fragments.bary_coords[0, ..., 0, :]  # [H,W,3]
+    pix_to_face = fragments.pix_to_face[0, ..., 0]   # [H, W]
+    bary_coords = fragments.bary_coords[0, ..., 0, :]  # [H, W, 3]
 
-    seed_uv = torch.from_numpy(seed_uv_n2).to(device=device, dtype=torch.float32)
-    finite_seed = torch.isfinite(seed_uv).all(dim=1)
+    seed_t = torch.from_numpy(seed_uv).to(device=device, dtype=torch.float32)
+    finite = torch.isfinite(seed_t).all(dim=1)
 
-    x_idx = torch.clamp(torch.round(seed_uv[:, 0]).long(), 0, w - 1)
-    y_idx = torch.clamp(torch.round(seed_uv[:, 1]).long(), 0, h - 1)
-    face_id = pix_to_face[y_idx, x_idx]  # [N]
-    bary_seed = bary[y_idx, x_idx, :]  # [N,3]
+    x_idx = torch.clamp(torch.round(seed_t[:, 0]).long(), 0, w - 1)
+    y_idx = torch.clamp(torch.round(seed_t[:, 1]).long(), 0, h - 1)
+    face_id = pix_to_face[y_idx, x_idx]
+    bary_seed = bary_coords[y_idx, x_idx]
 
-    mask0 = torch.from_numpy(mask0_hw_np.astype(np.float32)).to(device=device)
-    mask_vals = _sample_mask_bilinear_single(mask0, seed_uv)
+    mask0_t = torch.from_numpy(mask0.astype(np.float32)).to(device)
+    mask_vals = _sample_mask_bilinear_single(mask0_t, seed_t)
 
-    valid = finite_seed & (face_id >= 0) & (mask_vals >= float(mask_gate_threshold))
+    valid = finite & (face_id >= 0) & (mask_vals >= mask_gate_threshold)
 
-    points_cv_all = torch.zeros((seed_uv.shape[0], 3), dtype=torch.float32, device=device)
+    # Barycentric interpolation in **OpenCV** coords (not PyTorch3D)
+    points_all = torch.zeros(seed_t.shape[0], 3, dtype=torch.float32, device=device)
     idx = torch.nonzero(valid, as_tuple=False).view(-1)
     if idx.numel() > 0:
-        tri = faces[face_id[idx].long()]  # [M,3]
-        tri_verts = verts_cv[tri]  # [M,3,3]
-        b = bary_seed[idx].unsqueeze(-1)  # [M,3,1]
-        points_cv_all[idx] = (b * tri_verts).sum(dim=1)
-
-    invalid_face_count = int(((face_id < 0) & finite_seed).sum().item())
-    outside_mask0_count = int(
-        ((mask_vals < float(mask_gate_threshold)) & (face_id >= 0) & finite_seed).sum().item()
-    )
-    nonfinite_seed_count = int((~finite_seed).sum().item())
+        tri_verts = verts_cv_t[faces_t[face_id[idx].long()]]  # [M, 3, 3]
+        b = bary_seed[idx].unsqueeze(-1)                       # [M, 3, 1]
+        points_all[idx] = (b * tri_verts).sum(dim=1)
 
     return SeedMappingResult(
-        points_cv=points_cv_all[idx],
-        valid_seed_mask=valid.detach().cpu().numpy().astype(bool),
-        invalid_face_count=invalid_face_count,
-        outside_mask0_count=outside_mask0_count,
-        nonfinite_seed_count=nonfinite_seed_count,
+        points_cv=points_all[idx],
+        valid_seed_mask=valid.cpu().numpy().astype(bool),
+        invalid_face_count=int(((face_id < 0) & finite).sum().item()),
+        outside_mask0_count=int(
+            ((mask_vals < mask_gate_threshold) & (face_id >= 0) & finite).sum().item()
+        ),
+        nonfinite_seed_count=int((~finite).sum().item()),
     )
 
 
-def _build_T_mats_from_xi(xi_tm1_6: torch.Tensor, t_frames: int, device: torch.device) -> torch.Tensor:
+# ---------------------------------------------------------------------------
+# Pose helpers – **standard column-vector convention** [[R t],[0 1]]
+# ---------------------------------------------------------------------------
+def _build_T_matrices(
+    rotvecs: torch.Tensor,   # [T-1, 3] axis-angle
+    trans: torch.Tensor,     # [T-1, 3] translation
+    t_frames: int,
+    device: torch.device,
+) -> torch.Tensor:
+    """Build [T, 4, 4] standard-convention SE(3) matrices.
+
+    Frame 0 is identity.  Frame t: T = [[R(rotvec_t), trans_t], [0, 1]].
+
+    Convention: p_t = R_t @ p_0 + t_t  (column-vector).
+    """
     eye = torch.eye(4, device=device, dtype=torch.float32).unsqueeze(0)
     if t_frames <= 1:
         return eye
-    mats = se3_exp_map(xi_tm1_6)  # [T-1,4,4]
-    return torch.cat([eye, mats], dim=0)
+
+    R = axis_angle_to_matrix(rotvecs)  # [T-1, 3, 3] standard rotation
+    T = torch.zeros(t_frames - 1, 4, 4, device=device, dtype=torch.float32)
+    T[:, :3, :3] = R
+    T[:, :3, 3] = trans
+    T[:, 3, 3] = 1.0
+    return torch.cat([eye, T], dim=0)  # [T, 4, 4]
 
 
+def _relative_body_velocity(
+    R_all: torch.Tensor,     # [T, 3, 3]
+    t_all: torch.Tensor,     # [T, 3]
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Compute body-frame velocity for t = 0 .. T-2.
+
+    R_rel_t = R_t^T @ R_{t+1}
+    omega_t = axis_angle(R_rel_t)      (3-vector)
+    v_t     = R_t^T @ (t_{t+1} - t_t)  (body-frame translation vel)
+
+    Returns:
+        omega [T-1, 3], v [T-1, 3]
+    """
+    R_rel = torch.bmm(R_all[:-1].transpose(-1, -2), R_all[1:])  # [T-1,3,3]
+    omega = matrix_to_axis_angle(R_rel)                          # [T-1,3]
+
+    dt = t_all[1:] - t_all[:-1]   # [T-1, 3]
+    # Body-frame: rotate back by current R
+    v = torch.bmm(
+        R_all[:-1].transpose(-1, -2),
+        dt.unsqueeze(-1),
+    ).squeeze(-1)  # [T-1, 3]
+
+    return omega, v
+
+
+# ---------------------------------------------------------------------------
+# Huber robustifier on squared residuals
+# ---------------------------------------------------------------------------
 def _huber_on_squared(s: torch.Tensor, delta: float) -> torch.Tensor:
-    """Huber-like robustifier operating on squared residual norm."""
-    d2 = float(delta) * float(delta)
-    sqrt_s = torch.sqrt(torch.clamp(s, min=1e-12))
-    return torch.where(s <= d2, s, 2.0 * float(delta) * sqrt_s - d2)
+    d2 = delta * delta
+    sqrt_s = torch.sqrt(s.clamp(min=1e-12))
+    return torch.where(s <= d2, s, 2.0 * delta * sqrt_s - d2)
 
 
+# ---------------------------------------------------------------------------
+# Loss computation
+# ---------------------------------------------------------------------------
 @dataclass
 class LossBundle:
     total: torch.Tensor
@@ -358,174 +351,147 @@ class LossBundle:
     e_img_denom: torch.Tensor
     e_smooth_denom: torch.Tensor
     e_vel_denom: torch.Tensor
-    T_mats: torch.Tensor
-    pred_uv_tm2: torch.Tensor
-    obs_uv_tm2: torch.Tensor
-    weights_tm: torch.Tensor
-    r2_tm: torch.Tensor
-    mask_values_tm: torch.Tensor
-    vis_weights_tm: torch.Tensor
+    T_mats: torch.Tensor        # [T, 4, 4] standard convention
+    pred_uv: torch.Tensor       # [T, M, 2]
+    obs_uv: torch.Tensor        # [T, M, 2]
+    weights: torch.Tensor       # [T, M]
+    r2: torch.Tensor             # [T, M]
+    mask_values: torch.Tensor   # [T, M]
+    vis_weights: torch.Tensor   # [T, M]
 
 
-def _compute_loss_bundle(
-    xi_tm1_6: torch.Tensor,
-    x0_m3: torch.Tensor,
-    obs_uv_tm2: torch.Tensor,
-    vis_tm: torch.Tensor,
-    masks_thw: torch.Tensor,
-    fx: float,
-    fy: float,
-    cx: float,
-    cy: float,
-    lambda_img: float,
-    lambda_a: float,
-    lambda_v: float,
-    huber_delta_px: float,
-    visibility_threshold: float,
+def _compute_loss(
+    rotvecs: torch.Tensor,     # [T-1, 3]
+    trans: torch.Tensor,       # [T-1, 3]
+    x0: torch.Tensor,         # [M, 3] frame-0 3D points in OpenCV
+    obs_uv: torch.Tensor,     # [T, M, 2]
+    vis: torch.Tensor,         # [T, M]
+    masks: torch.Tensor,      # [T, H, W]
+    fx: float, fy: float, cx: float, cy: float,
+    lambda_img: float, lambda_a: float, lambda_v: float,
+    huber_delta: float,
+    vis_threshold: float,
     mask_gate_threshold: float,
 ) -> LossBundle:
-    device = x0_m3.device
-    t_frames = int(obs_uv_tm2.shape[0])
-    t_mats = _build_T_mats_from_xi(xi_tm1_6, t_frames=t_frames, device=device)
+    device = x0.device
+    t_frames = obs_uv.shape[0]
 
-    ones = torch.ones((x0_m3.shape[0], 1), dtype=torch.float32, device=device)
-    x0_h = torch.cat([x0_m3, ones], dim=1)  # [M,4]
+    # --- Build SE(3) matrices in standard convention ---
+    T_mats = _build_T_matrices(rotvecs, trans, t_frames, device)
+    R_all = T_mats[:, :3, :3]   # [T, 3, 3]
+    t_all = T_mats[:, :3, 3]    # [T, 3]
 
-    # X_t = T_t @ X_0 in homogeneous coordinates.
-    xt_h_tm4 = torch.einsum("tij,mj->tmi", t_mats, x0_h)
-    xt_tm3 = xt_h_tm4[..., :3]
+    # --- Transform 3D points: x_t = R_t @ x_0 + t_t ---
+    # x0 [M,3], R_all [T,3,3], t_all [T,3]
+    xt = torch.einsum("tij,mj->tmi", R_all, x0) + t_all.unsqueeze(1)  # [T,M,3]
 
-    z = xt_tm3[..., 2]
+    # --- Project to pixel coords (OpenCV) ---
+    z = xt[..., 2]
     z_valid = z > 1e-6
     z_safe = torch.where(z_valid, z, torch.ones_like(z))
-    pred_u = fx * (xt_tm3[..., 0] / z_safe) + cx
-    pred_v = fy * (xt_tm3[..., 1] / z_safe) + cy
-    pred_uv = torch.stack([pred_u, pred_v], dim=-1)
+    pred_u = fx * xt[..., 0] / z_safe + cx
+    pred_v = fy * xt[..., 1] / z_safe + cy
+    pred_uv = torch.stack([pred_u, pred_v], dim=-1)  # [T,M,2]
 
-    finite_obs = torch.isfinite(obs_uv_tm2).all(dim=-1)
-    mask_values = _sample_masks_bilinear_sequence(masks_thw, obs_uv_tm2)
-    mask_gate = mask_values >= float(mask_gate_threshold)
+    # --- Weights: visibility * mask_gate * finite_obs * z_valid ---
+    finite_obs = torch.isfinite(obs_uv).all(dim=-1)
+    mask_vals = _sample_masks_bilinear_seq(masks, obs_uv)
+    mask_gate = mask_vals >= mask_gate_threshold
 
-    if visibility_threshold > 0.0:
-        vis_weight = torch.where(vis_tm >= float(visibility_threshold), vis_tm, torch.zeros_like(vis_tm))
-    else:
-        vis_weight = vis_tm
-
-    weights = (
-        vis_weight
-        * mask_gate.float()
-        * finite_obs.float()
-        * z_valid.float()
+    vis_w = vis if vis_threshold <= 0.0 else torch.where(
+        vis >= vis_threshold, vis, torch.zeros_like(vis)
     )
+    weights = vis_w * mask_gate.float() * finite_obs.float() * z_valid.float()
 
-    residual = obs_uv_tm2 - pred_uv
-    r2 = (residual ** 2).sum(dim=-1)
-    robust = _huber_on_squared(r2, delta=huber_delta_px)
+    # --- Image reprojection loss (Huber) ---
+    r2 = ((obs_uv - pred_uv) ** 2).sum(dim=-1)       # [T,M]
+    robust = _huber_on_squared(r2, huber_delta)
     e_img_raw = (weights * robust).sum()
-    e_img_denom = weights.sum().clamp_min(1.0)
+    e_img_denom = weights.sum().clamp(min=1.0)
     e_img = e_img_raw / e_img_denom
 
+    # --- Velocity & smoothness (body-frame SE(3)) ---
     if t_frames > 1:
-        t_rel = torch.matmul(torch.linalg.inv(t_mats[:-1]), t_mats[1:])
-        delta = se3_log_map(t_rel)
-        delta = torch.nan_to_num(delta, nan=0.0, posinf=0.0, neginf=0.0)
-        e_vel_raw = (delta ** 2).sum()
-        e_vel_denom = torch.tensor(float(max(delta.numel(), 1)), dtype=torch.float32, device=device)
+        omega_vel, trans_vel = _relative_body_velocity(R_all, t_all)
+        vel = torch.cat([omega_vel, trans_vel], dim=-1)  # [T-1, 6]
+        e_vel_raw = (vel ** 2).sum()
+        e_vel_denom = torch.tensor(max(vel.numel(), 1), dtype=torch.float32, device=device)
         e_vel = e_vel_raw / e_vel_denom
-        # Follow requested index range t=2..T-2 (1-indexed).
-        if delta.shape[0] >= 3:
-            accel = delta[1:-1] - delta[:-2]
+
+        if vel.shape[0] >= 2:
+            accel = vel[1:] - vel[:-1]
             e_smooth_raw = (accel ** 2).sum()
-            e_smooth_denom = torch.tensor(float(max(accel.numel(), 1)), dtype=torch.float32, device=device)
+            e_smooth_denom = torch.tensor(max(accel.numel(), 1), dtype=torch.float32, device=device)
             e_smooth = e_smooth_raw / e_smooth_denom
         else:
-            e_smooth_raw = torch.zeros((), dtype=torch.float32, device=device)
-            e_smooth_denom = torch.ones((), dtype=torch.float32, device=device)
-            e_smooth = torch.zeros((), dtype=torch.float32, device=device)
+            e_smooth_raw = torch.zeros((), device=device)
+            e_smooth_denom = torch.ones((), device=device)
+            e_smooth = torch.zeros((), device=device)
     else:
-        e_vel_raw = torch.zeros((), dtype=torch.float32, device=device)
-        e_vel_denom = torch.ones((), dtype=torch.float32, device=device)
-        e_vel = torch.zeros((), dtype=torch.float32, device=device)
-        e_smooth_raw = torch.zeros((), dtype=torch.float32, device=device)
-        e_smooth_denom = torch.ones((), dtype=torch.float32, device=device)
-        e_smooth = torch.zeros((), dtype=torch.float32, device=device)
+        e_vel_raw = torch.zeros((), device=device)
+        e_vel_denom = torch.ones((), device=device)
+        e_vel = torch.zeros((), device=device)
+        e_smooth_raw = torch.zeros((), device=device)
+        e_smooth_denom = torch.ones((), device=device)
+        e_smooth = torch.zeros((), device=device)
 
-    total = (
-        float(lambda_img) * e_img
-        + float(lambda_a) * e_smooth
-        + float(lambda_v) * e_vel
-    )
+    total = lambda_img * e_img + lambda_a * e_smooth + lambda_v * e_vel
+
     return LossBundle(
         total=total,
-        e_img=e_img,
-        e_smooth=e_smooth,
-        e_vel=e_vel,
-        e_img_raw=e_img_raw,
-        e_smooth_raw=e_smooth_raw,
-        e_vel_raw=e_vel_raw,
-        e_img_denom=e_img_denom,
-        e_smooth_denom=e_smooth_denom,
-        e_vel_denom=e_vel_denom,
-        T_mats=t_mats,
-        pred_uv_tm2=pred_uv,
-        obs_uv_tm2=obs_uv_tm2,
-        weights_tm=weights,
-        r2_tm=r2,
-        mask_values_tm=mask_values,
-        vis_weights_tm=vis_weight,
+        e_img=e_img, e_smooth=e_smooth, e_vel=e_vel,
+        e_img_raw=e_img_raw, e_smooth_raw=e_smooth_raw, e_vel_raw=e_vel_raw,
+        e_img_denom=e_img_denom, e_smooth_denom=e_smooth_denom, e_vel_denom=e_vel_denom,
+        T_mats=T_mats, pred_uv=pred_uv, obs_uv=obs_uv,
+        weights=weights, r2=r2,
+        mask_values=mask_vals, vis_weights=vis_w,
     )
 
 
-def _transform_points_cv_np(points_cv: np.ndarray, t_44: np.ndarray) -> np.ndarray:
-    r = t_44[:3, :3].astype(np.float32)
-    t = t_44[:3, 3].astype(np.float32)
-    return points_cv.astype(np.float32) @ r.T + t[None, :]
+# ---------------------------------------------------------------------------
+# Pose application & saving – all in OpenCV standard convention
+# ---------------------------------------------------------------------------
+def _transform_points_cv(pts: np.ndarray, T: np.ndarray) -> np.ndarray:
+    """Apply standard [[R,t],[0,1]] to points.  p' = R @ p + t."""
+    R = T[:3, :3].astype(np.float32)
+    t = T[:3, 3].astype(np.float32)
+    return (pts.astype(np.float32) @ R.T) + t[None, :]
 
 
-def _save_pose_json(
-    out_path: Path,
-    t_mats_np: np.ndarray,
-    frame_offset: int,
-) -> None:
+def _save_pose_json(path: Path, T_mats: np.ndarray, frame_offset: int) -> None:
     rows = []
-    for i in range(int(t_mats_np.shape[0])):
-        rows.append(
-            {
-                "frame": int(frame_offset + i),
-                "T_4x4": t_mats_np[i].astype(np.float32).tolist(),
-            }
-        )
-    with out_path.open("w", encoding="utf-8") as f:
+    for i in range(T_mats.shape[0]):
+        rows.append({
+            "frame": int(frame_offset + i),
+            "T_4x4": T_mats[i].tolist(),
+        })
+    with path.open("w") as f:
         json.dump(rows, f, indent=2)
 
 
-def _save_mesh_sequences(
+def _save_mesh_sequence(
     mesh_template: trimesh.Trimesh,
     verts0_cv: np.ndarray,
-    t_mats_np: np.ndarray,
+    T_mats: np.ndarray,
     meshes_dir: Path,
     output_coord: str,
     frame_offset: int,
 ) -> None:
     ensure_dir(meshes_dir)
-    for i in range(t_mats_np.shape[0]):
-        frame_idx = frame_offset + i
-        verts_t_cv = _transform_points_cv_np(verts0_cv, t_mats_np[i])
-        if output_coord == "opencv":
-            verts_save = verts_t_cv
-        else:
-            verts_save = _cv_to_p3d_np(verts_t_cv)
-
+    for i in range(T_mats.shape[0]):
+        verts_t = _transform_points_cv(verts0_cv, T_mats[i])
+        if output_coord == "pytorch3d":
+            verts_t = _cv_to_p3d_np(verts_t)
         mesh = mesh_template.copy()
-        mesh.vertices = verts_save.astype(np.float32)
-        mesh.export(str(meshes_dir / f"frame_{frame_idx:04d}.ply"))
+        mesh.vertices = verts_t
+        mesh.export(str(meshes_dir / f"frame_{frame_offset + i:04d}.ply"))
 
 
 def _render_overlays(
     frame_paths: list[Path],
     verts0_cv: np.ndarray,
-    faces_np: np.ndarray,
-    t_mats_np: np.ndarray,
+    faces: np.ndarray,
+    T_mats: np.ndarray,
     k: np.ndarray,
     out_dir: Path,
     frame_offset: int,
@@ -533,91 +499,283 @@ def _render_overlays(
 ) -> tuple[bool, str]:
     overlays_dir = out_dir / "overlays"
     ensure_dir(overlays_dir)
+    if not frame_paths or len(frame_paths) <= frame_offset or faces.shape[0] == 0:
+        return False, "Skipped overlays (no frames or faces)."
 
-    if not frame_paths:
-        return False, "No frame images available; skipped overlay rendering."
-    if len(frame_paths) <= frame_offset:
-        return False, "Frame list shorter than frame_offset; skipped overlays."
-
-    end = min(len(frame_paths), frame_offset + t_mats_np.shape[0])
-    if end <= frame_offset:
-        return False, "No frames in selected range; skipped overlays."
-
+    end = min(len(frame_paths), frame_offset + T_mats.shape[0])
     first = cv2.imread(str(frame_paths[frame_offset]))
     if first is None:
-        return False, f"Failed to read first frame for overlays: {frame_paths[frame_offset]}"
-    if faces_np.shape[0] == 0:
-        return False, "Overlay mesh has no faces; skipped overlays."
-
+        return False, f"Cannot read first frame: {frame_paths[frame_offset]}"
     h, w = first.shape[:2]
 
-    overlay_writer = start_ffmpeg_writer(out_dir / "overlay.mp4", float(fps), (h, w))
-
+    writer = start_ffmpeg_writer(out_dir / "overlay.mp4", fps, (h, w))
     try:
-        local_idx = 0
-        for frame_idx in range(frame_offset, end):
-            frame = cv2.imread(str(frame_paths[frame_idx]))
+        for local_i, fi in enumerate(range(frame_offset, end)):
+            frame = cv2.imread(str(frame_paths[fi]))
             if frame is None:
                 continue
-            verts_t_cv = _transform_points_cv_np(verts0_cv, t_mats_np[local_idx])
+            verts_t = _transform_points_cv(verts0_cv, T_mats[local_i])
             overlay = draw_overlay(
-                frame_bgr=frame,
-                verts_cv=verts_t_cv,
-                faces=faces_np,
-                k=k,
-                fill_alpha=OVERLAY_FILL_ALPHA,
-                contour_thickness=OVERLAY_CONTOUR_THICKNESS,
+                frame_bgr=frame, verts_cv=verts_t, faces=faces, k=k,
+                fill_alpha=OVERLAY_FILL_ALPHA, contour_thickness=OVERLAY_CONTOUR_THICKNESS,
                 color_bgr=OVERLAY_COLOR_BGR,
             )
-            out_png = overlays_dir / f"overlay_{frame_idx:04d}.png"
-            cv2.imwrite(str(out_png), overlay)
-
-            if overlay_writer.stdin is not None:
-                overlay_writer.stdin.write(np.ascontiguousarray(overlay.astype(np.uint8)).tobytes())
-            local_idx += 1
+            cv2.imwrite(str(overlays_dir / f"overlay_{fi:04d}.png"), overlay)
+            if writer.stdin is not None:
+                writer.stdin.write(np.ascontiguousarray(overlay).tobytes())
     finally:
-        close_ffmpeg(overlay_writer)
+        close_ffmpeg(writer)
+    return True, f"Rendered overlays ({faces.shape[0]} faces)."
 
-    return True, f"Rendered overlay with {faces_np.shape[0]} faces."
 
-
+# ---------------------------------------------------------------------------
+# Per-frame metrics
+# ---------------------------------------------------------------------------
 def _build_frame_metrics(
     frame_offset: int,
     bundle: LossBundle,
     mask_gate_threshold: float,
 ) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    t_frames = int(bundle.r2_tm.shape[0])
-    for t in range(t_frames):
-        w_t = bundle.weights_tm[t]
-        active = w_t > 0.0
-        num_active = int(active.sum().item())
-        if num_active > 0:
-            reproj = torch.sqrt(torch.clamp(bundle.r2_tm[t][active], min=1e-12))
-            reproj_mean = float(reproj.mean().item())
-            reproj_p50 = float(torch.quantile(reproj, q=0.50).item())
-            reproj_p90 = float(torch.quantile(reproj, q=0.90).item())
+    rows = []
+    T = bundle.r2.shape[0]
+    for t in range(T):
+        active = bundle.weights[t] > 0.0
+        n_active = int(active.sum().item())
+        if n_active > 0:
+            reproj = torch.sqrt(bundle.r2[t][active].clamp(min=1e-12))
+            rmean = float(reproj.mean().item())
+            rp50 = float(torch.quantile(reproj, 0.5).item())
+            rp90 = float(torch.quantile(reproj, 0.9).item())
         else:
-            reproj_mean = float("nan")
-            reproj_p50 = float("nan")
-            reproj_p90 = float("nan")
-        rows.append(
-            {
-                "frame_idx": int(frame_offset + t),
-                "num_active": num_active,
-                "sum_weight": float(w_t.sum().item()),
-                "visibility_mean": float(bundle.vis_weights_tm[t].mean().item()),
-                "mask_gate_mean": float(
-                    (bundle.mask_values_tm[t] >= float(mask_gate_threshold)).float().mean().item()
-                ),
-                "reproj_mean_px": reproj_mean,
-                "reproj_p50_px": reproj_p50,
-                "reproj_p90_px": reproj_p90,
-            }
-        )
+            rmean = rp50 = rp90 = float("nan")
+
+        # Extract rotation angle and translation magnitude for this frame
+        T_mat = bundle.T_mats[t]
+        R_t = T_mat[:3, :3]
+        t_t = T_mat[:3, 3]
+        # Rotation angle from trace: cos(theta) = (trace(R) - 1) / 2
+        cos_angle = ((R_t.trace() - 1.0) / 2.0).clamp(-1.0, 1.0)
+        rot_angle_deg = float(torch.acos(cos_angle).item()) * 180.0 / np.pi
+        trans_mag = float(t_t.norm().item())
+
+        rows.append({
+            "frame_idx": frame_offset + t,
+            "num_active": n_active,
+            "sum_weight": float(bundle.weights[t].sum().item()),
+            "reproj_mean_px": rmean,
+            "reproj_p50_px": rp50,
+            "reproj_p90_px": rp90,
+            "rotation_angle_deg": rot_angle_deg,
+            "translation_magnitude": trans_mag,
+            "tx": float(t_t[0].item()),
+            "ty": float(t_t[1].item()),
+            "tz": float(t_t[2].item()),
+        })
     return rows
 
 
+# ---------------------------------------------------------------------------
+# Debug: save per-frame pose summary image
+# ---------------------------------------------------------------------------
+def _save_pose_debug_plots(debug_dir: Path, frame_rows: list[dict]) -> None:
+    """Save translation & rotation magnitude plots using cv2."""
+    if not frame_rows:
+        return
+    frames = np.array([r["frame_idx"] for r in frame_rows])
+    tx = np.array([r["tx"] for r in frame_rows])
+    ty = np.array([r["ty"] for r in frame_rows])
+    tz = np.array([r["tz"] for r in frame_rows])
+    rot_deg = np.array([r["rotation_angle_deg"] for r in frame_rows])
+    trans_mag = np.array([r["translation_magnitude"] for r in frame_rows])
+
+    def _simple_cv2_plot(xs, ys_list, labels, title, out_path, ylabel="Value"):
+        h, w = 480, 960
+        pad_l, pad_r, pad_t, pad_b = 80, 30, 50, 60
+        canvas = np.full((h, w, 3), 255, dtype=np.uint8)
+        x0, x1, y0, y1 = pad_l, w - pad_r, pad_t, h - pad_b
+
+        all_y = np.concatenate(ys_list)
+        ymin, ymax = float(np.nanmin(all_y)), float(np.nanmax(all_y))
+        if abs(ymax - ymin) < 1e-12:
+            ymin -= 0.01
+            ymax += 0.01
+        xmin, xmax = float(xs.min()), float(xs.max())
+        if xmax == xmin:
+            xmax = xmin + 1
+
+        colors = [(0, 0, 200), (0, 160, 0), (200, 0, 0), (200, 0, 200)]
+        for ci, (ys, lbl) in enumerate(zip(ys_list, labels)):
+            pts = []
+            for i in range(len(xs)):
+                px = int(x0 + (xs[i] - xmin) / (xmax - xmin) * (x1 - x0))
+                py = int(y1 - (ys[i] - ymin) / (ymax - ymin) * (y1 - y0))
+                pts.append([px, py])
+            pts_arr = np.array(pts, dtype=np.int32)
+            cv2.polylines(canvas, [pts_arr], False, colors[ci % len(colors)], 2, cv2.LINE_AA)
+            cv2.putText(canvas, lbl, (x1 - 180, y0 + 18 + ci * 18),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, colors[ci % len(colors)], 1, cv2.LINE_AA)
+
+        cv2.putText(canvas, title, (x0, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(canvas, "Frame", (w // 2 - 20, h - 12),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 0), 1, cv2.LINE_AA)
+
+        # Y ticks
+        for i in range(5):
+            frac = i / 4.0
+            yy = int(y1 - frac * (y1 - y0))
+            val = ymin + frac * (ymax - ymin)
+            cv2.putText(canvas, f"{val:.4f}", (5, yy + 4),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.35, (60, 60, 60), 1, cv2.LINE_AA)
+            cv2.line(canvas, (x0, yy), (x1, yy), (230, 230, 230), 1)
+
+        cv2.imwrite(str(out_path), canvas)
+
+    _simple_cv2_plot(
+        frames, [tx, ty, tz], ["tx", "ty", "tz"],
+        "Translation Components", debug_dir / "pose_translation.png",
+    )
+    _simple_cv2_plot(
+        frames, [trans_mag], ["||t||"],
+        "Translation Magnitude", debug_dir / "pose_trans_magnitude.png",
+    )
+    _simple_cv2_plot(
+        frames, [rot_deg], ["angle (deg)"],
+        "Rotation Angle", debug_dir / "pose_rotation_angle.png",
+    )
+
+
+# ---------------------------------------------------------------------------
+# PnP-RANSAC sequential initialization
+# ---------------------------------------------------------------------------
+def _pnp_sequential_init(
+    x0_cv: np.ndarray,         # [M, 3] frame-0 3D in OpenCV cam coords
+    obs_uv: np.ndarray,        # [T, M, 2] pixel observations
+    vis: np.ndarray,           # [T, M] visibility
+    k: np.ndarray,             # [3, 3] intrinsics
+    ransac_thresh: float,
+) -> tuple[np.ndarray, np.ndarray, list[dict]]:
+    """Per-frame PnP-RANSAC chained from previous frame.
+
+    Returns (rotvecs [T-1,3], trans [T-1,3], per_frame_info).
+    Coordinate convention matches our pose parameterization: p_t = R_t @ p_0 + t_t.
+    PnP (OpenCV) returns exactly this when input points are in camera frame.
+    """
+    T, M = obs_uv.shape[:2]
+    rotvecs_out = np.zeros((T - 1, 3), dtype=np.float32)
+    trans_out = np.zeros((T - 1, 3), dtype=np.float32)
+    info: list[dict] = []
+
+    prev_rvec = np.zeros((3, 1), dtype=np.float64)
+    prev_tvec = np.zeros((3, 1), dtype=np.float64)
+    dist_coeffs = np.zeros(4, dtype=np.float64)
+    k64 = k.astype(np.float64)
+
+    for t in range(1, T):
+        valid = vis[t] > 0.5
+        n_valid = int(valid.sum())
+        if n_valid < 6:
+            rotvecs_out[t - 1] = prev_rvec.ravel().astype(np.float32)
+            trans_out[t - 1] = prev_tvec.ravel().astype(np.float32)
+            info.append({"frame": t, "n_valid": n_valid, "n_inliers": 0, "pnp_ok": False})
+            continue
+
+        pts3d = x0_cv[valid].astype(np.float64)
+        pts2d = obs_uv[t, valid].astype(np.float64)
+
+        success, rvec, tvec, inliers = cv2.solvePnPRansac(
+            pts3d, pts2d, k64, dist_coeffs,
+            rvec=prev_rvec.copy(), tvec=prev_tvec.copy(),
+            useExtrinsicGuess=(t > 1),
+            iterationsCount=200,
+            reprojectionError=ransac_thresh,
+            flags=cv2.SOLVEPNP_ITERATIVE,
+        )
+
+        n_inliers = len(inliers) if (success and inliers is not None) else 0
+        if success and n_inliers >= 6:
+            # Refine with inliers
+            try:
+                rvec, tvec = cv2.solvePnPRefineLM(
+                    pts3d[inliers.ravel()], pts2d[inliers.ravel()],
+                    k64, dist_coeffs, rvec, tvec,
+                )
+            except cv2.error:
+                pass  # keep RANSAC result
+
+            rotvecs_out[t - 1] = rvec.ravel().astype(np.float32)
+            trans_out[t - 1] = tvec.ravel().astype(np.float32)
+            prev_rvec = rvec.copy()
+            prev_tvec = tvec.copy()
+        elif success:
+            rotvecs_out[t - 1] = rvec.ravel().astype(np.float32)
+            trans_out[t - 1] = tvec.ravel().astype(np.float32)
+            prev_rvec = rvec.copy()
+            prev_tvec = tvec.copy()
+        else:
+            rotvecs_out[t - 1] = prev_rvec.ravel().astype(np.float32)
+            trans_out[t - 1] = prev_tvec.ravel().astype(np.float32)
+
+        info.append({"frame": t, "n_valid": n_valid, "n_inliers": n_inliers, "pnp_ok": bool(success)})
+
+    return rotvecs_out, trans_out, info
+
+
+# ---------------------------------------------------------------------------
+# Outlier track rejection after PnP init
+# ---------------------------------------------------------------------------
+def _identify_outlier_tracks(
+    x0: torch.Tensor,         # [M, 3]
+    obs_uv: torch.Tensor,     # [T, M, 2]
+    vis: torch.Tensor,        # [T, M]
+    rotvecs: torch.Tensor,    # [T-1, 3]
+    trans: torch.Tensor,      # [T-1, 3]
+    fx: float, fy: float, cx: float, cy: float,
+    threshold_px: float,
+    max_fraction: float,
+) -> torch.Tensor:
+    """Return per-track boolean mask [M] where True = outlier.
+
+    A track is an outlier if its mean reprojection error (over visible frames)
+    after PnP initialization exceeds threshold_px.  At most max_fraction of
+    tracks will be rejected.
+    """
+    with torch.no_grad():
+        T = obs_uv.shape[0]
+        M = x0.shape[0]
+        T_mats = _build_T_matrices(rotvecs, trans, T, x0.device)
+        R_all = T_mats[:, :3, :3]
+        t_all = T_mats[:, :3, 3]
+
+        xt = torch.einsum("tij,mj->tmi", R_all, x0) + t_all.unsqueeze(1)
+        z = xt[..., 2].clamp(min=1e-6)
+        pred_u = fx * xt[..., 0] / z + cx
+        pred_v = fy * xt[..., 1] / z + cy
+        pred_uv = torch.stack([pred_u, pred_v], dim=-1)
+
+        err = torch.sqrt(((obs_uv - pred_uv) ** 2).sum(dim=-1).clamp(min=1e-12))
+
+        # Mean error per track over visible frames
+        vis_binary = (vis > 0.5).float()
+        vis_count = vis_binary.sum(dim=0).clamp(min=1.0)
+        mean_err = (err * vis_binary).sum(dim=0) / vis_count  # [M]
+
+        outlier = mean_err > threshold_px
+
+        # Cap outlier fraction
+        n_outlier = int(outlier.sum().item())
+        max_reject = int(M * max_fraction)
+        if n_outlier > max_reject and max_reject > 0:
+            # Keep only the worst max_reject tracks as outliers
+            _, sorted_idx = mean_err.sort(descending=True)
+            outlier = torch.zeros(M, dtype=torch.bool, device=x0.device)
+            outlier[sorted_idx[:max_reject]] = True
+
+    return outlier
+
+
+# ---------------------------------------------------------------------------
+# Main per-object optimisation
+# ---------------------------------------------------------------------------
 def _run_single_object(
     object_name: str,
     object_slug: str,
@@ -631,407 +789,406 @@ def _run_single_object(
     out_dir: Path,
     device: torch.device,
 ) -> dict[str, Any]:
-    start_time = time.time()
-
+    t0 = time.time()
     ensure_dir(out_dir)
     debug_dir = out_dir / "debug"
     meshes_dir = out_dir / "meshes"
     ensure_dir(debug_dir)
     ensure_dir(meshes_dir)
 
+    # --- Load mesh (OpenCV coords from alignment stage) ---
     mesh_template = trimesh.load(str(mesh_path), force="mesh")
     if not isinstance(mesh_template, trimesh.Trimesh):
-        raise ValueError(f"Failed to load mesh as trimesh.Trimesh: {mesh_path}")
-    if mesh_template.faces is None or len(mesh_template.faces) == 0:
-        raise ValueError(f"Mesh has no faces: {mesh_path}")
-    verts_cv_np = np.asarray(mesh_template.vertices, dtype=np.float32)
+        raise ValueError(f"Cannot load mesh: {mesh_path}")
+    verts_cv = np.asarray(mesh_template.vertices, dtype=np.float32)
     faces_np = np.asarray(mesh_template.faces, dtype=np.int64)
 
+    # --- Load masks ---
     mask_paths = _list_mask_files(mask_dir)
     if not mask_paths:
-        raise RuntimeError(f"No mask frames found in: {mask_dir}")
-    masks_thw_np, h_mask, w_mask = _load_mask_stack(mask_paths, mask_threshold=int(args.mask_threshold))
+        raise RuntimeError(f"No masks in: {mask_dir}")
+    masks_np, h_mask, w_mask = _load_mask_stack(mask_paths, int(args.mask_threshold))
 
+    # --- Load tracks / visibility ---
     tracks_raw = np.load(str(tracks_path))
     vis_raw = np.load(str(vis_path))
-    tracks_nt2_np, vis_nt_np = _normalize_tracks_vis_with_mask_length(
-        tracks_raw=tracks_raw,
-        vis_raw=vis_raw,
-        expected_t=int(masks_thw_np.shape[0]),
+    tracks_nt2, vis_nt = _normalize_tracks_vis_with_mask_length(
+        tracks_raw, vis_raw, int(masks_np.shape[0]),
     )
 
     if int(args.start_frame) != 0:
-        raise ValueError(
-            "--start_frame must be 0 for this script because the aligned mesh is posed for frame 0."
-        )
+        raise ValueError("--start_frame must be 0 (mesh is aligned for frame 0).")
 
-    t_total = min(int(masks_thw_np.shape[0]), int(tracks_nt2_np.shape[1]), int(vis_nt_np.shape[1]))
-    if int(args.end_frame) >= 0:
-        t_use = min(t_total, int(args.end_frame) + 1)
-    else:
-        t_use = t_total
+    t_total = min(masks_np.shape[0], tracks_nt2.shape[1], vis_nt.shape[1])
+    t_use = min(t_total, int(args.end_frame) + 1) if args.end_frame >= 0 else t_total
     if t_use <= 0:
-        raise RuntimeError("No valid frames available after range clipping.")
+        raise RuntimeError("No frames after clipping.")
 
-    masks_thw_np = masks_thw_np[:t_use]
-    tracks_nt2_np = tracks_nt2_np[:, :t_use, :].astype(np.float32)
-    vis_nt_np = vis_nt_np[:, :t_use].astype(np.float32)
+    masks_np = masks_np[:t_use]
+    tracks_nt2 = tracks_nt2[:, :t_use].astype(np.float32)
+    vis_nt = vis_nt[:, :t_use].astype(np.float32)
 
-    fx = float(k[0, 0])
-    fy = float(k[1, 1])
-    cx = float(k[0, 2])
-    cy = float(k[1, 2])
+    fx, fy = float(k[0, 0]), float(k[1, 1])
+    cx, cy = float(k[0, 2]), float(k[1, 2])
 
-    seed_uv_n2 = tracks_nt2_np[:, 0, :]
+    # --- Map seed pixels to 3D mesh surface ---
+    seed_uv = tracks_nt2[:, 0, :]
     mapping = _map_seed_points_to_mesh(
-        seed_uv_n2=seed_uv_n2,
-        verts_cv_np=verts_cv_np,
-        faces_np=faces_np,
-        mask0_hw_np=masks_thw_np[0],
-        fx=fx,
-        fy=fy,
-        cx=cx,
-        cy=cy,
-        h=h_mask,
-        w=w_mask,
-        device=device,
-        bin_size=int(args.bin_size),
-        mask_gate_threshold=float(args.mask_gate_threshold),
+        seed_uv, verts_cv, faces_np, masks_np[0],
+        fx, fy, cx, cy, h_mask, w_mask,
+        device, int(args.bin_size), float(args.mask_gate_threshold),
     )
+    valid = mapping.valid_seed_mask
+    tracks_valid = tracks_nt2[valid]
+    vis_valid = vis_nt[valid]
+    x0_m3 = mapping.points_cv  # [M, 3] in OpenCV coords on GPU
 
-    valid_seed = mapping.valid_seed_mask
-    tracks_valid = tracks_nt2_np[valid_seed]
-    vis_valid = vis_nt_np[valid_seed]
-    x0_m3 = mapping.points_cv
+    n_valid = tracks_valid.shape[0]
+    print(f"  Seed mapping: {n_valid}/{seed_uv.shape[0]} valid "
+          f"(dropped face={mapping.invalid_face_count}, "
+          f"mask={mapping.outside_mask0_count}, "
+          f"nan={mapping.nonfinite_seed_count})")
 
-    if tracks_valid.shape[0] < int(args.min_valid_tracks):
+    if n_valid < int(args.min_valid_tracks):
         raise RuntimeError(
-            f"Too few valid tracks after frame-0 mesh mapping: {tracks_valid.shape[0]} "
-            f"(min={int(args.min_valid_tracks)})."
+            f"Too few valid tracks: {n_valid} (need {args.min_valid_tracks})"
         )
 
-    obs_uv_tm2 = torch.from_numpy(tracks_valid).to(device=device, dtype=torch.float32).permute(1, 0, 2)
-    vis_tm = torch.from_numpy(vis_valid).to(device=device, dtype=torch.float32).permute(1, 0)
-    masks_thw = torch.from_numpy(masks_thw_np).to(device=device, dtype=torch.float32)
+    # --- Debug: verify frame-0 reprojection before optimization ---
+    with torch.no_grad():
+        z0 = x0_m3[:, 2]
+        pred_u0 = fx * x0_m3[:, 0] / z0 + cx
+        pred_v0 = fy * x0_m3[:, 1] / z0 + cy
+        obs_u0 = torch.from_numpy(tracks_valid[:, 0, 0]).to(device)
+        obs_v0 = torch.from_numpy(tracks_valid[:, 0, 1]).to(device)
+        err0 = torch.sqrt((pred_u0 - obs_u0) ** 2 + (pred_v0 - obs_v0) ** 2)
+        print(f"  Frame-0 reprojection sanity: mean={err0.mean():.2f}px "
+              f"median={err0.median():.2f}px max={err0.max():.2f}px")
 
-    xi_tm1_6 = torch.nn.Parameter(torch.zeros((max(t_use - 1, 0), 6), device=device, dtype=torch.float32))
+    # --- Move data to GPU ---
+    obs_uv = torch.from_numpy(tracks_valid).to(device, torch.float32).permute(1, 0, 2)  # [T,M,2]
+    vis_tm = torch.from_numpy(vis_valid).to(device, torch.float32).permute(1, 0)          # [T,M]
+    masks_t = torch.from_numpy(masks_np).to(device, torch.float32)                        # [T,H,W]
 
-    iter_rows: list[dict[str, Any]] = []
+    # --- PnP-RANSAC sequential initialization ---
+    n_params = max(t_use - 1, 0)
+    if not args.disable_pnp_init and n_params > 0:
+        print(f"  [{object_slug}] PnP-RANSAC sequential initialization...")
+        # tracks_valid is [M, T, 2]; PnP needs [T, M, 2]
+        obs_uv_np_tm = tracks_valid.transpose(1, 0, 2)
+        vis_np_tm = vis_valid.transpose(1, 0)
+        rv_init, tr_init, pnp_info = _pnp_sequential_init(
+            x0_m3.cpu().numpy(), obs_uv_np_tm, vis_np_tm,
+            k, float(args.pnp_ransac_thresh),
+        )
+        pnp_max_trans = np.linalg.norm(tr_init, axis=1).max() if tr_init.shape[0] > 0 else 0.0
+        pnp_max_rot = np.linalg.norm(rv_init, axis=1).max() if rv_init.shape[0] > 0 else 0.0
+        pnp_ok_count = sum(1 for p in pnp_info if p["pnp_ok"])
+        print(f"  [{object_slug}] PnP init: {pnp_ok_count}/{len(pnp_info)} frames OK, "
+              f"max_trans={pnp_max_trans:.4f}m, max_rot={np.degrees(pnp_max_rot):.1f}deg")
+
+        rotvecs_init = torch.from_numpy(rv_init).to(device, torch.float32)
+        trans_init = torch.from_numpy(tr_init).to(device, torch.float32)
+
+        # --- Outlier track rejection based on PnP poses ---
+        if args.outlier_reproj_thresh_px > 0:
+            outlier_mask = _identify_outlier_tracks(
+                x0_m3, obs_uv, vis_tm, rotvecs_init, trans_init,
+                fx, fy, cx, cy,
+                float(args.outlier_reproj_thresh_px),
+                float(args.outlier_max_fraction),
+            )
+            n_outlier = int(outlier_mask.sum().item())
+            if n_outlier > 0:
+                print(f"  [{object_slug}] Outlier rejection: {n_outlier}/{x0_m3.shape[0]} tracks removed")
+                vis_tm[:, outlier_mask] = 0.0
+    else:
+        rotvecs_init = torch.zeros(n_params, 3, device=device)
+        trans_init = torch.zeros(n_params, 3, device=device)
+
+    # --- Optimisable parameters: initialized from PnP or zeros ---
+    rotvecs = torch.nn.Parameter(rotvecs_init.clone())
+    translations = torch.nn.Parameter(trans_init.clone())
+
+    iter_rows: list[dict] = []
     best_total: float | None = None
     best_iter: int | None = None
-    best_xi_tm1_6: torch.Tensor | None = None
+    best_rotvecs: torch.Tensor | None = None
+    best_trans: torch.Tensor | None = None
     early_stopped = False
     early_stop_iter: int | None = None
 
-    def _record_iter(it: int, stage: str, bundle: LossBundle) -> None:
-        active = bundle.weights_tm > 0.0
-        if bool(active.any()):
-            reproj = torch.sqrt(torch.clamp(bundle.r2_tm[active], min=1e-12))
-            mean_reproj = float(reproj.mean().item())
-        else:
-            mean_reproj = float("nan")
-        e_img_val = float(bundle.e_img.detach().cpu().item())
-        e_smooth_val = float(bundle.e_smooth.detach().cpu().item())
-        e_vel_val = float(bundle.e_vel.detach().cpu().item())
-        term_img = float(args.lambda_img) * e_img_val
-        term_smooth_weighted = float(args.lambda_a) * e_smooth_val
-        term_vel_weighted = float(args.lambda_v) * e_vel_val
-        total_from_terms = term_img + term_smooth_weighted + term_vel_weighted
-        iter_rows.append(
-            {
-                "iter": int(it),
-                "stage": stage,
-                "total": float(bundle.total.detach().cpu().item()),
-                "e_img": e_img_val,
-                "e_smooth": e_smooth_val,
-                "e_vel": e_vel_val,
-                "term_img": term_img,
-                "term_smooth_weighted": term_smooth_weighted,
-                "term_vel_weighted": term_vel_weighted,
-                "total_from_terms": total_from_terms,
-                "e_img_raw": float(bundle.e_img_raw.detach().cpu().item()),
-                "e_smooth_raw": float(bundle.e_smooth_raw.detach().cpu().item()),
-                "e_vel_raw": float(bundle.e_vel_raw.detach().cpu().item()),
-                "e_img_denom": float(bundle.e_img_denom.detach().cpu().item()),
-                "e_smooth_denom": float(bundle.e_smooth_denom.detach().cpu().item()),
-                "e_vel_denom": float(bundle.e_vel_denom.detach().cpu().item()),
-                "active_pairs": int(active.sum().item()),
-                "sum_weight": float(bundle.weights_tm.sum().item()),
-                "mean_reproj_px": mean_reproj,
-            }
+    def _loss_kwargs(huber_delta_override=None):
+        return dict(
+            fx=fx, fy=fy, cx=cx, cy=cy,
+            lambda_img=float(args.lambda_img),
+            lambda_a=float(args.lambda_a),
+            lambda_v=float(args.lambda_v),
+            huber_delta=huber_delta_override if huber_delta_override is not None else float(args.huber_delta_px),
+            vis_threshold=float(args.visibility_threshold),
+            mask_gate_threshold=float(args.mask_gate_threshold),
         )
 
-    # Adam stage.
-    if t_use > 1 and int(args.adam_iters) > 0:
-        adam = torch.optim.Adam([xi_tm1_6], lr=float(args.adam_lr))
-        for it in range(1, int(args.adam_iters) + 1):
-            adam.zero_grad(set_to_none=True)
-            bundle_train = _compute_loss_bundle(
-                xi_tm1_6=xi_tm1_6,
-                x0_m3=x0_m3,
-                obs_uv_tm2=obs_uv_tm2,
-                vis_tm=vis_tm,
-                masks_thw=masks_thw,
-                fx=fx,
-                fy=fy,
-                cx=cx,
-                cy=cy,
-                lambda_img=float(args.lambda_img),
-                lambda_a=float(args.lambda_a),
-                lambda_v=float(args.lambda_v),
-                huber_delta_px=float(args.huber_delta_px),
-                visibility_threshold=float(args.visibility_threshold),
-                mask_gate_threshold=float(args.mask_gate_threshold),
+    def _record(it: int, stage: str, b: LossBundle):
+        active = b.weights > 0
+        if active.any():
+            reproj = torch.sqrt(b.r2[active].clamp(min=1e-12))
+            mean_rp = float(reproj.mean().item())
+        else:
+            mean_rp = float("nan")
+        ei = float(b.e_img.detach().item())
+        es = float(b.e_smooth.detach().item())
+        ev = float(b.e_vel.detach().item())
+        ti = args.lambda_img * ei
+        ts = args.lambda_a * es
+        tv = args.lambda_v * ev
+        # Pose magnitude summary
+        with torch.no_grad():
+            t_norms = b.T_mats[:, :3, 3].norm(dim=-1)
+            max_trans = float(t_norms.max().item())
+        iter_rows.append({
+            "iter": it, "stage": stage,
+            "total": float(b.total.detach().item()),
+            "e_img": ei, "e_smooth": es, "e_vel": ev,
+            "term_img": ti, "term_smooth_weighted": ts, "term_vel_weighted": tv,
+            "total_from_terms": ti + ts + tv,
+            "e_img_raw": float(b.e_img_raw.detach().item()),
+            "e_smooth_raw": float(b.e_smooth_raw.detach().item()),
+            "e_vel_raw": float(b.e_vel_raw.detach().item()),
+            "e_img_denom": float(b.e_img_denom.detach().item()),
+            "e_smooth_denom": float(b.e_smooth_denom.detach().item()),
+            "e_vel_denom": float(b.e_vel_denom.detach().item()),
+            "active_pairs": int(active.sum().item()),
+            "sum_weight": float(b.weights.sum().item()),
+            "mean_reproj_px": mean_rp,
+            "max_translation": max_trans,
+        })
+
+    # ==================== Adam ====================
+    if t_use > 1 and args.adam_iters > 0:
+        opt = torch.optim.Adam([rotvecs, translations], lr=float(args.adam_lr))
+
+        # LR scheduling
+        scheduler = None
+        if args.lr_schedule == "cosine":
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                opt, T_max=args.adam_iters, eta_min=float(args.adam_lr) / 20.0,
             )
-            if not torch.isfinite(bundle_train.total):
-                raise RuntimeError(f"Loss became non-finite at Adam iter={it}.")
-            bundle_train.total.backward()
-            adam.step()
+
+        # Graduated Huber delta: start lenient (3x), anneal to target over first 50%
+        huber_target = float(args.huber_delta_px)
+        huber_start = huber_target * 3.0 if args.graduated_huber else huber_target
+
+        for it in range(1, int(args.adam_iters) + 1):
+            # Current Huber delta (graduated non-convexity)
+            if args.graduated_huber:
+                frac = min(it / max(args.adam_iters * 0.5, 1), 1.0)
+                current_huber = huber_start + (huber_target - huber_start) * frac
+            else:
+                current_huber = huber_target
+
+            opt.zero_grad(set_to_none=True)
+            b = _compute_loss(
+                rotvecs, translations, x0_m3, obs_uv, vis_tm, masks_t,
+                **_loss_kwargs(current_huber),
+            )
+            if not torch.isfinite(b.total):
+                raise RuntimeError(f"Non-finite loss at Adam iter {it}")
+            b.total.backward()
+            opt.step()
+
+            if scheduler is not None:
+                scheduler.step()
 
             with torch.no_grad():
-                bundle_eval = _compute_loss_bundle(
-                    xi_tm1_6=xi_tm1_6,
-                    x0_m3=x0_m3,
-                    obs_uv_tm2=obs_uv_tm2,
-                    vis_tm=vis_tm,
-                    masks_thw=masks_thw,
-                    fx=fx,
-                    fy=fy,
-                    cx=cx,
-                    cy=cy,
-                    lambda_img=float(args.lambda_img),
-                    lambda_a=float(args.lambda_a),
-                    lambda_v=float(args.lambda_v),
-                    huber_delta_px=float(args.huber_delta_px),
-                    visibility_threshold=float(args.visibility_threshold),
-                    mask_gate_threshold=float(args.mask_gate_threshold),
+                # --- Periodic outlier re-trimming ---
+                if (
+                    args.retrim_interval > 0
+                    and it > 0
+                    and it % args.retrim_interval == 0
+                    and it < args.adam_iters  # don't retrim at the very end
+                ):
+                    T_mats_trim = _build_T_matrices(rotvecs, translations, t_use, device)
+                    R_tr = T_mats_trim[:, :3, :3]
+                    t_tr = T_mats_trim[:, :3, 3]
+                    xt_tr = torch.einsum("tij,mj->tmi", R_tr, x0_m3) + t_tr.unsqueeze(1)
+                    z_tr = xt_tr[..., 2].clamp(min=1e-6)
+                    pred_u_tr = fx * xt_tr[..., 0] / z_tr + cx
+                    pred_v_tr = fy * xt_tr[..., 1] / z_tr + cy
+                    err_tr = torch.sqrt(
+                        ((obs_uv[..., 0] - pred_u_tr) ** 2 +
+                         (obs_uv[..., 1] - pred_v_tr) ** 2).clamp(min=1e-12)
+                    )  # [T, M]
+                    n_trimmed_total = 0
+                    for ft in range(t_use):
+                        active_ft = vis_tm[ft] > 0
+                        n_active_ft = int(active_ft.sum().item())
+                        if n_active_ft < 20:
+                            continue
+                        err_active = err_tr[ft, active_ft]
+                        thresh = torch.quantile(err_active, args.retrim_percentile / 100.0)
+                        to_zero = active_ft & (err_tr[ft] > thresh)
+                        n_zero = int(to_zero.sum().item())
+                        if n_zero > 0:
+                            vis_tm[ft, to_zero] = 0.0
+                            n_trimmed_total += n_zero
+                    if n_trimmed_total > 0:
+                        print(f"  [{object_slug}] retrim@{it}: zeroed {n_trimmed_total} track-frame pairs "
+                              f"(p{args.retrim_percentile:.0f} threshold)")
+
+                # Evaluate with TARGET huber (not graduated) for fair comparison
+                b_eval = _compute_loss(
+                    rotvecs, translations, x0_m3, obs_uv, vis_tm, masks_t,
+                    **_loss_kwargs(),
                 )
-                current_total = float(bundle_eval.total.detach().cpu().item())
+                cur = float(b_eval.total.item())
                 improved = False
                 if best_total is None or not np.isfinite(best_total):
                     improved = True
                 else:
-                    rel_gain = (best_total - current_total) / max(abs(best_total), 1e-12)
-                    improved = rel_gain >= float(args.early_stop_rel_min_delta)
+                    rel = (best_total - cur) / max(abs(best_total), 1e-12)
+                    improved = rel >= float(args.early_stop_rel_min_delta)
                 if improved:
-                    best_total = current_total
-                    best_iter = int(it)
-                    best_xi_tm1_6 = xi_tm1_6.detach().clone()
+                    best_total = cur
+                    best_iter = it
+                    best_rotvecs = rotvecs.detach().clone()
+                    best_trans = translations.detach().clone()
+
+                if args.debug_save_interval <= 1 or it % args.debug_save_interval == 0 or it == args.adam_iters:
+                    _record(it, "adam", b_eval)
+
+                if args.log_every > 0 and (it % args.log_every == 0 or it == args.adam_iters):
+                    t_norms = b_eval.T_mats[:, :3, 3].norm(dim=-1)
+                    cur_lr = scheduler.get_last_lr()[0] if scheduler else float(args.adam_lr)
+                    print(
+                        f"  [{object_slug}] adam {it:05d}  "
+                        f"total={b_eval.total.item():.6f}  "
+                        f"img={args.lambda_img * b_eval.e_img.item():.6f}  "
+                        f"smooth={args.lambda_a * b_eval.e_smooth.item():.6f}  "
+                        f"vel={args.lambda_v * b_eval.e_vel.item():.6f}  "
+                        f"max_t={t_norms.max().item():.5f}  "
+                        f"lr={cur_lr:.6f}  huber={current_huber:.2f}"
+                    )
 
                 if (
-                    int(args.debug_save_interval) <= 1
-                    or it % int(args.debug_save_interval) == 0
-                    or it == int(args.adam_iters)
-                ):
-                    _record_iter(it=it, stage="adam", bundle=bundle_eval)
-                if int(args.log_every) > 0 and (it % int(args.log_every) == 0 or it == int(args.adam_iters)):
-                    print(
-                        f"[{object_slug}] adam iter={it:05d} "
-                        f"total={float(bundle_eval.total.detach().cpu().item()):.6f} "
-                        f"li*img={float(args.lambda_img) * float(bundle_eval.e_img.detach().cpu().item()):.6f} "
-                        f"la*smooth={float(args.lambda_a) * float(bundle_eval.e_smooth.detach().cpu().item()):.6f} "
-                        f"lv*vel={float(args.lambda_v) * float(bundle_eval.e_vel.detach().cpu().item()):.6f}"
-                    )
-                if (
-                    int(args.early_stop_patience) > 0
-                    and it >= int(args.early_stop_min_iter)
+                    args.early_stop_patience > 0
+                    and it >= args.early_stop_min_iter
                     and best_iter is not None
-                    and it - int(best_iter) >= int(args.early_stop_patience)
+                    and it - best_iter >= args.early_stop_patience
                 ):
                     early_stopped = True
-                    early_stop_iter = int(it)
-                    print(
-                        f"[{object_slug}] early stopping at iter={it:05d} "
-                        f"(best_iter={int(best_iter):05d}, best_total={float(best_total):.6f})"
-                    )
+                    early_stop_iter = it
+                    print(f"  [{object_slug}] early stop at iter {it} "
+                          f"(best={best_iter}, loss={best_total:.6f})")
                     break
 
-        if early_stopped and best_xi_tm1_6 is not None:
+        if early_stopped and best_rotvecs is not None:
             with torch.no_grad():
-                xi_tm1_6.copy_(best_xi_tm1_6)
+                rotvecs.copy_(best_rotvecs)
+                translations.copy_(best_trans)
 
-    # Optional LBFGS refinement.
-    if (
-        t_use > 1
-        and (not args.disable_lbfgs)
-        and int(args.lbfgs_iters) > 0
-        and (not early_stopped)
-    ):
+    # ==================== L-BFGS refinement ====================
+    if t_use > 1 and not args.disable_lbfgs and args.lbfgs_iters > 0 and not early_stopped:
         lbfgs = torch.optim.LBFGS(
-            [xi_tm1_6],
+            [rotvecs, translations],
             lr=float(args.lbfgs_lr),
             max_iter=int(args.lbfgs_iters),
             line_search_fn="strong_wolfe",
         )
-        closure_calls = {"n": 0}
+        n_closure = {"n": 0}
 
-        def closure() -> torch.Tensor:
+        def closure():
             lbfgs.zero_grad(set_to_none=True)
-            bundle_local = _compute_loss_bundle(
-                xi_tm1_6=xi_tm1_6,
-                x0_m3=x0_m3,
-                obs_uv_tm2=obs_uv_tm2,
-                vis_tm=vis_tm,
-                masks_thw=masks_thw,
-                fx=fx,
-                fy=fy,
-                cx=cx,
-                cy=cy,
-                lambda_img=float(args.lambda_img),
-                lambda_a=float(args.lambda_a),
-                lambda_v=float(args.lambda_v),
-                huber_delta_px=float(args.huber_delta_px),
-                visibility_threshold=float(args.visibility_threshold),
-                mask_gate_threshold=float(args.mask_gate_threshold),
+            b = _compute_loss(
+                rotvecs, translations, x0_m3, obs_uv, vis_tm, masks_t,
+                **_loss_kwargs(),
             )
-            if not torch.isfinite(bundle_local.total):
-                raise RuntimeError("Loss became non-finite during LBFGS closure.")
-            bundle_local.total.backward()
-            closure_calls["n"] += 1
-            return bundle_local.total
+            if not torch.isfinite(b.total):
+                raise RuntimeError("Non-finite loss in L-BFGS")
+            b.total.backward()
+            n_closure["n"] += 1
+            return b.total
 
         lbfgs.step(closure)
-        bundle_lbfgs = _compute_loss_bundle(
-            xi_tm1_6=xi_tm1_6,
-            x0_m3=x0_m3,
-            obs_uv_tm2=obs_uv_tm2,
-            vis_tm=vis_tm,
-            masks_thw=masks_thw,
-            fx=fx,
-            fy=fy,
-            cx=cx,
-            cy=cy,
-            lambda_img=float(args.lambda_img),
-            lambda_a=float(args.lambda_a),
-            lambda_v=float(args.lambda_v),
-            huber_delta_px=float(args.huber_delta_px),
-            visibility_threshold=float(args.visibility_threshold),
-            mask_gate_threshold=float(args.mask_gate_threshold),
+        with torch.no_grad():
+            b_lbfgs = _compute_loss(
+                rotvecs, translations, x0_m3, obs_uv, vis_tm, masks_t,
+                **_loss_kwargs(),
+            )
+        _record(
+            (iter_rows[-1]["iter"] + 1) if iter_rows else 1,
+            "lbfgs_final", b_lbfgs,
         )
-        _record_iter(it=(iter_rows[-1]["iter"] + 1) if iter_rows else 1, stage="lbfgs_final", bundle=bundle_lbfgs)
-        print(f"[{object_slug}] lbfgs closure_calls={closure_calls['n']} total={iter_rows[-1]['total']:.6f}")
-    elif (
-        t_use > 1
-        and (not args.disable_lbfgs)
-        and int(args.lbfgs_iters) > 0
-        and early_stopped
-    ):
-        print(f"[{object_slug}] skipping LBFGS because early stopping was triggered in Adam.")
+        print(f"  [{object_slug}] lbfgs closures={n_closure['n']} "
+              f"total={b_lbfgs.total.item():.6f}")
+    elif early_stopped:
+        print(f"  [{object_slug}] skipping L-BFGS (early stop)")
 
-    # Final evaluation bundle.
-    final_bundle = _compute_loss_bundle(
-        xi_tm1_6=xi_tm1_6,
-        x0_m3=x0_m3,
-        obs_uv_tm2=obs_uv_tm2,
-        vis_tm=vis_tm,
-        masks_thw=masks_thw,
-        fx=fx,
-        fy=fy,
-        cx=cx,
-        cy=cy,
-        lambda_img=float(args.lambda_img),
-        lambda_a=float(args.lambda_a),
-        lambda_v=float(args.lambda_v),
-        huber_delta_px=float(args.huber_delta_px),
-        visibility_threshold=float(args.visibility_threshold),
-        mask_gate_threshold=float(args.mask_gate_threshold),
+    # ==================== Final evaluation ====================
+    with torch.no_grad():
+        final = _compute_loss(
+            rotvecs, translations, x0_m3, obs_uv, vis_tm, masks_t,
+            **_loss_kwargs(),
+        )
+    _record(
+        (iter_rows[-1]["iter"] + 1) if iter_rows else 0,
+        "final", final,
     )
-    _record_iter(
-        it=(iter_rows[-1]["iter"] + 1) if iter_rows else 0,
-        stage="final",
-        bundle=final_bundle,
-    )
-    t_mats_np = final_bundle.T_mats.detach().cpu().numpy().astype(np.float32)
+    T_mats_np = final.T_mats.detach().cpu().numpy().astype(np.float32)
 
-    _save_pose_json(
-        out_path=out_dir / "poses.json",
-        t_mats_np=t_mats_np,
-        frame_offset=int(args.start_frame),
-    )
-    _save_mesh_sequences(
-        mesh_template=mesh_template,
-        verts0_cv=verts_cv_np,
-        t_mats_np=t_mats_np,
-        meshes_dir=meshes_dir,
-        output_coord=str(args.output_coord),
-        frame_offset=int(args.start_frame),
+    # --- Debug: print pose summary ---
+    print(f"\n  [{object_slug}] Final pose summary:")
+    for i in [0, 1, t_use // 2, t_use - 1]:
+        if 0 <= i < t_use:
+            t_vec = T_mats_np[i, :3, 3]
+            R_mat = T_mats_np[i, :3, :3]
+            angle = np.arccos(np.clip((np.trace(R_mat) - 1) / 2, -1, 1))
+            print(f"    frame {i}: t=[{t_vec[0]:.5f}, {t_vec[1]:.5f}, {t_vec[2]:.5f}]  "
+                  f"rot={np.degrees(angle):.2f}deg")
+
+    # --- Save outputs ---
+    _save_pose_json(out_dir / "poses.json", T_mats_np, args.start_frame)
+    _save_mesh_sequence(
+        mesh_template, verts_cv, T_mats_np, meshes_dir,
+        str(args.output_coord), args.start_frame,
     )
 
     overlay_ok, overlay_msg = _render_overlays(
-        frame_paths=frame_paths,
-        verts0_cv=verts_cv_np,
-        faces_np=faces_np,
-        t_mats_np=t_mats_np,
-        k=k,
-        out_dir=out_dir,
-        frame_offset=int(args.start_frame),
-        fps=float(args.overlay_fps),
+        frame_paths, verts_cv, faces_np, T_mats_np, k,
+        out_dir, args.start_frame, float(args.overlay_fps),
     )
 
-    iter_csv = debug_dir / "iter_metrics.csv"
-    frame_csv = debug_dir / "frame_metrics.csv"
-    _save_csv(iter_csv, iter_rows)
-    frame_rows = _build_frame_metrics(
-        frame_offset=int(args.start_frame),
-        bundle=final_bundle,
-        mask_gate_threshold=float(args.mask_gate_threshold),
-    )
-    _save_csv(frame_csv, frame_rows)
-    loss_curve_pngs = _save_loss_plots(debug_dir, iter_rows)
+    # --- Save metrics ---
+    _save_csv(debug_dir / "iter_metrics.csv", iter_rows)
+    frame_rows = _build_frame_metrics(args.start_frame, final, float(args.mask_gate_threshold))
+    _save_csv(debug_dir / "frame_metrics.csv", frame_rows)
+    loss_pngs = _save_loss_plots(debug_dir, iter_rows)
+    _save_pose_debug_plots(debug_dir, frame_rows)
 
-    # Frame-0 correspondence visualization.
-    if frame_paths and len(frame_paths) > int(args.start_frame):
-        frame0 = cv2.imread(str(frame_paths[int(args.start_frame)]))
-        if frame0 is None:
-            frame0 = np.zeros((h_mask, w_mask, 3), dtype=np.uint8)
+    # --- Frame-0 correspondence vis ---
+    if frame_paths and len(frame_paths) > args.start_frame:
+        frame0_img = cv2.imread(str(frame_paths[args.start_frame]))
+        if frame0_img is None:
+            frame0_img = np.zeros((h_mask, w_mask, 3), dtype=np.uint8)
     else:
-        frame0 = np.zeros((h_mask, w_mask, 3), dtype=np.uint8)
+        frame0_img = np.zeros((h_mask, w_mask, 3), dtype=np.uint8)
 
-    obs0 = final_bundle.obs_uv_tm2[0].detach().cpu().numpy()
-    pred0 = final_bundle.pred_uv_tm2[0].detach().cpu().numpy()
-    corr_img = _draw_frame0_correspondence(
-        frame_bgr=frame0,
-        obs_uv_m2=obs0,
-        pred_uv_m2=pred0,
-        max_points=2000,
-    )
-    cv2.putText(
-        corr_img,
-        f"{object_slug}: frame0 reprojection correspondences",
-        (12, 28),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.7,
-        (255, 255, 255),
-        2,
-        cv2.LINE_AA,
-    )
-    cv2.imwrite(str(debug_dir / "frame0_correspondence.png"), corr_img)
+    obs0 = final.obs_uv[0].cpu().numpy()
+    pred0 = final.pred_uv[0].cpu().numpy()
+    corr = _draw_frame0_correspondence(frame0_img, obs0, pred0, max_points=2000)
+    cv2.putText(corr, f"{object_slug}: frame-0 correspondences",
+                (12, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
+    cv2.imwrite(str(debug_dir / "frame0_correspondence.png"), corr)
 
-    valid_seed_count = int(valid_seed.sum())
-    elapsed_s = float(time.time() - start_time)
-    final_active_pairs = int((final_bundle.weights_tm > 0.0).sum().item())
-    final_sum_weight = float(final_bundle.weights_tm.sum().item())
-    final_e_img = float(final_bundle.e_img.detach().cpu().item())
-    final_e_img_raw = float(final_bundle.e_img_raw.detach().cpu().item())
-    final_e_smooth = float(final_bundle.e_smooth.detach().cpu().item())
-    final_e_smooth_raw = float(final_bundle.e_smooth_raw.detach().cpu().item())
-    final_e_vel = float(final_bundle.e_vel.detach().cpu().item())
-    final_e_vel_raw = float(final_bundle.e_vel_raw.detach().cpu().item())
-    final_e_img_denom = float(final_bundle.e_img_denom.detach().cpu().item())
-    final_e_smooth_denom = float(final_bundle.e_smooth_denom.detach().cpu().item())
-    final_e_vel_denom = float(final_bundle.e_vel_denom.detach().cpu().item())
-    final_term_img = float(args.lambda_img) * final_e_img
-    final_term_smooth_weighted = float(args.lambda_a) * final_e_smooth
-    final_term_vel_weighted = float(args.lambda_v) * final_e_vel
-    final_total_from_terms = final_term_img + final_term_smooth_weighted + final_term_vel_weighted
-    final_mean_reproj_px = float("nan")
-    if final_active_pairs > 0:
-        active = final_bundle.weights_tm > 0.0
-        final_mean_reproj_px = float(
-            torch.sqrt(final_bundle.r2_tm[active].clamp_min(0.0)).mean().detach().cpu().item()
-        )
+    # --- Build summary dict ---
+    elapsed = time.time() - t0
+    active_mask = final.weights > 0
+    final_active = int(active_mask.sum().item())
+    mean_reproj = float("nan")
+    if final_active > 0:
+        mean_reproj = float(torch.sqrt(final.r2[active_mask].clamp(min=0)).mean().item())
 
-    object_summary = {
+    return {
         "object_name": object_name,
         "slug": object_slug,
         "status": "processed",
@@ -1039,12 +1196,12 @@ def _run_single_object(
         "tracks_path": str(tracks_path),
         "visibility_path": str(vis_path),
         "mask_dir": str(mask_dir),
-        "num_input_tracks": int(tracks_nt2_np.shape[0]),
-        "num_valid_seed_tracks": valid_seed_count,
-        "num_dropped_invalid_face": int(mapping.invalid_face_count),
-        "num_dropped_outside_mask0": int(mapping.outside_mask0_count),
-        "num_dropped_nonfinite_seed": int(mapping.nonfinite_seed_count),
-        "num_frames": int(t_use),
+        "num_input_tracks": int(tracks_nt2.shape[0]),
+        "num_valid_seed_tracks": n_valid,
+        "num_dropped_invalid_face": mapping.invalid_face_count,
+        "num_dropped_outside_mask0": mapping.outside_mask0_count,
+        "num_dropped_nonfinite_seed": mapping.nonfinite_seed_count,
+        "num_frames": t_use,
         "huber_delta_px": float(args.huber_delta_px),
         "lambda_img": float(args.lambda_img),
         "lambda_a": float(args.lambda_a),
@@ -1053,209 +1210,198 @@ def _run_single_object(
         "early_stop_patience": int(args.early_stop_patience),
         "early_stop_rel_min_delta": float(args.early_stop_rel_min_delta),
         "early_stop_min_iter": int(args.early_stop_min_iter),
-        "early_stopped": bool(early_stopped),
-        "early_stop_iter": (None if early_stop_iter is None else int(early_stop_iter)),
-        "best_iter": (None if best_iter is None else int(best_iter)),
-        "best_total_loss": (None if best_total is None else float(best_total)),
-        "lbfgs_enabled": bool(not args.disable_lbfgs),
+        "early_stopped": early_stopped,
+        "early_stop_iter": early_stop_iter,
+        "best_iter": best_iter,
+        "best_total_loss": best_total,
+        "lbfgs_enabled": not args.disable_lbfgs,
         "lbfgs_iters": int(args.lbfgs_iters),
-        "final_total_loss": float(final_bundle.total.detach().cpu().item()),
-        "final_e_img": final_e_img,
-        "final_e_smooth": final_e_smooth,
-        "final_e_vel": final_e_vel,
-        "final_e_img_raw": final_e_img_raw,
-        "final_e_smooth_raw": final_e_smooth_raw,
-        "final_e_vel_raw": final_e_vel_raw,
-        "final_e_img_denom": final_e_img_denom,
-        "final_e_smooth_denom": final_e_smooth_denom,
-        "final_e_vel_denom": final_e_vel_denom,
-        "final_term_img": final_term_img,
-        "final_term_smooth_weighted": final_term_smooth_weighted,
-        "final_term_vel_weighted": final_term_vel_weighted,
-        "final_total_from_terms": final_total_from_terms,
-        "final_active_pairs": final_active_pairs,
-        "final_sum_weight": final_sum_weight,
-        "final_e_img_normalized_check": (
-            float(final_e_img_raw / max(final_e_img_denom, 1.0))
-        ),
-        "final_mean_reproj_px": final_mean_reproj_px,
-        "overlay_rendered": bool(overlay_ok),
+        "final_total_loss": float(final.total.item()),
+        "final_e_img": float(final.e_img.item()),
+        "final_e_smooth": float(final.e_smooth.item()),
+        "final_e_vel": float(final.e_vel.item()),
+        "final_e_img_raw": float(final.e_img_raw.item()),
+        "final_e_smooth_raw": float(final.e_smooth_raw.item()),
+        "final_e_vel_raw": float(final.e_vel_raw.item()),
+        "final_e_img_denom": float(final.e_img_denom.item()),
+        "final_e_smooth_denom": float(final.e_smooth_denom.item()),
+        "final_e_vel_denom": float(final.e_vel_denom.item()),
+        "final_term_img": float(args.lambda_img) * float(final.e_img.item()),
+        "final_term_smooth_weighted": float(args.lambda_a) * float(final.e_smooth.item()),
+        "final_term_vel_weighted": float(args.lambda_v) * float(final.e_vel.item()),
+        "final_active_pairs": final_active,
+        "final_sum_weight": float(final.weights.sum().item()),
+        "final_mean_reproj_px": mean_reproj,
+        "overlay_rendered": overlay_ok,
         "overlay_message": overlay_msg,
-        "iter_metrics_csv": str(iter_csv),
-        "frame_metrics_csv": str(frame_csv),
-        "loss_curve_png": loss_curve_pngs.get("total"),
-        "loss_curve_pngs": loss_curve_pngs,
-        "elapsed_seconds": elapsed_s,
+        "iter_metrics_csv": str(debug_dir / "iter_metrics.csv"),
+        "frame_metrics_csv": str(debug_dir / "frame_metrics.csv"),
+        "loss_curve_pngs": loss_pngs,
+        "elapsed_seconds": elapsed,
+        "convention_notes": {
+            "coordinate_system": "OpenCV (X-right, Y-down, Z-forward)",
+            "T_4x4_convention": "standard column-vector: [[R,t],[0,1]], p'=R@p+t",
+            "rotation_param": "axis-angle via pytorch3d.axis_angle_to_matrix (standard convention)",
+        },
     }
-    return object_summary
 
 
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 def main() -> None:
     args = parse_args()
-    if args.early_stop_patience < 0:
-        raise ValueError("--early_stop_patience must be >= 0.")
-    if args.early_stop_rel_min_delta < 0.0:
-        raise ValueError("--early_stop_rel_min_delta must be >= 0.")
-    if args.early_stop_min_iter < 0:
-        raise ValueError("--early_stop_min_iter must be >= 0.")
-    if args.lambda_img < 0.0:
-        raise ValueError("--lambda_img must be >= 0.")
-    if args.lambda_a < 0.0:
-        raise ValueError("--lambda_a must be >= 0.")
-    if args.lambda_v < 0.0:
-        raise ValueError("--lambda_v must be >= 0.")
+
+    # Validate args
+    for name, val, lo in [
+        ("early_stop_patience", args.early_stop_patience, 0),
+        ("early_stop_min_iter", args.early_stop_min_iter, 0),
+    ]:
+        if val < lo:
+            raise ValueError(f"--{name} must be >= {lo}")
+    for name in ("lambda_img", "lambda_a", "lambda_v", "early_stop_rel_min_delta"):
+        if getattr(args, name) < 0:
+            raise ValueError(f"--{name} must be >= 0")
+
     script_dir = Path(__file__).resolve().parent
 
-    cotracker_video_dir, aligned_mesh_video_dir, segment_video_dir, output_root = _resolve_default_dirs(
-        args=args, script_dir=script_dir
-    )
-    pag_path = _resolve_pag_path(args=args, script_dir=script_dir)
-    k, intrinsics_summary_path = _load_intrinsics_from_alignment_summary(aligned_mesh_video_dir)
-    output_video_dir = (output_root / args.video_name).resolve()
-    ensure_dir(output_video_dir)
+    cotracker_dir, aligned_dir, segment_dir, output_root = _resolve_default_dirs(args, script_dir)
+    pag_path = _resolve_pag_path(args, script_dir)
+    k, intr_path = _load_intrinsics_from_alignment_summary(aligned_dir)
+    out_video_dir = (output_root / args.video_name).resolve()
+    ensure_dir(out_video_dir)
 
-    if not cotracker_video_dir.exists() or not cotracker_video_dir.is_dir():
-        raise NotADirectoryError(f"CoTracker video dir not found: {cotracker_video_dir}")
-    if not aligned_mesh_video_dir.exists() or not aligned_mesh_video_dir.is_dir():
-        raise NotADirectoryError(f"Aligned mesh video dir not found: {aligned_mesh_video_dir}")
-    if not segment_video_dir.exists() or not segment_video_dir.is_dir():
-        raise NotADirectoryError(f"Segment video dir not found: {segment_video_dir}")
+    for label, d in [
+        ("CoTracker", cotracker_dir),
+        ("Aligned", aligned_dir),
+        ("Segment", segment_dir),
+    ]:
+        if not d.exists():
+            raise NotADirectoryError(f"{label} dir missing: {d}")
 
     device = _to_device(args.device)
     pag_objects = _load_pag_objects_from_states_only(pag_path)
 
-    frames_dir = _resolve_frames_dir(cotracker_video_dir, segment_video_dir)
-    frame_paths: list[Path] = []
-    if frames_dir is not None:
-        frame_paths = list_images(frames_dir)
-    else:
-        print("[WARN] No _frames directory found in CoTracker or Segment_Video outputs.")
+    frames_dir = _resolve_frames_dir(cotracker_dir, segment_dir)
+    frame_paths: list[Path] = list_images(frames_dir) if frames_dir else []
+    if not frame_paths:
+        print("[WARN] No frames directory found.")
 
-    run_summary: dict[str, Any] = {
+    # --- Print important info ---
+    print("=" * 60)
+    print("track_object_mesh_claude.py — corrected SE(3) tracker")
+    print(f"  video:  {args.video_name}")
+    print(f"  device: {device}")
+    print(f"  K:      fx={k[0,0]:.1f}  fy={k[1,1]:.1f}  cx={k[0,2]:.1f}  cy={k[1,2]:.1f}")
+    print(f"  pag:    {pag_path.name} ({len(pag_objects)} objects)")
+    print("  convention: OpenCV coords, standard 4x4 [[R,t],[0,1]]")
+    print("=" * 60)
+
+    summary: dict[str, Any] = {
         "video_name": args.video_name,
         "status": "completed",
+        "script": "track_object_mesh_claude.py",
         "inputs": {
-            "cotracker_video_dir": str(cotracker_video_dir),
-            "aligned_mesh_video_dir": str(aligned_mesh_video_dir),
-            "segment_video_dir": str(segment_video_dir),
+            "cotracker_video_dir": str(cotracker_dir),
+            "aligned_mesh_video_dir": str(aligned_dir),
+            "segment_video_dir": str(segment_dir),
             "pag_file": str(pag_path),
-            "intrinsics_source": str(intrinsics_summary_path),
-            "frames_dir": None if frames_dir is None else str(frames_dir),
+            "intrinsics_source": str(intr_path),
+            "frames_dir": str(frames_dir) if frames_dir else None,
         },
         "optimization_settings": {
             "huber_delta_px": float(args.huber_delta_px),
             "lambda_img": float(args.lambda_img),
             "lambda_a": float(args.lambda_a),
             "lambda_v": float(args.lambda_v),
-            "loss_scaling": "enabled",
-            "loss_scaling_description": {
-                "E_img": "mean over weighted active pairs",
-                "E_smooth": "mean over acceleration twist components",
-                "E_vel": "mean over velocity twist components",
-            },
-            "visibility_threshold": float(args.visibility_threshold),
-            "mask_gate_threshold": float(args.mask_gate_threshold),
             "adam_iters": int(args.adam_iters),
             "adam_lr": float(args.adam_lr),
             "early_stop_patience": int(args.early_stop_patience),
             "early_stop_rel_min_delta": float(args.early_stop_rel_min_delta),
             "early_stop_min_iter": int(args.early_stop_min_iter),
-            "lbfgs_enabled": bool(not args.disable_lbfgs),
+            "lbfgs_enabled": not args.disable_lbfgs,
             "lbfgs_iters": int(args.lbfgs_iters),
             "lbfgs_lr": float(args.lbfgs_lr),
+            "pnp_init_enabled": not args.disable_pnp_init,
+            "pnp_ransac_thresh": float(args.pnp_ransac_thresh),
+            "outlier_reproj_thresh_px": float(args.outlier_reproj_thresh_px),
+            "outlier_max_fraction": float(args.outlier_max_fraction),
+            "lr_schedule": args.lr_schedule,
+            "graduated_huber": args.graduated_huber,
         },
-        "energy_terms": {
-            "pose_parameterization": "T_1 = I (fixed), T_t = exp(xi_t) for t=2..T",
-            "seed_mapping": (
-                "X_i = barycentric interpolation of frame-0 aligned mesh triangle at seed pixel; "
-                "drop seeds with invalid face id or outside frame-0 mask"
-            ),
-            "projection": "u = fx * X/Z + cx, v = fy * Y/Z + cy",
-            "mask_gate": (
-                "mask_gate(i,t)=1 if bilinear_sample(mask_t, u_obs(i,t)) >= mask_gate_threshold else 0"
-            ),
-            "weights": "w_{i,t} = vis_{i,t} * mask_gate(i,t) * z_valid(i,t)",
-            "rho_huber": "rho(s)=s if s<=d^2 else 2*d*sqrt(s)-d^2, with d=huber_delta_px",
-            "E_img_raw": "sum_{i,t} w_{i,t} * rho(||u_obs(i,t)-u_pred(i,t)||_2^2)",
-            "E_img": "E_img_raw / max(sum_{i,t} w_{i,t}, 1)",
-            "delta_t": "delta_t = log(inv(T_t) @ T_{t+1})",
-            "E_smooth_raw": "sum_{t=2..T-2} ||delta_t - delta_{t-1}||_2^2",
-            "E_smooth": "E_smooth_raw / max(numel(delta_t - delta_{t-1}), 1)",
-            "E_vel_raw": "sum_{t=1..T-1} ||delta_t||_2^2",
-            "E_vel": "E_vel_raw / max(numel(delta_t), 1)",
-            "term_img": "lambda_img * E_img",
-            "term_smooth_weighted": "lambda_a * E_smooth",
-            "term_vel_weighted": "lambda_v * E_vel",
-            "E_total": "lambda_img * E_img + lambda_a * E_smooth + lambda_v * E_vel",
+        "conventions": {
+            "coordinate_system": "OpenCV (X-right, Y-down, Z-forward)",
+            "T_4x4": "standard column-vector [[R,t],[0,1]], p_world = R @ p_local + t",
+            "rotation": "axis_angle_to_matrix (standard, R @ p)",
+            "projection": "u = fx*X/Z + cx,  v = fy*Y/Z + cy",
+            "bugs_fixed": [
+                "PyTorch3D se3_exp_map row-vector convention → translation was always zero",
+                "Rotation was transposed (R^T instead of R)",
+                "Body-frame velocity/smoothness now computed properly",
+            ],
         },
         "device": str(device),
-        "output_dir": str(output_video_dir),
+        "output_dir": str(out_video_dir),
         "objects_from_pag_states": [
-            {"name": name, "slug": slug} for name, slug in pag_objects
+            {"name": n, "slug": s} for n, s in pag_objects
         ],
         "objects_processed": [],
         "objects_skipped": [],
         "objects_failed": [],
     }
 
-    print(f"[INFO] video_name: {args.video_name}")
-    print(f"[INFO] device: {device}")
-    print(f"[INFO] pag_file: {pag_path}")
-    print(f"[INFO] num_objects_from_pag_states: {len(pag_objects)}")
-
     for obj_name, obj_slug in pag_objects:
-        mesh_path = aligned_mesh_video_dir / "meshes" / f"{obj_slug}.ply"
-        tracks_path = cotracker_video_dir / obj_slug / "tracks.npy"
-        vis_path = cotracker_video_dir / obj_slug / "visibility.npy"
-        mask_dir = _resolve_object_mask_dir(segment_video_dir, obj_slug)
-        out_dir = output_video_dir / obj_slug
+        mesh_path = aligned_dir / "meshes" / f"{obj_slug}.ply"
+        tracks_path = cotracker_dir / obj_slug / "tracks.npy"
+        vis_path = cotracker_dir / obj_slug / "visibility.npy"
+        mask_dir = _resolve_object_mask_dir(segment_dir, obj_slug)
+        obj_out = out_video_dir / obj_slug
 
         missing = []
         if not mesh_path.exists():
-            missing.append(f"mesh missing: {mesh_path}")
+            missing.append(f"mesh: {mesh_path}")
         if not tracks_path.exists():
-            missing.append(f"tracks missing: {tracks_path}")
+            missing.append(f"tracks: {tracks_path}")
         if not vis_path.exists():
-            missing.append(f"visibility missing: {vis_path}")
+            missing.append(f"vis: {vis_path}")
         if not mask_dir.exists():
-            missing.append(f"mask dir missing: {mask_dir}")
-
+            missing.append(f"masks: {mask_dir}")
         if missing:
             reason = "; ".join(missing)
-            print(f"[WARN] Skipping {obj_slug}: {reason}")
-            run_summary["objects_skipped"].append(
+            print(f"\n[SKIP] {obj_slug}: {reason}")
+            summary["objects_skipped"].append(
                 {"name": obj_name, "slug": obj_slug, "reason": reason}
             )
             continue
 
-        print(f"\n[OBJECT] {obj_name} ({obj_slug})")
+        print(f"\n{'─' * 50}")
+        print(f"[OBJECT] {obj_name} ({obj_slug})")
+        print(f"{'─' * 50}")
         try:
             obj_summary = _run_single_object(
-                object_name=obj_name,
-                object_slug=obj_slug,
-                mesh_path=mesh_path,
-                tracks_path=tracks_path,
-                vis_path=vis_path,
-                mask_dir=mask_dir,
-                frame_paths=frame_paths,
-                k=k,
-                args=args,
-                out_dir=out_dir,
-                device=device,
+                obj_name, obj_slug, mesh_path, tracks_path, vis_path,
+                mask_dir, frame_paths, k, args, obj_out, device,
             )
-            run_summary["objects_processed"].append(obj_summary)
-            print(f"[OK] Saved tracking outputs: {out_dir}")
+            summary["objects_processed"].append(obj_summary)
+            print(f"[OK] {obj_slug} → {obj_out}")
         except Exception as exc:
             reason = f"{type(exc).__name__}: {exc}"
-            print(f"[ERROR] Failed {obj_slug}: {reason}")
-            run_summary["objects_failed"].append(
+            print(f"[FAIL] {obj_slug}: {reason}")
+            import traceback
+            traceback.print_exc()
+            summary["objects_failed"].append(
                 {"name": obj_name, "slug": obj_slug, "reason": reason}
             )
 
-    with (output_video_dir / "run_summary.json").open("w", encoding="utf-8") as f:
-        json.dump(run_summary, f, indent=2)
+    with (out_video_dir / "run_summary.json").open("w") as f:
+        json.dump(summary, f, indent=2)
 
-    print("\nDone.")
+    print(f"\n{'=' * 60}")
+    print(f"Done. Summary: {out_video_dir / 'run_summary.json'}")
+    print(f"  processed: {len(summary['objects_processed'])}")
+    print(f"  skipped:   {len(summary['objects_skipped'])}")
+    print(f"  failed:    {len(summary['objects_failed'])}")
+    print(f"{'=' * 60}")
 
 
 if __name__ == "__main__":
