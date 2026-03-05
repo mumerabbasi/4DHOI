@@ -101,6 +101,24 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--lbfgs_lr", type=float, default=0.5)
     p.add_argument("--log_every", type=int, default=20)
 
+    # --- Optimisation improvements ---
+    p.add_argument("--disable_pnp_init", action="store_true",
+                   help="Disable PnP-RANSAC sequential initialization (use zeros)")
+    p.add_argument("--pnp_ransac_thresh", type=float, default=8.0,
+                   help="RANSAC reprojection threshold in PnP init (px)")
+    p.add_argument("--outlier_reproj_thresh_px", type=float, default=20.0,
+                   help="Tracks with mean reproj > this after PnP init are outliers (0=disable)")
+    p.add_argument("--outlier_max_fraction", type=float, default=0.4,
+                   help="Max fraction of tracks to reject as outliers")
+    p.add_argument("--lr_schedule", type=str, choices=["none", "cosine"], default="cosine",
+                   help="LR schedule for Adam optimizer")
+    p.add_argument("--graduated_huber", action=argparse.BooleanOptionalAction, default=True,
+                   help="Anneal Huber delta from 3x to 1x over first half of Adam")
+    p.add_argument("--retrim_interval", type=int, default=1000,
+                   help="Every N Adam iters, zero out per-frame outlier tracks (0=disable)")
+    p.add_argument("--retrim_percentile", type=float, default=90.0,
+                   help="Per-frame residual percentile threshold for retrimming (e.g., 90=keep best 90%%)")
+
     p.add_argument("--start_frame", type=int, default=0)
     p.add_argument("--end_frame", type=int, default=-1)
     p.add_argument("--overlay_fps", type=float, default=6.0)
@@ -627,6 +645,135 @@ def _save_pose_debug_plots(debug_dir: Path, frame_rows: list[dict]) -> None:
 
 
 # ---------------------------------------------------------------------------
+# PnP-RANSAC sequential initialization
+# ---------------------------------------------------------------------------
+def _pnp_sequential_init(
+    x0_cv: np.ndarray,         # [M, 3] frame-0 3D in OpenCV cam coords
+    obs_uv: np.ndarray,        # [T, M, 2] pixel observations
+    vis: np.ndarray,           # [T, M] visibility
+    k: np.ndarray,             # [3, 3] intrinsics
+    ransac_thresh: float,
+) -> tuple[np.ndarray, np.ndarray, list[dict]]:
+    """Per-frame PnP-RANSAC chained from previous frame.
+
+    Returns (rotvecs [T-1,3], trans [T-1,3], per_frame_info).
+    Coordinate convention matches our pose parameterization: p_t = R_t @ p_0 + t_t.
+    PnP (OpenCV) returns exactly this when input points are in camera frame.
+    """
+    T, M = obs_uv.shape[:2]
+    rotvecs_out = np.zeros((T - 1, 3), dtype=np.float32)
+    trans_out = np.zeros((T - 1, 3), dtype=np.float32)
+    info: list[dict] = []
+
+    prev_rvec = np.zeros((3, 1), dtype=np.float64)
+    prev_tvec = np.zeros((3, 1), dtype=np.float64)
+    dist_coeffs = np.zeros(4, dtype=np.float64)
+    k64 = k.astype(np.float64)
+
+    for t in range(1, T):
+        valid = vis[t] > 0.5
+        n_valid = int(valid.sum())
+        if n_valid < 6:
+            rotvecs_out[t - 1] = prev_rvec.ravel().astype(np.float32)
+            trans_out[t - 1] = prev_tvec.ravel().astype(np.float32)
+            info.append({"frame": t, "n_valid": n_valid, "n_inliers": 0, "pnp_ok": False})
+            continue
+
+        pts3d = x0_cv[valid].astype(np.float64)
+        pts2d = obs_uv[t, valid].astype(np.float64)
+
+        success, rvec, tvec, inliers = cv2.solvePnPRansac(
+            pts3d, pts2d, k64, dist_coeffs,
+            rvec=prev_rvec.copy(), tvec=prev_tvec.copy(),
+            useExtrinsicGuess=(t > 1),
+            iterationsCount=200,
+            reprojectionError=ransac_thresh,
+            flags=cv2.SOLVEPNP_ITERATIVE,
+        )
+
+        n_inliers = len(inliers) if (success and inliers is not None) else 0
+        if success and n_inliers >= 6:
+            # Refine with inliers
+            try:
+                rvec, tvec = cv2.solvePnPRefineLM(
+                    pts3d[inliers.ravel()], pts2d[inliers.ravel()],
+                    k64, dist_coeffs, rvec, tvec,
+                )
+            except cv2.error:
+                pass  # keep RANSAC result
+
+            rotvecs_out[t - 1] = rvec.ravel().astype(np.float32)
+            trans_out[t - 1] = tvec.ravel().astype(np.float32)
+            prev_rvec = rvec.copy()
+            prev_tvec = tvec.copy()
+        elif success:
+            rotvecs_out[t - 1] = rvec.ravel().astype(np.float32)
+            trans_out[t - 1] = tvec.ravel().astype(np.float32)
+            prev_rvec = rvec.copy()
+            prev_tvec = tvec.copy()
+        else:
+            rotvecs_out[t - 1] = prev_rvec.ravel().astype(np.float32)
+            trans_out[t - 1] = prev_tvec.ravel().astype(np.float32)
+
+        info.append({"frame": t, "n_valid": n_valid, "n_inliers": n_inliers, "pnp_ok": bool(success)})
+
+    return rotvecs_out, trans_out, info
+
+
+# ---------------------------------------------------------------------------
+# Outlier track rejection after PnP init
+# ---------------------------------------------------------------------------
+def _identify_outlier_tracks(
+    x0: torch.Tensor,         # [M, 3]
+    obs_uv: torch.Tensor,     # [T, M, 2]
+    vis: torch.Tensor,        # [T, M]
+    rotvecs: torch.Tensor,    # [T-1, 3]
+    trans: torch.Tensor,      # [T-1, 3]
+    fx: float, fy: float, cx: float, cy: float,
+    threshold_px: float,
+    max_fraction: float,
+) -> torch.Tensor:
+    """Return per-track boolean mask [M] where True = outlier.
+
+    A track is an outlier if its mean reprojection error (over visible frames)
+    after PnP initialization exceeds threshold_px.  At most max_fraction of
+    tracks will be rejected.
+    """
+    with torch.no_grad():
+        T = obs_uv.shape[0]
+        M = x0.shape[0]
+        T_mats = _build_T_matrices(rotvecs, trans, T, x0.device)
+        R_all = T_mats[:, :3, :3]
+        t_all = T_mats[:, :3, 3]
+
+        xt = torch.einsum("tij,mj->tmi", R_all, x0) + t_all.unsqueeze(1)
+        z = xt[..., 2].clamp(min=1e-6)
+        pred_u = fx * xt[..., 0] / z + cx
+        pred_v = fy * xt[..., 1] / z + cy
+        pred_uv = torch.stack([pred_u, pred_v], dim=-1)
+
+        err = torch.sqrt(((obs_uv - pred_uv) ** 2).sum(dim=-1).clamp(min=1e-12))
+
+        # Mean error per track over visible frames
+        vis_binary = (vis > 0.5).float()
+        vis_count = vis_binary.sum(dim=0).clamp(min=1.0)
+        mean_err = (err * vis_binary).sum(dim=0) / vis_count  # [M]
+
+        outlier = mean_err > threshold_px
+
+        # Cap outlier fraction
+        n_outlier = int(outlier.sum().item())
+        max_reject = int(M * max_fraction)
+        if n_outlier > max_reject and max_reject > 0:
+            # Keep only the worst max_reject tracks as outliers
+            _, sorted_idx = mean_err.sort(descending=True)
+            outlier = torch.zeros(M, dtype=torch.bool, device=x0.device)
+            outlier[sorted_idx[:max_reject]] = True
+
+    return outlier
+
+
+# ---------------------------------------------------------------------------
 # Main per-object optimisation
 # ---------------------------------------------------------------------------
 def _run_single_object(
@@ -723,10 +870,45 @@ def _run_single_object(
     vis_tm = torch.from_numpy(vis_valid).to(device, torch.float32).permute(1, 0)          # [T,M]
     masks_t = torch.from_numpy(masks_np).to(device, torch.float32)                        # [T,H,W]
 
-    # --- Optimisable parameters: axis-angle + translation per frame ---
+    # --- PnP-RANSAC sequential initialization ---
     n_params = max(t_use - 1, 0)
-    rotvecs = torch.nn.Parameter(torch.zeros(n_params, 3, device=device))
-    translations = torch.nn.Parameter(torch.zeros(n_params, 3, device=device))
+    if not args.disable_pnp_init and n_params > 0:
+        print(f"  [{object_slug}] PnP-RANSAC sequential initialization...")
+        # tracks_valid is [M, T, 2]; PnP needs [T, M, 2]
+        obs_uv_np_tm = tracks_valid.transpose(1, 0, 2)
+        vis_np_tm = vis_valid.transpose(1, 0)
+        rv_init, tr_init, pnp_info = _pnp_sequential_init(
+            x0_m3.cpu().numpy(), obs_uv_np_tm, vis_np_tm,
+            k, float(args.pnp_ransac_thresh),
+        )
+        pnp_max_trans = np.linalg.norm(tr_init, axis=1).max() if tr_init.shape[0] > 0 else 0.0
+        pnp_max_rot = np.linalg.norm(rv_init, axis=1).max() if rv_init.shape[0] > 0 else 0.0
+        pnp_ok_count = sum(1 for p in pnp_info if p["pnp_ok"])
+        print(f"  [{object_slug}] PnP init: {pnp_ok_count}/{len(pnp_info)} frames OK, "
+              f"max_trans={pnp_max_trans:.4f}m, max_rot={np.degrees(pnp_max_rot):.1f}deg")
+
+        rotvecs_init = torch.from_numpy(rv_init).to(device, torch.float32)
+        trans_init = torch.from_numpy(tr_init).to(device, torch.float32)
+
+        # --- Outlier track rejection based on PnP poses ---
+        if args.outlier_reproj_thresh_px > 0:
+            outlier_mask = _identify_outlier_tracks(
+                x0_m3, obs_uv, vis_tm, rotvecs_init, trans_init,
+                fx, fy, cx, cy,
+                float(args.outlier_reproj_thresh_px),
+                float(args.outlier_max_fraction),
+            )
+            n_outlier = int(outlier_mask.sum().item())
+            if n_outlier > 0:
+                print(f"  [{object_slug}] Outlier rejection: {n_outlier}/{x0_m3.shape[0]} tracks removed")
+                vis_tm[:, outlier_mask] = 0.0
+    else:
+        rotvecs_init = torch.zeros(n_params, 3, device=device)
+        trans_init = torch.zeros(n_params, 3, device=device)
+
+    # --- Optimisable parameters: initialized from PnP or zeros ---
+    rotvecs = torch.nn.Parameter(rotvecs_init.clone())
+    translations = torch.nn.Parameter(trans_init.clone())
 
     iter_rows: list[dict] = []
     best_total: float | None = None
@@ -736,13 +918,13 @@ def _run_single_object(
     early_stopped = False
     early_stop_iter: int | None = None
 
-    def _loss_kwargs():
+    def _loss_kwargs(huber_delta_override=None):
         return dict(
             fx=fx, fy=fy, cx=cx, cy=cy,
             lambda_img=float(args.lambda_img),
             lambda_a=float(args.lambda_a),
             lambda_v=float(args.lambda_v),
-            huber_delta=float(args.huber_delta_px),
+            huber_delta=huber_delta_override if huber_delta_override is not None else float(args.huber_delta_px),
             vis_threshold=float(args.visibility_threshold),
             mask_gate_threshold=float(args.mask_gate_threshold),
         )
@@ -785,18 +967,76 @@ def _run_single_object(
     # ==================== Adam ====================
     if t_use > 1 and args.adam_iters > 0:
         opt = torch.optim.Adam([rotvecs, translations], lr=float(args.adam_lr))
+
+        # LR scheduling
+        scheduler = None
+        if args.lr_schedule == "cosine":
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                opt, T_max=args.adam_iters, eta_min=float(args.adam_lr) / 20.0,
+            )
+
+        # Graduated Huber delta: start lenient (3x), anneal to target over first 50%
+        huber_target = float(args.huber_delta_px)
+        huber_start = huber_target * 3.0 if args.graduated_huber else huber_target
+
         for it in range(1, int(args.adam_iters) + 1):
+            # Current Huber delta (graduated non-convexity)
+            if args.graduated_huber:
+                frac = min(it / max(args.adam_iters * 0.5, 1), 1.0)
+                current_huber = huber_start + (huber_target - huber_start) * frac
+            else:
+                current_huber = huber_target
+
             opt.zero_grad(set_to_none=True)
             b = _compute_loss(
                 rotvecs, translations, x0_m3, obs_uv, vis_tm, masks_t,
-                **_loss_kwargs(),
+                **_loss_kwargs(current_huber),
             )
             if not torch.isfinite(b.total):
                 raise RuntimeError(f"Non-finite loss at Adam iter {it}")
             b.total.backward()
             opt.step()
 
+            if scheduler is not None:
+                scheduler.step()
+
             with torch.no_grad():
+                # --- Periodic outlier re-trimming ---
+                if (
+                    args.retrim_interval > 0
+                    and it > 0
+                    and it % args.retrim_interval == 0
+                    and it < args.adam_iters  # don't retrim at the very end
+                ):
+                    T_mats_trim = _build_T_matrices(rotvecs, translations, t_use, device)
+                    R_tr = T_mats_trim[:, :3, :3]
+                    t_tr = T_mats_trim[:, :3, 3]
+                    xt_tr = torch.einsum("tij,mj->tmi", R_tr, x0_m3) + t_tr.unsqueeze(1)
+                    z_tr = xt_tr[..., 2].clamp(min=1e-6)
+                    pred_u_tr = fx * xt_tr[..., 0] / z_tr + cx
+                    pred_v_tr = fy * xt_tr[..., 1] / z_tr + cy
+                    err_tr = torch.sqrt(
+                        ((obs_uv[..., 0] - pred_u_tr) ** 2 +
+                         (obs_uv[..., 1] - pred_v_tr) ** 2).clamp(min=1e-12)
+                    )  # [T, M]
+                    n_trimmed_total = 0
+                    for ft in range(t_use):
+                        active_ft = vis_tm[ft] > 0
+                        n_active_ft = int(active_ft.sum().item())
+                        if n_active_ft < 20:
+                            continue
+                        err_active = err_tr[ft, active_ft]
+                        thresh = torch.quantile(err_active, args.retrim_percentile / 100.0)
+                        to_zero = active_ft & (err_tr[ft] > thresh)
+                        n_zero = int(to_zero.sum().item())
+                        if n_zero > 0:
+                            vis_tm[ft, to_zero] = 0.0
+                            n_trimmed_total += n_zero
+                    if n_trimmed_total > 0:
+                        print(f"  [{object_slug}] retrim@{it}: zeroed {n_trimmed_total} track-frame pairs "
+                              f"(p{args.retrim_percentile:.0f} threshold)")
+
+                # Evaluate with TARGET huber (not graduated) for fair comparison
                 b_eval = _compute_loss(
                     rotvecs, translations, x0_m3, obs_uv, vis_tm, masks_t,
                     **_loss_kwargs(),
@@ -819,13 +1059,15 @@ def _run_single_object(
 
                 if args.log_every > 0 and (it % args.log_every == 0 or it == args.adam_iters):
                     t_norms = b_eval.T_mats[:, :3, 3].norm(dim=-1)
+                    cur_lr = scheduler.get_last_lr()[0] if scheduler else float(args.adam_lr)
                     print(
                         f"  [{object_slug}] adam {it:05d}  "
                         f"total={b_eval.total.item():.6f}  "
                         f"img={args.lambda_img * b_eval.e_img.item():.6f}  "
                         f"smooth={args.lambda_a * b_eval.e_smooth.item():.6f}  "
                         f"vel={args.lambda_v * b_eval.e_vel.item():.6f}  "
-                        f"max_t={t_norms.max().item():.5f}"
+                        f"max_t={t_norms.max().item():.5f}  "
+                        f"lr={cur_lr:.6f}  huber={current_huber:.2f}"
                     )
 
                 if (
@@ -1080,6 +1322,12 @@ def main() -> None:
             "lbfgs_enabled": not args.disable_lbfgs,
             "lbfgs_iters": int(args.lbfgs_iters),
             "lbfgs_lr": float(args.lbfgs_lr),
+            "pnp_init_enabled": not args.disable_pnp_init,
+            "pnp_ransac_thresh": float(args.pnp_ransac_thresh),
+            "outlier_reproj_thresh_px": float(args.outlier_reproj_thresh_px),
+            "outlier_max_fraction": float(args.outlier_max_fraction),
+            "lr_schedule": args.lr_schedule,
+            "graduated_huber": args.graduated_huber,
         },
         "conventions": {
             "coordinate_system": "OpenCV (X-right, Y-down, Z-forward)",
