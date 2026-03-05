@@ -1,12 +1,11 @@
 """
-Blender 4.2 script to render multiple views of a GLB mesh with camera matrices.
+Blender 4.2 script to render multiple views for PAG objects from aligned meshes.
 
 Renders RGB images and per-pixel face ID maps from multiple viewpoints.
 Face IDs are stored as raw float values in EXR format for exact integer recovery.
 
 Usage:
-    blender --background --python render_views_blender.py -- \\
-        --input objects/iron/mesh.glb --resolution 1024
+    blender --background --python render_views_blender.py -- --video_name video_01
 """
 
 import argparse
@@ -14,15 +13,16 @@ import json
 import math
 import os
 import sys
+import traceback
 from pathlib import Path
 
 import bpy
 from mathutils import Matrix, Vector
 
 # Camera configuration
-AZIMUTHS = [10, 100, 190, 280]  # degrees
-ELEVATIONS = [-15, 25, 45]  # degrees
-DEFAULT_CAMERA_DISTANCE = 0.5
+ORBIT_ANGLES_DEG = [10, 100, 190, 280]  # horizontal orbit around object (Z-up)
+HEIGHT_ANGLES_DEG = [10, 30, -15]  # level orbit, then up orbit, then down orbit
+DEFAULT_CAMERA_DISTANCE = 1
 DEFAULT_RESOLUTION = 1024
 
 # Face ID attribute/AOV names
@@ -39,19 +39,34 @@ def parse_arguments() -> argparse.Namespace:
         argv = []
 
     parser = argparse.ArgumentParser(
-        description="Render multiple views of a GLB mesh from different angles."
+        description="Render all PAG objects from Align_Meshes/*.ply into Segment_Object_Mesh objects/"
     )
     parser.add_argument(
-        "--input",
+        "--video_name",
         type=str,
-        default="./objects/video_01/iron/mesh.glb",
-        help="Path to input GLB mesh file.",
+        default="video_01",
+        help="Video name used to resolve default input paths.",
     )
     parser.add_argument(
-        "--output_dir",
+        "--aligned_mesh_video_dir",
         type=str,
         default=None,
-        help="Directory to save renders (default: <input_dir>/renders/).",
+        help="Aligned-mesh dir (default: ../Align_Meshes/output/<video_name>).",
+    )
+    parser.add_argument(
+        "--pag_file",
+        type=str,
+        default=None,
+        help=(
+            "PAG JSON path (default: first output_pag_*.json in "
+            "../Generate_PAG/output/<video_name>)."
+        ),
+    )
+    parser.add_argument(
+        "--output_root",
+        type=str,
+        default="./output",
+        help="Output root (default: ./output, relative to this script).",
     )
     parser.add_argument(
         "--resolution",
@@ -80,6 +95,188 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def resolve_path(path_str: str, base_dir: Path) -> Path:
+    """Resolve path against base_dir when relative."""
+    path = Path(path_str)
+    if not path.is_absolute():
+        path = base_dir / path
+    return path.resolve()
+
+
+def resolve_default_dirs(
+    args: argparse.Namespace, script_dir: Path
+) -> tuple[Path, Path]:
+    """Resolve aligned-mesh input dir and output video dir."""
+    if args.aligned_mesh_video_dir is None:
+        aligned_mesh_video_dir = (
+            script_dir.parent / "Align_Meshes" / "output" / args.video_name
+        ).resolve()
+    else:
+        aligned_mesh_video_dir = resolve_path(args.aligned_mesh_video_dir, script_dir)
+
+    output_root = resolve_path(args.output_root, script_dir)
+    output_video_dir = (output_root / args.video_name).resolve()
+    return aligned_mesh_video_dir, output_video_dir
+
+
+def resolve_pag_path(args: argparse.Namespace, script_dir: Path) -> Path:
+    """Resolve PAG JSON path with tracking-script-compatible defaults."""
+    if args.pag_file is not None:
+        pag_path = resolve_path(args.pag_file, script_dir)
+        if not pag_path.exists():
+            raise FileNotFoundError(f"PAG file not found: {pag_path}")
+        return pag_path
+
+    # Primary default path matches Track_Object_Mesh.
+    pag_dir = (script_dir.parent / "Generate_PAG" / "output" / args.video_name).resolve()
+    if not pag_dir.exists():
+        # Backward-compatible fallback used by older scripts.
+        pag_dir = (script_dir.parent / "Generate_PAG" / "pags" / args.video_name).resolve()
+    if not pag_dir.exists():
+        raise FileNotFoundError(f"PAG directory not found: {pag_dir}")
+
+    pag_candidates = sorted(pag_dir.glob("output_pag_*.json"))
+    if not pag_candidates:
+        raise FileNotFoundError(f"No output_pag_*.json found in: {pag_dir}")
+    return pag_candidates[0]
+
+
+def _sanitize_object_name(name: str) -> str:
+    """Match the object slug convention used by tracking scripts."""
+    return name.strip().replace(" ", "_")
+
+
+def _slugify_like_align(text: str) -> str:
+    """Mirror Align_Meshes slugify convention for fallback mesh lookup."""
+    out = []
+    for ch in text.strip().lower():
+        if ch.isalnum() or ch in "()":
+            out.append(ch)
+        else:
+            out.append("_")
+    slug = "".join(out)
+    while "__" in slug:
+        slug = slug.replace("__", "_")
+    return slug.strip("_") or "mesh"
+
+
+def load_pag_objects_from_states_only(pag_path: Path) -> list[tuple[str, str]]:
+    """Load unique objects from PAG['object states'] as (name, slug)."""
+    with pag_path.open("r", encoding="utf-8") as f:
+        payload = json.load(f)
+
+    object_states = payload.get("object states")
+    if not isinstance(object_states, list):
+        raise RuntimeError(
+            "PAG must contain a list in 'object states'. "
+            f"Got: {type(object_states).__name__}"
+        )
+
+    objects: list[tuple[str, str]] = []
+    seen = set()
+    for item in object_states:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("name")
+        if not isinstance(name, str):
+            continue
+        name = name.strip()
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        objects.append((name, _sanitize_object_name(name)))
+
+    if not objects:
+        raise RuntimeError(
+            "No valid object names found in PAG 'object states'. "
+            f"File: {pag_path}"
+        )
+    return objects
+
+
+def _resolve_mesh_path(raw_path: str, base_dir: Path) -> Path:
+    path = Path(raw_path)
+    if not path.is_absolute():
+        path = base_dir / path
+    return path.resolve()
+
+
+def build_aligned_mesh_index(aligned_dir: Path) -> tuple[dict[str, Path], dict[str, Path]]:
+    """Index aligned mesh paths by object name and slug from transforms.json."""
+    by_name: dict[str, Path] = {}
+    by_slug: dict[str, Path] = {}
+
+    transforms_path = (aligned_dir / "meshes" / "transforms.json").resolve()
+    if not transforms_path.exists():
+        return by_name, by_slug
+
+    with transforms_path.open("r", encoding="utf-8") as f:
+        payload = json.load(f)
+
+    transforms = payload.get("transforms")
+    if not isinstance(transforms, list):
+        return by_name, by_slug
+
+    for item in transforms:
+        if not isinstance(item, dict):
+            continue
+        if item.get("kind") == "human":
+            continue
+
+        name = item.get("name")
+        slug = item.get("slug")
+        raw_mesh_path = item.get("aligned_mesh_ply")
+        mesh_path: Path | None = None
+        if isinstance(raw_mesh_path, str) and raw_mesh_path.strip():
+            mesh_path = _resolve_mesh_path(raw_mesh_path, transforms_path.parent)
+        elif isinstance(slug, str) and slug.strip():
+            mesh_path = (aligned_dir / "meshes" / f"{slug}.ply").resolve()
+
+        if mesh_path is None or not mesh_path.exists():
+            continue
+
+        if isinstance(name, str) and name.strip():
+            by_name[name.strip()] = mesh_path
+        if isinstance(slug, str) and slug.strip():
+            by_slug[slug.strip()] = mesh_path
+
+    return by_name, by_slug
+
+
+def resolve_object_mesh_path(
+    object_name: str,
+    object_slug: str,
+    aligned_dir: Path,
+    meshes_by_name: dict[str, Path],
+    meshes_by_slug: dict[str, Path],
+) -> Path | None:
+    """Resolve aligned mesh path for an object using metadata + filename fallbacks."""
+    candidates: list[Path] = []
+
+    if object_name in meshes_by_name:
+        candidates.append(meshes_by_name[object_name])
+
+    slug_candidates = [
+        object_slug,
+        _slugify_like_align(object_name),
+        object_slug.lower(),
+    ]
+    for slug in slug_candidates:
+        if slug in meshes_by_slug:
+            candidates.append(meshes_by_slug[slug])
+        candidates.append((aligned_dir / "meshes" / f"{slug}.ply").resolve())
+
+    seen = set()
+    for path in candidates:
+        key = str(path)
+        if key in seen:
+            continue
+        seen.add(key)
+        if path.exists():
+            return path
+    return None
+
+
 def clear_scene() -> None:
     """Remove all objects from the scene and purge orphan data."""
     bpy.ops.object.select_all(action="SELECT")
@@ -87,24 +284,46 @@ def clear_scene() -> None:
     bpy.ops.outliner.orphans_purge(do_recursive=True)
 
 
-def import_glb(filepath: str) -> list[bpy.types.Object]:
+def import_mesh(filepath: str) -> list[bpy.types.Object]:
     """
-    Import a GLB file preserving original transforms.
+    Import a mesh file preserving original transforms.
 
     Args:
-        filepath: Path to the GLB file.
+        filepath: Path to the mesh file (.glb/.gltf/.ply).
 
     Returns:
         List of imported objects.
 
     Raises:
-        FileNotFoundError: If the GLB file doesn't exist.
+        FileNotFoundError: If the file doesn't exist.
     """
     if not os.path.exists(filepath):
-        raise FileNotFoundError(f"GLB file not found: {filepath}")
+        raise FileNotFoundError(f"Mesh file not found: {filepath}")
 
     existing = set(bpy.data.objects)
-    bpy.ops.import_scene.gltf(filepath=filepath)
+    ext = Path(filepath).suffix.lower()
+    if ext in {".glb", ".gltf"}:
+        bpy.ops.import_scene.gltf(filepath=filepath)
+    elif ext == ".ply":
+        imported = False
+        exceptions: list[Exception] = []
+        for importer in (
+            lambda p: bpy.ops.import_mesh.ply(filepath=p),
+            lambda p: bpy.ops.wm.ply_import(filepath=p),
+        ):
+            try:
+                importer(filepath)
+                imported = True
+                break
+            except Exception as exc:
+                exceptions.append(exc)
+        if not imported:
+            raise RuntimeError(
+                "Failed to import .ply mesh. Ensure PLY import operator is available."
+            ) from exceptions[-1]
+    else:
+        raise ValueError(f"Unsupported mesh format: {ext}")
+
     new_objects = [obj for obj in bpy.data.objects if obj not in existing]
 
     print("\n=== Imported Objects ===")
@@ -114,6 +333,20 @@ def import_glb(filepath: str) -> list[bpy.types.Object]:
             print(f"  {obj.name}: loc=({loc.x:.4f}, {loc.y:.4f}, {loc.z:.4f})")
 
     return new_objects
+
+
+def apply_opencv_to_blender_transform(objects: list[bpy.types.Object]) -> None:
+    """
+    Convert imported objects from OpenCV to Blender coordinates.
+
+    OpenCV camera coords: +X right, +Y down, +Z forward
+    Blender world coords: +X right, +Y forward, +Z up
+    """
+    cv_to_blender = Matrix.Rotation(math.radians(-90.0), 4, "X")
+    for obj in objects:
+        obj.matrix_world = cv_to_blender @ obj.matrix_world
+
+    bpy.context.view_layer.update()
 
 
 def setup_vertex_color_materials(objects: list[bpy.types.Object]) -> None:
@@ -360,19 +593,21 @@ def calculate_camera_params(
     return distance, tuple(center)
 
 
-def spherical_to_cartesian(
-    azimuth_deg: float, elevation_deg: float, radius: float
+def orbit_angles_to_cartesian(
+    orbit_angle_deg: float, height_angle_deg: float, radius: float
 ) -> tuple[float, float, float]:
     """
-    Convert spherical to Cartesian coordinates.
+    Convert orbit+height angles to Cartesian coordinates.
 
-    Convention: azimuth 0° = +X, 90° = +Y; elevation 0° = XY plane, 90° = +Z.
+    orbit_angle_deg: rotation around world Z axis (horizontal orbit)
+    height_angle_deg: vertical camera angle above/below horizon
     """
-    az = math.radians(azimuth_deg)
-    el = math.radians(elevation_deg)
+    az = math.radians(orbit_angle_deg)
+    el = math.radians(height_angle_deg)
+    radius_xy = radius * math.cos(el)
     return (
-        radius * math.cos(el) * math.cos(az),
-        radius * math.cos(el) * math.sin(az),
+        radius_xy * math.cos(az),
+        radius_xy * math.sin(az),
         radius * math.sin(el),
     )
 
@@ -388,13 +623,13 @@ def create_camera() -> bpy.types.Object:
 
 def position_camera(
     camera: bpy.types.Object,
-    azimuth: float,
-    elevation: float,
+    orbit_angle: float,
+    height_angle: float,
     distance: float,
     target: tuple[float, float, float],
 ) -> None:
     """Position camera on a sphere looking at target."""
-    offset = Vector(spherical_to_cartesian(azimuth, elevation, distance))
+    offset = Vector(orbit_angles_to_cartesian(orbit_angle, height_angle, distance))
     cam_pos = offset + Vector(target)
 
     # Compute look-at matrix
@@ -452,16 +687,19 @@ def get_camera_matrices(camera: bpy.types.Object, resolution: int) -> dict:
 
 
 def setup_lighting() -> None:
-    """Configure three-point lighting."""
+    """Configure balanced studio-like lighting."""
     lights = [
-        ("KeyLight", "SUN", 2.0, (5, -5, 8), (45, 15, 45)),
-        ("FillLight", "SUN", 1.5, (-5, 5, 4), (60, -15, -45)),
-        ("RimLight", "SUN", 2.0, (0, 5, 6), (30, 0, 180)),
+        # name, energy, location, rotation_deg, RGB color
+        ("KeyLight", 3.0, (5, -5, 8), (45, 10, 40), (1.00, 0.96, 0.90)),
+        ("FillLight", 1.8, (-6, 4, 5), (55, -20, -35), (0.90, 0.95, 1.00)),
+        ("RimLight", 2.2, (0, 6, 7), (35, 0, 180), (1.00, 1.00, 1.00)),
     ]
 
-    for name, light_type, energy, location, rotation_deg in lights:
-        light_data = bpy.data.lights.new(name=name, type=light_type)
+    for name, energy, location, rotation_deg, color in lights:
+        light_data = bpy.data.lights.new(name=name, type="SUN")
         light_data.energy = energy
+        light_data.color = color
+        light_data.angle = math.radians(6.0)  # soften shadows for less harsh contrast
         light_obj = bpy.data.objects.new(name, light_data)
         bpy.context.scene.collection.objects.link(light_obj)
         light_obj.location = location
@@ -505,14 +743,17 @@ def setup_render_settings(
 
     scene.render.film_transparent = transparent
 
-    if not transparent:
-        _setup_background()
+    # Keep world lighting enabled even with transparent film, so RGB remains well-lit.
+    _setup_background()
+
+    # Slightly brighter photographic look without overexposure.
+    scene.view_settings.exposure = 0.35
 
     scene.use_nodes = True
 
 
 def _setup_background() -> None:
-    """Set up gray world background."""
+    """Set up soft sky-like world lighting."""
     scene = bpy.context.scene
     world = bpy.data.worlds.get("World") or bpy.data.worlds.new("World")
     scene.world = world
@@ -520,7 +761,9 @@ def _setup_background() -> None:
 
     bg_node = world.node_tree.nodes.get("Background")
     if bg_node:
-        bg_node.inputs["Color"].default_value = (0.5, 0.5, 0.5, 1.0)
+        bg_node.inputs["Color"].default_value = (0.62, 0.66, 0.72, 1.0)
+        if "Strength" in bg_node.inputs:
+            bg_node.inputs["Strength"].default_value = 0.65
 
 
 def _find_aov_socket(
@@ -561,9 +804,9 @@ def setup_compositor(output_dir: str, view_name: str) -> None:
     # Color correction
     cc = tree.nodes.new(type="CompositorNodeColorCorrection")
     cc.location = (200, 0)
-    cc.master_saturation = 1.05
-    cc.master_contrast = 1.05
-    cc.master_gain = 0.95
+    cc.master_saturation = 1.0
+    cc.master_contrast = 1.02
+    cc.master_gain = 1.0
     tree.links.new(rl.outputs["Image"], cc.inputs["Image"])
 
     # Composite output (RGB)
@@ -589,8 +832,8 @@ def setup_compositor(output_dir: str, view_name: str) -> None:
 
 def render_view(
     camera: bpy.types.Object,
-    azimuth: float,
-    elevation: float,
+    orbit_angle: float,
+    height_angle: float,
     distance: float,
     target: tuple[float, float, float],
     output_dir: str,
@@ -603,7 +846,7 @@ def render_view(
     Returns:
         Dictionary with camera matrices and file paths.
     """
-    position_camera(camera, azimuth, elevation, distance, target)
+    position_camera(camera, orbit_angle, height_angle, distance, target)
     bpy.context.view_layer.update()
 
     # Setup output paths
@@ -617,8 +860,13 @@ def render_view(
     # Collect camera info
     camera_info = get_camera_matrices(camera, resolution)
     camera_info.update({
-        "azimuth_deg": azimuth,
-        "elevation_deg": elevation,
+        "orbit_angle_deg": orbit_angle,
+        "height_angle_deg": height_angle,
+        "y_angle_deg": orbit_angle,
+        "z_angle_deg": height_angle,
+        # Backward compatibility with existing keys.
+        "azimuth_deg": orbit_angle,
+        "elevation_deg": height_angle,
         "target": list(target),
         "distance": distance,
         "image_path": f"rgb/{view_name}.png",
@@ -650,11 +898,11 @@ def render_all_views(
         "views": [],
     }
 
-    for elevation in ELEVATIONS:
-        for azimuth in AZIMUTHS:
-            view_name = f"az{azimuth:03d}_el{elevation:+03d}"
+    for height_angle in HEIGHT_ANGLES_DEG:
+        for orbit_angle in ORBIT_ANGLES_DEG:
+            view_name = f"az{orbit_angle:03d}_el{height_angle:+03d}"
             camera_info = render_view(
-                camera, azimuth, elevation, distance, target,
+                camera, orbit_angle, height_angle, distance, target,
                 output_dir, view_name, resolution
             )
             result["views"].append(camera_info)
@@ -662,36 +910,29 @@ def render_all_views(
     return result
 
 
-def main() -> None:
-    """Main entry point."""
-    args = parse_arguments()
-
-    input_path = Path(args.input).resolve()
-    if not input_path.exists():
-        print(f"Error: Input file not found: {input_path}")
-        sys.exit(1)
-
-    object_dir = input_path.parent
-    mesh_name = object_dir.name
-
-    output_dir = (
-        Path(args.output_dir).resolve()
-        if args.output_dir
-        else object_dir / "renders"
-    )
+def render_single_object(
+    *,
+    mesh_path: Path,
+    object_name: str,
+    object_slug: str,
+    output_dir: Path,
+    args: argparse.Namespace,
+) -> dict:
+    """Render all configured views for one object mesh."""
     output_dir.mkdir(parents=True, exist_ok=True)
-
-    print(f"\n{'=' * 60}")
-    print(f"Input: {input_path}")
-    print(f"Output: {output_dir}")
-    print(f"Resolution: {args.resolution}x{args.resolution}")
-    print(f"Samples: {args.samples}")
-    print(f"{'=' * 60}")
 
     # Setup scene
     clear_scene()
-    imported = import_glb(str(input_path))
-    print(f"Imported {len(imported)} objects")
+    imported = import_mesh(str(mesh_path))
+    mesh_objects = [obj for obj in imported if obj.type == "MESH"]
+    if not mesh_objects:
+        raise RuntimeError(f"No mesh objects imported from: {mesh_path}")
+
+    if mesh_path.suffix.lower() == ".ply":
+        # Aligned PLY meshes are in OpenCV camera coordinates; convert once to Blender axes.
+        apply_opencv_to_blender_transform(mesh_objects)
+
+    print(f"Imported {len(imported)} objects ({len(mesh_objects)} meshes)")
 
     print("\n=== Setting up materials ===")
     setup_vertex_color_materials(imported)
@@ -702,7 +943,7 @@ def main() -> None:
 
     # Calculate camera parameters
     auto_dist, center = calculate_camera_params(imported)
-    cam_dist = args.camera_distance or auto_dist
+    cam_dist = args.camera_distance if args.camera_distance is not None else auto_dist
 
     print("\n=== Scene Info ===")
     print(f"Center: ({center[0]:.4f}, {center[1]:.4f}, {center[2]:.4f})")
@@ -714,22 +955,157 @@ def main() -> None:
     camera = create_camera()
 
     # Render
-    print(f"\n=== Rendering {len(AZIMUTHS) * len(ELEVATIONS)} views ===")
+    n_views = len(ORBIT_ANGLES_DEG) * len(HEIGHT_ANGLES_DEG)
+    print(f"\n=== Rendering {n_views} views ===")
     camera_data = render_all_views(
-        camera, cam_dist, center, str(output_dir), mesh_name, args.resolution
+        camera,
+        cam_dist,
+        center,
+        str(output_dir),
+        object_slug,
+        args.resolution,
     )
+    camera_data["object_name"] = object_name
+    camera_data["object_slug"] = object_slug
+    camera_data["source_mesh_path"] = str(mesh_path)
 
-    # Save metadata
+    # Save per-object metadata
     cameras_path = output_dir / "cameras.json"
-    with open(cameras_path, "w") as f:
+    with cameras_path.open("w", encoding="utf-8") as f:
         json.dump(camera_data, f, indent=2)
 
     print(f"\n{'=' * 60}")
-    print("Completed!")
+    print(f"Completed object: {object_name} ({object_slug})")
     print(f"  RGB: {output_dir}/rgb/")
     print(f"  Face IDs: {output_dir}/face_id/")
     print(f"  Cameras: {cameras_path}")
     print(f"{'=' * 60}\n")
+
+    return {
+        "name": object_name,
+        "slug": object_slug,
+        "mesh_path": str(mesh_path),
+        "output_dir": str(output_dir),
+        "views_rendered": n_views,
+        "cameras_json": str(cameras_path),
+    }
+
+
+def main() -> None:
+    """Main entry point."""
+    args = parse_arguments()
+    script_dir = Path(__file__).resolve().parent
+
+    aligned_dir, output_video_dir = resolve_default_dirs(args, script_dir)
+    pag_path = resolve_pag_path(args, script_dir)
+    output_video_dir.mkdir(parents=True, exist_ok=True)
+
+    if not aligned_dir.exists():
+        raise NotADirectoryError(f"Aligned mesh dir not found: {aligned_dir}")
+    meshes_dir = (aligned_dir / "meshes").resolve()
+    if not meshes_dir.exists():
+        raise NotADirectoryError(f"Aligned meshes dir not found: {meshes_dir}")
+
+    pag_objects = load_pag_objects_from_states_only(pag_path)
+    meshes_by_name, meshes_by_slug = build_aligned_mesh_index(aligned_dir)
+
+    print(f"\n{'=' * 60}")
+    print("render_views_blender.py — PAG object batch renderer")
+    print(f"  video:     {args.video_name}")
+    print(f"  aligned:   {aligned_dir}")
+    print(f"  pag:       {pag_path.name} ({len(pag_objects)} objects)")
+    print(f"  out_root:  {output_video_dir}")
+    print(f"  resolution:{args.resolution}x{args.resolution}")
+    print(f"  samples:   {args.samples}")
+    print(f"{'=' * 60}")
+
+    summary: dict[str, object] = {
+        "video_name": args.video_name,
+        "status": "completed",
+        "script": "render_views_blender.py",
+        "inputs": {
+            "aligned_mesh_video_dir": str(aligned_dir),
+            "pag_file": str(pag_path),
+            "output_video_dir": str(output_video_dir),
+        },
+        "render_settings": {
+            "resolution": int(args.resolution),
+            "camera_distance_override": (
+                None if args.camera_distance is None else float(args.camera_distance)
+            ),
+            "transparent": bool(args.transparent),
+            "samples": int(args.samples),
+            "orbit_angles_deg": list(ORBIT_ANGLES_DEG),
+            "height_angles_deg": list(HEIGHT_ANGLES_DEG),
+            "y_axis_angles_deg": list(ORBIT_ANGLES_DEG),
+            "z_axis_angles_deg": list(HEIGHT_ANGLES_DEG),
+            # Backward compatibility with previous naming.
+            "azimuths_deg": list(ORBIT_ANGLES_DEG),
+            "elevations_deg": list(HEIGHT_ANGLES_DEG),
+            "views_per_object": int(len(ORBIT_ANGLES_DEG) * len(HEIGHT_ANGLES_DEG)),
+        },
+        "objects_from_pag_states": [
+            {"name": name, "slug": slug} for name, slug in pag_objects
+        ],
+        "objects_processed": [],
+        "objects_skipped": [],
+        "objects_failed": [],
+    }
+
+    for object_name, object_slug in pag_objects:
+        mesh_path = resolve_object_mesh_path(
+            object_name=object_name,
+            object_slug=object_slug,
+            aligned_dir=aligned_dir,
+            meshes_by_name=meshes_by_name,
+            meshes_by_slug=meshes_by_slug,
+        )
+
+        if mesh_path is None:
+            reason = f"No aligned mesh found in {meshes_dir} for object '{object_name}' ({object_slug})"
+            print(f"\n[SKIP] {object_slug}: {reason}")
+            summary["objects_skipped"].append(
+                {"name": object_name, "slug": object_slug, "reason": reason}
+            )
+            continue
+
+        object_out_dir = (output_video_dir / object_slug).resolve()
+        render_out_dir = (object_out_dir / "renders").resolve()
+
+        print(f"\n{'─' * 50}")
+        print(f"[OBJECT] {object_name} ({object_slug})")
+        print(f"  mesh: {mesh_path}")
+        print(f"  out:  {render_out_dir}")
+        print(f"{'─' * 50}")
+
+        try:
+            obj_summary = render_single_object(
+                mesh_path=mesh_path,
+                object_name=object_name,
+                object_slug=object_slug,
+                output_dir=render_out_dir,
+                args=args,
+            )
+            summary["objects_processed"].append(obj_summary)
+            print(f"[OK] {object_slug}")
+        except Exception as exc:
+            reason = f"{type(exc).__name__}: {exc}"
+            print(f"[FAIL] {object_slug}: {reason}")
+            traceback.print_exc()
+            summary["objects_failed"].append(
+                {"name": object_name, "slug": object_slug, "reason": reason}
+            )
+
+    run_summary_path = output_video_dir / "run_summary.json"
+    with run_summary_path.open("w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2)
+
+    print(f"\n{'=' * 60}")
+    print(f"Done. Summary: {run_summary_path}")
+    print(f"  processed: {len(summary['objects_processed'])}")
+    print(f"  skipped:   {len(summary['objects_skipped'])}")
+    print(f"  failed:    {len(summary['objects_failed'])}")
+    print(f"{'=' * 60}")
 
 
 if __name__ == "__main__":
