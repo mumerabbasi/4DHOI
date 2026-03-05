@@ -42,7 +42,7 @@
     ]
   },
   "device": "cuda",
-  "output_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_claude/video_01",
+  "output_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01",
   "objects_from_pag_states": [
     {
       "name": "iron",
@@ -99,16 +99,16 @@
       "final_sum_weight": 116133.0,
       "final_mean_reproj_px": 0.8504394888877869,
       "overlay_rendered": true,
-      "overlay_message": "Rendered overlays (306644 faces).",
-      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_claude/video_01/iron/debug/iter_metrics.csv",
-      "frame_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_claude/video_01/iron/debug/frame_metrics.csv",
+      "overlay_message": "Rendered overlays (306644 faces, 81 frames, save_pngs=True).",
+      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/iron/debug/iter_metrics.csv",
+      "frame_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/iron/debug/frame_metrics.csv",
       "loss_curve_pngs": {
-        "total": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_claude/video_01/iron/debug/loss_total.png",
-        "e_img": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_claude/video_01/iron/debug/loss_e_img.png",
-        "e_smooth": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_claude/video_01/iron/debug/loss_e_smooth.png",
-        "e_vel": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_claude/video_01/iron/debug/loss_e_vel.png"
+        "total": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/iron/debug/loss_total.png",
+        "e_img": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/iron/debug/loss_e_img.png",
+        "e_smooth": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/iron/debug/loss_e_smooth.png",
+        "e_vel": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/iron/debug/loss_e_vel.png"
       },
-      "elapsed_seconds": 264.422137260437,
+      "elapsed_seconds": 228.6172320842743,
       "convention_notes": {
         "coordinate_system": "OpenCV (X-right, Y-down, Z-forward)",
         "T_4x4_convention": "standard column-vector: [[R,t],[0,1]], p'=R@p+t",
@@ -160,16 +160,16 @@
       "final_sum_weight": 240451.0,
       "final_mean_reproj_px": 0.9290844202041626,
       "overlay_rendered": true,
-      "overlay_message": "Rendered overlays (321984 faces).",
-      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_claude/video_01/ironing_board/debug/iter_metrics.csv",
-      "frame_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_claude/video_01/ironing_board/debug/frame_metrics.csv",
+      "overlay_message": "Rendered overlays (321984 faces, 81 frames, save_pngs=True).",
+      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/ironing_board/debug/iter_metrics.csv",
+      "frame_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/ironing_board/debug/frame_metrics.csv",
       "loss_curve_pngs": {
-        "total": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_claude/video_01/ironing_board/debug/loss_total.png",
-        "e_img": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_claude/video_01/ironing_board/debug/loss_e_img.png",
-        "e_smooth": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_claude/video_01/ironing_board/debug/loss_e_smooth.png",
-        "e_vel": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_claude/video_01/ironing_board/debug/loss_e_vel.png"
+        "total": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/ironing_board/debug/loss_total.png",
+        "e_img": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/ironing_board/debug/loss_e_img.png",
+        "e_smooth": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/ironing_board/debug/loss_e_smooth.png",
+        "e_vel": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/ironing_board/debug/loss_e_vel.png"
       },
-      "elapsed_seconds": 263.83640480041504,
+      "elapsed_seconds": 201.49810552597046,
       "convention_notes": {
         "coordinate_system": "OpenCV (X-right, Y-down, Z-forward)",
         "T_4x4_convention": "standard column-vector: [[R,t],[0,1]], p'=R@p+t",
