@@ -378,56 +378,6 @@ def render_quality_overlay_from_cv_meshes(
     return out
 
 
-def draw_overlay_points(
-    frame_bgr: np.ndarray,
-    verts_cv_list: list[np.ndarray],
-    names: list[str],
-    k: np.ndarray,
-    max_points_per_mesh: int = 30000,
-) -> np.ndarray:
-    h, w = frame_bgr.shape[:2]
-    out = frame_bgr.copy()
-    palette = [
-        (0, 255, 0),
-        (0, 128, 255),
-        (255, 255, 0),
-        (255, 128, 0),
-        (255, 0, 255),
-        (0, 255, 255),
-    ]
-    for idx, (verts, name) in enumerate(zip(verts_cv_list, names)):
-        if len(verts) == 0:
-            continue
-        if max_points_per_mesh > 0 and len(verts) > max_points_per_mesh:
-            stride = max(1, int(len(verts) / max_points_per_mesh))
-            pts = verts[::stride]
-        else:
-            pts = verts
-        uv, valid = project_points_cv(pts, k)
-        uv_i = np.round(uv[valid]).astype(np.int32)
-        inb = (
-            (uv_i[:, 0] >= 0)
-            & (uv_i[:, 0] < w)
-            & (uv_i[:, 1] >= 0)
-            & (uv_i[:, 1] < h)
-        )
-        uv_i = uv_i[inb]
-        color = palette[idx % len(palette)]
-        for x, y in uv_i:
-            cv2.circle(out, (int(x), int(y)), 1, color, -1)
-        cv2.putText(
-            out,
-            name,
-            (12, 28 + 24 * idx),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            color,
-            2,
-            cv2.LINE_AA,
-        )
-    return out
-
-
 def colorize_points_by_xyz(points: np.ndarray) -> np.ndarray:
     if points.shape[0] == 0:
         return np.zeros((0, 3), dtype=np.uint8)
