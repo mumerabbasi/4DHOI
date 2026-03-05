@@ -82,7 +82,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--trail_length",
-        default=10,
+        default=0,
         type=int,
         help="Number of recent frames kept in track trails for visualization.",
     )
@@ -94,7 +94,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--vis_point_percent",
-        default=10,
+        default=5.0,
         type=float,
         help=(
             "Percentage of tracked points to visualize in trails.mp4. "
