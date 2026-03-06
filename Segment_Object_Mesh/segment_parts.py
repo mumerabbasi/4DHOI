@@ -692,7 +692,7 @@ def main():
     if not objects_video_dir.exists():
         raise NotADirectoryError(
             f"Objects directory not found: {objects_video_dir}. "
-            "Run render_views_blender.py first."
+            "Run render_object_views.py first."
         )
 
     print(f"\n{'=' * 60}")

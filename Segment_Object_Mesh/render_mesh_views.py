@@ -5,7 +5,7 @@ Renders RGB images and per-pixel face ID maps from multiple viewpoints.
 Face IDs are stored as raw float values in EXR format for exact integer recovery.
 
 Usage:
-    blender --background --python render_views_blender.py -- --video_name video_01
+    blender --background --python render_mesh_views.py -- --video_name video_01
 """
 
 import argparse
@@ -668,7 +668,7 @@ def get_camera_intrinsics(
 
 
 def get_camera_matrices(camera: bpy.types.Object, resolution: int) -> dict:
-    """Extract camera matrices for 3D-to-2D projection."""
+    """Extract only essential camera transforms/projection metadata."""
     c2w = camera.matrix_world.copy()
     w2c = c2w.inverted()
 
@@ -679,10 +679,6 @@ def get_camera_matrices(camera: bpy.types.Object, resolution: int) -> dict:
         "camera_to_world": to_list(c2w),
         "world_to_camera": to_list(w2c),
         "intrinsic_matrix": get_camera_intrinsics(camera, resolution),
-        "camera_position": list(camera.matrix_world.translation),
-        "resolution": [resolution, resolution],
-        "focal_length_mm": camera.data.lens,
-        "sensor_width_mm": camera.data.sensor_width,
     }
 
 
@@ -858,20 +854,12 @@ def render_view(
     setup_compositor(output_dir, view_name)
 
     # Collect camera info
-    camera_info = get_camera_matrices(camera, resolution)
-    camera_info.update({
-        "orbit_angle_deg": orbit_angle,
-        "height_angle_deg": height_angle,
-        "y_angle_deg": orbit_angle,
-        "z_angle_deg": height_angle,
-        # Backward compatibility with existing keys.
-        "azimuth_deg": orbit_angle,
-        "elevation_deg": height_angle,
-        "target": list(target),
-        "distance": distance,
+    camera_info = {
+        "view_name": view_name,
         "image_path": f"rgb/{view_name}.png",
         "face_id_path": f"face_id/{view_name}0001.exr",
-    })
+        **get_camera_matrices(camera, resolution),
+    }
 
     # Render
     bpy.context.scene.render.filepath = rgb_path
@@ -886,17 +874,10 @@ def render_all_views(
     distance: float,
     target: tuple[float, float, float],
     output_dir: str,
-    mesh_name: str,
     resolution: int,
 ) -> dict:
     """Render all configured views and collect camera metadata."""
-    result = {
-        "mesh_name": mesh_name,
-        "scene_center": list(target),
-        "camera_distance": distance,
-        "resolution": [resolution, resolution],
-        "views": [],
-    }
+    result = {"views": []}
 
     for height_angle in HEIGHT_ANGLES_DEG:
         for orbit_angle in ORBIT_ANGLES_DEG:
@@ -917,7 +898,7 @@ def render_single_object(
     object_slug: str,
     output_dir: Path,
     args: argparse.Namespace,
-) -> dict:
+) -> None:
     """Render all configured views for one object mesh."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -962,12 +943,12 @@ def render_single_object(
         cam_dist,
         center,
         str(output_dir),
-        object_slug,
         args.resolution,
     )
     camera_data["object_name"] = object_name
     camera_data["object_slug"] = object_slug
     camera_data["source_mesh_path"] = str(mesh_path)
+    camera_data["resolution"] = [args.resolution, args.resolution]
 
     # Save per-object metadata
     cameras_path = output_dir / "cameras.json"
@@ -981,14 +962,7 @@ def render_single_object(
     print(f"  Cameras: {cameras_path}")
     print(f"{'=' * 60}\n")
 
-    return {
-        "name": object_name,
-        "slug": object_slug,
-        "mesh_path": str(mesh_path),
-        "output_dir": str(output_dir),
-        "views_rendered": n_views,
-        "cameras_json": str(cameras_path),
-    }
+    return None
 
 
 def main() -> None:
@@ -1010,7 +984,7 @@ def main() -> None:
     meshes_by_name, meshes_by_slug = build_aligned_mesh_index(aligned_dir)
 
     print(f"\n{'=' * 60}")
-    print("render_views_blender.py — PAG object batch renderer")
+    print("render_object_views.py — PAG object batch renderer")
     print(f"  video:     {args.video_name}")
     print(f"  aligned:   {aligned_dir}")
     print(f"  pag:       {pag_path.name} ({len(pag_objects)} objects)")
@@ -1019,38 +993,9 @@ def main() -> None:
     print(f"  samples:   {args.samples}")
     print(f"{'=' * 60}")
 
-    summary: dict[str, object] = {
-        "video_name": args.video_name,
-        "status": "completed",
-        "script": "render_views_blender.py",
-        "inputs": {
-            "aligned_mesh_video_dir": str(aligned_dir),
-            "pag_file": str(pag_path),
-            "output_video_dir": str(output_video_dir),
-        },
-        "render_settings": {
-            "resolution": int(args.resolution),
-            "camera_distance_override": (
-                None if args.camera_distance is None else float(args.camera_distance)
-            ),
-            "transparent": bool(args.transparent),
-            "samples": int(args.samples),
-            "orbit_angles_deg": list(ORBIT_ANGLES_DEG),
-            "height_angles_deg": list(HEIGHT_ANGLES_DEG),
-            "y_axis_angles_deg": list(ORBIT_ANGLES_DEG),
-            "z_axis_angles_deg": list(HEIGHT_ANGLES_DEG),
-            # Backward compatibility with previous naming.
-            "azimuths_deg": list(ORBIT_ANGLES_DEG),
-            "elevations_deg": list(HEIGHT_ANGLES_DEG),
-            "views_per_object": int(len(ORBIT_ANGLES_DEG) * len(HEIGHT_ANGLES_DEG)),
-        },
-        "objects_from_pag_states": [
-            {"name": name, "slug": slug} for name, slug in pag_objects
-        ],
-        "objects_processed": [],
-        "objects_skipped": [],
-        "objects_failed": [],
-    }
+    processed_count = 0
+    skipped_count = 0
+    failed_count = 0
 
     for object_name, object_slug in pag_objects:
         mesh_path = resolve_object_mesh_path(
@@ -1064,9 +1009,7 @@ def main() -> None:
         if mesh_path is None:
             reason = f"No aligned mesh found in {meshes_dir} for object '{object_name}' ({object_slug})"
             print(f"\n[SKIP] {object_slug}: {reason}")
-            summary["objects_skipped"].append(
-                {"name": object_name, "slug": object_slug, "reason": reason}
-            )
+            skipped_count += 1
             continue
 
         object_out_dir = (output_video_dir / object_slug).resolve()
@@ -1079,32 +1022,26 @@ def main() -> None:
         print(f"{'─' * 50}")
 
         try:
-            obj_summary = render_single_object(
+            render_single_object(
                 mesh_path=mesh_path,
                 object_name=object_name,
                 object_slug=object_slug,
                 output_dir=render_out_dir,
                 args=args,
             )
-            summary["objects_processed"].append(obj_summary)
+            processed_count += 1
             print(f"[OK] {object_slug}")
         except Exception as exc:
             reason = f"{type(exc).__name__}: {exc}"
             print(f"[FAIL] {object_slug}: {reason}")
             traceback.print_exc()
-            summary["objects_failed"].append(
-                {"name": object_name, "slug": object_slug, "reason": reason}
-            )
-
-    run_summary_path = output_video_dir / "run_summary.json"
-    with run_summary_path.open("w", encoding="utf-8") as f:
-        json.dump(summary, f, indent=2)
+            failed_count += 1
 
     print(f"\n{'=' * 60}")
-    print(f"Done. Summary: {run_summary_path}")
-    print(f"  processed: {len(summary['objects_processed'])}")
-    print(f"  skipped:   {len(summary['objects_skipped'])}")
-    print(f"  failed:    {len(summary['objects_failed'])}")
+    print("Done.")
+    print(f"  processed: {processed_count}")
+    print(f"  skipped:   {skipped_count}")
+    print(f"  failed:    {failed_count}")
     print(f"{'=' * 60}")
 
 

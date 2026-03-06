@@ -1,17 +1,9 @@
 {
-  "mesh_name": "ironing_board",
-  "scene_center": [
-    0.3090031147003174,
-    2.0928640365600586,
-    -0.38976263999938965
-  ],
-  "camera_distance": 2.050391214610106,
-  "resolution": [
-    1024,
-    1024
-  ],
   "views": [
     {
+      "view_name": "az010_el+10",
+      "image_path": "rgb/az010_el+10.png",
+      "face_id_path": "face_id/az010_el+100001.exr",
       "camera_to_world": [
         [
           -0.1736479252576828,
@@ -80,34 +72,12 @@
           0.0,
           1.0
         ]
-      ],
-      "camera_position": [
-        2.297567367553711,
-        2.4435014724731445,
-        -0.03371593356132507
-      ],
-      "resolution": [
-        1024,
-        1024
-      ],
-      "focal_length_mm": 50.0,
-      "sensor_width_mm": 36.0,
-      "orbit_angle_deg": 10,
-      "height_angle_deg": 10,
-      "y_angle_deg": 10,
-      "z_angle_deg": 10,
-      "azimuth_deg": 10,
-      "elevation_deg": 10,
-      "target": [
-        0.3090031147003174,
-        2.0928640365600586,
-        -0.38976263999938965
-      ],
-      "distance": 2.050391214610106,
-      "image_path": "rgb/az010_el+10.png",
-      "face_id_path": "face_id/az010_el+100001.exr"
+      ]
     },
     {
+      "view_name": "az100_el+10",
+      "image_path": "rgb/az100_el+10.png",
+      "face_id_path": "face_id/az100_el+100001.exr",
       "camera_to_world": [
         [
           -0.9848076105117798,
@@ -176,34 +146,12 @@
           0.0,
           1.0
         ]
-      ],
-      "camera_position": [
-        -0.041634440422058105,
-        4.081428527832031,
-        -0.03371593356132507
-      ],
-      "resolution": [
-        1024,
-        1024
-      ],
-      "focal_length_mm": 50.0,
-      "sensor_width_mm": 36.0,
-      "orbit_angle_deg": 100,
-      "height_angle_deg": 10,
-      "y_angle_deg": 100,
-      "z_angle_deg": 10,
-      "azimuth_deg": 100,
-      "elevation_deg": 10,
-      "target": [
-        0.3090031147003174,
-        2.0928640365600586,
-        -0.38976263999938965
-      ],
-      "distance": 2.050391214610106,
-      "image_path": "rgb/az100_el+10.png",
-      "face_id_path": "face_id/az100_el+100001.exr"
+      ]
     },
     {
+      "view_name": "az190_el+10",
+      "image_path": "rgb/az190_el+10.png",
+      "face_id_path": "face_id/az190_el+100001.exr",
       "camera_to_world": [
         [
           0.17364820837974548,
@@ -272,34 +220,12 @@
           0.0,
           1.0
         ]
-      ],
-      "camera_position": [
-        -1.6795612573623657,
-        1.742226481437683,
-        -0.03371593356132507
-      ],
-      "resolution": [
-        1024,
-        1024
-      ],
-      "focal_length_mm": 50.0,
-      "sensor_width_mm": 36.0,
-      "orbit_angle_deg": 190,
-      "height_angle_deg": 10,
-      "y_angle_deg": 190,
-      "z_angle_deg": 10,
-      "azimuth_deg": 190,
-      "elevation_deg": 10,
-      "target": [
-        0.3090031147003174,
-        2.0928640365600586,
-        -0.38976263999938965
-      ],
-      "distance": 2.050391214610106,
-      "image_path": "rgb/az190_el+10.png",
-      "face_id_path": "face_id/az190_el+100001.exr"
+      ]
     },
     {
+      "view_name": "az280_el+10",
+      "image_path": "rgb/az280_el+10.png",
+      "face_id_path": "face_id/az280_el+100001.exr",
       "camera_to_world": [
         [
           0.9848076701164246,
@@ -368,34 +294,12 @@
           0.0,
           1.0
         ]
-      ],
-      "camera_position": [
-        0.6596406698226929,
-        0.10429966449737549,
-        -0.03371593356132507
-      ],
-      "resolution": [
-        1024,
-        1024
-      ],
-      "focal_length_mm": 50.0,
-      "sensor_width_mm": 36.0,
-      "orbit_angle_deg": 280,
-      "height_angle_deg": 10,
-      "y_angle_deg": 280,
-      "z_angle_deg": 10,
-      "azimuth_deg": 280,
-      "elevation_deg": 10,
-      "target": [
-        0.3090031147003174,
-        2.0928640365600586,
-        -0.38976263999938965
-      ],
-      "distance": 2.050391214610106,
-      "image_path": "rgb/az280_el+10.png",
-      "face_id_path": "face_id/az280_el+100001.exr"
+      ]
     },
     {
+      "view_name": "az010_el+30",
+      "image_path": "rgb/az010_el+30.png",
+      "face_id_path": "face_id/az010_el+300001.exr",
       "camera_to_world": [
         [
           -0.17364820837974548,
@@ -464,34 +368,12 @@
           0.0,
           1.0
         ]
-      ],
-      "camera_position": [
-        2.0577173233032227,
-        2.401209592819214,
-        0.6354329586029053
-      ],
-      "resolution": [
-        1024,
-        1024
-      ],
-      "focal_length_mm": 50.0,
-      "sensor_width_mm": 36.0,
-      "orbit_angle_deg": 10,
-      "height_angle_deg": 30,
-      "y_angle_deg": 10,
-      "z_angle_deg": 30,
-      "azimuth_deg": 10,
-      "elevation_deg": 30,
-      "target": [
-        0.3090031147003174,
-        2.0928640365600586,
-        -0.38976263999938965
-      ],
-      "distance": 2.050391214610106,
-      "image_path": "rgb/az010_el+30.png",
-      "face_id_path": "face_id/az010_el+300001.exr"
+      ]
     },
     {
+      "view_name": "az100_el+30",
+      "image_path": "rgb/az100_el+30.png",
+      "face_id_path": "face_id/az100_el+300001.exr",
       "camera_to_world": [
         [
           -0.9848082065582275,
@@ -560,34 +442,12 @@
           0.0,
           1.0
         ]
-      ],
-      "camera_position": [
-        0.0006576180458068848,
-        3.8415780067443848,
-        0.6354329586029053
-      ],
-      "resolution": [
-        1024,
-        1024
-      ],
-      "focal_length_mm": 50.0,
-      "sensor_width_mm": 36.0,
-      "orbit_angle_deg": 100,
-      "height_angle_deg": 30,
-      "y_angle_deg": 100,
-      "z_angle_deg": 30,
-      "azimuth_deg": 100,
-      "elevation_deg": 30,
-      "target": [
-        0.3090031147003174,
-        2.0928640365600586,
-        -0.38976263999938965
-      ],
-      "distance": 2.050391214610106,
-      "image_path": "rgb/az100_el+30.png",
-      "face_id_path": "face_id/az100_el+300001.exr"
+      ]
     },
     {
+      "view_name": "az190_el+30",
+      "image_path": "rgb/az190_el+30.png",
+      "face_id_path": "face_id/az190_el+300001.exr",
       "camera_to_world": [
         [
           0.17364832758903503,
@@ -656,34 +516,12 @@
           0.0,
           1.0
         ]
-      ],
-      "camera_position": [
-        -1.4397109746932983,
-        1.7845184803009033,
-        0.6354329586029053
-      ],
-      "resolution": [
-        1024,
-        1024
-      ],
-      "focal_length_mm": 50.0,
-      "sensor_width_mm": 36.0,
-      "orbit_angle_deg": 190,
-      "height_angle_deg": 30,
-      "y_angle_deg": 190,
-      "z_angle_deg": 30,
-      "azimuth_deg": 190,
-      "elevation_deg": 30,
-      "target": [
-        0.3090031147003174,
-        2.0928640365600586,
-        -0.38976263999938965
-      ],
-      "distance": 2.050391214610106,
-      "image_path": "rgb/az190_el+30.png",
-      "face_id_path": "face_id/az190_el+300001.exr"
+      ]
     },
     {
+      "view_name": "az280_el+30",
+      "image_path": "rgb/az280_el+30.png",
+      "face_id_path": "face_id/az280_el+300001.exr",
       "camera_to_world": [
         [
           0.9848076701164246,
@@ -752,34 +590,12 @@
           0.0,
           1.0
         ]
-      ],
-      "camera_position": [
-        0.6173486113548279,
-        0.34414994716644287,
-        0.6354329586029053
-      ],
-      "resolution": [
-        1024,
-        1024
-      ],
-      "focal_length_mm": 50.0,
-      "sensor_width_mm": 36.0,
-      "orbit_angle_deg": 280,
-      "height_angle_deg": 30,
-      "y_angle_deg": 280,
-      "z_angle_deg": 30,
-      "azimuth_deg": 280,
-      "elevation_deg": 30,
-      "target": [
-        0.3090031147003174,
-        2.0928640365600586,
-        -0.38976263999938965
-      ],
-      "distance": 2.050391214610106,
-      "image_path": "rgb/az280_el+30.png",
-      "face_id_path": "face_id/az280_el+300001.exr"
+      ]
     },
     {
+      "view_name": "az010_el-15",
+      "image_path": "rgb/az010_el-15.png",
+      "face_id_path": "face_id/az010_el-150001.exr",
       "camera_to_world": [
         [
           -0.17364834249019623,
@@ -848,34 +664,12 @@
           0.0,
           1.0
         ]
-      ],
-      "camera_position": [
-        2.2594404220581055,
-        2.4367787837982178,
-        -0.9204429388046265
-      ],
-      "resolution": [
-        1024,
-        1024
-      ],
-      "focal_length_mm": 50.0,
-      "sensor_width_mm": 36.0,
-      "orbit_angle_deg": 10,
-      "height_angle_deg": -15,
-      "y_angle_deg": 10,
-      "z_angle_deg": -15,
-      "azimuth_deg": 10,
-      "elevation_deg": -15,
-      "target": [
-        0.3090031147003174,
-        2.0928640365600586,
-        -0.38976263999938965
-      ],
-      "distance": 2.050391214610106,
-      "image_path": "rgb/az010_el-15.png",
-      "face_id_path": "face_id/az010_el-150001.exr"
+      ]
     },
     {
+      "view_name": "az100_el-15",
+      "image_path": "rgb/az100_el-15.png",
+      "face_id_path": "face_id/az100_el-150001.exr",
       "camera_to_world": [
         [
           -0.9848080277442932,
@@ -944,34 +738,12 @@
           0.0,
           1.0
         ]
-      ],
-      "camera_position": [
-        -0.03491157293319702,
-        4.043301105499268,
-        -0.9204429388046265
-      ],
-      "resolution": [
-        1024,
-        1024
-      ],
-      "focal_length_mm": 50.0,
-      "sensor_width_mm": 36.0,
-      "orbit_angle_deg": 100,
-      "height_angle_deg": -15,
-      "y_angle_deg": 100,
-      "z_angle_deg": -15,
-      "azimuth_deg": 100,
-      "elevation_deg": -15,
-      "target": [
-        0.3090031147003174,
-        2.0928640365600586,
-        -0.38976263999938965
-      ],
-      "distance": 2.050391214610106,
-      "image_path": "rgb/az100_el-15.png",
-      "face_id_path": "face_id/az100_el-150001.exr"
+      ]
     },
     {
+      "view_name": "az190_el-15",
+      "image_path": "rgb/az190_el-15.png",
+      "face_id_path": "face_id/az190_el-150001.exr",
       "camera_to_world": [
         [
           0.17364798486232758,
@@ -1040,34 +812,12 @@
           0.0,
           1.0
         ]
-      ],
-      "camera_position": [
-        -1.6414340734481812,
-        1.7489492893218994,
-        -0.9204429388046265
-      ],
-      "resolution": [
-        1024,
-        1024
-      ],
-      "focal_length_mm": 50.0,
-      "sensor_width_mm": 36.0,
-      "orbit_angle_deg": 190,
-      "height_angle_deg": -15,
-      "y_angle_deg": 190,
-      "z_angle_deg": -15,
-      "azimuth_deg": 190,
-      "elevation_deg": -15,
-      "target": [
-        0.3090031147003174,
-        2.0928640365600586,
-        -0.38976263999938965
-      ],
-      "distance": 2.050391214610106,
-      "image_path": "rgb/az190_el-15.png",
-      "face_id_path": "face_id/az190_el-150001.exr"
+      ]
     },
     {
+      "view_name": "az280_el-15",
+      "image_path": "rgb/az280_el-15.png",
+      "face_id_path": "face_id/az280_el-150001.exr",
       "camera_to_world": [
         [
           0.9848076701164246,
@@ -1136,35 +886,14 @@
           0.0,
           1.0
         ]
-      ],
-      "camera_position": [
-        0.6529178023338318,
-        0.14242684841156006,
-        -0.9204429388046265
-      ],
-      "resolution": [
-        1024,
-        1024
-      ],
-      "focal_length_mm": 50.0,
-      "sensor_width_mm": 36.0,
-      "orbit_angle_deg": 280,
-      "height_angle_deg": -15,
-      "y_angle_deg": 280,
-      "z_angle_deg": -15,
-      "azimuth_deg": 280,
-      "elevation_deg": -15,
-      "target": [
-        0.3090031147003174,
-        2.0928640365600586,
-        -0.38976263999938965
-      ],
-      "distance": 2.050391214610106,
-      "image_path": "rgb/az280_el-15.png",
-      "face_id_path": "face_id/az280_el-150001.exr"
+      ]
     }
   ],
   "object_name": "ironing board",
   "object_slug": "ironing_board",
-  "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/meshes/ironing_board.ply"
+  "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/meshes/ironing_board.ply",
+  "resolution": [
+    1024,
+    1024
+  ]
 }
