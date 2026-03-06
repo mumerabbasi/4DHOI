@@ -7,7 +7,7 @@
       "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_02/output_plys/frame_0000.ply",
       "source_coordinate": "opencv_camera",
       "output_coordinate": "opencv",
-      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_scale_txyz_chamfer_visible_bidir/video_02/meshes/human.ply",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/meshes/human.ply",
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
@@ -64,7 +64,7 @@
       "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/dumbbell_(left_hand)/mesh_posed.ply",
       "source_coordinate": "pytorch3d_camera",
       "output_coordinate": "opencv",
-      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_scale_txyz_chamfer_visible_bidir/video_02/meshes/dumbbell_(left_hand).ply",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/meshes/dumbbell_(left_hand).ply",
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
@@ -121,21 +121,21 @@
       "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/dumbbell_(right_hand)/mesh_posed.ply",
       "source_coordinate": "pytorch3d_camera",
       "output_coordinate": "opencv",
-      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_scale_txyz_chamfer_visible_bidir/video_02/meshes/dumbbell_(right_hand).ply",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/meshes/dumbbell_(right_hand).ply",
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_alpha": 0.711529016494751,
-        "scale_exp_alpha": 2.037103643669051,
+        "log_scale_alpha": 0.5867706537246704,
+        "scale_exp_alpha": 1.7981721086168718,
         "tx_init_m": 0.0,
         "ty_init_m": 0.0,
         "tz_init_m": 0.0,
-        "delta_tx_m": -0.04945312440395355,
-        "delta_ty_m": -0.2785772979259491,
-        "delta_tz_m": 0.7942781448364258,
-        "tx_total_m": -0.04945312440395355,
-        "ty_total_m": -0.2785772979259491,
-        "tz_total_m": 0.7942781448364258,
+        "delta_tx_m": -0.07186069339513779,
+        "delta_ty_m": -0.39472752809524536,
+        "delta_tz_m": 1.1316132545471191,
+        "tx_total_m": -0.07186069339513779,
+        "ty_total_m": -0.39472752809524536,
+        "tz_total_m": 1.1316132545471191,
         "obs_3d_count": 1563,
         "obs_2d_count": 1563,
         "model_sample_count": 4096,
@@ -146,22 +146,22 @@
       },
       "source_to_output_matrix_4x4": [
         [
-          -2.0371036529541016,
+          -1.798172116279602,
           0.0,
           0.0,
-          -0.04945312440395355
+          -0.07186069339513779
         ],
         [
           0.0,
-          -2.0371036529541016,
+          -1.798172116279602,
           0.0,
-          -0.2785772979259491
+          -0.39472752809524536
         ],
         [
           0.0,
           0.0,
-          2.0371036529541016,
-          0.7942781448364258
+          1.798172116279602,
+          1.1316132545471191
         ],
         [
           0.0,

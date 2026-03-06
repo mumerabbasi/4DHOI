@@ -7,7 +7,7 @@
       "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Human_Motion/output/video_03/output_plys/frame_0000.ply",
       "source_coordinate": "opencv_camera",
       "output_coordinate": "opencv",
-      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_scale_txyz_chamfer_visible_bidir/video_03/meshes/human.ply",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03/meshes/human.ply",
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
@@ -64,7 +64,7 @@
       "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_03/umbrella/mesh_posed.ply",
       "source_coordinate": "pytorch3d_camera",
       "output_coordinate": "opencv",
-      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output_scale_txyz_chamfer_visible_bidir/video_03/meshes/umbrella.ply",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03/meshes/umbrella.ply",
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
