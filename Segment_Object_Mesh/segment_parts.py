@@ -221,11 +221,18 @@ def detect_parts_qwen(
         return {p: None for p in parts}
 
 
-def _clamp_bbox(bbox: list[int], w: int, h: int) -> list[int] | None:
-    x1 = max(0, min(bbox[0], w - 1))
-    y1 = max(0, min(bbox[1], h - 1))
-    x2 = max(x1 + 1, min(bbox[2], w))
-    y2 = max(y1 + 1, min(bbox[3], h))
+def _clamp_bbox(bbox: list[int] | tuple[int, ...] | None, w: int, h: int) -> list[int] | None:
+    if bbox is None or len(bbox) != 4:
+        return None
+    try:
+        x1_raw, y1_raw, x2_raw, y2_raw = [int(v) for v in bbox]
+    except (TypeError, ValueError):
+        return None
+
+    x1 = max(0, min(x1_raw, w - 1))
+    y1 = max(0, min(y1_raw, h - 1))
+    x2 = max(x1 + 1, min(x2_raw, w))
+    y2 = max(y1 + 1, min(y2_raw, h))
     if x2 - x1 < 2 or y2 - y1 < 2:
         return None
     return [x1, y1, x2, y2]
@@ -260,7 +267,7 @@ def segment_with_box(
         print("        predict_inst returned empty masks")
         return np.zeros((h, w), dtype=np.uint8)
 
-    print(f"        masks.shape={masks.shape} dtype={masks.dtype}")
+    print(f"        masks.shape={masks.shape}")
 
     # For single-mask mode this is usually (1, H, W) or (H, W).
     if masks.ndim == 3:
@@ -370,6 +377,7 @@ def process_object(
     qwen_client: OpenAI,
     qwen_model: str,
     sam3: dict,
+    qwen_retries: int,
 ) -> dict:
     renders_dir = object_dir / "renders"
     rgb_dir = renders_dir / "rgb"
@@ -389,6 +397,8 @@ def process_object(
     print(f"\n  Processing {object_name}: parts={parts}, views={len(image_files)}")
     results = {"object_name": object_name, "parts": parts, "views": []}
 
+    qwen_retries = max(0, qwen_retries)
+
     for img_path in image_files:
         print(f"\n    View: {img_path.name}")
         image_bgr = cv2.imread(str(img_path))
@@ -403,17 +413,31 @@ def process_object(
         all_masks: dict[str, np.ndarray | None] = {}
         all_bboxes: dict[str, list[int] | None] = {}
 
-        # Detect all parts with Qwen-VL
-        print("      Detecting parts with Qwen-VL ...")
-        qwen_boxes = detect_parts_qwen(
-            qwen_client,
-            qwen_model,
-            str(img_path),
-            parts,
-            object_name,
-            w,
-            h,
-        )
+        # Detect all parts with Qwen-VL, retrying if no valid boxes are returned.
+        max_attempts = qwen_retries + 1
+        qwen_boxes = {p: None for p in parts}
+        for attempt in range(1, max_attempts + 1):
+            retry_idx = attempt - 1
+            if retry_idx == 0:
+                print("      Detecting parts with Qwen-VL ...")
+            else:
+                print(f"      Retrying Qwen-VL ({retry_idx}/{qwen_retries}) ...")
+
+            qwen_boxes = detect_parts_qwen(
+                qwen_client,
+                qwen_model,
+                str(img_path),
+                parts,
+                object_name,
+                w,
+                h,
+            )
+            if any(_clamp_bbox(qwen_boxes.get(part), w, h) is not None for part in parts):
+                break
+            if attempt < max_attempts:
+                print("      No parts detected, retrying Qwen-VL ...")
+            else:
+                print("      No parts detected after Qwen-VL retries.")
 
         for part in parts:
             raw_bbox = qwen_boxes.get(part)
@@ -475,6 +499,7 @@ def main():
     parser.add_argument("--ollama_host", type=str, default=OLLAMA_HOST)
     parser.add_argument("--ollama_api_key", type=str, default=OLLAMA_API_KEY)
     parser.add_argument("--qwen_model", type=str, default=QWEN_MODEL)
+    parser.add_argument("--qwen_retries", type=int, default=3)
     parser.add_argument("--sam3_checkpoint", type=str, default=SAM3_CHECKPOINT)
     parser.add_argument("--sam3_bpe_path", type=str, default=SAM3_BPE_PATH)
     args = parser.parse_args()
@@ -499,6 +524,7 @@ def main():
     print(f"  pag:     {pag_path}")
     print(f"  ollama:  {args.ollama_host}")
     print(f"  model:   {args.qwen_model}")
+    print(f"  retries: {args.qwen_retries}")
     print(f"  objects: {objects_video_dir}")
     for name, parts in objects_parts.items():
         print(f"    {name}: {parts}")
@@ -523,7 +549,15 @@ def main():
         print(f"\n{'=' * 60}")
         print(f"Object: {obj_name} ({slug})  parts: {parts}")
         print(f"{'=' * 60}")
-        process_object(obj_dir, obj_name, parts, qwen_client, args.qwen_model, sam3)
+        process_object(
+            obj_dir,
+            obj_name,
+            parts,
+            qwen_client,
+            args.qwen_model,
+            sam3,
+            args.qwen_retries,
+        )
     print("Done!")
 
 

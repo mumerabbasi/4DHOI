@@ -20,13 +20,13 @@
         "weight plates": {
           "detected": true,
           "bbox": [
-            321,
+            322,
             348,
-            657,
-            719
+            655,
+            716
           ],
           "mask_file": "az010_el+10_weight_plates.png",
-          "area": 94800
+          "area": 94799
         }
       }
     },
@@ -38,14 +38,26 @@
       ],
       "parts": {
         "handle": {
-          "detected": false,
-          "bbox": null,
-          "mask_file": null
+          "detected": true,
+          "bbox": [
+            488,
+            409,
+            559,
+            461
+          ],
+          "mask_file": "az010_el+30_handle.png",
+          "area": 2325
         },
         "weight plates": {
-          "detected": false,
-          "bbox": null,
-          "mask_file": null
+          "detected": true,
+          "bbox": [
+            324,
+            292,
+            658,
+            759
+          ],
+          "mask_file": "az010_el+30_weight_plates.png",
+          "area": 116242
         }
       }
     },
@@ -70,7 +82,7 @@
             624
           ],
           "mask_file": "az010_el-15_weight_plates.png",
-          "area": 84606
+          "area": 84602
         }
       }
     },
@@ -82,14 +94,26 @@
       ],
       "parts": {
         "handle": {
-          "detected": false,
-          "bbox": null,
-          "mask_file": null
+          "detected": true,
+          "bbox": [
+            391,
+            482,
+            627,
+            536
+          ],
+          "mask_file": "az100_el+10_handle.png",
+          "area": 11785
         },
         "weight plates": {
-          "detected": false,
-          "bbox": null,
-          "mask_file": null
+          "detected": true,
+          "bbox": [
+            630,
+            364,
+            728,
+            656
+          ],
+          "mask_file": "az100_el+10_weight_plates.png",
+          "area": 27746
         }
       }
     },
@@ -101,14 +125,26 @@
       ],
       "parts": {
         "handle": {
-          "detected": false,
-          "bbox": null,
-          "mask_file": null
+          "detected": true,
+          "bbox": [
+            389,
+            468,
+            629,
+            537
+          ],
+          "mask_file": "az100_el+30_handle.png",
+          "area": 12164
         },
         "weight plates": {
-          "detected": false,
-          "bbox": null,
-          "mask_file": null
+          "detected": true,
+          "bbox": [
+            265,
+            358,
+            732,
+            662
+          ],
+          "mask_file": "az100_el+30_weight_plates.png",
+          "area": 75491
         }
       }
     },
@@ -120,14 +156,26 @@
       ],
       "parts": {
         "handle": {
-          "detected": false,
-          "bbox": null,
-          "mask_file": null
+          "detected": true,
+          "bbox": [
+            401,
+            473,
+            629,
+            539
+          ],
+          "mask_file": "az100_el-15_handle.png",
+          "area": 10712
         },
         "weight plates": {
-          "detected": false,
-          "bbox": null,
-          "mask_file": null
+          "detected": true,
+          "bbox": [
+            268,
+            378,
+            416,
+            662
+          ],
+          "mask_file": "az100_el-15_weight_plates.png",
+          "area": 34508
         }
       }
     },
@@ -146,13 +194,13 @@
         "weight plates": {
           "detected": true,
           "bbox": [
-            322,
+            476,
             358,
             655,
-            701
+            537
           ],
           "mask_file": "az190_el+10_weight_plates.png",
-          "area": 89771
+          "area": 5376
         }
       }
     },
@@ -164,14 +212,26 @@
       ],
       "parts": {
         "handle": {
-          "detected": false,
-          "bbox": null,
-          "mask_file": null
+          "detected": true,
+          "bbox": [
+            496,
+            416,
+            558,
+            447
+          ],
+          "mask_file": "az190_el+30_handle.png",
+          "area": 875
         },
         "weight plates": {
-          "detected": false,
-          "bbox": null,
-          "mask_file": null
+          "detected": true,
+          "bbox": [
+            396,
+            302,
+            658,
+            524
+          ],
+          "mask_file": "az190_el+30_weight_plates.png",
+          "area": 31260
         }
       }
     },
@@ -190,13 +250,13 @@
         "weight plates": {
           "detected": true,
           "bbox": [
-            414,
-            496,
+            322,
+            286,
             655,
             686
           ],
           "mask_file": "az190_el-15_weight_plates.png",
-          "area": 16224
+          "area": 101045
         }
       }
     },
@@ -208,9 +268,15 @@
       ],
       "parts": {
         "handle": {
-          "detected": false,
-          "bbox": null,
-          "mask_file": null
+          "detected": true,
+          "bbox": [
+            414,
+            460,
+            624,
+            537
+          ],
+          "mask_file": "az280_el+10_handle.png",
+          "area": 10108
         },
         "weight plates": {
           "detected": false,
@@ -227,14 +293,26 @@
       ],
       "parts": {
         "handle": {
-          "detected": false,
-          "bbox": null,
-          "mask_file": null
+          "detected": true,
+          "bbox": [
+            389,
+            460,
+            624,
+            532
+          ],
+          "mask_file": "az280_el+30_handle.png",
+          "area": 10865
         },
         "weight plates": {
-          "detected": false,
-          "bbox": null,
-          "mask_file": null
+          "detected": true,
+          "bbox": [
+            619,
+            378,
+            742,
+            670
+          ],
+          "mask_file": "az280_el+30_weight_plates.png",
+          "area": 26861
         }
       }
     },
@@ -251,21 +329,21 @@
             384,
             471,
             640,
-            532
+            552
           ],
           "mask_file": "az280_el-15_handle.png",
-          "area": 11873
+          "area": 12145
         },
         "weight plates": {
           "detected": true,
           "bbox": [
-            263,
-            358,
-            727,
-            655
+            631,
+            360,
+            729,
+            657
           ],
           "mask_file": "az280_el-15_weight_plates.png",
-          "area": 76000
+          "area": 28064
         }
       }
     }
