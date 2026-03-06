@@ -3,10 +3,11 @@ Segment rendered object parts using Qwen-VL detection + SAM3 box-prompt segmenta
 
 Pipeline:
 1. Load PAG file to get objects and their parts.
-2. For each object's rendered views:
-   a. Detect part bounding boxes with Qwen-VL (qwen3-vl:32b via Ollama).
-   b. Segment each detected part with SAM3 box prompts.
-3. Save per-view masks, bbox visualizations, and segmentation overlays.
+2. Stage 1: run Qwen-VL on all objects' rendered views first.
+   - Save per-view bbox visualizations and bbox cache JSON per object.
+   - On reruns, skip Qwen-VL for any object whose bbox cache JSON exists.
+3. Stage 2: run SAM3 on all objects using the cached Qwen bboxes as seeds.
+4. Save per-view masks and segmentation overlays.
 
 Usage:
     python segment_parts.py --video_name video_01
@@ -34,6 +35,7 @@ SAM3_CHECKPOINT = None  # None -> auto-download from HuggingFace
 SAM3_BPE_PATH = "/my_workspace/4DHHOI/sam3/sam3/assets/bpe_simple_vocab_16e6.txt.gz"
 
 MIN_MASK_PIXELS = 50  # minimum mask area to accept
+BBOX_CACHE_FILENAME = "part_bboxes.json"
 
 
 def _resolve_path(path_str: str, base_dir: Path) -> Path:
@@ -370,51 +372,126 @@ def draw_masks(image: np.ndarray, masks: dict[str, np.ndarray | None]) -> np.nda
     return out
 
 
-def process_object(
-    object_dir: Path,
+def _coerce_cached_bbox(raw_bbox) -> list[int] | None:
+    if raw_bbox is None:
+        return None
+    if not isinstance(raw_bbox, (list, tuple)) or len(raw_bbox) != 4:
+        return None
+    try:
+        return [int(raw_bbox[0]), int(raw_bbox[1]), int(raw_bbox[2]), int(raw_bbox[3])]
+    except (TypeError, ValueError):
+        return None
+
+
+def _load_bbox_cache(
+    cache_path: Path,
+    parts: list[str],
+    image_files: list[Path],
+) -> dict[str, dict[str, list[int] | None]] | None:
+    if not cache_path.exists():
+        return None
+
+    try:
+        with cache_path.open("r", encoding="utf-8") as f:
+            payload = json.load(f)
+    except Exception as e:
+        print(f"  Failed to load bbox cache ({cache_path}): {e}")
+        return None
+
+    if not isinstance(payload, dict):
+        print(f"  Invalid bbox cache format in {cache_path}; expected JSON object.")
+        return None
+
+    views = payload.get("views")
+    if not isinstance(views, list):
+        print(f"  Invalid bbox cache format in {cache_path}; expected 'views' list.")
+        return None
+
+    bboxes_by_image = {
+        img_path.name: {part: None for part in parts} for img_path in image_files
+    }
+
+    matched_views = 0
+    for view in views:
+        if not isinstance(view, dict):
+            continue
+        image_name = view.get("image")
+        if image_name not in bboxes_by_image:
+            continue
+        part_boxes = view.get("parts")
+        if not isinstance(part_boxes, dict):
+            continue
+        for part in parts:
+            bboxes_by_image[image_name][part] = _coerce_cached_bbox(part_boxes.get(part))
+        matched_views += 1
+
+    print(f"  Using cached Qwen bboxes: {cache_path}")
+    print(f"    matched views: {matched_views}/{len(image_files)}")
+    if matched_views < len(image_files):
+        print("    unmatched views will be treated as not detected.")
+    return bboxes_by_image
+
+
+def _save_bbox_cache(
+    cache_path: Path,
+    object_name: str,
+    parts: list[str],
+    image_files: list[Path],
+    image_sizes: dict[str, list[int]],
+    bboxes_by_image: dict[str, dict[str, list[int] | None]],
+) -> None:
+    payload = {
+        "object_name": object_name,
+        "parts": parts,
+        "views": [],
+    }
+    for img_path in image_files:
+        image_name = img_path.name
+        view_parts = {
+            part: bboxes_by_image.get(image_name, {}).get(part)
+            for part in parts
+        }
+        payload["views"].append(
+            {
+                "image": image_name,
+                "image_size": image_sizes.get(image_name, [0, 0]),
+                "parts": view_parts,
+            }
+        )
+
+    with cache_path.open("w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+    print(f"  Saved combined bbox cache -> {cache_path}")
+
+
+def _run_qwen_bbox_pass(
+    image_files: list[Path],
     object_name: str,
     parts: list[str],
     qwen_client: OpenAI,
     qwen_model: str,
-    sam3: dict,
     qwen_retries: int,
-) -> dict:
-    renders_dir = object_dir / "renders"
-    rgb_dir = renders_dir / "rgb"
-    masks_dir = object_dir / "masks"
-    bboxes_dir = object_dir / "bboxes"
-    viz_dir = object_dir / "visualizations"
-    for d in (masks_dir, bboxes_dir, viz_dir):
-        d.mkdir(parents=True, exist_ok=True)
-
-    image_files = sorted(rgb_dir.glob("*.png")) if rgb_dir.exists() else []
-    if not image_files:
-        image_files = sorted(renders_dir.glob("rgb_*.png"))
-    if not image_files:
-        print(f"  No render images found for {object_name}")
-        return {}
-
-    print(f"\n  Processing {object_name}: parts={parts}, views={len(image_files)}")
-    results = {"object_name": object_name, "parts": parts, "views": []}
+    bboxes_dir: Path | None = None,
+) -> tuple[dict[str, dict[str, list[int] | None]], dict[str, list[int]]]:
+    bboxes_by_image: dict[str, dict[str, list[int] | None]] = {}
+    image_sizes: dict[str, list[int]] = {}
 
     qwen_retries = max(0, qwen_retries)
+    max_attempts = qwen_retries + 1
 
-    for img_path in image_files:
-        print(f"\n    View: {img_path.name}")
+    print("  Running Qwen-VL detection pass on all views ...")
+    for idx, img_path in enumerate(image_files, start=1):
+        print(f"\n    [Qwen {idx}/{len(image_files)}] {img_path.name}")
         image_bgr = cv2.imread(str(img_path))
         if image_bgr is None:
             print(f"      Could not read {img_path}")
+            bboxes_by_image[img_path.name] = {p: None for p in parts}
+            image_sizes[img_path.name] = [0, 0]
             continue
-        image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-        image_pil = Image.fromarray(image_rgb)
+
         h, w = image_bgr.shape[:2]
+        image_sizes[img_path.name] = [w, h]
 
-        view = {"image": img_path.name, "image_size": [w, h], "parts": {}}
-        all_masks: dict[str, np.ndarray | None] = {}
-        all_bboxes: dict[str, list[int] | None] = {}
-
-        # Detect all parts with Qwen-VL, retrying if no valid boxes are returned.
-        max_attempts = qwen_retries + 1
         qwen_boxes = {p: None for p in parts}
         for attempt in range(1, max_attempts + 1):
             retry_idx = attempt - 1
@@ -439,15 +516,125 @@ def process_object(
             else:
                 print("      No parts detected after Qwen-VL retries.")
 
+        bboxes_by_image[img_path.name] = {
+            part: _clamp_bbox(qwen_boxes.get(part), w, h)
+            for part in parts
+        }
+        for part, bbox in bboxes_by_image[img_path.name].items():
+            print(f"      {part}: {'not detected' if bbox is None else f'bbox={bbox}'}")
+
+        # Save bbox visualization during the Qwen pass as well.
+        if (
+            bboxes_dir is not None
+            and any(b is not None for b in bboxes_by_image[img_path.name].values())
+        ):
+            cv2.imwrite(
+                str(bboxes_dir / f"{img_path.stem}_bboxes.png"),
+                draw_bboxes(image_bgr, bboxes_by_image[img_path.name]),
+            )
+
+    return bboxes_by_image, image_sizes
+
+
+def ensure_object_bbox_cache(
+    object_dir: Path,
+    object_name: str,
+    parts: list[str],
+    qwen_client: OpenAI,
+    qwen_model: str,
+    qwen_retries: int,
+) -> dict[str, dict[str, list[int] | None]] | None:
+    """Ensure per-object Qwen bbox cache exists. Returns loaded/generated bboxes."""
+    renders_dir = object_dir / "renders"
+    rgb_dir = renders_dir / "rgb"
+    bboxes_dir = object_dir / "bboxes"
+    bboxes_dir.mkdir(parents=True, exist_ok=True)
+
+    image_files = sorted(rgb_dir.glob("*.png")) if rgb_dir.exists() else []
+    if not image_files:
+        image_files = sorted(renders_dir.glob("rgb_*.png"))
+    if not image_files:
+        print(f"  No render images found for {object_name}")
+        return None
+
+    print(f"\n  QWEN pass {object_name}: parts={parts}, views={len(image_files)}")
+    bbox_cache_path = bboxes_dir / BBOX_CACHE_FILENAME
+    qwen_bboxes = _load_bbox_cache(bbox_cache_path, parts, image_files)
+    if qwen_bboxes is not None:
+        print("  Skipping Qwen-VL pass because bbox cache already exists.")
+        return qwen_bboxes
+
+    qwen_bboxes, image_sizes = _run_qwen_bbox_pass(
+        image_files=image_files,
+        object_name=object_name,
+        parts=parts,
+        qwen_client=qwen_client,
+        qwen_model=qwen_model,
+        qwen_retries=qwen_retries,
+        bboxes_dir=bboxes_dir,
+    )
+    _save_bbox_cache(
+        cache_path=bbox_cache_path,
+        object_name=object_name,
+        parts=parts,
+        image_files=image_files,
+        image_sizes=image_sizes,
+        bboxes_by_image=qwen_bboxes,
+    )
+    return qwen_bboxes
+
+
+def process_object(
+    object_dir: Path,
+    object_name: str,
+    parts: list[str],
+    sam3: dict,
+) -> None:
+    renders_dir = object_dir / "renders"
+    rgb_dir = renders_dir / "rgb"
+    masks_dir = object_dir / "masks"
+    bboxes_dir = object_dir / "bboxes"
+    viz_dir = object_dir / "visualizations"
+    for d in (masks_dir, bboxes_dir, viz_dir):
+        d.mkdir(parents=True, exist_ok=True)
+
+    image_files = sorted(rgb_dir.glob("*.png")) if rgb_dir.exists() else []
+    if not image_files:
+        image_files = sorted(renders_dir.glob("rgb_*.png"))
+    if not image_files:
+        print(f"  No render images found for {object_name}")
+        return
+
+    print(f"\n  Processing {object_name}: parts={parts}, views={len(image_files)}")
+    bbox_cache_path = bboxes_dir / BBOX_CACHE_FILENAME
+    qwen_bboxes = _load_bbox_cache(bbox_cache_path, parts, image_files)
+    if qwen_bboxes is None:
+        print(f"  Missing bbox cache for {object_name}: {bbox_cache_path}")
+        print("  Skip SAM3 pass for this object.")
+        return
+
+    print("\n  Running SAM3 segmentation pass using cached bboxes ...")
+    for idx, img_path in enumerate(image_files, start=1):
+        print(f"\n    [SAM3 {idx}/{len(image_files)}] {img_path.name}")
+        image_bgr = cv2.imread(str(img_path))
+        if image_bgr is None:
+            print(f"      Could not read {img_path}")
+            continue
+        image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
+        image_pil = Image.fromarray(image_rgb)
+        h, w = image_bgr.shape[:2]
+
+        all_masks: dict[str, np.ndarray | None] = {}
+        all_bboxes: dict[str, list[int] | None] = {}
+        view_qwen_boxes = qwen_bboxes.get(img_path.name, {})
+
         for part in parts:
-            raw_bbox = qwen_boxes.get(part)
-            bbox = _clamp_bbox(raw_bbox, w, h) if raw_bbox else None
+            bbox = _clamp_bbox(view_qwen_boxes.get(part), w, h)
             all_bboxes[part] = bbox
 
             if bbox is None:
                 print(f"      {part}: not detected by Qwen-VL")
                 all_masks[part] = None
-                view["parts"][part] = {"detected": False, "bbox": None, "mask_file": None}
                 continue
 
             print(f"      {part}: bbox={bbox}")
@@ -459,13 +646,9 @@ def process_object(
                 all_masks[part] = mask
                 fname = f"{img_path.stem}_{part.replace(' ', '_')}.png"
                 cv2.imwrite(str(masks_dir / fname), (mask * 255).astype(np.uint8))
-                view["parts"][part] = {
-                    "detected": True, "bbox": bbox, "mask_file": fname, "area": area,
-                }
             else:
                 print("        mask too small, discarding")
                 all_masks[part] = None
-                view["parts"][part] = {"detected": False, "bbox": bbox, "mask_file": None}
 
         # Save bbox visualization
         if any(b is not None for b in all_bboxes.values()):
@@ -480,13 +663,7 @@ def process_object(
                 draw_masks(image_bgr, all_masks),
             )
 
-        results["views"].append(view)
-
-    results_path = bboxes_dir / "part_labels.json"
-    with results_path.open("w") as f:
-        json.dump(results, f, indent=2)
-    print(f"\n  Results -> {results_path}")
-    return results
+    print(f"\n  Results kept in bbox cache -> {bbox_cache_path}")
 
 
 def main():
@@ -530,9 +707,7 @@ def main():
         print(f"    {name}: {parts}")
     print(f"{'=' * 60}\n")
 
-    qwen_client = OpenAI(base_url=args.ollama_host, api_key=args.ollama_api_key)
-    sam3 = load_sam3(args.sam3_checkpoint, args.sam3_bpe_path)
-
+    valid_objects: list[tuple[str, str, list[str], Path]] = []
     for obj_name, parts in objects_parts.items():
         slug = _sanitize(obj_name)
         obj_dir = objects_video_dir / slug
@@ -545,18 +720,42 @@ def main():
             reason = f"renders not found: {renders}"
             print(f"[SKIP] {slug}: {reason}")
             continue
+        valid_objects.append((obj_name, slug, parts, obj_dir))
 
+    if not valid_objects:
+        print("No valid objects to process.")
+        return
+
+    qwen_client = OpenAI(base_url=args.ollama_host, api_key=args.ollama_api_key)
+    print(f"\n{'=' * 60}")
+    print("Stage 1/2: Qwen-VL bbox detection for all objects")
+    print(f"{'=' * 60}")
+    for obj_name, slug, parts, obj_dir in valid_objects:
         print(f"\n{'=' * 60}")
-        print(f"Object: {obj_name} ({slug})  parts: {parts}")
+        print(f"Object (Qwen): {obj_name} ({slug})  parts: {parts}")
         print(f"{'=' * 60}")
-        process_object(
+        ensure_object_bbox_cache(
             obj_dir,
             obj_name,
             parts,
             qwen_client,
             args.qwen_model,
-            sam3,
             args.qwen_retries,
+        )
+
+    sam3 = load_sam3(args.sam3_checkpoint, args.sam3_bpe_path)
+    print(f"\n{'=' * 60}")
+    print("Stage 2/2: SAM3 segmentation for all objects")
+    print(f"{'=' * 60}")
+    for obj_name, slug, parts, obj_dir in valid_objects:
+        print(f"\n{'=' * 60}")
+        print(f"Object (SAM3): {obj_name} ({slug})  parts: {parts}")
+        print(f"{'=' * 60}")
+        process_object(
+            obj_dir,
+            obj_name,
+            parts,
+            sam3,
         )
     print("Done!")
 
