@@ -1,0 +1,216 @@
+{
+  "object_name": "dumbbell (left hand)",
+  "parts": [
+    "handle",
+    "weight plates"
+  ],
+  "views": [
+    {
+      "image": "az010_el+10.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": null,
+        "weight plates": [
+          322,
+          348,
+          655,
+          716
+        ]
+      }
+    },
+    {
+      "image": "az010_el+30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          486,
+          409,
+          558,
+          486
+        ],
+        "weight plates": [
+          322,
+          291,
+          655,
+          757
+        ]
+      }
+    },
+    {
+      "image": "az010_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": null,
+        "weight plates": [
+          322,
+          296,
+          650,
+          624
+        ]
+      }
+    },
+    {
+      "image": "az100_el+10.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": null,
+        "weight plates": null
+      }
+    },
+    {
+      "image": "az100_el+30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          384,
+          468,
+          634,
+          537
+        ],
+        "weight plates": [
+          265,
+          360,
+          732,
+          662
+        ]
+      }
+    },
+    {
+      "image": "az100_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          409,
+          471,
+          624,
+          547
+        ],
+        "weight plates": [
+          266,
+          353,
+          732,
+          660
+        ]
+      }
+    },
+    {
+      "image": "az190_el+10.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": null,
+        "weight plates": [
+          322,
+          358,
+          650,
+          706
+        ]
+      }
+    },
+    {
+      "image": "az190_el+30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          496,
+          416,
+          558,
+          447
+        ],
+        "weight plates": null
+      }
+    },
+    {
+      "image": "az190_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": null,
+        "weight plates": [
+          409,
+          481,
+          655,
+          686
+        ]
+      }
+    },
+    {
+      "image": "az280_el+10.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          384,
+          460,
+          640,
+          537
+        ],
+        "weight plates": null
+      }
+    },
+    {
+      "image": "az280_el+30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          394,
+          465,
+          629,
+          547
+        ],
+        "weight plates": null
+      }
+    },
+    {
+      "image": "az280_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          414,
+          471,
+          631,
+          532
+        ],
+        "weight plates": [
+          631,
+          360,
+          729,
+          656
+        ]
+      }
+    }
+  ]
+}

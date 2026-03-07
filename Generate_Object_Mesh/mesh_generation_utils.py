@@ -255,21 +255,6 @@ def save_pose_json(
         json.dump(transform_data, f, indent=2)
 
 
-def discover_objects(input_dir: Path) -> List[Tuple[str, Path]]:
-    """Auto-discover objects under <input_dir>/objects/."""
-    objects_root = input_dir / "objects"
-    results: List[Tuple[str, Path]] = []
-    for child in sorted(objects_root.iterdir()):
-        if not child.is_dir():
-            continue
-        mask_dir = child / "object_segmentation" / "masks"
-        if mask_dir.is_dir():
-            results.append((child.name, mask_dir))
-    if not results:
-        raise FileNotFoundError(f"No valid object dirs found under {objects_root}")
-    return results
-
-
 def discover_frames(input_dir: Path) -> List[str]:
     """List frame stems from <input_dir>/_frames/."""
     frames_dir = input_dir / "_frames"
@@ -279,15 +264,6 @@ def discover_frames(input_dir: Path) -> List[str]:
     if not stems:
         raise FileNotFoundError(f"No frame files found in {frames_dir}")
     return stems
-
-
-def sample_frames_uniformly(frame_stems: List[str], num_frames: int) -> List[str]:
-    """Uniformly sample num_frames (first & last always included)."""
-    total = len(frame_stems)
-    if num_frames >= total:
-        return list(frame_stems)
-    indices = np.unique(np.linspace(0, total - 1, num_frames, dtype=int))
-    return [frame_stems[i] for i in indices]
 
 
 def find_frame_image_path(frames_dir: Path, frame_stem: str) -> Optional[Path]:
@@ -327,11 +303,3 @@ def discover_objects_with_first_frame_masks(
             f"No first-frame masks found under {objects_root} for frame '{first_frame_stem}'"
         )
     return results
-
-
-def resolve_path(path_str: str) -> Path:
-    """Resolve a possibly relative path against this script directory."""
-    path = Path(path_str)
-    if not path.is_absolute():
-        path = Path(__file__).parent / path
-    return path.resolve()
