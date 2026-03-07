@@ -15,7 +15,6 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -29,15 +28,7 @@ import trimesh
 from pytorch3d.ops import knn_points
 from pytorch3d.transforms import axis_angle_to_matrix, matrix_to_axis_angle
 
-# ---------------------------------------------------------------------------
-# tracking_utils is in the sister directory Track_Object_Mesh
-# ---------------------------------------------------------------------------
-_SCRIPT_DIR = Path(__file__).resolve().parent
-_TRACK_OBJ_DIR = _SCRIPT_DIR.parent / "Track_Object_Mesh"
-if str(_TRACK_OBJ_DIR) not in sys.path:
-    sys.path.insert(0, str(_TRACK_OBJ_DIR))
-
-from tracking_utils import (          # noqa: E402
+from utils import (
     _load_intrinsics_from_alignment_summary,
     _save_csv,
     _to_device,
@@ -65,7 +56,8 @@ OBJECT_COLORS_BGR: list[tuple[int, int, int]] = [
 ]
 HUMAN_COLOR_BGR: tuple[int, int, int] = (255, 200, 100)  # light blue
 
-# SMPL body-part → vertex-segmentation keys (from export_segmented_human_motion)
+# SMPL body-part → vertex-segmentation keys produced by
+# export_segmented_human_motion.
 BODY_PART_TO_SEG_KEYS: dict[str, list[str]] = {
     "left hand": ["leftHand", "leftHandIndex1"],
     "right hand": ["rightHand", "rightHandIndex1"],
@@ -97,24 +89,56 @@ def parse_args() -> argparse.Namespace:
         description="Joint human–object mesh refinement with PAG constraints."
     )
     p.add_argument("--video_name", type=str, default="video_01")
-    p.add_argument("--aligned_mesh_dir", type=str, default=None,
-                   help="Align_Meshes/output/<video> (auto-resolved).")
-    p.add_argument("--tracked_object_dir", type=str, default=None,
-                   help="Track_Object_Mesh/output_cotracker/<video> (auto-resolved).")
-    p.add_argument("--segment_object_dir", type=str, default=None,
-                   help="Segment_Object_Mesh/output/<video> (auto-resolved).")
-    p.add_argument("--segment_video_dir", type=str, default=None,
-                   help="Segment_Video/output/<video> for frame images (auto-resolved).")
-    p.add_argument("--pag_file", type=str, default=None,
-                   help="PAG JSON. Auto-resolved from Generate_PAG/output/<video>.")
-    p.add_argument("--smpl_seg_json", type=str, default=None,
-                   help="SMPL vert segmentation JSON (auto-resolved from GVHMR).")
-    p.add_argument("--output_dir", type=str, default="./output",
-                   help="Root output directory.")
+    p.add_argument(
+        "--aligned_mesh_dir",
+        type=str,
+        default=None,
+        help="Align_Meshes/output/<video> (auto-resolved).",
+    )
+    p.add_argument(
+        "--tracked_object_dir",
+        type=str,
+        default=None,
+        help="Track_Object_Mesh/output_cotracker/<video> (auto-resolved).",
+    )
+    p.add_argument(
+        "--segment_object_dir",
+        type=str,
+        default=None,
+        help="Segment_Object_Mesh/output/<video> (auto-resolved).",
+    )
+    p.add_argument(
+        "--segment_video_dir",
+        type=str,
+        default=None,
+        help="Segment_Video/output/<video> for frame images (auto-resolved).",
+    )
+    p.add_argument(
+        "--pag_file",
+        type=str,
+        default=None,
+        help="PAG JSON. Auto-resolved from Generate_PAG/output/<video>.",
+    )
+    p.add_argument(
+        "--smpl_seg_json",
+        type=str,
+        default=None,
+        help="SMPL vert segmentation JSON (auto-resolved from GVHMR).",
+    )
+    p.add_argument(
+        "--output_dir",
+        type=str,
+        default="./output",
+        help="Root output directory.",
+    )
     p.add_argument("--device", type=str, default="cuda:0")
     # SDF
-    p.add_argument("--sdf_resolution", type=int, default=128,
-                   help="Voxel resolution for SDF grids.")
+    p.add_argument(
+        "--sdf_resolution",
+        type=int,
+        default=256,
+        help="Voxel resolution for SDF grids.",
+    )
     # Optimisation
     p.add_argument("--adam_iters", type=int, default=1200)
     p.add_argument("--adam_lr", type=float, default=1e-3)
@@ -122,18 +146,38 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--lbfgs_lr", type=float, default=5e-4)
     p.add_argument("--disable_lbfgs", action="store_true")
     # Loss weights
-    p.add_argument("--lambda_prior", type=float, default=10.0,
-                   help="Motion-prior weight (stay close to tracked poses).")
-    p.add_argument("--lambda_contact", type=float, default=500.0,
-                   help="Contact consistency weight.")
-    p.add_argument("--lambda_dynamics", type=float, default=100.0,
-                   help="Contact dynamics weight.")
-    p.add_argument("--lambda_penetration", type=float, default=15.0,
-                   help="Max penetration weight (annealed from 0).")
-    p.add_argument("--lambda_smooth", type=float, default=30.0,
-                   help="Temporal smoothness weight.")
+    p.add_argument(
+        "--lambda_prior",
+        type=float,
+        default=25.0,
+        help="Motion-prior weight (stay close to tracked poses).",
+    )
+    p.add_argument(
+        "--lambda_contact",
+        type=float,
+        default=200.0,
+        help="Contact consistency weight.",
+    )
+    p.add_argument(
+        "--lambda_dynamics",
+        type=float,
+        default=150.0,
+        help="Contact dynamics weight.",
+    )
+    p.add_argument(
+        "--lambda_penetration",
+        type=float,
+        default=20.0,
+        help="Max penetration weight (annealed from 0).",
+    )
+    p.add_argument(
+        "--lambda_smooth",
+        type=float,
+        default=20.0,
+        help="Temporal smoothness weight.",
+    )
     # Rendering
-    p.add_argument("--fps", type=float, default=30.0)
+    p.add_argument("--fps", type=float, default=6.0)
     p.add_argument("--save_overlay_pngs", action="store_true")
     p.add_argument("--log_interval", type=int, default=25)
     p.add_argument("--verbose", action="store_true")
@@ -143,7 +187,10 @@ def parse_args() -> argparse.Namespace:
 # ---------------------------------------------------------------------------
 # Path resolution helpers
 # ---------------------------------------------------------------------------
-def _resolve_dirs(args: argparse.Namespace, script_dir: Path) -> dict[str, Path]:
+def _resolve_dirs(
+    args: argparse.Namespace,
+    script_dir: Path,
+) -> dict[str, Path]:
     """Resolve all input/output directories."""
     vname = args.video_name
     parent = script_dir.parent  # 4DHOI root
@@ -163,8 +210,13 @@ def _resolve_dirs(args: argparse.Namespace, script_dir: Path) -> dict[str, Path]
                  parent / "Segment_Video" / "output" / vname)
     output = resolve_path(args.output_dir, script_dir) / vname
 
-    return dict(aligned=aligned, tracked=tracked, seg_obj=seg_obj,
-                seg_vid=seg_vid, output=output)
+    return dict(
+        aligned=aligned,
+        tracked=tracked,
+        seg_obj=seg_obj,
+        seg_vid=seg_vid,
+        output=output,
+    )
 
 
 def _resolve_pag_path(args: argparse.Namespace, script_dir: Path) -> Path:
@@ -173,7 +225,9 @@ def _resolve_pag_path(args: argparse.Namespace, script_dir: Path) -> Path:
         if not p.exists():
             raise FileNotFoundError(f"PAG file not found: {p}")
         return p
-    pag_dir = (script_dir.parent / "Generate_PAG" / "output" / args.video_name).resolve()
+    pag_dir = (
+        script_dir.parent / "Generate_PAG" / "output" / args.video_name
+    ).resolve()
     candidates = sorted(pag_dir.glob("output_pag_*.json"))
     if not candidates:
         raise FileNotFoundError(f"No PAG JSON in {pag_dir}")
@@ -185,7 +239,12 @@ def _resolve_smpl_seg(args: argparse.Namespace, script_dir: Path) -> Path:
         return resolve_path(args.smpl_seg_json, script_dir)
     # Try standard location
     candidates = [
-        script_dir.parent.parent / "GVHMR" / "hmr4d" / "utils" / "body_model" / "smpl_vert_segmentation.json",
+        script_dir.parent.parent
+        / "GVHMR"
+        / "hmr4d"
+        / "utils"
+        / "body_model"
+        / "smpl_vert_segmentation.json",
     ]
     for c in candidates:
         if c.resolve().exists():
@@ -340,7 +399,7 @@ def _load_object_part_verts(
 # ---------------------------------------------------------------------------
 @dataclass
 class SDFGrid:
-    """Pre-computed SDF volume for an object in its canonical (frame-0) pose."""
+    """Pre-computed SDF volume for an object in canonical frame-0 pose."""
     sdf_volume: torch.Tensor   # [1, 1, D, D, D]
     bbox_min: torch.Tensor     # [1, 1, 3]
     bbox_max: torch.Tensor     # [1, 1, 3]
@@ -356,8 +415,7 @@ def _build_sdf_grid(
     """Build a voxel SDF grid for a mesh using pysdf."""
     from pysdf import SDF as PySDF
 
-    sdf_func = PySDF(vertices.astype(np.float32),
-                     faces.astype(np.uint32))
+    sdf_func = PySDF(vertices.astype(np.float32), faces.astype(np.uint32))
 
     # Compute bounding box with padding
     vmin = vertices.min(axis=0) - padding
@@ -366,18 +424,29 @@ def _build_sdf_grid(
     # Create query grid
     lin = [np.linspace(vmin[i], vmax[i], resolution) for i in range(3)]
     gx, gy, gz = np.meshgrid(lin[0], lin[1], lin[2], indexing="ij")
-    query_pts = np.stack([gx.ravel(), gy.ravel(), gz.ravel()], axis=1).astype(np.float32)
+    query_pts = np.stack(
+        [gx.ravel(), gy.ravel(), gz.ravel()],
+        axis=1,
+    ).astype(np.float32)
 
     # Query SDF (pysdf: positive=inside, negative=outside)
     sdf_vals = sdf_func(query_pts)
-    # Convert to convention: negative=inside (standard SDF convention used in losses)
+    # Convert to convention: negative=inside for the optimization losses.
     sdf_vals = -sdf_vals
     sdf_vol = sdf_vals.reshape(1, 1, resolution, resolution, resolution)
 
     return SDFGrid(
         sdf_volume=torch.from_numpy(sdf_vol.astype(np.float32)).to(device),
-        bbox_min=torch.tensor(vmin.reshape(1, 1, 3), dtype=torch.float32, device=device),
-        bbox_max=torch.tensor(vmax.reshape(1, 1, 3), dtype=torch.float32, device=device),
+        bbox_min=torch.tensor(
+            vmin.reshape(1, 1, 3),
+            dtype=torch.float32,
+            device=device,
+        ),
+        bbox_max=torch.tensor(
+            vmax.reshape(1, 1, 3),
+            dtype=torch.float32,
+            device=device,
+        ),
     )
 
 
@@ -388,8 +457,14 @@ def _query_sdf(
     """Query SDF values for points.  Returns [N] values (negative = inside)."""
     pts = points.unsqueeze(0)  # [1, N, 3]
     # Normalise to [-1, 1] for grid_sample
-    normalised = (pts - sdf_grid.bbox_min) / (sdf_grid.bbox_max - sdf_grid.bbox_min) * 2.0 - 1.0
-    # grid_sample expects [B, C, D, H, W] input and [B, N, 1, 1, 3] grid (in z,y,x order)
+    normalised = (
+        (pts - sdf_grid.bbox_min)
+        / (sdf_grid.bbox_max - sdf_grid.bbox_min)
+        * 2.0
+        - 1.0
+    )
+    # grid_sample expects [B, C, D, H, W] input and [B, N, 1, 1, 3] grid
+    # in z,y,x order.
     grid = normalised[:, :, [2, 1, 0]].view(1, -1, 1, 1, 3)
     sampled = F.grid_sample(
         sdf_grid.sdf_volume,
@@ -425,8 +500,11 @@ def _compose_T(rotvec: torch.Tensor, trans: torch.Tensor) -> torch.Tensor:
     """rotvec [3], trans [3] → T [4,4]. No in-place ops for autograd safety."""
     R = axis_angle_to_matrix(rotvec.unsqueeze(0)).squeeze(0)  # [3,3]
     Rt = torch.cat([R, trans.unsqueeze(1)], dim=1)  # [3, 4]
-    bottom = torch.tensor([[0.0, 0.0, 0.0, 1.0]],
-                          dtype=torch.float32, device=rotvec.device)
+    bottom = torch.tensor(
+        [[0.0, 0.0, 0.0, 1.0]],
+        dtype=torch.float32,
+        device=rotvec.device,
+    )
     return torch.cat([Rt, bottom], dim=0)  # [4, 4]
 
 
@@ -487,20 +565,108 @@ class ResolvedEdge:
     a_is_human: bool
     a_object_idx: int       # -1 if human
     a_vert_ids: np.ndarray  # vertex indices into the respective mesh
+    a_part_name: str
 
     # Side B
     b_is_human: bool
     b_object_idx: int
     b_vert_ids: np.ndarray
+    b_part_name: str
 
     # PAG attributes
     is_continuous: bool
     is_rel_static: bool
+    contact_reduction: str   # "mean" or "min" for point-to-part contact
+    contact_source_is_a: bool
 
-    # For canonical-space dynamics: which object side do we use as reference?
-    # If one side is an object, that side is the reference for canonical transform.
-    # If both are objects, side A is the reference.
+    # For canonical-space dynamics: use the less-mobile object as reference.
     canonical_obj_idx: int  # index of reference object (-1 if no object)
+
+
+def _mean_translation_step(tracked_poses: np.ndarray) -> float:
+    if tracked_poses.shape[0] < 2:
+        return 0.0
+    diffs = np.diff(tracked_poses[:, :3, 3], axis=0)
+    return float(np.linalg.norm(diffs, axis=1).mean())
+
+
+def _mean_rotation_step(tracked_poses: np.ndarray) -> float:
+    if tracked_poses.shape[0] < 2:
+        return 0.0
+    angles: list[float] = []
+    for t in range(tracked_poses.shape[0] - 1):
+        R1 = tracked_poses[t, :3, :3]
+        R2 = tracked_poses[t + 1, :3, :3]
+        R_rel = R1.T @ R2
+        cos_angle = np.clip((np.trace(R_rel) - 1.0) / 2.0, -1.0, 1.0)
+        angles.append(float(np.arccos(cos_angle)))
+    return float(np.mean(angles))
+
+
+def _reference_priority(od: ObjectData) -> tuple[int, int, float, float]:
+    """Lower priority tuple means a better canonical reference object."""
+    return (
+        int(od.state.is_translational),
+        int(od.state.is_rotational),
+        _mean_translation_step(od.tracked_poses),
+        _mean_rotation_step(od.tracked_poses),
+    )
+
+
+def _select_canonical_reference_obj(
+    a_is_human: bool,
+    a_obj_idx: int,
+    b_is_human: bool,
+    b_obj_idx: int,
+    objects: dict[str, ObjectData],
+    obj_keys: list[str],
+) -> int:
+    if a_is_human and b_is_human:
+        return -1
+    if a_is_human:
+        return b_obj_idx
+    if b_is_human:
+        return a_obj_idx
+
+    od_a = objects[obj_keys[a_obj_idx]]
+    od_b = objects[obj_keys[b_obj_idx]]
+    if _reference_priority(od_a) <= _reference_priority(od_b):
+        return a_obj_idx
+    return b_obj_idx
+
+
+def _uses_mean_contact_reduction(is_human: bool, part_name: str) -> bool:
+    if not is_human:
+        return False
+    part = part_name.lower().strip()
+    return part.endswith("hand") or part.endswith("foot")
+
+
+def _select_contact_reduction(
+    a_is_human: bool,
+    a_part_name: str,
+    b_is_human: bool,
+    b_part_name: str,
+) -> str:
+    if _uses_mean_contact_reduction(a_is_human, a_part_name):
+        return "mean"
+    if _uses_mean_contact_reduction(b_is_human, b_part_name):
+        return "mean"
+    return "min"
+
+
+def _select_contact_source_is_a(
+    a_is_human: bool,
+    a_vert_ids: np.ndarray,
+    b_is_human: bool,
+    b_vert_ids: np.ndarray,
+) -> bool:
+    # Match original code: human part is the primary set for human-object
+    # edges.
+    if a_is_human != b_is_human:
+        return a_is_human
+    # For object-object edges, use the smaller part as the primary contact set.
+    return len(a_vert_ids) <= len(b_vert_ids)
 
 
 # ---------------------------------------------------------------------------
@@ -516,6 +682,64 @@ class LossResult:
     smooth: torch.Tensor
 
 
+LOSS_TERM_KEYS = ("prior", "contact", "dynamics", "penetration", "smooth")
+
+
+def _get_scaled_loss_terms(
+    result: LossResult,
+    args: argparse.Namespace,
+) -> dict[str, torch.Tensor]:
+    return {
+        "prior": args.lambda_prior * result.prior,
+        "contact": args.lambda_contact * result.contact,
+        "dynamics": args.lambda_dynamics * result.dynamics,
+        "penetration": args.lambda_penetration * result.penetration,
+        "smooth": args.lambda_smooth * result.smooth,
+    }
+
+
+def _build_loss_row(
+    iteration: int,
+    stage: str,
+    result: LossResult,
+    args: argparse.Namespace,
+) -> dict[str, Any]:
+    scaled_terms = _get_scaled_loss_terms(result, args)
+    row: dict[str, Any] = {
+        "iter": iteration,
+        "stage": stage,
+        "total": float(result.total.item()),
+    }
+
+    for key in LOSS_TERM_KEYS:
+        row[f"{key}_raw"] = float(getattr(result, key).item())
+        row[f"{key}_scaled"] = float(scaled_terms[key].item())
+
+    return row
+
+
+def _format_loss_log(
+    iteration: int,
+    total_iterations: int,
+    result: LossResult,
+    args: argparse.Namespace,
+    elapsed_s: float,
+) -> list[str]:
+    scaled_terms = _get_scaled_loss_terms(result, args)
+    scaled_str = "  ".join(
+        f"{key}={scaled_terms[key].item():.5f}" for key in LOSS_TERM_KEYS
+    )
+    raw_str = "  ".join(
+        f"{key}={getattr(result, key).item():.5f}" for key in LOSS_TERM_KEYS
+    )
+    return [
+        f"  [{iteration:4d}/{total_iterations}] "
+        f"total={result.total.item():.5f}  ({elapsed_s:.0f}s)",
+        f"      scaled: {scaled_str}",
+        f"      raw:    {raw_str}",
+    ]
+
+
 def _subsample_indices(n: int, max_pts: int) -> np.ndarray:
     """Deterministic subsample of indices."""
     if n <= max_pts:
@@ -524,31 +748,33 @@ def _subsample_indices(n: int, max_pts: int) -> np.ndarray:
 
 
 def _compute_contact_loss(
-    pts_a: torch.Tensor,     # [T, Pa, 3]
-    pts_b: torch.Tensor,     # [T, Pb, 3]
+    pts_src: torch.Tensor,   # [T, Ps, 3]
+    pts_dst: torch.Tensor,   # [T, Pd, 3]
     is_continuous: bool,
+    reduction: str,
 ) -> torch.Tensor:
     """Contact consistency loss between two part point clouds over time.
 
-    Uses mean of per-vertex squared NN distances (chamfer-like).
-    knn_points returns SQUARED distances.
+    Mirrors the original code's semantics:
+    - human hand/foot contacts use mean NN distance over the source part
+    - most other contacts use min NN distance over the source part
+    - continuous edges average over time
+    - non-continuous edges use the best frame
 
-    is_continuous=True  → enforce contact at every frame (mean of per-frame chamfer)
-    is_continuous=False → enforce contact at least once (soft-min over frames)
+    knn_points returns SQUARED distances.
     """
-    T = pts_a.shape[0]
+    T = pts_src.shape[0]
     per_frame_dists = []
     for t in range(T):
-        # Nearest-neighbor SQUARED distance from A to B
-        d_ab_sq = knn_points(
-            pts_a[t:t+1], pts_b[t:t+1], K=1
-        ).dists[0, :, 0].clamp(min=0.0)  # [Pa]
-        # Nearest-neighbor SQUARED distance from B to A
-        d_ba_sq = knn_points(
-            pts_b[t:t+1], pts_a[t:t+1], K=1
-        ).dists[0, :, 0].clamp(min=0.0)  # [Pb]
-        # Mean of bidirectional mean squared NN distances
-        frame_dist = (d_ab_sq.mean() + d_ba_sq.mean()) / 2.0
+        d_sq = knn_points(
+            pts_src[t:t + 1], pts_dst[t:t + 1], K=1
+        ).dists[0, :, 0].clamp(min=0.0)
+        if reduction == "mean":
+            frame_dist = d_sq.mean()
+        elif reduction == "min":
+            frame_dist = d_sq.min()
+        else:
+            raise ValueError(f"Unsupported contact reduction: {reduction}")
         per_frame_dists.append(frame_dist)
 
     per_frame = torch.stack(per_frame_dists)  # [T]
@@ -556,8 +782,7 @@ def _compute_contact_loss(
     if is_continuous:
         return per_frame.mean()
     else:
-        # soft-min via logsumexp for gradient stability
-        return -torch.logsumexp(-per_frame / 0.01, dim=0) * 0.01
+        return per_frame.min()
 
 
 def _compute_dynamics_loss(
@@ -625,7 +850,7 @@ def _compute_obj_obj_penetration_loss(
     obj_b_T: torch.Tensor,  # [4,4]
     max_pts: int = 4096,
 ) -> torch.Tensor:
-    """Approximate object-object penetration using SDF of B queried at A's verts."""
+    """Approximate object-object penetration using B's SDF at A's verts."""
     if obj_b.sdf_grid is None:
         return torch.tensor(0.0, device=obj_a.template_verts.device)
 
@@ -634,7 +859,13 @@ def _compute_obj_obj_penetration_loss(
     # Subsample if too many
     n = verts_a_world.shape[0]
     if n > max_pts:
-        idx = torch.linspace(0, n - 1, max_pts, dtype=torch.long, device=verts_a_world.device)
+        idx = torch.linspace(
+            0,
+            n - 1,
+            max_pts,
+            dtype=torch.long,
+            device=verts_a_world.device,
+        )
         verts_a_world = verts_a_world[idx]
 
     T_b_inv = _inv_se3(obj_b_T)
@@ -680,7 +911,7 @@ def _compute_smoothness_loss(
         # Object shouldn't rotate — penalise any rotation change
         for t in range(T - 1):
             gd_sq = _geodesic_distance_sq(R_mats[t], R_mats[t + 1])
-            loss = loss + gd_sq
+            loss = loss + 10.0 * gd_sq
         loss = loss / max(T - 1, 1)
 
     # Translation smoothness
@@ -695,7 +926,7 @@ def _compute_smoothness_loss(
     else:
         # Object shouldn't translate — penalise any translation change
         diff = trans[1:] - trans[:-1]
-        loss = loss + (diff ** 2).mean()
+        loss = loss + 10.0 * (diff ** 2).mean()
 
     return loss
 
@@ -720,9 +951,9 @@ def _compute_all_losses(
 
     # 1) Build effective poses and posed vertices for each object
     eff_T: dict[str, list[torch.Tensor]] = {}       # slug → [T x [4,4]]
-    eff_rotvecs: dict[str, torch.Tensor] = {}        # slug → [T, 3]
-    eff_trans: dict[str, torch.Tensor] = {}           # slug → [T, 3]
-    obj_verts: dict[str, torch.Tensor] = {}           # slug → [T, V, 3]
+    eff_rotvecs: dict[str, torch.Tensor] = {}       # slug → [T, 3]
+    eff_trans: dict[str, torch.Tensor] = {}         # slug → [T, 3]
+    obj_verts: dict[str, torch.Tensor] = {}         # slug → [T, V, 3]
 
     for slug in obj_keys:
         od = objects[slug]
@@ -755,7 +986,10 @@ def _compute_all_losses(
     for slug in obj_keys:
         loss_prior = loss_prior + (delta_rotvecs[slug] ** 2).sum()
         loss_prior = loss_prior + (delta_trans[slug] ** 2).sum()
-    n_params = sum(delta_rotvecs[s].numel() + delta_trans[s].numel() for s in obj_keys)
+    n_params = sum(
+        delta_rotvecs[s].numel() + delta_trans[s].numel()
+        for s in obj_keys
+    )
     loss_prior = loss_prior / max(n_params, 1)
 
     # 3) Contact consistency loss
@@ -763,7 +997,11 @@ def _compute_all_losses(
     n_edges_contact = 0
     for edge in resolved_edges:
         # Get point clouds for both sides [T, P, 3]
-        def _get_pts(is_human: bool, obj_idx: int, vert_ids: np.ndarray) -> torch.Tensor:
+        def _get_pts(
+            is_human: bool,
+            obj_idx: int,
+            vert_ids: np.ndarray,
+        ) -> torch.Tensor:
             sub_ids = _subsample_indices(len(vert_ids), MAX_PART_POINTS)
             vids = vert_ids[sub_ids]
             if is_human:
@@ -774,9 +1012,11 @@ def _compute_all_losses(
 
         pts_a = _get_pts(edge.a_is_human, edge.a_object_idx, edge.a_vert_ids)
         pts_b = _get_pts(edge.b_is_human, edge.b_object_idx, edge.b_vert_ids)
+        pts_src = pts_a if edge.contact_source_is_a else pts_b
+        pts_dst = pts_b if edge.contact_source_is_a else pts_a
 
         loss_contact = loss_contact + _compute_contact_loss(
-            pts_a, pts_b, edge.is_continuous
+            pts_src, pts_dst, edge.is_continuous, edge.contact_reduction
         )
         n_edges_contact += 1
     if n_edges_contact > 0:
@@ -786,7 +1026,7 @@ def _compute_all_losses(
     loss_dynamics = torch.tensor(0.0, device=device)
     n_edges_dyn = 0
     for edge in resolved_edges:
-        # Determine which side is the "moving contact" and which is the reference object
+        # Determine the moving contact side and the reference object.
         if edge.canonical_obj_idx < 0:
             continue  # no object in this edge — skip dynamics
 
@@ -801,7 +1041,9 @@ def _compute_all_losses(
                 pts_contact = human_verts[:, edge.b_vert_ids[sub_ids], :]
             else:
                 other_slug = obj_keys[edge.b_object_idx]
-                pts_contact = obj_verts[other_slug][:, edge.b_vert_ids[sub_ids], :]
+                pts_contact = obj_verts[
+                    other_slug
+                ][:, edge.b_vert_ids[sub_ids], :]
         else:
             # Reference is side B. Contact points are side A.
             sub_ids = _subsample_indices(len(edge.a_vert_ids), MAX_PART_POINTS)
@@ -809,7 +1051,9 @@ def _compute_all_losses(
                 pts_contact = human_verts[:, edge.a_vert_ids[sub_ids], :]
             else:
                 other_slug = obj_keys[edge.a_object_idx]
-                pts_contact = obj_verts[other_slug][:, edge.a_vert_ids[sub_ids], :]
+                pts_contact = obj_verts[
+                    other_slug
+                ][:, edge.a_vert_ids[sub_ids], :]
 
         loss_dynamics = loss_dynamics + _compute_dynamics_loss(
             pts_contact, ref_T_list, edge.is_rel_static
@@ -881,10 +1125,19 @@ def _compute_all_losses(
 # ---------------------------------------------------------------------------
 # Pose saving (same format as track_object_mesh.py)
 # ---------------------------------------------------------------------------
-def _save_pose_json(path: Path, T_mats: np.ndarray, frame_offset: int = 0) -> None:
+def _save_pose_json(
+    path: Path,
+    T_mats: np.ndarray,
+    frame_offset: int = 0,
+) -> None:
     rows = []
     for i in range(T_mats.shape[0]):
-        rows.append({"frame": int(frame_offset + i), "T_4x4": T_mats[i].tolist()})
+        rows.append(
+            {
+                "frame": int(frame_offset + i),
+                "T_4x4": T_mats[i].tolist(),
+            }
+        )
     with path.open("w", encoding="utf-8") as f:
         json.dump(rows, f, indent=2)
 
@@ -897,7 +1150,11 @@ def _save_mesh_sequence(
     frame_offset: int = 0,
 ) -> None:
     ensure_dir(meshes_dir)
-    mesh_tmpl = trimesh.Trimesh(vertices=verts_template, faces=faces, process=False)
+    mesh_tmpl = trimesh.Trimesh(
+        vertices=verts_template,
+        faces=faces,
+        process=False,
+    )
     for i in range(T_mats.shape[0]):
         R = T_mats[i, :3, :3]
         t = T_mats[i, :3, 3]
@@ -910,7 +1167,10 @@ def _save_mesh_sequence(
 # ---------------------------------------------------------------------------
 # Loss plot saving
 # ---------------------------------------------------------------------------
-def _save_joint_loss_plots(debug_dir: Path, iter_rows: list[dict[str, Any]]) -> None:
+def _save_joint_loss_plots(
+    debug_dir: Path,
+    iter_rows: list[dict[str, Any]],
+) -> None:
     """Save loss-term plots for the joint optimisation."""
     try:
         import matplotlib
@@ -924,34 +1184,40 @@ def _save_joint_loss_plots(debug_dir: Path, iter_rows: list[dict[str, Any]]) -> 
 
     ensure_dir(debug_dir)
     iterations = [r["iter"] for r in iter_rows]
-    loss_keys = ["total", "prior", "contact", "dynamics", "penetration", "smooth"]
+    raw_keys = [f"{key}_raw" for key in LOSS_TERM_KEYS]
+    scaled_keys = [f"{key}_scaled" for key in LOSS_TERM_KEYS]
+    plot_groups = [
+        ("loss_total", ["total"], "Total Loss"),
+        ("loss_all_raw_terms", raw_keys, "Raw Loss Terms"),
+        ("loss_all_scaled_terms", scaled_keys, "Scaled Loss Terms"),
+    ]
 
-    # Individual plots
-    for key in loss_keys:
+    for prefix, keys, title in plot_groups:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        for key in keys:
+            vals = [float(r.get(key, 0.0)) for r in iter_rows]
+            ax.plot(iterations, vals, linewidth=1.2, label=key)
+        ax.set_xlabel("Iteration")
+        ax.set_ylabel("Loss")
+        ax.set_title(title)
+        if len(keys) > 1:
+            ax.legend(loc="best")
+        ax.grid(True, alpha=0.3)
+        fig.tight_layout()
+        fig.savefig(str(debug_dir / f"{prefix}.png"), dpi=140)
+        plt.close(fig)
+
+    for key in raw_keys + scaled_keys:
         vals = [float(r.get(key, 0.0)) for r in iter_rows]
         fig, ax = plt.subplots(figsize=(9, 5))
         ax.plot(iterations, vals, linewidth=1.5)
         ax.set_xlabel("Iteration")
         ax.set_ylabel("Loss")
-        ax.set_title(f"L_{key}")
+        ax.set_title(key)
         ax.grid(True, alpha=0.3)
         fig.tight_layout()
-        fig.savefig(str(debug_dir / f"loss_{key}.png"), dpi=140)
+        fig.savefig(str(debug_dir / f"{key}.png"), dpi=140)
         plt.close(fig)
-
-    # Combined plot
-    fig, ax = plt.subplots(figsize=(10, 6))
-    for key in loss_keys:
-        vals = [float(r.get(key, 0.0)) for r in iter_rows]
-        ax.plot(iterations, vals, linewidth=1.2, label=key)
-    ax.set_xlabel("Iteration")
-    ax.set_ylabel("Loss")
-    ax.set_title("All Losses")
-    ax.legend(loc="best")
-    ax.grid(True, alpha=0.3)
-    fig.tight_layout()
-    fig.savefig(str(debug_dir / "loss_all.png"), dpi=140)
-    plt.close(fig)
 
 
 # ---------------------------------------------------------------------------
@@ -1022,7 +1288,10 @@ def _render_joint_overlay(
                 )
 
             if save_pngs:
-                cv2.imwrite(str(overlays_dir / f"overlay_{t:04d}.png"), overlay)
+                cv2.imwrite(
+                    str(overlays_dir / f"overlay_{t:04d}.png"),
+                    overlay,
+                )
             if writer.stdin is not None:
                 writer.stdin.write(np.ascontiguousarray(overlay).tobytes())
     finally:
@@ -1055,7 +1324,9 @@ def main() -> None:
     # ── Human mesh sequence (frozen) ──
     human_aligned_dir = dirs["aligned"] / "human_motion_aligned"
     if not human_aligned_dir.exists():
-        raise FileNotFoundError(f"Human motion aligned dir missing: {human_aligned_dir}")
+        raise FileNotFoundError(
+            f"Human motion aligned dir missing: {human_aligned_dir}"
+        )
 
     human_ply_paths = sorted(
         human_aligned_dir.glob("frame_*.ply"),
@@ -1065,7 +1336,9 @@ def main() -> None:
         raise FileNotFoundError(f"No frame_*.ply in {human_aligned_dir}")
 
     print(f"Loading {len(human_ply_paths)} human mesh frames...")
-    human_meshes = [trimesh.load(str(p), process=False) for p in human_ply_paths]
+    human_meshes = [
+        trimesh.load(str(p), process=False) for p in human_ply_paths
+    ]
     human_verts_np = np.stack(
         [np.asarray(m.vertices, dtype=np.float32) for m in human_meshes]
     )  # [T, V_h, 3]
@@ -1102,7 +1375,10 @@ def main() -> None:
         if tracked_poses.shape[0] > num_frames:
             tracked_poses = tracked_poses[:num_frames]
         elif tracked_poses.shape[0] < num_frames:
-            pad = np.tile(tracked_poses[-1:], (num_frames - tracked_poses.shape[0], 1, 1))
+            pad = np.tile(
+                tracked_poses[-1:],
+                (num_frames - tracked_poses.shape[0], 1, 1),
+            )
             tracked_poses = np.concatenate([tracked_poses, pad], axis=0)
 
         # Decompose tracked poses to rotvec + trans for initialisation
@@ -1119,12 +1395,17 @@ def main() -> None:
                 dirs["seg_obj"], slug, verts, faces
             )
         except FileNotFoundError:
-            print(f"  [WARN] {slug}: part segmentation not found, using whole mesh.")
+            print(
+                f"  [WARN] {slug}: part segmentation not found, "
+                "using whole mesh."
+            )
             part_verts = {}
 
         # Build SDF
-        print(f"  Building SDF for {slug} ({verts.shape[0]} verts, "
-              f"res={args.sdf_resolution})...")
+        print(
+            f"  Building SDF for {slug} ({verts.shape[0]} verts, "
+            f"res={args.sdf_resolution})..."
+        )
         t0 = time.time()
         sdf_grid = _build_sdf_grid(verts, faces, args.sdf_resolution, device)
         print(f"    SDF done in {time.time() - t0:.1f}s")
@@ -1132,7 +1413,9 @@ def main() -> None:
         color = OBJECT_COLORS_BGR[idx % len(OBJECT_COLORS_BGR)]
 
         objects[slug] = ObjectData(
-            name=state.name, slug=slug, state=state,
+            name=state.name,
+            slug=slug,
+            state=state,
             template_verts=torch.from_numpy(verts).float().to(device),
             faces=faces,
             faces_torch=torch.from_numpy(faces.astype(np.int64)).to(device),
@@ -1144,8 +1427,12 @@ def main() -> None:
             color_bgr=color,
         )
         obj_keys.append(slug)
-        print(f"  Loaded {slug}: {verts.shape[0]} verts, {faces.shape[0]} faces, "
-              f"{len(part_verts)} parts ({', '.join(part_verts.keys())})")
+        part_names = ", ".join(part_verts.keys())
+        print(
+            f"  Loaded {slug}: {verts.shape[0]} verts, "
+            f"{faces.shape[0]} faces, {len(part_verts)} parts "
+            f"({part_names})"
+        )
 
     if not obj_keys:
         raise RuntimeError("No objects loaded — nothing to optimise.")
@@ -1171,7 +1458,10 @@ def main() -> None:
             a_obj_idx = -1
             a_part_norm = a_part.lower().strip()
             if a_part_norm not in body_seg:
-                print(f"  [WARN] Body part '{a_part_norm}' not in segmentation, skipping edge.")
+                print(
+                    f"  [WARN] Body part '{a_part_norm}' not in segmentation, "
+                    "skipping edge."
+                )
                 continue
             a_vids = body_seg[a_part_norm]
         else:
@@ -1190,7 +1480,10 @@ def main() -> None:
                     break
             if matched is None:
                 # Fall back to whole mesh
-                print(f"  [WARN] Part '{a_part}' not found in {a_slug}, using whole mesh.")
+                print(
+                    f"  [WARN] Part '{a_part}' not found in {a_slug}, "
+                    "using whole mesh."
+                )
                 matched = np.arange(objects[a_slug].template_verts.shape[0])
             a_vids = matched
 
@@ -1199,7 +1492,10 @@ def main() -> None:
             b_obj_idx = -1
             b_part_norm = b_part.lower().strip()
             if b_part_norm not in body_seg:
-                print(f"  [WARN] Body part '{b_part_norm}' not in segmentation, skipping edge.")
+                print(
+                    f"  [WARN] Body part '{b_part_norm}' not in segmentation, "
+                    "skipping edge."
+                )
                 continue
             b_vids = body_seg[b_part_norm]
         else:
@@ -1216,28 +1512,55 @@ def main() -> None:
                     matched = pvids
                     break
             if matched is None:
-                print(f"  [WARN] Part '{b_part}' not found in {b_slug}, using whole mesh.")
+                print(
+                    f"  [WARN] Part '{b_part}' not found in {b_slug}, "
+                    "using whole mesh."
+                )
                 matched = np.arange(objects[b_slug].template_verts.shape[0])
             b_vids = matched
 
-        # Determine canonical object for dynamics
-        if not a_is_human and a_obj_idx >= 0:
-            canonical_obj_idx = a_obj_idx
-        elif not b_is_human and b_obj_idx >= 0:
-            canonical_obj_idx = b_obj_idx
-        else:
-            canonical_obj_idx = -1
+        contact_reduction = _select_contact_reduction(
+            a_is_human, a_part_norm, b_is_human, b_part_norm
+        )
+        contact_source_is_a = _select_contact_source_is_a(
+            a_is_human, a_vids, b_is_human, b_vids
+        )
+        canonical_obj_idx = _select_canonical_reference_obj(
+            a_is_human, a_obj_idx, b_is_human, b_obj_idx, objects, obj_keys
+        )
 
         resolved_edges.append(ResolvedEdge(
-            a_is_human=a_is_human, a_object_idx=a_obj_idx, a_vert_ids=a_vids,
-            b_is_human=b_is_human, b_object_idx=b_obj_idx, b_vert_ids=b_vids,
-            is_continuous=edge.is_continuous, is_rel_static=edge.is_rel_static,
+            a_is_human=a_is_human,
+            a_object_idx=a_obj_idx,
+            a_vert_ids=a_vids,
+            a_part_name=a_part_norm,
+            b_is_human=b_is_human,
+            b_object_idx=b_obj_idx,
+            b_vert_ids=b_vids,
+            b_part_name=b_part_norm,
+            is_continuous=edge.is_continuous,
+            is_rel_static=edge.is_rel_static,
+            contact_reduction=contact_reduction,
+            contact_source_is_a=contact_source_is_a,
             canonical_obj_idx=canonical_obj_idx,
         ))
-        a_label = f"human:{a_part}" if a_is_human else f"{obj_keys[a_obj_idx]}:{a_part}"
-        b_label = f"human:{b_part}" if b_is_human else f"{obj_keys[b_obj_idx]}:{b_part}"
+        a_label = (
+            f"human:{a_part}"
+            if a_is_human
+            else f"{obj_keys[a_obj_idx]}:{a_part}"
+        )
+        b_label = (
+            f"human:{b_part}"
+            if b_is_human
+            else f"{obj_keys[b_obj_idx]}:{b_part}"
+        )
+        ref_label = (
+            "none" if canonical_obj_idx < 0 else obj_keys[canonical_obj_idx]
+        )
         print(f"  Edge: {a_label} ↔ {b_label}  "
-              f"(continuous={edge.is_continuous}, static={edge.is_rel_static})")
+              f"(continuous={edge.is_continuous}, "
+              f"static={edge.is_rel_static}, "
+              f"contact={contact_reduction}, ref={ref_label})")
 
     print(f"  → {len(resolved_edges)} edges resolved.\n")
 
@@ -1261,14 +1584,22 @@ def main() -> None:
     print(f"  frames:   {num_frames}")
     print(f"  objects:  {', '.join(obj_keys)}")
     print(f"  edges:    {len(resolved_edges)}")
-    print(f"  K: fx={k[0,0]:.1f}  fy={k[1,1]:.1f}  cx={k[0,2]:.1f}  cy={k[1,2]:.1f}")
+    print(
+        f"  K: fx={k[0, 0]:.1f}  fy={k[1, 1]:.1f}  "
+        f"cx={k[0, 2]:.1f}  cy={k[1, 2]:.1f}"
+    )
     print(f"  λ_prior={args.lambda_prior}  λ_contact={args.lambda_contact}")
-    print(f"  λ_dynamics={args.lambda_dynamics}  λ_pen={args.lambda_penetration}")
+    print(
+        f"  λ_dynamics={args.lambda_dynamics}  "
+        f"λ_pen={args.lambda_penetration}"
+    )
     print(f"  λ_smooth={args.lambda_smooth}")
     print("=" * 60)
 
     # ── Adam optimisation ──
-    total_iters = args.adam_iters + (0 if args.disable_lbfgs else args.lbfgs_iters)
+    total_iters = args.adam_iters + (
+        0 if args.disable_lbfgs else args.lbfgs_iters
+    )
     optimizer = torch.optim.Adam(params, lr=args.adam_lr)
     iter_rows: list[dict[str, Any]] = []
     best_loss = float("inf")
@@ -1298,7 +1629,10 @@ def main() -> None:
                     delta_trans[slug].data.copy_(best_state[slug]["dt"])
                 for pg in optimizer.param_groups:
                     pg["lr"] *= 0.5
-                print(f"  [{it:4d}] NaN detected — restored best state, lr halved.")
+                print(
+                    f"  [{it:4d}] NaN detected; restored best state and "
+                    "halved lr."
+                )
             continue
         if loss_val < best_loss:
             best_loss = loss_val
@@ -1311,26 +1645,18 @@ def main() -> None:
             }
 
         if it % args.log_interval == 0 or it == args.adam_iters - 1:
-            row = {
-                "iter": it, "stage": "adam",
-                "total": f"{loss_val:.6f}",
-                "prior": f"{result.prior.item():.6f}",
-                "contact": f"{result.contact.item():.6f}",
-                "dynamics": f"{result.dynamics.item():.6f}",
-                "penetration": f"{result.penetration.item():.6f}",
-                "smooth": f"{result.smooth.item():.6f}",
-            }
+            row = _build_loss_row(it, "adam", result, args)
             iter_rows.append(row)
-            if args.verbose or it % (args.log_interval * 4) == 0 or it == args.adam_iters - 1:
+            if (
+                args.verbose
+                or it % (args.log_interval * 4) == 0
+                or it == args.adam_iters - 1
+            ):
                 elapsed = time.time() - t_start
-                print(f"  [{it:4d}/{args.adam_iters}] "
-                      f"total={loss_val:.5f}  "
-                      f"contact={result.contact.item():.5f}  "
-                      f"dyn={result.dynamics.item():.5f}  "
-                      f"pen={result.penetration.item():.5f}  "
-                      f"prior={result.prior.item():.5f}  "
-                      f"smooth={result.smooth.item():.5f}  "
-                      f"({elapsed:.0f}s)")
+                for line in _format_loss_log(
+                    it, args.adam_iters, result, args, elapsed
+                ):
+                    print(line)
 
     # ── Optional L-BFGS refinement ──
     if not args.disable_lbfgs and args.lbfgs_iters > 0:
@@ -1339,7 +1665,7 @@ def main() -> None:
             params, lr=args.lbfgs_lr,
             max_iter=1, line_search_fn="strong_wolfe"
         )
-        lbfgs_it = [0]
+        lbfgs_result: list[LossResult | None] = [None]
 
         for it_l in range(args.lbfgs_iters):
             global_it = args.adam_iters + it_l
@@ -1352,25 +1678,46 @@ def main() -> None:
                     iteration=global_it, total_iters=total_iters,
                 )
                 res.total.backward()
-                lbfgs_it[0] = global_it
-
-                loss_val = res.total.item()
-                if it_l % args.log_interval == 0 or it_l == args.lbfgs_iters - 1:
-                    row = {
-                        "iter": global_it, "stage": "lbfgs",
-                        "total": f"{loss_val:.6f}",
-                        "prior": f"{res.prior.item():.6f}",
-                        "contact": f"{res.contact.item():.6f}",
-                        "dynamics": f"{res.dynamics.item():.6f}",
-                        "penetration": f"{res.penetration.item():.6f}",
-                        "smooth": f"{res.smooth.item():.6f}",
-                    }
-                    iter_rows.append(row)
+                lbfgs_result[0] = res
                 return res.total
 
             lbfgs.step(closure)
 
-            current_loss = float(iter_rows[-1]["total"]) if iter_rows else float("inf")
+            if (
+                lbfgs_result[0] is not None
+                and (
+                    it_l % args.log_interval == 0
+                    or it_l == args.lbfgs_iters - 1
+                )
+            ):
+                row = _build_loss_row(
+                    global_it, "lbfgs", lbfgs_result[0], args
+                )
+                iter_rows.append(row)
+
+            if (
+                lbfgs_result[0] is not None
+                and (
+                    args.verbose
+                    or it_l % (args.log_interval * 4) == 0
+                    or it_l == args.lbfgs_iters - 1
+                )
+            ):
+                elapsed = time.time() - t_start
+                for line in _format_loss_log(
+                    global_it,
+                    total_iters,
+                    lbfgs_result[0],
+                    args,
+                    elapsed,
+                ):
+                    print(line)
+
+            current_loss = (
+                lbfgs_result[0].total.item()
+                if lbfgs_result[0] is not None
+                else float("inf")
+            )
             if current_loss < best_loss:
                 best_loss = current_loss
                 best_state = {
@@ -1390,7 +1737,10 @@ def main() -> None:
             delta_trans[slug].data.copy_(best_state[slug]["dt"])
 
     total_time = time.time() - t_start
-    print(f"\nOptimisation complete in {total_time:.1f}s. Best loss: {best_loss:.6f}")
+    print(
+        f"\nOptimisation complete in {total_time:.1f}s. "
+        f"Best loss: {best_loss:.6f}"
+    )
 
     # ── Extract final poses ──
     final_T_mats: dict[str, np.ndarray] = {}

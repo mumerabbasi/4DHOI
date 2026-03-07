@@ -5,8 +5,8 @@
   "num_frames": 81,
   "num_objects": 2,
   "num_edges": 2,
-  "best_total_loss": 7.435912132263184,
-  "optimisation_time_s": 4631.816634654999,
+  "best_total_loss": 0.24358122050762177,
+  "optimisation_time_s": 3004.8252556324005,
   "inputs": {
     "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01",
     "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_cotracker/video_01",
@@ -16,18 +16,18 @@
     "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/alignment_summary.json"
   },
   "weights": {
-    "lambda_prior": 15.0,
-    "lambda_contact": 500.0,
-    "lambda_dynamics": 100.0,
-    "lambda_penetration": 40.0,
-    "lambda_smooth": 40.0
+    "lambda_prior": 25.0,
+    "lambda_contact": 200.0,
+    "lambda_dynamics": 150.0,
+    "lambda_penetration": 20.0,
+    "lambda_smooth": 20.0
   },
   "optimisation": {
     "adam_iters": 1200,
     "adam_lr": 0.001,
     "lbfgs_enabled": true,
     "lbfgs_iters": 100,
-    "sdf_resolution": 128
+    "sdf_resolution": 256
   },
   "objects": {
     "iron": {
