@@ -1,0 +1,131 @@
+{
+  "video_name": "video_01",
+  "status": "completed",
+  "script": "track_human_object_mesh.py",
+  "num_frames": 81,
+  "num_objects": 2,
+  "num_edges": 2,
+  "best_total_loss": 0.6920338869094849,
+  "optimisation_time_s": 8.367955923080444,
+  "inputs": {
+    "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01",
+    "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_cotracker/video_01",
+    "segment_object_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output/video_01",
+    "pag_file": "/my_workspace/4DHHOI/4DHOI/Generate_PAG/output/video_01/output_pag_deepseek_r1_32b.json",
+    "smpl_seg_json": "/my_workspace/4DHHOI/GVHMR/hmr4d/utils/body_model/smpl_vert_segmentation.json",
+    "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/alignment_summary.json"
+  },
+  "weights": {
+    "lambda_prior": 20.0,
+    "lambda_contact": 200.0,
+    "lambda_dynamics": 150.0,
+    "lambda_penetration": 20.0,
+    "lambda_smooth": 12.0,
+    "lambda_human_prior": 100.0,
+    "lambda_human_smooth": 30.0,
+    "lambda_human_mask_2d": 40.0,
+    "lambda_object_mask_2d": 60.0,
+    "lambda_object_part_mask_2d": 120.0,
+    "lambda_object_scale": 30.0
+  },
+  "optimisation": {
+    "adam_iters": 5,
+    "adam_lr": 0.001,
+    "sdf_resolution": 128,
+    "freeze_human": false,
+    "optimize_object_scale": true,
+    "max_log_scale_delta": 0.22,
+    "early_stop_triggered": false
+  },
+  "debug_columns": [
+    "iter",
+    "stage",
+    "total",
+    "prior_raw",
+    "prior_scaled",
+    "contact_raw",
+    "contact_scaled",
+    "dynamics_raw",
+    "dynamics_scaled",
+    "penetration_raw",
+    "penetration_scaled",
+    "smooth_raw",
+    "smooth_scaled",
+    "human_prior_raw",
+    "human_prior_scaled",
+    "human_smooth_raw",
+    "human_smooth_scaled",
+    "human_mask_2d_raw",
+    "human_mask_2d_scaled",
+    "object_mask_2d_raw",
+    "object_mask_2d_scaled",
+    "object_part_mask_2d_raw",
+    "object_part_mask_2d_scaled",
+    "object_scale_reg_raw",
+    "object_scale_reg_scaled",
+    "time_contact_s",
+    "time_dynamics_s",
+    "time_penetration_s",
+    "time_mask2d_s",
+    "time_backward_s",
+    "time_total_iter_s"
+  ],
+  "objects": {
+    "iron": {
+      "name": "iron",
+      "num_verts": 153324,
+      "num_faces": 306644,
+      "num_parts": 2,
+      "parts": [
+        "handle",
+        "soleplate"
+      ],
+      "is_translational": true,
+      "is_rotational": false,
+      "final_scale": 1.0010926723480225
+    },
+    "ironing_board": {
+      "name": "ironing board",
+      "num_verts": 160992,
+      "num_faces": 321984,
+      "num_parts": 2,
+      "parts": [
+        "support",
+        "surface"
+      ],
+      "is_translational": false,
+      "is_rotational": false,
+      "final_scale": 0.9997228384017944
+    }
+  },
+  "human": {
+    "num_verts": 6890,
+    "num_faces": 13776,
+    "freeze_human": false,
+    "delta_stats": {
+      "max_delta_rot_deg": 0.49298517840580197,
+      "mean_delta_rot_deg": 0.3623340382693453,
+      "max_delta_trans_m": 0.008634701371192932,
+      "mean_delta_trans_m": 0.006959931459277868,
+      "freeze_human": false
+    }
+  },
+  "edges": [
+    {
+      "node_a": "iron, handle",
+      "node_b": "person 1, left hand",
+      "is_continuous": true,
+      "is_rel_static": true
+    },
+    {
+      "node_a": "iron, soleplate",
+      "node_b": "ironing board, surface",
+      "is_continuous": true,
+      "is_rel_static": false
+    }
+  ],
+  "conventions": {
+    "coordinate_system": "OpenCV (X-right, Y-down, Z-forward)",
+    "T_4x4": "rigid component only; true object transform also uses global_scale"
+  }
+}
