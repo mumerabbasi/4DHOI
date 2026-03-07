@@ -82,7 +82,6 @@ flowchart TD
 | Depth estimation | `Estimate_Depth/estimate_depth.py` | generated video | frame extraction, metric depth, optional relative depth, run summary under `Estimate_Depth/output/<video>/` |
 | Human motion estimation | `Estimate_Human_Motion/estimate_human_motion.py` | generated video | GVHMR outputs under `Estimate_Human_Motion/output/<video>/` |
 | Human mesh export | `Estimate_Human_Motion/export_human_motion_to_ply.py` | `hmr4d_results.pt` | `output_plys/frame_*.ply` |
-| GVHMR outputs, PAG, SMPL segmentation | colored per-frame human meshes and part mappings |
 | Mesh alignment | `Align_Meshes/align_meshes.py` | object meshes, first-frame human mesh, depth, masks | aligned meshes, `transforms.json`, overlays, summaries under `Align_Meshes/output/<video>/` |
 | Full human sequence alignment | `Align_Meshes/align_human_motion_sequence.py` | `output_plys`, human entry in `transforms.json` | `Align_Meshes/output/<video>/human_motion_aligned/` |
 | Object mesh part segmentation | `Segment_Object_Mesh/render_mesh_views.py`, `segment_parts.py`, `segment_meshes.py` | aligned object meshes, PAG, video part names | rendered multi-view RGB/face IDs, part masks, triangle labels, segmented meshes |
