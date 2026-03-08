@@ -240,6 +240,144 @@ def _clamp_bbox(bbox: list[int] | tuple[int, ...] | None, w: int, h: int) -> lis
     return [x1, y1, x2, y2]
 
 
+def _bbox_area(bbox: list[int] | tuple[int, ...] | None) -> int:
+    if bbox is None or len(bbox) != 4:
+        return 0
+    x1, y1, x2, y2 = bbox
+    return max(0, x2 - x1) * max(0, y2 - y1)
+
+
+def _bbox_intersection_area(
+    bbox_a: list[int] | tuple[int, ...] | None,
+    bbox_b: list[int] | tuple[int, ...] | None,
+) -> int:
+    if bbox_a is None or bbox_b is None:
+        return 0
+    ax1, ay1, ax2, ay2 = bbox_a
+    bx1, by1, bx2, by2 = bbox_b
+    ix1 = max(ax1, bx1)
+    iy1 = max(ay1, by1)
+    ix2 = min(ax2, bx2)
+    iy2 = min(ay2, by2)
+    return max(0, ix2 - ix1) * max(0, iy2 - iy1)
+
+
+def _bbox_is_inner(
+    inner_bbox: list[int] | tuple[int, ...] | None,
+    outer_bbox: list[int] | tuple[int, ...] | None,
+) -> bool:
+    """Heuristic: inner bbox is mostly covered by outer bbox and centered inside it."""
+    inner_area = _bbox_area(inner_bbox)
+    outer_area = _bbox_area(outer_bbox)
+    if inner_area <= 0 or outer_area <= inner_area:
+        return False
+
+    ix1, iy1, ix2, iy2 = inner_bbox
+    ox1, oy1, ox2, oy2 = outer_bbox
+    cx = 0.5 * (ix1 + ix2)
+    cy = 0.5 * (iy1 + iy2)
+    center_inside = ox1 <= cx <= ox2 and oy1 <= cy <= oy2
+    coverage = _bbox_intersection_area(inner_bbox, outer_bbox) / inner_area
+    return center_inside and coverage >= 0.75
+
+
+def _exclusive_priority_order(
+    parts: list[str],
+    masks: dict[str, np.ndarray | None],
+    bboxes: dict[str, list[int] | None],
+) -> list[str]:
+    """
+    Order parts so nested/smaller parts claim overlap first.
+
+    Internal parts are approximated by bbox nesting depth, then by smaller bbox area,
+    then by smaller mask area.
+    """
+    ranked_parts = []
+    for idx, part in enumerate(parts):
+        bbox = bboxes.get(part)
+        mask = masks.get(part)
+        nested_depth = sum(
+            1
+            for other in parts
+            if other != part and _bbox_is_inner(bbox, bboxes.get(other))
+        )
+        bbox_area = _bbox_area(bbox) or sys.maxsize
+        mask_area = int(mask.sum()) if mask is not None and np.any(mask) else sys.maxsize
+        ranked_parts.append((part, nested_depth, bbox_area, mask_area, idx))
+
+    ranked_parts.sort(key=lambda item: (-item[1], item[2], item[3], item[4]))
+    return [part for part, *_ in ranked_parts]
+
+
+def make_masks_exclusive(
+    parts: list[str],
+    masks: dict[str, np.ndarray | None],
+    bboxes: dict[str, list[int] | None],
+) -> dict[str, np.ndarray | None]:
+    """Remove overlaps so higher-priority internal parts carve pixels from outer parts."""
+    reference_mask = next(
+        (mask for mask in masks.values() if mask is not None and np.any(mask)),
+        None,
+    )
+    if reference_mask is None:
+        return {part: None for part in parts}
+
+    claimed = np.zeros(reference_mask.shape, dtype=bool)
+    resolved: dict[str, np.ndarray | None] = {part: None for part in parts}
+    priority_order = _exclusive_priority_order(parts, masks, bboxes)
+    overlap_found = False
+
+    for part in priority_order:
+        mask = masks.get(part)
+        if mask is None or not np.any(mask):
+            continue
+
+        mask_bool = mask.astype(bool)
+        overlap = mask_bool & claimed
+        trimmed = mask_bool & ~claimed
+
+        overlap_px = int(overlap.sum())
+        if overlap_px > 0:
+            overlap_found = True
+            print(f"        overlap trim for {part}: removed {overlap_px}px")
+
+        trimmed_area = int(trimmed.sum())
+        if trimmed_area >= MIN_MASK_PIXELS:
+            resolved[part] = trimmed.astype(np.uint8)
+            claimed |= trimmed
+        else:
+            if trimmed_area > 0 or overlap_px > 0:
+                print(f"        {part}: dropped after exclusivity (area={trimmed_area}px)")
+            resolved[part] = None
+
+    if overlap_found:
+        print(f"        exclusivity priority: {' > '.join(priority_order)}")
+
+    return resolved
+
+
+def _mask_output_path(masks_dir: Path, image_stem: str, part: str) -> Path:
+    return masks_dir / f"{image_stem}_{part.replace(' ', '_')}.png"
+
+
+def _write_view_masks(
+    masks_dir: Path,
+    image_stem: str,
+    parts: list[str],
+    masks: dict[str, np.ndarray | None],
+) -> None:
+    for part in parts:
+        mask_path = _mask_output_path(masks_dir, image_stem, part)
+        if mask_path.exists():
+            mask_path.unlink()
+
+        mask = masks.get(part)
+        if mask is None or not np.any(mask):
+            continue
+
+        cv2.imwrite(str(mask_path), (mask.astype(np.uint8) * 255))
+
+
 def segment_with_box(
     sam3: dict,
     image_pil: Image.Image,
@@ -644,11 +782,12 @@ def process_object(
 
             if area >= MIN_MASK_PIXELS:
                 all_masks[part] = mask
-                fname = f"{img_path.stem}_{part.replace(' ', '_')}.png"
-                cv2.imwrite(str(masks_dir / fname), (mask * 255).astype(np.uint8))
             else:
                 print("        mask too small, discarding")
                 all_masks[part] = None
+
+        all_masks = make_masks_exclusive(parts, all_masks, all_bboxes)
+        _write_view_masks(masks_dir, img_path.stem, parts, all_masks)
 
         # Save bbox visualization
         if any(b is not None for b in all_bboxes.values()):
@@ -670,15 +809,67 @@ def main():
     parser = argparse.ArgumentParser(
         description="Segment rendered object parts using Qwen-VL + SAM3."
     )
-    parser.add_argument("--video_name", type=str, default="video_01")
-    parser.add_argument("--pag_file", type=str, default=None)
-    parser.add_argument("--output_root", type=str, default="./output")
-    parser.add_argument("--ollama_host", type=str, default=OLLAMA_HOST)
-    parser.add_argument("--ollama_api_key", type=str, default=OLLAMA_API_KEY)
-    parser.add_argument("--qwen_model", type=str, default=QWEN_MODEL)
-    parser.add_argument("--qwen_retries", type=int, default=3)
-    parser.add_argument("--sam3_checkpoint", type=str, default=SAM3_CHECKPOINT)
-    parser.add_argument("--sam3_bpe_path", type=str, default=SAM3_BPE_PATH)
+    parser.add_argument(
+        "--video_name",
+        type=str,
+        default="video_01",
+        help="Video name used to resolve default input paths.",
+    )
+    parser.add_argument(
+        "--pag_file",
+        type=str,
+        default=None,
+        help=(
+            "PAG JSON path (default: first output_pag_*.json in "
+            "../Generate_PAG/output/<video_name>, with ../Generate_PAG/pags/<video_name> "
+            "as a fallback)."
+        ),
+    )
+    parser.add_argument(
+        "--output_root",
+        type=str,
+        default="./output",
+        help=(
+            "Output root containing rendered object directories "
+            "(default: ./output, relative to this script)."
+        ),
+    )
+    parser.add_argument(
+        "--ollama_host",
+        type=str,
+        default=OLLAMA_HOST,
+        help=f"Ollama-compatible OpenAI endpoint (default: {OLLAMA_HOST}).",
+    )
+    parser.add_argument(
+        "--ollama_api_key",
+        type=str,
+        default=OLLAMA_API_KEY,
+        help="API key sent to the Ollama-compatible endpoint.",
+    )
+    parser.add_argument(
+        "--qwen_model",
+        type=str,
+        default=QWEN_MODEL,
+        help=f"Qwen-VL model name used for part detection (default: {QWEN_MODEL}).",
+    )
+    parser.add_argument(
+        "--qwen_retries",
+        type=int,
+        default=3,
+        help="Number of detection retries per view before giving up (default: 3).",
+    )
+    parser.add_argument(
+        "--sam3_checkpoint",
+        type=str,
+        default=SAM3_CHECKPOINT,
+        help="SAM3 checkpoint path (default: auto-download from HuggingFace).",
+    )
+    parser.add_argument(
+        "--sam3_bpe_path",
+        type=str,
+        default=SAM3_BPE_PATH,
+        help=f"SAM3 BPE vocab path (default: {SAM3_BPE_PATH}).",
+    )
     args = parser.parse_args()
 
     script_dir = Path(__file__).resolve().parent
