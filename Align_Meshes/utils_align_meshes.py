@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 import cv2
 import matplotlib
@@ -30,6 +30,9 @@ OVERLAY_PALETTE_BGR: list[tuple[int, int, int]] = [
     (0, 0, 255),
     (255, 0, 0),
 ]
+
+DEFAULT_OVERLAY_FILL_ALPHA = 0.60
+DEFAULT_OVERLAY_CONTOUR_THICKNESS = 0
 
 
 @dataclass
@@ -306,12 +309,70 @@ def build_overlay_color_map(names: list[str]) -> dict[str, tuple[int, int, int]]
     return color_map
 
 
+def add_overlay_legend(
+    image_bgr: np.ndarray,
+    legend_items: Sequence[tuple[str, tuple[int, int, int]]],
+) -> np.ndarray:
+    """Draw a compact overlay legend using the local overlay palette."""
+    deduped_items: list[tuple[str, tuple[int, int, int]]] = []
+    seen_names: set[str] = set()
+    for name, color in legend_items:
+        label = str(name).strip()
+        if not label or label in seen_names:
+            continue
+        seen_names.add(label)
+        deduped_items.append((label, color))
+
+    if not deduped_items:
+        return image_bgr.copy()
+
+    result = image_bgr.copy()
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.6
+    thickness = 1
+    text_line_type = cv2.LINE_AA
+    line_height = 24
+    x_start = 10
+    y_start = 24
+
+    max_text_w = max(
+        cv2.getTextSize(name, font, font_scale, thickness)[0][0]
+        for name, _ in deduped_items
+    )
+    legend_w = 20 + max_text_w + 10
+    overlay_bg = result.copy()
+    cv2.rectangle(
+        overlay_bg,
+        (x_start - 5, y_start - line_height + 2),
+        (x_start + legend_w, y_start + (len(deduped_items) - 1) * line_height + 10),
+        (0, 0, 0),
+        -1,
+    )
+    result = cv2.addWeighted(overlay_bg, 0.5, result, 0.5, 0)
+
+    for idx, (name, color) in enumerate(deduped_items):
+        y = y_start + idx * line_height
+        cv2.rectangle(result, (x_start, y - 10), (x_start + 14, y + 4), color, -1)
+        cv2.putText(
+            result,
+            name,
+            (x_start + 20, y),
+            font,
+            font_scale,
+            (255, 255, 255),
+            thickness,
+            text_line_type,
+        )
+
+    return result
+
+
 def draw_mask_outline_overlay(
     image_bgr: np.ndarray,
     mask: np.ndarray,
     color_bgr: tuple[int, int, int],
-    fill_alpha: float = 0.35,
-    contour_thickness: int = 2,
+    fill_alpha: float = DEFAULT_OVERLAY_FILL_ALPHA,
+    contour_thickness: int = DEFAULT_OVERLAY_CONTOUR_THICKNESS,
 ) -> np.ndarray:
     if mask is None:
         return image_bgr.copy()
@@ -334,15 +395,16 @@ def draw_mask_outline_overlay(
     )
     contours = contours_info[0] if len(contours_info) == 2 else contours_info[1]
 
-    outline = tuple(int(np.clip(c + 48, 0, 255)) for c in color_bgr)
-    cv2.drawContours(
-        out_u8,
-        contours,
-        contourIdx=-1,
-        color=outline,
-        thickness=max(1, int(contour_thickness)),
-        lineType=cv2.LINE_AA,
-    )
+    if int(contour_thickness) > 0:
+        outline = tuple(int(np.clip(c + 48, 0, 255)) for c in color_bgr)
+        cv2.drawContours(
+            out_u8,
+            contours,
+            contourIdx=-1,
+            color=outline,
+            thickness=int(contour_thickness),
+            lineType=cv2.LINE_AA,
+        )
     return out_u8
 
 
@@ -389,6 +451,8 @@ def render_quality_overlay_from_cv_meshes(
     names: list[str],
     k: np.ndarray,
     device: torch.device,
+    fill_alpha: float = DEFAULT_OVERLAY_FILL_ALPHA,
+    contour_thickness: int = DEFAULT_OVERLAY_CONTOUR_THICKNESS,
 ) -> np.ndarray:
     """Render multi-mesh silhouette+outline overlay from OpenCV-camera meshes."""
     if len(verts_cv_list) != len(faces_list) or len(verts_cv_list) != len(names):
@@ -412,8 +476,8 @@ def render_quality_overlay_from_cv_meshes(
             image_bgr=out,
             mask=mask,
             color_bgr=color_map[name],
-            fill_alpha=0.35,
-            contour_thickness=2,
+            fill_alpha=fill_alpha,
+            contour_thickness=contour_thickness,
         )
     return out
 
