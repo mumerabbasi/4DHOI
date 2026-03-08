@@ -147,6 +147,24 @@ def parse_args() -> argparse.Namespace:
     # Optimisation
     p.add_argument("--adam_iters", type=int, default=1200)
     p.add_argument("--adam_lr", type=float, default=1e-3)
+    p.add_argument(
+        "--early_stop_start",
+        type=int,
+        default=400,
+        help="Iteration at which to begin checking early stopping.",
+    )
+    p.add_argument(
+        "--early_stop_patience",
+        type=int,
+        default=0,
+        help="Consecutive no-improvement iterations before stopping. Set 0 to disable.",
+    )
+    p.add_argument(
+        "--early_stop_rel_improve",
+        type=float,
+        default=1e-4,
+        help="Minimum relative best-loss improvement required to reset patience.",
+    )
     p.add_argument("--freeze_human", action="store_true")
     p.add_argument(
         "--optimize_object_scale",
@@ -1253,7 +1271,6 @@ def _get_scaled_loss_terms(
 
 def _build_loss_row(
     iteration: int,
-    stage: str,
     result: LossResult,
     args: argparse.Namespace,
     extra_metrics: dict[str, float] | None = None,
@@ -1261,7 +1278,6 @@ def _build_loss_row(
     scaled_terms = _get_scaled_loss_terms(result, args)
     row: dict[str, Any] = {
         "iter": iteration,
-        "stage": stage,
         "total": float(result.total.item()),
     }
 
@@ -1321,9 +1337,6 @@ def _format_loss_log(
             f"part2d={result.object_part_mask_2d.item():.5f}",
         ]
     )
-    timings_str = "  ".join(
-        f"{key}={value:.3f}s" for key, value in result.timings.items()
-    )
     return [
         f"  [{iteration:4d}/{total_iterations}] "
         f"total={result.total.item():.5f}  ({elapsed_s:.0f}s)",
@@ -1331,7 +1344,6 @@ def _format_loss_log(
         f"      scaled(aux): {aux_scaled}",
         f"      raw(obj):    {obj_raw}",
         f"      raw(aux):    {aux_raw}",
-        f"      times:       {timings_str}",
     ]
 
 
@@ -2518,6 +2530,7 @@ def main() -> None:
     best_human_state: dict[str, torch.Tensor] = {}
     no_improve_iters = 0
     early_stop_triggered = False
+    early_stop_enabled = args.early_stop_patience > 0
 
     print(f"\n[Adam] {args.adam_iters} iterations, lr={args.adam_lr}")
     t_start = time.time()
@@ -2585,15 +2598,16 @@ def main() -> None:
                 "dr": human_delta_rotvecs.detach().clone(),
                 "dt": human_delta_trans.detach().clone(),
             }
-            if rel_improve > 1e-4:
+            if rel_improve > args.early_stop_rel_improve:
                 no_improve_iters = 0
-        elif it >= 400:
+            elif early_stop_enabled and it >= args.early_stop_start:
+                no_improve_iters += 1
+        elif early_stop_enabled and it >= args.early_stop_start:
             no_improve_iters += 1
 
         if it % args.log_interval == 0 or it == args.adam_iters - 1:
             row = _build_loss_row(
                 it,
-                "adam",
                 result,
                 args,
                 extra_metrics={
@@ -2613,11 +2627,12 @@ def main() -> None:
                 ):
                     print(line)
 
-        if no_improve_iters >= 200:
+        if early_stop_enabled and no_improve_iters >= args.early_stop_patience:
             early_stop_triggered = True
             print(
                 f"  Early stop at iter {it}: no relative improvement "
-                "greater than 1e-4 for 200 iterations."
+                f"greater than {args.early_stop_rel_improve:.1e} for "
+                f"{args.early_stop_patience} iterations."
             )
             break
 
@@ -2840,6 +2855,9 @@ def main() -> None:
             "freeze_human": bool(args.freeze_human),
             "optimize_object_scale": bool(args.optimize_object_scale),
             "max_log_scale_delta": args.max_log_scale_delta,
+            "early_stop_start": args.early_stop_start,
+            "early_stop_patience": args.early_stop_patience,
+            "early_stop_rel_improve": args.early_stop_rel_improve,
             "early_stop_triggered": early_stop_triggered,
         },
         "debug_columns": list(iter_rows[0].keys()) if iter_rows else [],
