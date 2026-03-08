@@ -30,7 +30,7 @@ def main() -> None:
     parser.add_argument(
         "--video_dir",
         type=str,
-        default="output/video_03",
+        default="output/video_01",
         help="Directory containing hmr4d_results.pt.",
     )
     parser.add_argument(
