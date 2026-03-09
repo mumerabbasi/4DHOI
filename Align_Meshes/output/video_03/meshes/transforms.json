@@ -61,50 +61,50 @@
       "name": "umbrella",
       "slug": "umbrella",
       "kind": "object",
-      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_03/umbrella/mesh_posed.ply",
-      "source_coordinate": "pytorch3d_camera",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_03/meshes/umbrella.ply",
+      "source_coordinate": "opencv_camera",
       "output_coordinate": "opencv",
       "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03/meshes/umbrella.ply",
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_alpha": 0.9495290517807007,
-        "scale_exp_alpha": 2.584492210656307,
+        "log_scale_alpha": 0.9498010873794556,
+        "scale_exp_alpha": 2.5851953801815455,
         "tx_init_m": 0.0,
         "ty_init_m": 0.0,
         "tz_init_m": 0.0,
-        "delta_tx_m": -0.11249417811632156,
-        "delta_ty_m": -0.3164393901824951,
-        "delta_tz_m": 1.1346867084503174,
-        "tx_total_m": -0.11249417811632156,
-        "ty_total_m": -0.3164393901824951,
-        "tz_total_m": 1.1346867084503174,
+        "delta_tx_m": -0.1120353639125824,
+        "delta_ty_m": -0.3159691095352173,
+        "delta_tz_m": 1.135113000869751,
+        "tx_total_m": -0.1120353639125824,
+        "ty_total_m": -0.3159691095352173,
+        "tz_total_m": 1.135113000869751,
         "obs_3d_count": 6000,
         "obs_2d_count": 6000,
-        "model_sample_count": 4138,
+        "model_sample_count": 4146,
         "model_sample_count_total": 6000,
-        "model_sample_count_visible_fixed": 4138,
-        "model_sample_visible_ratio": 0.6896666666666667,
+        "model_sample_count_visible_fixed": 4146,
+        "model_sample_visible_ratio": 0.691,
         "visible_subset_mode": "strict_visible"
       },
       "source_to_output_matrix_4x4": [
         [
-          -2.5844922065734863,
+          2.585195302963257,
           0.0,
           0.0,
-          -0.11249417811632156
+          -0.1120353639125824
         ],
         [
           0.0,
-          -2.5844922065734863,
+          2.585195302963257,
           0.0,
-          -0.3164393901824951
+          -0.3159691095352173
         ],
         [
           0.0,
           0.0,
-          2.5844922065734863,
-          1.1346867084503174
+          2.585195302963257,
+          1.135113000869751
         ],
         [
           0.0,

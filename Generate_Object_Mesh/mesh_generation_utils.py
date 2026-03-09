@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import copy
-import json
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -13,14 +11,6 @@ import torch
 import trimesh
 
 SAM3D_PATH = "/my_workspace/4DHHOI/sam-3d-objects"
-
-KEYS_TO_SAVE = {
-    "6drotation_normalized",
-    "rotation",
-    "translation",
-    "scale",
-    "translation_scale",
-}
 
 SENSOR_WIDTH_MM = 36.0
 SENSOR_HEIGHT_MM = 24.0
@@ -66,49 +56,6 @@ def estimate_camera_intrinsics(sam3d: Any, image_rgb: np.ndarray) -> Dict[str, A
     }
 
 
-def scale_camera_intrinsics(camera_info: Dict[str, Any], f_scale: float) -> Dict[str, Any]:
-    """Scale fx/fy/lens for auto-estimated intrinsics."""
-    if f_scale <= 0:
-        raise ValueError(f"--f_scale must be > 0, got {f_scale}")
-
-    scaled = copy.deepcopy(camera_info)
-    k = scaled.get("intrinsics_pixels_3x3")
-    if not isinstance(k, list) or len(k) != 3:
-        raise ValueError("camera_info['intrinsics_pixels_3x3'] is missing or invalid")
-
-    k[0][0] = float(k[0][0]) * float(f_scale)
-    k[1][1] = float(k[1][1]) * float(f_scale)
-
-    blender_rec = scaled.get("blender_recommendation", {})
-    if "lens_mm" in blender_rec:
-        blender_rec["lens_mm"] = float(blender_rec["lens_mm"]) * float(f_scale)
-    blender_rec["focal_scale_factor"] = float(f_scale)
-    scaled["blender_recommendation"] = blender_rec
-
-    print(
-        "  Scaled intrinsics: "
-        f"fx={k[0][0]:.1f}px, fy={k[1][1]:.1f}px | lens={blender_rec.get('lens_mm', 0.0):.2f}mm"
-    )
-    return scaled
-
-
-def compute_overlay_focal_scale(
-    camera_info: Dict[str, Any],
-    focal_length_mm_override: Optional[float],
-) -> float:
-    """Convert focal override in mm into an fx/fy scale for pixel-space K."""
-    if focal_length_mm_override is None:
-        return 1.0
-
-    blender_rec = camera_info.get("blender_recommendation", {})
-    base_lens_mm = float(blender_rec.get("lens_mm", 0.0))
-    if base_lens_mm <= 0.0:
-        raise ValueError(
-            "camera_info.blender_recommendation.lens_mm must be > 0 to use --focal_length override."
-        )
-    return float(focal_length_mm_override) / base_lens_mm
-
-
 def to_numpy(value: Any) -> Any:
     """Convert torch-like values to numpy."""
     if value is None:
@@ -119,18 +66,6 @@ def to_numpy(value: Any) -> Any:
         value = value.cpu()
     if hasattr(value, "numpy"):
         value = value.numpy()
-    return value
-
-
-def to_jsonable(value: Any) -> Any:
-    """Convert tensor/numpy types to JSON-serializable Python types."""
-    if value is None:
-        return None
-    value = to_numpy(value)
-    if isinstance(value, np.ndarray):
-        return float(value.reshape(-1)[0]) if value.size == 1 else value.tolist()
-    if isinstance(value, (np.floating, np.integer)):
-        return value.item()
     return value
 
 
@@ -145,15 +80,6 @@ def quaternion_to_rotation_matrix(quat: np.ndarray) -> np.ndarray:
         ],
         dtype=np.float32,
     )
-
-
-def quaternion_to_euler_xyz_degrees(quat: np.ndarray) -> np.ndarray:
-    """Convert quaternion (w, x, y, z) -> Euler XYZ angles in degrees."""
-    w, x, y, z = quat / np.linalg.norm(quat)
-    roll = np.arctan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y))
-    pitch = np.arcsin(np.clip(2 * (w * y - z * x), -1, 1))
-    yaw = np.arctan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z))
-    return np.degrees(np.array([roll, pitch, yaw], dtype=np.float32))
 
 
 def create_posed_mesh(
@@ -213,46 +139,12 @@ def sam3d_mesh_to_trimesh(sam3d_mesh: Any) -> trimesh.Trimesh:
     return mesh
 
 
-def extract_pose_data(output: Dict[str, Any]) -> Dict[str, np.ndarray]:
-    """Extract pose components from SAM3D output."""
-    rotation_quat = np.asarray(to_jsonable(output["rotation"]), dtype=np.float32).flatten()
-    translation = np.asarray(to_jsonable(output["translation"]), dtype=np.float32).flatten()
-    scale = np.asarray(to_jsonable(output["scale"]), dtype=np.float32).flatten()
-    euler_xyz_deg = quaternion_to_euler_xyz_degrees(rotation_quat)
-
-    return {
-        "rotation_quat": rotation_quat,
-        "translation": translation,
-        "scale": scale,
-        "euler_xyz_deg": euler_xyz_deg,
-    }
-
-
-def save_pose_json(
-    output: Dict[str, Any],
-    pose_data: Dict[str, np.ndarray],
-    output_path: Path,
-    focal_length_mm: float,
-    camera_intrinsics_json: Path,
-    extra_fields: Optional[Dict[str, Any]] = None,
-) -> None:
-    """Save pose.json for one frame/object pair."""
-    transform_data: Dict[str, Any] = {}
-    for key in sorted(KEYS_TO_SAVE):
-        if key in output:
-            transform_data[key] = to_jsonable(output[key])
-
-    transform_data["rotation_quaternion_wxyz"] = pose_data["rotation_quat"].tolist()
-    transform_data["rotation_euler_xyz_degrees"] = pose_data["euler_xyz_deg"].tolist()
-    transform_data["focal_length_mm_used_for_overlay"] = float(focal_length_mm)
-    transform_data["camera_intrinsics_json"] = str(camera_intrinsics_json)
-
-    if extra_fields:
-        transform_data.update(extra_fields)
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with output_path.open("w", encoding="utf-8") as f:
-        json.dump(transform_data, f, indent=2)
+def extract_pose_components(output: Dict[str, Any]) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Extract rotation, translation, and scale arrays from SAM3D output."""
+    rotation_quat = np.asarray(to_numpy(output["rotation"]), dtype=np.float32).reshape(-1)
+    translation = np.asarray(to_numpy(output["translation"]), dtype=np.float32).reshape(-1)
+    scale = np.asarray(to_numpy(output["scale"]), dtype=np.float32).reshape(-1)
+    return rotation_quat, translation, scale
 
 
 def discover_frames(input_dir: Path) -> List[str]:

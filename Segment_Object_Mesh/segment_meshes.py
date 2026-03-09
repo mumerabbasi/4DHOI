@@ -655,14 +655,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--k_neighbors",
         type=int,
-        default=200,
-        help="K neighbors for smoothing (default: 200).",
+        default=500,
+        help="K neighbors for smoothing (default: 500).",
     )
     parser.add_argument(
         "--min_neighbor_agreement",
         type=float,
-        default=0.6,
-        help="Neighbor vote agreement threshold for smoothing in [0,1] (default: 0.6).",
+        default=0.5,
+        help="Neighbor vote agreement threshold for smoothing in [0,1] (default: 0.5).",
     )
     return parser.parse_args()
 

@@ -31,14 +31,18 @@ from pytorch3d.renderer import MeshRasterizer, RasterizationSettings
 from pytorch3d.structures import Meshes
 
 from utils_align_meshes import (
+    DEFAULT_OVERLAY_CONTOUR_THICKNESS,
+    DEFAULT_OVERLAY_FILL_ALPHA,
     F_CV_TO_P3D,
     F_P3D_TO_CV,
     MeshAsset,
+    build_overlay_color_map,
     build_cameras,
     colorize_points_by_xyz,
     erode_mask,
     ensure_3x3_intrinsics,
     find_first_human_ply,
+    add_overlay_legend,
     load_binary_mask,
     load_json,
     load_mesh,
@@ -2309,15 +2313,25 @@ def main() -> None:
     max_k_diff = float(np.max(k_diff))
 
     assets: list[MeshAsset] = []
-    for obj_dir in sorted(object_video_dir.iterdir()):
-        if not obj_dir.is_dir():
-            continue
+    object_mesh_specs: list[tuple[str, Path, str]] = []
+    object_meshes_dir = (object_video_dir / "meshes").resolve()
+    if object_meshes_dir.is_dir():
+        object_mesh_specs = [
+            (mesh_path.stem, mesh_path.resolve(), "opencv_camera")
+            for mesh_path in sorted(object_meshes_dir.glob("*.ply"))
+            if mesh_path.is_file()
+        ]
 
-        mesh_path = obj_dir / "mesh_posed.ply"
-        if not mesh_path.exists():
-            continue
+    if len(object_mesh_specs) == 0:
+        for obj_dir in sorted(object_video_dir.iterdir()):
+            if not obj_dir.is_dir():
+                continue
+            mesh_path = obj_dir / "mesh_posed.ply"
+            if not mesh_path.exists():
+                continue
+            object_mesh_specs.append((obj_dir.name, mesh_path.resolve(), "pytorch3d_camera"))
 
-        object_dir_name = obj_dir.name
+    for object_dir_name, mesh_path, source_coord in object_mesh_specs:
         obj_name = object_dir_name.replace("_", " ")
         mask_dir = (
             segmentation_video_dir
@@ -2335,14 +2349,17 @@ def main() -> None:
         verts_src, faces, vertex_colors = load_mesh(mesh_path)
         mask = load_binary_mask(mask_path, (depth_h, depth_w))
         mask = erode_mask(mask, int(args.sam3_mask_erode_iters))
-        source_to_cv = F_P3D_TO_CV.copy().astype(np.float32)
+        if source_coord == "opencv_camera":
+            source_to_cv = np.eye(3, dtype=np.float32)
+        else:
+            source_to_cv = F_P3D_TO_CV.copy().astype(np.float32)
         assets.append(
             MeshAsset(
                 name=obj_name,
                 slug=slugify(obj_name),
                 kind="object",
                 source_mesh_path=mesh_path,
-                source_coord="pytorch3d_camera",
+                source_coord=source_coord,
                 verts_source=verts_src,
                 faces=faces,
                 vertex_colors=vertex_colors,
@@ -2433,7 +2450,12 @@ def main() -> None:
         names=names,
         k=k_full,
         device=device,
+        fill_alpha=DEFAULT_OVERLAY_FILL_ALPHA,
+        contour_thickness=DEFAULT_OVERLAY_CONTOUR_THICKNESS,
     )
+    overlay_color_map = build_overlay_color_map(names)
+    overlay_legend_items = [(name, overlay_color_map[name]) for name in names]
+    overlay_before = add_overlay_legend(overlay_before, overlay_legend_items)
     cv2.imwrite(str(output_dir / "overlay_before.png"), overlay_before)
 
     observations: list[ObservationSet] = []
@@ -2690,7 +2712,10 @@ def main() -> None:
         names=names,
         k=k_full,
         device=device,
+        fill_alpha=DEFAULT_OVERLAY_FILL_ALPHA,
+        contour_thickness=DEFAULT_OVERLAY_CONTOUR_THICKNESS,
     )
+    overlay_after = add_overlay_legend(overlay_after, overlay_legend_items)
     cv2.imwrite(str(output_dir / "overlay_after.png"), overlay_after)
 
     summary_out = {

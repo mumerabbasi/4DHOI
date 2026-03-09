@@ -1,0 +1,226 @@
+{
+  "object_name": "dumbbell (right hand)",
+  "parts": [
+    "handle",
+    "weight plates"
+  ],
+  "views": [
+    {
+      "image": "az010_el+10.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": null,
+        "weight plates": null
+      }
+    },
+    {
+      "image": "az010_el+30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          515,
+          472,
+          552,
+          508
+        ],
+        "weight plates": [
+          394,
+          406,
+          619,
+          621
+        ]
+      }
+    },
+    {
+      "image": "az010_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          486,
+          460,
+          609,
+          599
+        ],
+        "weight plates": [
+          394,
+          404,
+          619,
+          604
+        ]
+      }
+    },
+    {
+      "image": "az100_el+10.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          452,
+          493,
+          539,
+          524
+        ],
+        "weight plates": [
+          529,
+          445,
+          636,
+          599
+        ]
+      }
+    },
+    {
+      "image": "az100_el+30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          450,
+          481,
+          542,
+          522
+        ],
+        "weight plates": [
+          386,
+          411,
+          634,
+          610
+        ]
+      }
+    },
+    {
+      "image": "az100_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          450,
+          496,
+          532,
+          527
+        ],
+        "weight plates": [
+          537,
+          430,
+          634,
+          578
+        ]
+      }
+    },
+    {
+      "image": "az190_el+10.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": null,
+        "weight plates": null
+      }
+    },
+    {
+      "image": "az190_el+30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": null,
+        "weight plates": null
+      }
+    },
+    {
+      "image": "az190_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          496,
+          445,
+          537,
+          578
+        ],
+        "weight plates": [
+          394,
+          414,
+          619,
+          588
+        ]
+      }
+    },
+    {
+      "image": "az280_el+10.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          452,
+          496,
+          534,
+          524
+        ],
+        "weight plates": [
+          534,
+          436,
+          633,
+          585
+        ]
+      }
+    },
+    {
+      "image": "az280_el+30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          453,
+          489,
+          538,
+          524
+        ],
+        "weight plates": [
+          387,
+          423,
+          634,
+          600
+        ]
+      }
+    },
+    {
+      "image": "az280_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          455,
+          493,
+          539,
+          534
+        ],
+        "weight plates": null
+      }
+    }
+  ]
+}

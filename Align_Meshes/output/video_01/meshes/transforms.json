@@ -11,43 +11,43 @@
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_alpha": -0.10174889862537384,
-        "scale_exp_alpha": 0.9032563321018766,
+        "log_scale_alpha": -0.10524822771549225,
+        "scale_exp_alpha": 0.9001010648221749,
         "tx_init_m": 0.0,
         "ty_init_m": 0.0,
         "tz_init_m": 0.0,
-        "delta_tx_m": 0.012409735471010208,
-        "delta_ty_m": 0.004127442371100187,
-        "delta_tz_m": 0.05064693093299866,
-        "tx_total_m": 0.012409735471010208,
-        "ty_total_m": 0.004127442371100187,
-        "tz_total_m": 0.05064693093299866,
+        "delta_tx_m": 0.01026388630270958,
+        "delta_ty_m": 0.005835890769958496,
+        "delta_tz_m": -0.01422929484397173,
+        "tx_total_m": 0.01026388630270958,
+        "ty_total_m": 0.005835890769958496,
+        "tz_total_m": -0.01422929484397173,
         "obs_3d_count": 6000,
         "obs_2d_count": 6000,
-        "model_sample_count": 2762,
+        "model_sample_count": 2772,
         "model_sample_count_total": 6000,
-        "model_sample_count_visible_fixed": 2762,
-        "model_sample_visible_ratio": 0.4603333333333333,
+        "model_sample_count_visible_fixed": 2772,
+        "model_sample_visible_ratio": 0.462,
         "visible_subset_mode": "strict_visible"
       },
       "source_to_output_matrix_4x4": [
         [
-          0.903256356716156,
+          0.9001010656356812,
           0.0,
           0.0,
-          0.012409735471010208
+          0.01026388630270958
         ],
         [
           0.0,
-          0.903256356716156,
+          0.9001010656356812,
           0.0,
-          0.004127442371100187
+          0.005835890769958496
         ],
         [
           0.0,
           0.0,
-          0.903256356716156,
-          0.05064693093299866
+          0.9001010656356812,
+          -0.01422929484397173
         ],
         [
           0.0,
@@ -61,50 +61,50 @@
       "name": "iron",
       "slug": "iron",
       "kind": "object",
-      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01/iron/mesh_posed.ply",
-      "source_coordinate": "pytorch3d_camera",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01/meshes/iron.ply",
+      "source_coordinate": "opencv_camera",
       "output_coordinate": "opencv",
       "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/meshes/iron.ply",
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_alpha": 0.2799154818058014,
-        "scale_exp_alpha": 1.323017988520648,
+        "log_scale_alpha": 0.2803441286087036,
+        "scale_exp_alpha": 1.3235852175133713,
         "tx_init_m": 0.0,
         "ty_init_m": 0.0,
         "tz_init_m": 0.0,
-        "delta_tx_m": 0.002146323909983039,
-        "delta_ty_m": 0.018525388091802597,
-        "delta_tz_m": 0.27166762948036194,
-        "tx_total_m": 0.002146323909983039,
-        "ty_total_m": 0.018525388091802597,
-        "tz_total_m": 0.27166762948036194,
+        "delta_tx_m": 0.001285105594433844,
+        "delta_ty_m": 0.017877280712127686,
+        "delta_tz_m": 0.27223876118659973,
+        "tx_total_m": 0.001285105594433844,
+        "ty_total_m": 0.017877280712127686,
+        "tz_total_m": 0.27223876118659973,
         "obs_3d_count": 2170,
         "obs_2d_count": 2170,
-        "model_sample_count": 4505,
+        "model_sample_count": 4490,
         "model_sample_count_total": 6000,
-        "model_sample_count_visible_fixed": 4505,
-        "model_sample_visible_ratio": 0.7508333333333334,
+        "model_sample_count_visible_fixed": 4490,
+        "model_sample_visible_ratio": 0.7483333333333333,
         "visible_subset_mode": "strict_visible"
       },
       "source_to_output_matrix_4x4": [
         [
-          -1.323017954826355,
+          1.3235852718353271,
           0.0,
           0.0,
-          0.002146323909983039
+          0.001285105594433844
         ],
         [
           0.0,
-          -1.323017954826355,
+          1.3235852718353271,
           0.0,
-          0.018525388091802597
+          0.017877280712127686
         ],
         [
           0.0,
           0.0,
-          1.323017954826355,
-          0.27166762948036194
+          1.3235852718353271,
+          0.27223876118659973
         ],
         [
           0.0,
@@ -118,50 +118,50 @@
       "name": "ironing board",
       "slug": "ironing_board",
       "kind": "object",
-      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01/ironing_board/mesh_posed.ply",
-      "source_coordinate": "pytorch3d_camera",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_01/meshes/ironing_board.ply",
+      "source_coordinate": "opencv_camera",
       "output_coordinate": "opencv",
       "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/meshes/ironing_board.ply",
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_alpha": 0.060704074800014496,
-        "scale_exp_alpha": 1.0625844221488048,
+        "log_scale_alpha": 0.05790170654654503,
+        "scale_exp_alpha": 1.0596108377827862,
         "tx_init_m": 0.0,
         "ty_init_m": 0.0,
         "tz_init_m": 0.0,
-        "delta_tx_m": 0.04933223873376846,
-        "delta_ty_m": 0.09961043298244476,
-        "delta_tz_m": 0.45186227560043335,
-        "tx_total_m": 0.04933223873376846,
-        "ty_total_m": 0.09961043298244476,
-        "tz_total_m": 0.45186227560043335,
+        "delta_tx_m": 0.051781490445137024,
+        "delta_ty_m": 0.10022123157978058,
+        "delta_tz_m": 0.4559367001056671,
+        "tx_total_m": 0.051781490445137024,
+        "ty_total_m": 0.10022123157978058,
+        "tz_total_m": 0.4559367001056671,
         "obs_3d_count": 6000,
         "obs_2d_count": 6000,
-        "model_sample_count": 2326,
+        "model_sample_count": 2280,
         "model_sample_count_total": 6000,
-        "model_sample_count_visible_fixed": 2326,
-        "model_sample_visible_ratio": 0.38766666666666666,
+        "model_sample_count_visible_fixed": 2280,
+        "model_sample_visible_ratio": 0.38,
         "visible_subset_mode": "strict_visible"
       },
       "source_to_output_matrix_4x4": [
         [
-          -1.062584400177002,
+          1.0596108436584473,
           0.0,
           0.0,
-          0.04933223873376846
+          0.051781490445137024
         ],
         [
           0.0,
-          -1.062584400177002,
+          1.0596108436584473,
           0.0,
-          0.09961043298244476
+          0.10022123157978058
         ],
         [
           0.0,
           0.0,
-          1.062584400177002,
-          0.45186227560043335
+          1.0596108436584473,
+          0.4559367001056671
         ],
         [
           0.0,

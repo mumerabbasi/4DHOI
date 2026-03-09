@@ -1,45 +1,131 @@
 """Generate object meshes from first-frame Segment_Video masks."""
 
+from dataclasses import dataclass
 import argparse
 import json
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any, List
 
 import cv2
+import numpy as np
+import torch
 import trimesh
+from pytorch3d.renderer import MeshRasterizer, PerspectiveCameras, RasterizationSettings
+from pytorch3d.structures import Meshes
 from mesh_generation_utils import (
-    compute_overlay_focal_scale,
     create_posed_mesh,
     discover_first_frame_stem,
     discover_objects_with_first_frame_masks,
     estimate_camera_intrinsics,
-    extract_pose_data,
+    extract_pose_components,
     find_frame_image_path,
     generate_mesh,
     load_sam3d,
     sam3d_mesh_to_trimesh,
-    save_pose_json,
-    scale_camera_intrinsics,
 )
 from rendering_utils import (
+    ColorBGR,
+    DEFAULT_OVERLAY_CONTOUR_THICKNESS,
+    DEFAULT_OVERLAY_FILL_ALPHA,
+    QualityRenderBackend,
+    add_overlay_legend,
     build_object_color_map,
     camera_k_from_info,
-    ensure_quality_backend_available,
     render_multi_object_overlay_quality,
     render_single_object_overlay_quality,
 )
 
+F_P3D_TO_CV = np.diag([-1.0, -1.0, 1.0]).astype(np.float32)
 
-def process_video_directory(
+
+@dataclass(frozen=True)
+class VideoOutputPaths:
+    root: Path
+    meshes_dir: Path
+    overlays_dir: Path
+    camera_intrinsics_json: Path
+
+
+@dataclass(frozen=True)
+class ObjectMaskSpec:
+    name: str
+    mask_path: Path
+    color_bgr: ColorBGR
+
+
+@dataclass
+class VideoGenerationContext:
+    video_name: str
+    first_frame_stem: str
+    image_rgb: np.ndarray
+    camera_k_overlay: np.ndarray
+    output_paths: VideoOutputPaths
+    object_specs: List[ObjectMaskSpec]
+
+
+@dataclass(frozen=True)
+class GeneratedObjectResult:
+    name: str
+    color_bgr: ColorBGR
+    posed_mesh_p3d: trimesh.Trimesh
+    mesh_path: Path
+    overlay_path: Path
+
+
+@dataclass(frozen=True)
+class ObjectGenerationFailure:
+    name: str
+    message: str
+
+
+def convert_mesh_p3d_to_cv(mesh_p3d: trimesh.Trimesh) -> trimesh.Trimesh:
+    """Convert PyTorch3D camera coordinates to OpenCV camera coordinates."""
+    mesh_cv = mesh_p3d.copy()
+    verts_p3d = np.asarray(mesh_p3d.vertices, dtype=np.float32)
+    mesh_cv.vertices = (verts_p3d @ F_P3D_TO_CV.transpose()).astype(np.float32)
+    return mesh_cv
+
+
+def build_output_paths(mesh_output_root: Path, video_name: str) -> VideoOutputPaths:
+    """Create and return the output directory layout for one video."""
+    root = (mesh_output_root / video_name).resolve()
+    meshes_dir = root / "meshes"
+    overlays_dir = root / "overlays"
+    root.mkdir(parents=True, exist_ok=True)
+    meshes_dir.mkdir(parents=True, exist_ok=True)
+    overlays_dir.mkdir(parents=True, exist_ok=True)
+    return VideoOutputPaths(
+        root=root,
+        meshes_dir=meshes_dir,
+        overlays_dir=overlays_dir,
+        camera_intrinsics_json=root / "camera_intrinsics.json",
+    )
+
+
+def load_frame_rgb(frame_path: Path) -> np.ndarray:
+    """Load an image file as RGB."""
+    image_bgr = cv2.imread(str(frame_path))
+    if image_bgr is None:
+        raise RuntimeError(f"Could not load first frame image: {frame_path}")
+    return cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
+
+
+def load_binary_mask(mask_path: Path) -> np.ndarray:
+    """Load a binary object mask from disk."""
+    mask_gray = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
+    if mask_gray is None:
+        raise RuntimeError(f"Failed to read mask: {mask_path}")
+    return (mask_gray > 127).astype("uint8")
+
+
+def build_video_context(
     input_dir: Path,
     sam3d: Any,
     mesh_output_root: Path,
-    focal_length_mm: Optional[float] = None,
-    f_scale: float = 0.9,
-) -> None:
+) -> VideoGenerationContext:
+    """Collect all per-video inputs and derived state needed for generation."""
     video_name = input_dir.name
-    output_root = (mesh_output_root / video_name).resolve()
-    output_root.mkdir(parents=True, exist_ok=True)
+    output_paths = build_output_paths(mesh_output_root, video_name)
 
     frames_dir = input_dir / "_frames"
     first_frame_stem = discover_first_frame_stem(input_dir)
@@ -47,122 +133,168 @@ def process_video_directory(
     if first_frame_path is None:
         raise FileNotFoundError(f"First-frame image not found for stem: {first_frame_stem}")
 
+    image_rgb = load_frame_rgb(first_frame_path)
     objects = discover_objects_with_first_frame_masks(input_dir, first_frame_stem)
     object_color_map = build_object_color_map([name for name, _ in objects])
+    object_specs = [
+        ObjectMaskSpec(name=name, mask_path=mask_path, color_bgr=object_color_map[name])
+        for name, mask_path in objects
+    ]
 
     print(f"Video: {video_name}")
     print(f"First frame: {first_frame_stem}")
-    print(f"Objects: {[name for name, _ in objects]}")
-    print(f"Output: {output_root}\n")
-
-    image_bgr = cv2.imread(str(first_frame_path))
-    if image_bgr is None:
-        raise RuntimeError(f"Could not load first frame image: {first_frame_path}")
-    image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
+    print(f"Objects: {[spec.name for spec in object_specs]}")
+    print(f"Output: {output_paths.root}\n")
 
     print("Estimating intrinsics from first frame...")
     camera_info = estimate_camera_intrinsics(sam3d, image_rgb)
-
-    if focal_length_mm is None:
-        camera_info = scale_camera_intrinsics(camera_info, f_scale)
-        focal_overlay_mm = float(camera_info["blender_recommendation"]["lens_mm"])
-        overlay_focal_scale = 1.0
-        print(
-            "Focal mode: auto+f_scale "
-            f"(f_scale={f_scale}, focal_for_projection={focal_overlay_mm:.3f}mm)"
-        )
-    else:
-        focal_overlay_mm = float(focal_length_mm)
-        overlay_focal_scale = compute_overlay_focal_scale(camera_info, focal_overlay_mm)
-        print(
-            "Focal mode: explicit --focal_length "
-            f"(focal_for_projection={focal_overlay_mm:.3f}mm, focal_scale={overlay_focal_scale:.4f})"
-        )
-
-    camera_info["focal_length_mm_used_for_overlay"] = float(focal_overlay_mm)
-    if focal_length_mm is not None:
-        camera_info["focal_length_mm_user_override"] = float(focal_length_mm)
-
-    camera_intrinsics_json = output_root / "camera_intrinsics.json"
-    with camera_intrinsics_json.open("w", encoding="utf-8") as f:
+    with output_paths.camera_intrinsics_json.open("w", encoding="utf-8") as f:
         json.dump(camera_info, f, indent=2)
-    print(f"Saved: {camera_intrinsics_json}")
+    print(f"Saved: {output_paths.camera_intrinsics_json}")
 
-    camera_k_overlay = camera_k_from_info(camera_info, focal_scale=overlay_focal_scale)
+    return VideoGenerationContext(
+        video_name=video_name,
+        first_frame_stem=first_frame_stem,
+        image_rgb=image_rgb,
+        camera_k_overlay=camera_k_from_info(camera_info),
+        output_paths=output_paths,
+        object_specs=object_specs,
+    )
 
-    posed_meshes: List[trimesh.Trimesh] = []
-    posed_colors: List[Tuple[int, int, int]] = []
 
-    for obj_name, mask_path in objects:
+def generate_object_result(
+    object_spec: ObjectMaskSpec,
+    context: VideoGenerationContext,
+    sam3d: Any,
+    overlay_backend: QualityRenderBackend,
+    overlay_device: str,
+) -> GeneratedObjectResult:
+    """Generate, pose, render, and save outputs for a single object."""
+    mask = load_binary_mask(object_spec.mask_path)
+    output = generate_mesh(sam3d, context.image_rgb, mask)
+    canonical_mesh_p3d = sam3d_mesh_to_trimesh(output["mesh"][0])
+
+    rotation_quat, translation, scale = extract_pose_components(output)
+    posed_mesh_p3d = create_posed_mesh(
+        canonical_mesh_p3d,
+        rotation_quat,
+        translation,
+        scale,
+    )
+    posed_mesh_cv = convert_mesh_p3d_to_cv(posed_mesh_p3d)
+
+    mesh_path = context.output_paths.meshes_dir / f"{object_spec.name}.ply"
+    overlay_path = context.output_paths.overlays_dir / f"{object_spec.name}.png"
+    posed_mesh_cv.export(str(mesh_path))
+
+    overlay = render_single_object_overlay_quality(
+        image_rgb=context.image_rgb,
+        posed_mesh=posed_mesh_p3d,
+        camera_k=context.camera_k_overlay,
+        color_bgr=object_spec.color_bgr,
+        backend=overlay_backend,
+        device=overlay_device,
+        fill_alpha=DEFAULT_OVERLAY_FILL_ALPHA,
+        contour_thickness=DEFAULT_OVERLAY_CONTOUR_THICKNESS,
+    )
+    cv2.imwrite(str(overlay_path), overlay)
+
+    return GeneratedObjectResult(
+        name=object_spec.name,
+        color_bgr=object_spec.color_bgr,
+        posed_mesh_p3d=posed_mesh_p3d,
+        mesh_path=mesh_path,
+        overlay_path=overlay_path,
+    )
+
+
+def save_combined_overlay(
+    context: VideoGenerationContext,
+    generated_objects: List[GeneratedObjectResult],
+    overlay_backend: QualityRenderBackend,
+    overlay_device: str,
+) -> Path:
+    """Render and save a single overlay containing all generated objects."""
+    overlay_all = render_multi_object_overlay_quality(
+        image_rgb=context.image_rgb,
+        posed_meshes=[obj.posed_mesh_p3d for obj in generated_objects],
+        camera_k=context.camera_k_overlay,
+        colors_bgr=[obj.color_bgr for obj in generated_objects],
+        backend=overlay_backend,
+        device=overlay_device,
+        fill_alpha=DEFAULT_OVERLAY_FILL_ALPHA,
+        contour_thickness=DEFAULT_OVERLAY_CONTOUR_THICKNESS,
+    )
+    overlay_all = add_overlay_legend(
+        overlay_all,
+        [(obj.name, obj.color_bgr) for obj in generated_objects],
+    )
+    combined_overlay_path = context.output_paths.overlays_dir / "combined_overlay.png"
+    cv2.imwrite(str(combined_overlay_path), overlay_all)
+    return combined_overlay_path
+
+
+def print_generation_summary(
+    generated_objects: List[GeneratedObjectResult],
+    failures: List[ObjectGenerationFailure],
+) -> None:
+    """Print a concise success/failure summary for the video."""
+    print(f"\n{'=' * 50}")
+    print(
+        "Summary: "
+        f"{len(generated_objects)} objects generated, {len(failures)} objects failed."
+    )
+    if failures:
+        for failure in failures:
+            print(f"  Failed [{failure.name}]: {failure.message}")
+
+
+def process_video_directory(
+    input_dir: Path,
+    sam3d: Any,
+    mesh_output_root: Path,
+    overlay_backend: QualityRenderBackend,
+    overlay_device: str,
+) -> None:
+    context = build_video_context(
+        input_dir=input_dir,
+        sam3d=sam3d,
+        mesh_output_root=mesh_output_root,
+    )
+
+    generated_objects: List[GeneratedObjectResult] = []
+    failures: List[ObjectGenerationFailure] = []
+
+    for object_spec in context.object_specs:
         print(f"\n{'=' * 50}")
-        print(f"Object: {obj_name}")
-
-        mask_gray = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
-        if mask_gray is None:
-            print(f"  Warning: failed to read mask: {mask_path}")
-            continue
-        mask = (mask_gray > 127).astype("uint8")
-
+        print(f"Object: {object_spec.name}")
         try:
-            output = generate_mesh(sam3d, image_rgb, mask)
-            canonical_mesh = sam3d_mesh_to_trimesh(output["mesh"][0])
-
-            pose_data = extract_pose_data(output)
-            posed_mesh = create_posed_mesh(
-                canonical_mesh,
-                pose_data["rotation_quat"],
-                pose_data["translation"],
-                pose_data["scale"],
+            result = generate_object_result(
+                object_spec=object_spec,
+                context=context,
+                sam3d=sam3d,
+                overlay_backend=overlay_backend,
+                overlay_device=overlay_device,
             )
-
-            obj_out_dir = output_root / obj_name
-            obj_out_dir.mkdir(parents=True, exist_ok=True)
-
-            canonical_mesh.export(str(obj_out_dir / "mesh.ply"))
-            posed_mesh.export(str(obj_out_dir / "mesh_posed.ply"))
-
-            save_pose_json(
-                output=output,
-                pose_data=pose_data,
-                output_path=obj_out_dir / "pose.json",
-                focal_length_mm=focal_overlay_mm,
-                camera_intrinsics_json=camera_intrinsics_json,
-            )
-
-            overlay = render_single_object_overlay_quality(
-                image_rgb=image_rgb,
-                posed_mesh=posed_mesh,
-                camera_k=camera_k_overlay,
-                color_bgr=object_color_map[obj_name],
-                fill_alpha=0.35,
-                contour_thickness=2,
-            )
-            cv2.imwrite(str(obj_out_dir / "mesh_posed_overlay.png"), overlay)
-
-            print("    Saved: mesh.ply")
-            print("    Saved: pose.json")
-            print("    Saved: mesh_posed.ply")
-            print("    Saved: mesh_posed_overlay.png")
-
-            posed_meshes.append(posed_mesh)
-            posed_colors.append(object_color_map[obj_name])
+            generated_objects.append(result)
+            print(f"    Saved mesh (OpenCV camera coords): {result.mesh_path}")
+            print(f"    Saved overlay: {result.overlay_path}")
         except Exception as exc:
+            failures.append(ObjectGenerationFailure(name=object_spec.name, message=str(exc)))
             print(f"  Mesh generation failed: {exc}")
 
-    if posed_meshes:
+    if generated_objects:
         print(f"\n{'=' * 50}")
-        print("Generating combined quality overlay...")
-        overlay_all = render_multi_object_overlay_quality(
-            image_rgb=image_rgb,
-            posed_meshes=posed_meshes,
-            camera_k=camera_k_overlay,
-            colors_bgr=posed_colors,
-            fill_alpha=0.35,
-            contour_thickness=2,
+        print("Generating combined overlay...")
+        combined_overlay_path = save_combined_overlay(
+            context=context,
+            generated_objects=generated_objects,
+            overlay_backend=overlay_backend,
+            overlay_device=overlay_device,
         )
-        overlay_path = output_root / f"{first_frame_stem}_all_objects_overlay.png"
-        cv2.imwrite(str(overlay_path), overlay_all)
-        print(f"Saved: {overlay_path}")
+        print(f"Saved combined overlay: {combined_overlay_path}")
+
+    print_generation_summary(generated_objects, failures)
 
 
 def main() -> None:
@@ -178,20 +310,8 @@ def main() -> None:
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="./output_first_frame",
+        default="./output",
         help="Mesh output root (<output_dir>/<video_xx>/).",
-    )
-    parser.add_argument(
-        "--focal_length",
-        type=float,
-        default=None,
-        help="Focal length in mm for projection (default: auto from first frame).",
-    )
-    parser.add_argument(
-        "--f_scale",
-        type=float,
-        default=1.0,
-        help="Scale factor for auto-estimated fx/fy/lens.",
     )
     args = parser.parse_args()
 
@@ -205,7 +325,14 @@ def main() -> None:
         output_dir = Path(__file__).parent / args.output_dir
     output_dir = output_dir.resolve()
 
-    ensure_quality_backend_available()
+    overlay_backend = QualityRenderBackend(
+        torch=torch,
+        PerspectiveCameras=PerspectiveCameras,
+        MeshRasterizer=MeshRasterizer,
+        RasterizationSettings=RasterizationSettings,
+        Meshes=Meshes,
+    )
+    overlay_device = "cuda" if torch.cuda.is_available() else "cpu"
 
     print("Loading SAM 3D Objects...")
     sam3d = load_sam3d()
@@ -215,8 +342,8 @@ def main() -> None:
         input_dir=input_dir,
         sam3d=sam3d,
         mesh_output_root=output_dir,
-        focal_length_mm=args.focal_length,
-        f_scale=args.f_scale,
+        overlay_backend=overlay_backend,
+        overlay_device=overlay_device,
     )
 
     print(f"\n{'=' * 50}")

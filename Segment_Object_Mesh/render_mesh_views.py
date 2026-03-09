@@ -120,18 +120,14 @@ def resolve_default_dirs(
 
 
 def resolve_pag_path(args: argparse.Namespace, script_dir: Path) -> Path:
-    """Resolve PAG JSON path with tracking-script-compatible defaults."""
+    """Resolve PAG JSON path."""
     if args.pag_file is not None:
         pag_path = resolve_path(args.pag_file, script_dir)
         if not pag_path.exists():
             raise FileNotFoundError(f"PAG file not found: {pag_path}")
         return pag_path
 
-    # Primary default path matches Track_Object_Mesh.
     pag_dir = (script_dir.parent / "Generate_PAG" / "output" / args.video_name).resolve()
-    if not pag_dir.exists():
-        # Backward-compatible fallback used by older scripts.
-        pag_dir = (script_dir.parent / "Generate_PAG" / "pags" / args.video_name).resolve()
     if not pag_dir.exists():
         raise FileNotFoundError(f"PAG directory not found: {pag_dir}")
 
