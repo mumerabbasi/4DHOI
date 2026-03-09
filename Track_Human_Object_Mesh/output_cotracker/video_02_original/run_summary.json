@@ -5,8 +5,8 @@
   "num_frames": 81,
   "num_objects": 2,
   "num_edges": 4,
-  "best_total_loss": 0.39286357164382935,
-  "optimisation_time_s": 1887.1140418052673,
+  "best_total_loss": 0.3896216154098511,
+  "optimisation_time_s": 2105.2848019599915,
   "inputs": {
     "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02",
     "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_cotracker/video_02",
@@ -20,7 +20,7 @@
     "lambda_contact": 200.0,
     "lambda_dynamics": 150.0,
     "lambda_penetration": 20.0,
-    "lambda_smooth": 12.0,
+    "lambda_smooth": 15.0,
     "lambda_human_prior": 100.0,
     "lambda_human_smooth": 30.0,
     "lambda_human_mask_2d": 40.0,
@@ -75,8 +75,8 @@
   "objects": {
     "dumbbell_(left_hand)": {
       "name": "dumbbell (left hand)",
-      "num_verts": 346602,
-      "num_faces": 693196,
+      "num_verts": 346628,
+      "num_faces": 693248,
       "num_parts": 2,
       "parts": [
         "handle",
@@ -84,12 +84,12 @@
       ],
       "is_translational": true,
       "is_rotational": false,
-      "final_scale": 0.9636965990066528
+      "final_scale": 0.9650938510894775
     },
     "dumbbell_(right_hand)": {
       "name": "dumbbell (right hand)",
-      "num_verts": 367792,
-      "num_faces": 735592,
+      "num_verts": 367820,
+      "num_faces": 735648,
       "num_parts": 2,
       "parts": [
         "handle",
@@ -97,7 +97,7 @@
       ],
       "is_translational": true,
       "is_rotational": false,
-      "final_scale": 0.9869858622550964
+      "final_scale": 0.9823484420776367
     }
   },
   "human": {
@@ -105,10 +105,10 @@
     "num_faces": 13776,
     "freeze_human": false,
     "delta_stats": {
-      "max_delta_rot_deg": 3.4065760584509004,
-      "mean_delta_rot_deg": 1.127263918850719,
-      "max_delta_trans_m": 0.03357095643877983,
-      "mean_delta_trans_m": 0.015774549916386604,
+      "max_delta_rot_deg": 3.544282063628466,
+      "mean_delta_rot_deg": 1.254744490510541,
+      "max_delta_trans_m": 0.03401438519358635,
+      "mean_delta_trans_m": 0.01653618924319744,
       "freeze_human": false
     }
   },
