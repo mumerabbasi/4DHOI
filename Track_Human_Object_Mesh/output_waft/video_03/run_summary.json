@@ -32,7 +32,7 @@
     "adam_iters": 1200,
     "adam_lr": 0.001,
     "sdf_resolution": 128,
-    "freeze_human": false,
+    "optimize_human": true,
     "optimize_object_scale": true,
     "max_log_scale_delta": 0.22,
     "early_stop_triggered": false
@@ -88,13 +88,13 @@
   "human": {
     "num_verts": 6890,
     "num_faces": 13776,
-    "freeze_human": false,
+    "optimize_human": true,
     "delta_stats": {
       "max_delta_rot_deg": 2.8743350614815375,
       "mean_delta_rot_deg": 1.3173942939507772,
       "max_delta_trans_m": 0.05983749404549599,
       "mean_delta_trans_m": 0.029775304719805717,
-      "freeze_human": false
+      "optimize_human": true
     }
   },
   "edges": [

@@ -1,9 +1,9 @@
 """Joint human-object mesh refinement with PAG contact constraints.
 
 Given aligned human meshes, tracked object SE(3) trajectories, segmentation
-masks, and a PAG, this script jointly refines:
+masks, and a PAG, this script refines:
 
-- per-frame global human SE(3) corrections,
+- optional per-frame global human SE(3) corrections,
 - per-frame object SE(3) deltas on top of tracked poses,
 - one global uniform scale per object.
 
@@ -145,7 +145,7 @@ def parse_args() -> argparse.Namespace:
         help="Voxel resolution for SDF grids.",
     )
     # Optimisation
-    p.add_argument("--adam_iters", type=int, default=1200)
+    p.add_argument("--adam_iters", type=int, default=4000)
     p.add_argument("--adam_lr", type=float, default=1e-3)
     p.add_argument(
         "--early_stop_start",
@@ -165,7 +165,12 @@ def parse_args() -> argparse.Namespace:
         default=1e-4,
         help="Minimum relative best-loss improvement required to reset patience.",
     )
-    p.add_argument("--freeze_human", action="store_true")
+    p.add_argument(
+        "--optimize_human",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Optimise per-frame global human SE(3) corrections.",
+    )
     p.add_argument(
         "--optimize_object_scale",
         action=argparse.BooleanOptionalAction,
@@ -1629,30 +1634,30 @@ def _compute_all_losses(
         else:
             eff_scales[slug] = torch.tensor(1.0, device=device)
 
-    if args.freeze_human:
-        human_points_whole = human_data.sampled_points_base
-    else:
+    if args.optimize_human:
         human_points_whole = _apply_local_se3_sequence(
             human_data.sampled_points_base,
             human_delta_rotvecs,
             human_delta_trans,
             human_data.centers,
         )
+    else:
+        human_points_whole = human_data.sampled_points_base
 
     human_part_cache: dict[str, torch.Tensor] = {}
 
     def _get_human_part_points(part_name: str) -> torch.Tensor:
         if part_name not in human_part_cache:
             part_points = human_data.part_points_base[part_name]
-            if args.freeze_human:
-                human_part_cache[part_name] = part_points
-            else:
+            if args.optimize_human:
                 human_part_cache[part_name] = _apply_local_se3_sequence(
                     part_points,
                     human_delta_rotvecs,
                     human_delta_trans,
                     human_data.centers,
                 )
+            else:
+                human_part_cache[part_name] = part_points
         return human_part_cache[part_name]
 
     object_points_cache: dict[tuple[str, str], torch.Tensor] = {}
@@ -1699,10 +1704,7 @@ def _compute_all_losses(
         loss_object_scale_reg = loss_object_scale_reg / len(obj_keys)
 
     # Human priors.
-    if args.freeze_human:
-        loss_human_prior = torch.tensor(0.0, device=device)
-        loss_human_smooth = torch.tensor(0.0, device=device)
-    else:
+    if args.optimize_human:
         loss_human_prior = (
             human_delta_rotvecs.pow(2).sum() + human_delta_trans.pow(2).sum()
         ) / float(human_delta_rotvecs.numel() + human_delta_trans.numel())
@@ -1712,6 +1714,9 @@ def _compute_all_losses(
             is_translational=True,
             is_rotational=True,
         )
+    else:
+        loss_human_prior = torch.tensor(0.0, device=device)
+        loss_human_smooth = torch.tensor(0.0, device=device)
 
     # Contact consistency loss.
     t_contact = time.perf_counter()
@@ -1836,9 +1841,7 @@ def _compute_all_losses(
 
     # 2D mask chamfer losses.
     t_mask2d = time.perf_counter()
-    if args.freeze_human:
-        loss_human_mask_2d = torch.tensor(0.0, device=device)
-    else:
+    if args.optimize_human:
         loss_human_mask_2d = _compute_bidirectional_2d_chamfer(
             human_data.mask_points_2d,
             human_points_whole,
@@ -1846,6 +1849,8 @@ def _compute_all_losses(
             width,
             height,
         )
+    else:
+        loss_human_mask_2d = torch.tensor(0.0, device=device)
 
     loss_object_mask_2d = torch.tensor(0.0, device=device)
     for slug in obj_keys:
@@ -2477,15 +2482,15 @@ def main() -> None:
         num_frames,
         3,
         device=device,
-        requires_grad=not args.freeze_human,
+        requires_grad=args.optimize_human,
     )
     human_delta_trans = torch.zeros(
         num_frames,
         3,
         device=device,
-        requires_grad=not args.freeze_human,
+        requires_grad=args.optimize_human,
     )
-    if not args.freeze_human:
+    if args.optimize_human:
         params.extend([human_delta_rotvecs, human_delta_trans])
 
     # ── Print summary ──
@@ -2497,7 +2502,7 @@ def main() -> None:
     print(f"  objects:  {', '.join(obj_keys)}")
     print(f"  edges:    {len(resolved_edges)}")
     print(
-        f"  human:    {'frozen' if args.freeze_human else 'optimised'}"
+        f"  human:    {'optimised' if args.optimize_human else 'fixed'}"
         f"  object_scale: {'on' if args.optimize_object_scale else 'off'}"
     )
     print(
@@ -2675,9 +2680,7 @@ def main() -> None:
             ).item()
         )
 
-    if args.freeze_human:
-        final_human_verts_np = human_verts_np.copy()
-    else:
+    if args.optimize_human:
         final_human_verts_np = (
             _apply_local_se3_sequence(
                 human_data.base_verts,
@@ -2689,6 +2692,8 @@ def main() -> None:
             .numpy()
             .astype(np.float32)
         )
+    else:
+        final_human_verts_np = human_verts_np.copy()
 
     # ── Save outputs ──
     print("\nSaving outputs...")
@@ -2780,7 +2785,7 @@ def main() -> None:
         "mean_delta_trans_m": float(
             human_delta_trans.detach().norm(dim=-1).mean().item()
         ),
-        "freeze_human": bool(args.freeze_human),
+        "optimize_human": bool(args.optimize_human),
     }
     with (out_dir / "human" / "delta_stats.json").open(
         "w",
@@ -2852,7 +2857,7 @@ def main() -> None:
             "adam_iters": args.adam_iters,
             "adam_lr": args.adam_lr,
             "sdf_resolution": args.sdf_resolution,
-            "freeze_human": bool(args.freeze_human),
+            "optimize_human": bool(args.optimize_human),
             "optimize_object_scale": bool(args.optimize_object_scale),
             "max_log_scale_delta": args.max_log_scale_delta,
             "early_stop_start": args.early_stop_start,
@@ -2877,7 +2882,7 @@ def main() -> None:
         "human": {
             "num_verts": int(human_data.base_verts.shape[1]),
             "num_faces": int(human_faces.shape[0]),
-            "freeze_human": bool(args.freeze_human),
+            "optimize_human": bool(args.optimize_human),
             "delta_stats": human_delta_stats,
         },
         "edges": [
