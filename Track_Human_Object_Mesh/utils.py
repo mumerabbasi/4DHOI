@@ -1,17 +1,114 @@
-"""Local utilities for joint human-object mesh refinement."""
+"""Shared low-level helpers for joint human-object mesh refinement."""
 
 from __future__ import annotations
 
+import argparse
 import csv
-import json
-import re
 import subprocess
 from pathlib import Path
 from typing import Any
 
 import cv2
 import numpy as np
-import torch
+
+
+def ensure_dir(path: Path) -> None:
+    """Create a directory if it does not already exist."""
+    path.mkdir(parents=True, exist_ok=True)
+
+
+def list_images(frames_dir: Path) -> list[Path]:
+    """List image files in filename order."""
+    exts = (".png", ".jpg", ".jpeg", ".bmp")
+    return sorted(
+        path for path in frames_dir.iterdir() if path.suffix.lower() in exts
+    )
+
+
+def save_csv(path: Path, rows: list[dict[str, Any]]) -> None:
+    """Write a list of rows to CSV, preserving the first row's column order."""
+    if not rows:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames = list(rows[0].keys())
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+
+
+def resolve_dirs(
+    args: argparse.Namespace,
+    script_dir: Path,
+) -> dict[str, Path]:
+    """Resolve the standard project directories for one video."""
+    vname = args.video_name
+    parent = script_dir.parent
+    aligned = (
+        Path(args.aligned_mesh_dir)
+        if args.aligned_mesh_dir
+        else parent / "Align_Meshes" / "output" / vname
+    )
+    tracked = (
+        Path(args.tracked_object_dir)
+        if args.tracked_object_dir
+        else parent / "Track_Object_Mesh" / "output_cotracker" / vname
+    )
+    seg_obj = (
+        Path(args.segment_object_dir)
+        if args.segment_object_dir
+        else parent / "Segment_Object_Mesh" / "output" / vname
+    )
+    seg_vid = (
+        Path(args.segment_video_dir)
+        if args.segment_video_dir
+        else parent / "Segment_Video" / "output" / vname
+    )
+    output_root = Path(args.output_dir)
+    if not output_root.is_absolute():
+        output_root = script_dir / output_root
+    output = output_root / vname
+
+    return {
+        "aligned": aligned,
+        "tracked": tracked,
+        "seg_obj": seg_obj,
+        "seg_vid": seg_vid,
+        "output": output,
+    }
+
+
+def resolve_pag_path(args: argparse.Namespace, script_dir: Path) -> Path:
+    """Return the PAG JSON path for the current video."""
+    if args.pag_file is not None:
+        return Path(args.pag_file)
+    return (
+        script_dir.parent
+        / "Generate_PAG"
+        / "output"
+        / args.video_name
+        / "output_pag_deepseek_r1_32b.json"
+    )
+
+
+def resolve_smpl_seg(args: argparse.Namespace, script_dir: Path) -> Path:
+    """Return the SMPL vertex segmentation path."""
+    if args.smpl_seg_json is not None:
+        return Path(args.smpl_seg_json)
+    return (
+        script_dir.parent.parent
+        / "GVHMR"
+        / "hmr4d"
+        / "utils"
+        / "body_model"
+        / "smpl_vert_segmentation.json"
+    )
+
+
+def resolve_frames_dir(dirs: dict[str, Path]) -> Path:
+    """Return the standard frame directory used in this repo."""
+    return dirs["seg_vid"] / "_frames"
 
 
 def start_ffmpeg_writer(
@@ -76,99 +173,6 @@ def close_ffmpeg(writer: subprocess.Popen | None) -> None:
     if ret != 0:
         msg = stderr.decode("utf-8", errors="ignore")
         raise RuntimeError(f"ffmpeg failed with code {ret}. stderr:\n{msg}")
-
-
-def ensure_dir(path: Path) -> None:
-    """Create directory if it does not already exist."""
-    path.mkdir(parents=True, exist_ok=True)
-
-
-def resolve_path(path_str: str, script_dir: Path) -> Path:
-    """Resolve a possibly relative path against the script directory."""
-    path = Path(path_str)
-    if not path.is_absolute():
-        path = script_dir / path
-    return path.resolve()
-
-
-def _extract_index(path: Path) -> int:
-    match = re.search(r"(\d+)", path.stem)
-    return int(match.group(1)) if match else 10**18
-
-
-def list_images(frames_dir: Path) -> list[Path]:
-    """List image files sorted by frame index."""
-    exts = (".png", ".jpg", ".jpeg", ".bmp")
-    files = [
-        path for path in frames_dir.iterdir() if path.suffix.lower() in exts
-    ]
-    return sorted(files, key=_extract_index)
-
-
-def _load_intrinsics_from_alignment_summary(
-    aligned_mesh_video_dir: Path,
-) -> tuple[np.ndarray, Path]:
-    summary_path = (
-        aligned_mesh_video_dir / "alignment_summary.json"
-    ).resolve()
-    if not summary_path.exists():
-        raise FileNotFoundError(
-            f"alignment_summary.json not found: {summary_path}"
-        )
-
-    with summary_path.open("r", encoding="utf-8") as f:
-        payload = json.load(f)
-
-    camera = payload.get("camera")
-    if not isinstance(camera, dict):
-        raise KeyError(
-            f"Missing 'camera' dictionary in alignment summary: {summary_path}"
-        )
-
-    k_raw = camera.get("intrinsics_3x3")
-    if k_raw is None:
-        raise KeyError(
-            "Missing 'camera.intrinsics_3x3' in alignment summary: "
-            f"{summary_path}"
-        )
-
-    k = np.array(k_raw, dtype=np.float32)
-    while k.ndim > 2:
-        k = k[0]
-    if k.shape != (3, 3):
-        raise ValueError(
-            "Expected camera.intrinsics_3x3 to resolve to shape (3, 3), "
-            f"got {k.shape} in {summary_path}"
-        )
-    return k.astype(np.float32), summary_path
-
-
-def _to_device(args_device: str) -> torch.device:
-    try:
-        dev = torch.device(args_device)
-    except (RuntimeError, ValueError, TypeError) as exc:
-        raise ValueError(f"Invalid --device value: {args_device}") from exc
-    if dev.type == "cuda" and not torch.cuda.is_available():
-        return torch.device("cpu")
-    if dev.type == "cuda" and dev.index is not None:
-        if dev.index >= torch.cuda.device_count():
-            raise ValueError(
-                f"Requested {args_device}, but only "
-                f"{torch.cuda.device_count()} CUDA device(s) available."
-            )
-    return dev
-
-
-def _save_csv(path: Path, rows: list[dict[str, Any]]) -> None:
-    if not rows:
-        return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    keys = list(rows[0].keys())
-    with path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=keys)
-        writer.writeheader()
-        for row in rows:
-            writer.writerow(row)
 
 
 def _project_points_cv(
@@ -309,13 +313,14 @@ def draw_overlay(
 
 
 __all__ = [
-    "_load_intrinsics_from_alignment_summary",
-    "_save_csv",
-    "_to_device",
     "close_ffmpeg",
     "draw_overlay",
     "ensure_dir",
     "list_images",
-    "resolve_path",
+    "resolve_dirs",
+    "resolve_frames_dir",
+    "resolve_pag_path",
+    "resolve_smpl_seg",
+    "save_csv",
     "start_ffmpeg_writer",
 ]
