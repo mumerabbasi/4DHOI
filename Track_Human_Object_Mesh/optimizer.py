@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import time
 from typing import Any
 
 import numpy as np
@@ -18,7 +19,7 @@ from debug_utils import (
 from geometry import (
     apply_local_se3_sequence,
     bounded_log_scale_delta,
-    compose_T,
+    compose_T_sequence,
 )
 from losses import compute_all_losses, compute_final_loss_diagnostics
 from models import OptimizationResult, ProblemContext
@@ -116,9 +117,10 @@ def run_joint_optimization(
     early_stop_enabled = args.early_stop_patience > 0
 
     print(f"\n[Adam] {args.adam_iters} iterations, lr={args.adam_lr}")
+    optimisation_start = time.perf_counter()
 
     for it in range(args.adam_iters):
-        optimizer.zero_grad()
+        optimizer.zero_grad(set_to_none=True)
         result = compute_all_losses(
             delta_rotvecs,
             delta_trans,
@@ -241,6 +243,7 @@ def run_joint_optimization(
         final_diagnostic.sequence,
         args,
     )
+    optimisation_time_s = time.perf_counter() - optimisation_start
 
     print(
         f"\nOptimisation complete. Best loss: {best_loss:.6f} "
@@ -252,14 +255,11 @@ def run_joint_optimization(
     object_delta_stats: dict[str, dict[str, Any]] = {}
     for slug in context.obj_keys:
         od = context.objects[slug]
-        T_out = np.zeros((num_frames, 4, 4), dtype=np.float32)
-        for t in range(num_frames):
-            base = torch.from_numpy(od.tracked_poses[t]).float().to(device)
-            delta = compose_T(
-                delta_rotvecs[slug][t].detach(),
-                delta_trans[slug][t].detach(),
-            )
-            T_out[t] = (base @ delta).cpu().numpy()
+        delta_T = compose_T_sequence(
+            delta_rotvecs[slug].detach(),
+            delta_trans[slug].detach(),
+        )
+        T_out = torch.matmul(od.tracked_poses_torch, delta_T).cpu().numpy()
         final_T_mats[slug] = T_out
         final_scales[slug] = float(
             torch.exp(
@@ -336,6 +336,7 @@ def run_joint_optimization(
     return OptimizationResult(
         best_loss=best_loss,
         best_iter=best_iter,
+        optimisation_time_s=optimisation_time_s,
         early_stop_triggered=early_stop_triggered,
         iter_rows=iter_rows,
         frame_rows=frame_rows,

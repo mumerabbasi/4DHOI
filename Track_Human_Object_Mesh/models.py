@@ -77,6 +77,7 @@ class ObjectData:
     faces: np.ndarray
     faces_torch: torch.Tensor
     tracked_poses: np.ndarray
+    tracked_poses_torch: torch.Tensor
     tracked_rotvecs: torch.Tensor
     tracked_trans: torch.Tensor
     part_vert_ids: dict[str, np.ndarray]
@@ -176,6 +177,7 @@ class ProblemContext:
 class OptimizationResult:
     best_loss: float
     best_iter: int
+    optimisation_time_s: float
     early_stop_triggered: bool
     iter_rows: list[dict[str, Any]]
     frame_rows: list[dict[str, Any]]

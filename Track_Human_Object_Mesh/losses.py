@@ -10,13 +10,11 @@ from pytorch3d.ops import knn_points
 from pytorch3d.transforms import axis_angle_to_matrix, matrix_to_axis_angle
 
 from geometry import (
-    apply_inverse_similarity_batch,
     apply_inverse_similarity_sequence,
     apply_local_se3_sequence,
     apply_similarity_sequence,
     bounded_log_scale_delta,
-    compose_T,
-    geodesic_distance_sq,
+    compose_T_sequence,
     masked_mean_from_lengths,
     masked_mean_per_lengths,
     pack_projected_points,
@@ -127,18 +125,34 @@ def _compute_penetration_loss(
     obj_T: torch.Tensor,
     obj_scale: torch.Tensor,
 ) -> torch.Tensor:
-    if obj_data.sdf_grid is None:
-        return torch.tensor(0.0, device=human_points_t.device)
+    per_frame = _compute_penetration_per_frame(
+        human_points_t.unsqueeze(0),
+        obj_data,
+        obj_T.unsqueeze(0),
+        obj_scale,
+    )
+    return per_frame[0]
 
-    pts_canon = apply_inverse_similarity_batch(
-        human_points_t,
-        obj_T,
+
+def _compute_penetration_per_frame(
+    world_points: torch.Tensor,
+    obj_data: ObjectData,
+    obj_T_seq: torch.Tensor,
+    obj_scale: torch.Tensor,
+) -> torch.Tensor:
+    if obj_data.sdf_grid is None:
+        return world_points.new_zeros(world_points.shape[0])
+
+    pts_canon = apply_inverse_similarity_sequence(
+        world_points,
+        obj_T_seq,
         obj_scale,
     )
     sdf_vals = query_sdf(obj_data.sdf_grid, pts_canon)
     penetration = F.relu(-sdf_vals)
-    n_inside = (penetration > 0).sum().clamp(min=1)
-    return penetration.sum() / n_inside.float()
+    flat_penetration = penetration.reshape(world_points.shape[0], -1)
+    n_inside = (flat_penetration > 0).sum(dim=1).clamp(min=1)
+    return flat_penetration.sum(dim=1) / n_inside.to(flat_penetration.dtype)
 
 
 def _compute_obj_obj_penetration_loss(
@@ -147,58 +161,66 @@ def _compute_obj_obj_penetration_loss(
     obj_b_T: torch.Tensor,
     obj_b_scale: torch.Tensor,
 ) -> torch.Tensor:
-    if obj_b.sdf_grid is None:
-        return torch.tensor(0.0, device=obj_a_world_points.device)
-
-    pts_in_b_canon = apply_inverse_similarity_batch(
-        obj_a_world_points,
-        obj_b_T,
+    per_frame = _compute_penetration_per_frame(
+        obj_a_world_points.unsqueeze(0),
+        obj_b,
+        obj_b_T.unsqueeze(0),
         obj_b_scale,
     )
-    sdf_vals = query_sdf(obj_b.sdf_grid, pts_in_b_canon)
-    penetration = F.relu(-sdf_vals)
-    n_inside = (penetration > 0).sum().clamp(min=1)
-    return penetration.sum() / n_inside.float()
+    return per_frame[0]
+
+
+def _batched_geodesic_distance_sq(
+    R1: torch.Tensor,
+    R2: torch.Tensor,
+) -> torch.Tensor:
+    R_rel = torch.matmul(R1.transpose(1, 2), R2)
+    trace = R_rel[:, 0, 0] + R_rel[:, 1, 1] + R_rel[:, 2, 2]
+    cos_angle = ((trace - 1.0) / 2.0).clamp(-1.0 + 1e-7, 1.0 - 1e-7)
+    return 1.0 - cos_angle
 
 
 def _compute_smoothness_diagnostic(
-    rotvecs: torch.Tensor,
+    rotvecs: torch.Tensor | None,
     trans: torch.Tensor,
     is_translational: bool,
     is_rotational: bool,
+    rot_mats: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    device = rotvecs.device
-    num_frames = rotvecs.shape[0]
+    device = trans.device
+    num_frames = trans.shape[0]
     loss = torch.tensor(0.0, device=device)
     per_frame = torch.zeros(num_frames, device=device)
 
     if num_frames < 2:
         return loss, per_frame
 
-    R_mats = axis_angle_to_matrix(rotvecs)
     if is_rotational:
+        if rotvecs is None:
+            raise ValueError("rotvecs are required for rotational smoothing")
         if num_frames >= 3:
-            geo_dists = []
-            for t in range(1, num_frames - 1):
-                mid = 0.5 * (rotvecs[t - 1] + rotvecs[t + 1])
-                diff = rotvecs[t] - mid
-                val = (diff ** 2).sum()
-                geo_dists.append(val)
-                per_frame[t] = per_frame[t] + val
-            loss = loss + torch.stack(geo_dists).mean()
+            diff = rotvecs[1:-1] - 0.5 * (rotvecs[:-2] + rotvecs[2:])
+            rot_vals = (diff ** 2).sum(dim=1)
+            per_frame[1:-1] = per_frame[1:-1] + rot_vals
+            loss = loss + rot_vals.mean()
         else:
             diff = rotvecs[1:] - rotvecs[:-1]
             step_vals = (diff ** 2).mean(dim=1)
             per_frame[1:] = per_frame[1:] + step_vals
             loss = loss + step_vals.mean()
     else:
-        rot_vals = []
-        for t in range(num_frames - 1):
-            gd_sq = geodesic_distance_sq(R_mats[t], R_mats[t + 1])
-            val = 10.0 * gd_sq
-            rot_vals.append(val)
-            per_frame[t + 1] = per_frame[t + 1] + val
-        loss = loss + torch.stack(rot_vals).mean()
+        if rot_mats is None:
+            if rotvecs is None:
+                raise ValueError(
+                    "rot_mats or rotvecs are required for rotation smoothing"
+                )
+            rot_mats = axis_angle_to_matrix(rotvecs)
+        rot_vals = 10.0 * _batched_geodesic_distance_sq(
+            rot_mats[:-1],
+            rot_mats[1:],
+        )
+        per_frame[1:] = per_frame[1:] + rot_vals
+        loss = loss + rot_vals.mean()
 
     if is_translational:
         if num_frames >= 3:
@@ -221,18 +243,65 @@ def _compute_smoothness_diagnostic(
 
 
 def _compute_smoothness_loss(
-    rotvecs: torch.Tensor,
+    rotvecs: torch.Tensor | None,
     trans: torch.Tensor,
     is_translational: bool,
     is_rotational: bool,
+    rot_mats: torch.Tensor | None = None,
 ) -> torch.Tensor:
     scalar, _ = _compute_smoothness_diagnostic(
         rotvecs,
         trans,
         is_translational,
         is_rotational,
+        rot_mats=rot_mats,
     )
     return scalar
+
+
+def _build_effective_object_state(
+    delta_rotvecs: dict[str, torch.Tensor],
+    delta_trans: dict[str, torch.Tensor],
+    raw_scale_deltas: dict[str, torch.Tensor],
+    objects: dict[str, ObjectData],
+    obj_keys: list[str],
+    args: argparse.Namespace,
+    device: torch.device,
+) -> tuple[
+    dict[str, torch.Tensor],
+    dict[str, torch.Tensor | None],
+    dict[str, torch.Tensor],
+    dict[str, torch.Tensor],
+    dict[str, torch.Tensor],
+]:
+    eff_T: dict[str, torch.Tensor] = {}
+    eff_rotvecs: dict[str, torch.Tensor | None] = {}
+    eff_rot_mats: dict[str, torch.Tensor] = {}
+    eff_trans: dict[str, torch.Tensor] = {}
+    eff_scales: dict[str, torch.Tensor] = {}
+
+    for slug in obj_keys:
+        od = objects[slug]
+        delta_T = compose_T_sequence(delta_rotvecs[slug], delta_trans[slug])
+        T_eff = torch.matmul(od.tracked_poses_torch, delta_T)
+        eff_T[slug] = T_eff
+        eff_rot_mats[slug] = T_eff[:, :3, :3]
+        eff_trans[slug] = T_eff[:, :3, 3]
+        if od.state.is_rotational:
+            eff_rotvecs[slug] = matrix_to_axis_angle(eff_rot_mats[slug])
+        else:
+            eff_rotvecs[slug] = None
+        if args.optimize_object_scale:
+            eff_scales[slug] = torch.exp(
+                bounded_log_scale_delta(
+                    raw_scale_deltas[slug],
+                    args.max_log_scale_delta,
+                )
+            )
+        else:
+            eff_scales[slug] = torch.tensor(1.0, device=device)
+
+    return eff_T, eff_rotvecs, eff_rot_mats, eff_trans, eff_scales
 
 
 def _compute_bidirectional_2d_chamfer_diagnostic(
@@ -327,38 +396,17 @@ def compute_all_losses(
     height: int,
 ) -> LossResult:
     device = human_data.base_verts.device
-    num_frames = human_data.base_verts.shape[0]
-
-    eff_T: dict[str, torch.Tensor] = {}
-    eff_rotvecs: dict[str, torch.Tensor] = {}
-    eff_trans: dict[str, torch.Tensor] = {}
-    eff_scales: dict[str, torch.Tensor] = {}
-    for slug in obj_keys:
-        od = objects[slug]
-        T_list = []
-        rvs = []
-        trs = []
-        for t in range(num_frames):
-            base = torch.from_numpy(od.tracked_poses[t]).float().to(device)
-            delta = compose_T(delta_rotvecs[slug][t], delta_trans[slug][t])
-            T_eff = base @ delta
-            T_list.append(T_eff)
-            R_eff = T_eff[:3, :3]
-            rv = matrix_to_axis_angle(R_eff.unsqueeze(0)).squeeze(0)
-            rvs.append(rv)
-            trs.append(T_eff[:3, 3])
-        eff_T[slug] = torch.stack(T_list, dim=0)
-        eff_rotvecs[slug] = torch.stack(rvs)
-        eff_trans[slug] = torch.stack(trs)
-        if args.optimize_object_scale:
-            eff_scales[slug] = torch.exp(
-                bounded_log_scale_delta(
-                    raw_scale_deltas[slug],
-                    args.max_log_scale_delta,
-                )
-            )
-        else:
-            eff_scales[slug] = torch.tensor(1.0, device=device)
+    eff_T, eff_rotvecs, eff_rot_mats, eff_trans, eff_scales = (
+        _build_effective_object_state(
+            delta_rotvecs,
+            delta_trans,
+            raw_scale_deltas,
+            objects,
+            obj_keys,
+            args,
+            device,
+        )
+    )
 
     if args.optimize_human:
         human_points_whole = apply_local_se3_sequence(
@@ -511,38 +559,34 @@ def compute_all_losses(
     pen_weight_schedule = penetration_weight_schedule(iteration, total_iters)
 
     loss_pen = torch.tensor(0.0, device=device)
-    n_pen = 0
-    for t in range(num_frames):
-        human_sub = human_points_whole[t]
-        for slug in obj_keys:
-            loss_pen = loss_pen + _compute_penetration_loss(
-                human_sub,
-                objects[slug],
-                eff_T[slug][t],
-                eff_scales[slug],
-            )
-            n_pen += 1
+    n_pen_terms = 0
+    whole_object_points = {slug: _get_object_points(slug) for slug in obj_keys}
+    for slug in obj_keys:
+        loss_pen = loss_pen + _compute_penetration_per_frame(
+            human_points_whole,
+            objects[slug],
+            eff_T[slug],
+            eff_scales[slug],
+        ).mean()
+        n_pen_terms += 1
     for i in range(len(obj_keys)):
         for j in range(i + 1, len(obj_keys)):
-            obj_a_points = _get_object_points(obj_keys[i])
-            obj_b_points = _get_object_points(obj_keys[j])
-            for t in range(num_frames):
-                loss_pen = loss_pen + _compute_obj_obj_penetration_loss(
-                    obj_a_points[t],
-                    objects[obj_keys[j]],
-                    eff_T[obj_keys[j]][t],
-                    eff_scales[obj_keys[j]],
-                )
-                n_pen += 1
-                loss_pen = loss_pen + _compute_obj_obj_penetration_loss(
-                    obj_b_points[t],
-                    objects[obj_keys[i]],
-                    eff_T[obj_keys[i]][t],
-                    eff_scales[obj_keys[i]],
-                )
-                n_pen += 1
-    if n_pen > 0:
-        loss_pen = loss_pen / n_pen
+            loss_pen = loss_pen + _compute_penetration_per_frame(
+                whole_object_points[obj_keys[i]],
+                objects[obj_keys[j]],
+                eff_T[obj_keys[j]],
+                eff_scales[obj_keys[j]],
+            ).mean()
+            n_pen_terms += 1
+            loss_pen = loss_pen + _compute_penetration_per_frame(
+                whole_object_points[obj_keys[j]],
+                objects[obj_keys[i]],
+                eff_T[obj_keys[i]],
+                eff_scales[obj_keys[i]],
+            ).mean()
+            n_pen_terms += 1
+    if n_pen_terms > 0:
+        loss_pen = loss_pen / n_pen_terms
     loss_pen = loss_pen * pen_weight_schedule
 
     loss_smooth = torch.tensor(0.0, device=device)
@@ -552,6 +596,7 @@ def compute_all_losses(
             eff_trans[slug],
             objects[slug].state.is_translational,
             objects[slug].state.is_rotational,
+            rot_mats=eff_rot_mats[slug],
         )
     if obj_keys:
         loss_smooth = loss_smooth / len(obj_keys)
@@ -669,36 +714,17 @@ def compute_final_loss_diagnostics(
         height,
     )
 
-    eff_T: dict[str, torch.Tensor] = {}
-    eff_rotvecs: dict[str, torch.Tensor] = {}
-    eff_trans: dict[str, torch.Tensor] = {}
-    eff_scales: dict[str, torch.Tensor] = {}
-    for slug in obj_keys:
-        od = objects[slug]
-        T_list = []
-        rvs = []
-        trs = []
-        for t in range(num_frames):
-            base = torch.from_numpy(od.tracked_poses[t]).float().to(device)
-            delta = compose_T(delta_rotvecs[slug][t], delta_trans[slug][t])
-            T_eff = base @ delta
-            T_list.append(T_eff)
-            rvs.append(
-                matrix_to_axis_angle(T_eff[:3, :3].unsqueeze(0)).squeeze(0)
-            )
-            trs.append(T_eff[:3, 3])
-        eff_T[slug] = torch.stack(T_list, dim=0)
-        eff_rotvecs[slug] = torch.stack(rvs)
-        eff_trans[slug] = torch.stack(trs)
-        if args.optimize_object_scale:
-            eff_scales[slug] = torch.exp(
-                bounded_log_scale_delta(
-                    raw_scale_deltas[slug],
-                    args.max_log_scale_delta,
-                )
-            )
-        else:
-            eff_scales[slug] = torch.tensor(1.0, device=device)
+    eff_T, eff_rotvecs, eff_rot_mats, eff_trans, eff_scales = (
+        _build_effective_object_state(
+            delta_rotvecs,
+            delta_trans,
+            raw_scale_deltas,
+            objects,
+            obj_keys,
+            args,
+            device,
+        )
+    )
 
     if args.optimize_human:
         human_points_whole = apply_local_se3_sequence(
@@ -862,6 +888,7 @@ def compute_final_loss_diagnostics(
                 eff_trans[slug],
                 objects[slug].state.is_translational,
                 objects[slug].state.is_rotational,
+                rot_mats=eff_rot_mats[slug],
             )
             per_frame_raw["smooth"] = per_frame_raw["smooth"] + smooth_frames
         per_frame_raw["smooth"] = per_frame_raw["smooth"] / len(obj_keys)
@@ -903,47 +930,45 @@ def compute_final_loss_diagnostics(
         )
 
     pen_weight = penetration_weight_schedule(iteration, total_iters)
-    pen_counts = torch.zeros(num_frames, device=device)
     whole_object_points = {slug: _get_object_points(slug) for slug in obj_keys}
-    for t in range(num_frames):
-        human_sub = human_points_whole[t]
-        for slug in obj_keys:
-            per_frame_raw["penetration"][t] = (
-                per_frame_raw["penetration"][t]
-                + _compute_penetration_loss(
-                    human_sub,
-                    objects[slug],
-                    eff_T[slug][t],
-                    eff_scales[slug],
+    num_pen_terms = 0
+    for slug in obj_keys:
+        per_frame_raw["penetration"] = (
+            per_frame_raw["penetration"]
+            + _compute_penetration_per_frame(
+                human_points_whole,
+                objects[slug],
+                eff_T[slug],
+                eff_scales[slug],
+            )
+        )
+        num_pen_terms += 1
+    for i in range(len(obj_keys)):
+        for j in range(i + 1, len(obj_keys)):
+            per_frame_raw["penetration"] = (
+                per_frame_raw["penetration"]
+                + _compute_penetration_per_frame(
+                    whole_object_points[obj_keys[i]],
+                    objects[obj_keys[j]],
+                    eff_T[obj_keys[j]],
+                    eff_scales[obj_keys[j]],
                 )
             )
-            pen_counts[t] = pen_counts[t] + 1.0
-        for i in range(len(obj_keys)):
-            for j in range(i + 1, len(obj_keys)):
-                per_frame_raw["penetration"][t] = (
-                    per_frame_raw["penetration"][t]
-                    + _compute_obj_obj_penetration_loss(
-                        whole_object_points[obj_keys[i]][t],
-                        objects[obj_keys[j]],
-                        eff_T[obj_keys[j]][t],
-                        eff_scales[obj_keys[j]],
-                    )
+            num_pen_terms += 1
+            per_frame_raw["penetration"] = (
+                per_frame_raw["penetration"]
+                + _compute_penetration_per_frame(
+                    whole_object_points[obj_keys[j]],
+                    objects[obj_keys[i]],
+                    eff_T[obj_keys[i]],
+                    eff_scales[obj_keys[i]],
                 )
-                pen_counts[t] = pen_counts[t] + 1.0
-                per_frame_raw["penetration"][t] = (
-                    per_frame_raw["penetration"][t]
-                    + _compute_obj_obj_penetration_loss(
-                        whole_object_points[obj_keys[j]][t],
-                        objects[obj_keys[i]],
-                        eff_T[obj_keys[i]][t],
-                        eff_scales[obj_keys[i]],
-                    )
-                )
-                pen_counts[t] = pen_counts[t] + 1.0
-    valid_pen = pen_counts > 0
-    per_frame_raw["penetration"][valid_pen] = (
-        per_frame_raw["penetration"][valid_pen] / pen_counts[valid_pen]
-    )
+            )
+            num_pen_terms += 1
+    if num_pen_terms > 0:
+        per_frame_raw["penetration"] = (
+            per_frame_raw["penetration"] / num_pen_terms
+        )
     per_frame_raw["penetration"] = per_frame_raw["penetration"] * pen_weight
 
     return DiagnosticLossResult(

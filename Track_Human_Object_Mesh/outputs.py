@@ -267,6 +267,7 @@ def save_run_outputs(
         "num_objects": len(context.obj_keys),
         "num_edges": len(context.resolved_edges),
         "best_total_loss": result.best_loss,
+        "optimisation_time_s": result.optimisation_time_s,
         "best_iter": result.best_iter,
         "inputs": {
             "aligned_mesh_dir": str(context.dirs["aligned"]),

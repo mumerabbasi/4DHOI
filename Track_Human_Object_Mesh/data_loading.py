@@ -777,6 +777,9 @@ def load_problem_context(
             faces=faces,
             faces_torch=torch.from_numpy(faces.astype(np.int64)).to(device),
             tracked_poses=tracked_poses,
+            tracked_poses_torch=torch.from_numpy(tracked_poses)
+            .float()
+            .to(device),
             tracked_rotvecs=torch.from_numpy(
                 np.stack(rotvecs)
             ).float().to(device),

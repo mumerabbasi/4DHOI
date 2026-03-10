@@ -33,6 +33,23 @@ def compose_T(rotvec: torch.Tensor, trans: torch.Tensor) -> torch.Tensor:
     return torch.cat([Rt, bottom], dim=0)
 
 
+def compose_T_sequence(
+    rotvecs: torch.Tensor,
+    trans: torch.Tensor,
+) -> torch.Tensor:
+    """rotvecs [F,3], trans [F,3] -> T [F,4,4]."""
+    R = axis_angle_to_matrix(rotvecs)
+    T = torch.zeros(
+        (rotvecs.shape[0], 4, 4),
+        dtype=rotvecs.dtype,
+        device=rotvecs.device,
+    )
+    T[:, :3, :3] = R
+    T[:, :3, 3] = trans
+    T[:, 3, 3] = 1.0
+    return T
+
+
 def apply_T_batch(verts: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
     """verts [V,3], T [4,4] -> transformed [V,3]."""
     R = T[:3, :3]
@@ -150,8 +167,9 @@ def query_sdf(
     sdf_grid: SDFGrid,
     points: torch.Tensor,
 ) -> torch.Tensor:
-    """Query SDF values for points. Returns [N] values (negative = inside)."""
-    pts = points.unsqueeze(0)
+    """Query SDF values for points. Returns [...,] values (negative = inside)."""
+    shape = points.shape[:-1]
+    pts = points.reshape(1, -1, 3)
     normalised = (
         (pts - sdf_grid.bbox_min)
         / (sdf_grid.bbox_max - sdf_grid.bbox_min)
@@ -165,7 +183,7 @@ def query_sdf(
         padding_mode="border",
         align_corners=True,
     )
-    return sampled.reshape(-1)
+    return sampled.reshape(*shape)
 
 
 def geodesic_distance_sq(R1: torch.Tensor, R2: torch.Tensor) -> torch.Tensor:

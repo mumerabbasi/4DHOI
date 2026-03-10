@@ -5,8 +5,9 @@
   "num_frames": 81,
   "num_objects": 2,
   "num_edges": 4,
-  "best_total_loss": 0.5238593816757202,
-  "best_iter": 1738,
+  "best_total_loss": 0.396198570728302,
+  "optimisation_time_s": 77.14875534921885,
+  "best_iter": 593,
   "inputs": {
     "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02",
     "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_cotracker/video_02",
@@ -20,7 +21,7 @@
     "lambda_contact": 200.0,
     "lambda_dynamics": 150.0,
     "lambda_penetration": 20.0,
-    "lambda_smooth": 12.0,
+    "lambda_smooth": 20.0,
     "lambda_human_prior": 100.0,
     "lambda_human_smooth": 30.0,
     "lambda_human_mask_2d": 40.0,
@@ -32,8 +33,8 @@
     "adam_iters": 5000,
     "adam_lr": 0.001,
     "sdf_resolution": 128,
-    "optimize_human": false,
-    "optimize_object_scale": false,
+    "optimize_human": true,
+    "optimize_object_scale": true,
     "max_log_scale_delta": 0.22,
     "early_stop_start": 500,
     "early_stop_patience": 300,
@@ -43,13 +44,13 @@
   "debug_outputs": {
     "frame_loss_semantics": "diagnostic_local",
     "csv": {
-      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_02/debug/csv/iter_metrics.csv",
-      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_02/debug/csv/frame_loss_metrics.csv",
-      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_02/debug/csv/final_loss_summary.csv"
+      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Codex/output/video_02/debug/csv/iter_metrics.csv",
+      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Codex/output/video_02/debug/csv/frame_loss_metrics.csv",
+      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Codex/output/video_02/debug/csv/final_loss_summary.csv"
     },
     "plots": {
-      "iter_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_02/debug/plots/iter",
-      "frame_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_02/debug/plots/frame"
+      "iter_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Codex/output/video_02/debug/plots/iter",
+      "frame_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Codex/output/video_02/debug/plots/frame"
     },
     "iter_columns": [
       "iter",
@@ -146,7 +147,7 @@
       ],
       "is_translational": true,
       "is_rotational": false,
-      "final_scale": 1.0
+      "final_scale": 0.9658807516098022
     },
     "dumbbell_(right_hand)": {
       "name": "dumbbell (right hand)",
@@ -159,19 +160,19 @@
       ],
       "is_translational": true,
       "is_rotational": false,
-      "final_scale": 1.0
+      "final_scale": 0.9872605800628662
     }
   },
   "human": {
     "num_verts": 6890,
     "num_faces": 13776,
-    "optimize_human": false,
+    "optimize_human": true,
     "delta_stats": {
-      "max_delta_rot_deg": 0.0,
-      "mean_delta_rot_deg": 0.0,
-      "max_delta_trans_m": 0.0,
-      "mean_delta_trans_m": 0.0,
-      "optimize_human": false
+      "max_delta_rot_deg": 3.3847373823534306,
+      "mean_delta_rot_deg": 1.1650630394912158,
+      "max_delta_trans_m": 0.03815758228302002,
+      "mean_delta_trans_m": 0.016400301828980446,
+      "optimize_human": true
     }
   },
   "edges": [

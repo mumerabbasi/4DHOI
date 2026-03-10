@@ -91,16 +91,18 @@ def parse_args() -> argparse.Namespace:
     )
 
     p.add_argument(
-        "--optimize_human",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="Optimise per-frame global human SE(3) corrections.",
+        "--freeze_human",
+        dest="optimize_human",
+        action="store_false",
+        default=True,
+        help="Disable per-frame global human SE(3) corrections.",
     )
     p.add_argument(
-        "--optimize_object_scale",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="Optimise one global uniform scale per object.",
+        "--freeze_object_scale",
+        dest="optimize_object_scale",
+        action="store_false",
+        default=True,
+        help="Disable global uniform object scale optimisation.",
     )
     p.add_argument(
         "--max_log_scale_delta",
@@ -136,7 +138,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--lambda_smooth",
         type=float,
-        default=12.0,
+        default=20.0,
         help="Temporal smoothness weight.",
     )
     p.add_argument(
