@@ -5,9 +5,9 @@
   "num_frames": 81,
   "num_objects": 1,
   "num_edges": 1,
-  "best_total_loss": 1.5411351919174194,
-  "optimisation_time_s": 153.74976798146963,
-  "best_iter": 1913,
+  "best_total_loss": 1.540237307548523,
+  "optimisation_time_s": 125.9332585297525,
+  "best_iter": 1814,
   "inputs": {
     "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03",
     "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_cotracker/video_03",
@@ -44,13 +44,13 @@
   "debug_outputs": {
     "frame_loss_semantics": "diagnostic_local",
     "csv": {
-      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Codex/output/video_03/debug/csv/iter_metrics.csv",
-      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Codex/output/video_03/debug/csv/frame_loss_metrics.csv",
-      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Codex/output/video_03/debug/csv/final_loss_summary.csv"
+      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_03/debug/csv/iter_metrics.csv",
+      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_03/debug/csv/frame_loss_metrics.csv",
+      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_03/debug/csv/final_loss_summary.csv"
     },
     "plots": {
-      "iter_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Codex/output/video_03/debug/plots/iter",
-      "frame_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Codex/output/video_03/debug/plots/frame"
+      "iter_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_03/debug/plots/iter",
+      "frame_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_03/debug/plots/frame"
     },
     "iter_columns": [
       "iter",
@@ -147,7 +147,7 @@
       ],
       "is_translational": true,
       "is_rotational": false,
-      "final_scale": 0.9770227670669556
+      "final_scale": 0.9767582416534424
     }
   },
   "human": {
@@ -155,10 +155,10 @@
     "num_faces": 13776,
     "optimize_human": true,
     "delta_stats": {
-      "max_delta_rot_deg": 9.245773508673324,
-      "mean_delta_rot_deg": 2.020463658147448,
-      "max_delta_trans_m": 0.15523184835910797,
-      "mean_delta_trans_m": 0.053660716861486435,
+      "max_delta_rot_deg": 9.463215995995265,
+      "mean_delta_rot_deg": 2.037241590956761,
+      "max_delta_trans_m": 0.160050630569458,
+      "mean_delta_trans_m": 0.05408149212598801,
       "optimize_human": true
     }
   },
