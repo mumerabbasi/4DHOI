@@ -91,18 +91,16 @@ def parse_args() -> argparse.Namespace:
     )
 
     p.add_argument(
-        "--freeze_human",
-        dest="optimize_human",
-        action="store_false",
+        "--optimize_human",
+        action=argparse.BooleanOptionalAction,
         default=True,
-        help="Disable per-frame global human SE(3) corrections.",
+        help="Optimise per-frame global human SE(3) corrections.",
     )
     p.add_argument(
-        "--freeze_object_scale",
-        dest="optimize_object_scale",
-        action="store_false",
+        "--optimize_object_scale",
+        action=argparse.BooleanOptionalAction,
         default=True,
-        help="Disable global uniform object scale optimisation.",
+        help="Optimise one global uniform scale per object.",
     )
     p.add_argument(
         "--max_log_scale_delta",

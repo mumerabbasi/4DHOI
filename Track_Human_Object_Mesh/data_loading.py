@@ -544,6 +544,19 @@ def _load_tracked_poses(poses_path: Path) -> np.ndarray:
     return np.array([frame["T_4x4"] for frame in frames], dtype=np.float32)
 
 
+def _extract_vertex_colors(mesh: trimesh.Trimesh) -> np.ndarray | None:
+    visual = getattr(mesh, "visual", None)
+    if visual is None:
+        return None
+    raw_colors = getattr(visual, "vertex_colors", None)
+    if raw_colors is None:
+        return None
+    colors = np.asarray(raw_colors)
+    if colors.shape[0] != len(mesh.vertices):
+        return None
+    return colors.copy()
+
+
 def _mean_translation_step(tracked_poses: np.ndarray) -> float:
     if tracked_poses.shape[0] < 2:
         return 0.0
@@ -697,6 +710,7 @@ def load_problem_context(
         mesh = trimesh.load(str(mesh_path), process=False)
         verts = np.asarray(mesh.vertices, dtype=np.float32)
         faces = np.asarray(mesh.faces, dtype=np.int32)
+        vertex_colors = _extract_vertex_colors(mesh)
         tracked_poses = _load_tracked_poses(poses_path)
 
         if tracked_poses.shape[0] > num_frames:
@@ -775,6 +789,7 @@ def load_problem_context(
             state=state,
             template_verts=torch.from_numpy(verts).float().to(device),
             faces=faces,
+            vertex_colors=vertex_colors,
             faces_torch=torch.from_numpy(faces.astype(np.int64)).to(device),
             tracked_poses=tracked_poses,
             tracked_poses_torch=torch.from_numpy(tracked_poses)

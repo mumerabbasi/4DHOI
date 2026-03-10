@@ -75,6 +75,7 @@ class ObjectData:
     state: PAGObjectState
     template_verts: torch.Tensor
     faces: np.ndarray
+    vertex_colors: np.ndarray | None
     faces_torch: torch.Tensor
     tracked_poses: np.ndarray
     tracked_poses_torch: torch.Tensor

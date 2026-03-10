@@ -55,9 +55,31 @@ def _save_transform_json(
         json.dump(payload, f, indent=2)
 
 
+def _build_vertex_color_visual(
+    vertex_colors: np.ndarray | None,
+    num_verts: int,
+) -> trimesh.visual.ColorVisuals | None:
+    if vertex_colors is None:
+        return None
+    colors = np.asarray(vertex_colors)
+    if colors.shape[0] != num_verts:
+        return None
+    if colors.ndim != 2 or colors.shape[1] not in (3, 4):
+        return None
+    if np.issubdtype(colors.dtype, np.floating):
+        max_val = float(np.max(colors)) if colors.size else 0.0
+        if max_val <= 1.0:
+            colors = np.clip(colors * 255.0, 0.0, 255.0)
+        colors = np.rint(colors).astype(np.uint8)
+    else:
+        colors = colors.astype(np.uint8, copy=False)
+    return trimesh.visual.ColorVisuals(vertex_colors=colors)
+
+
 def _save_mesh_sequence(
     verts_template: np.ndarray,
     faces: np.ndarray,
+    vertex_colors: np.ndarray | None,
     T_mats: np.ndarray,
     meshes_dir: Path,
     global_scale: float = 1.0,
@@ -68,6 +90,7 @@ def _save_mesh_sequence(
         vertices=verts_template,
         faces=faces,
         process=False,
+        visual=_build_vertex_color_visual(vertex_colors, len(verts_template)),
     )
     for i in range(T_mats.shape[0]):
         R = T_mats[i, :3, :3]
@@ -186,6 +209,7 @@ def save_run_outputs(
         _save_mesh_sequence(
             context.objects[slug].template_verts.cpu().numpy(),
             context.objects[slug].faces,
+            context.objects[slug].vertex_colors,
             result.final_T_mats[slug],
             obj_dir / "meshes",
             global_scale=result.final_scales[slug],
