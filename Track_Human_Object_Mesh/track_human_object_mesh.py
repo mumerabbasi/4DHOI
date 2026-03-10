@@ -145,7 +145,7 @@ def parse_args() -> argparse.Namespace:
         help="Voxel resolution for SDF grids.",
     )
     # Optimisation
-    p.add_argument("--adam_iters", type=int, default=4000)
+    p.add_argument("--adam_iters", type=int, default=2000)
     p.add_argument("--adam_lr", type=float, default=1e-3)
     p.add_argument(
         "--early_stop_start",
