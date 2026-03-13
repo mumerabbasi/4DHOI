@@ -1,5 +1,5 @@
 {
-  "object_name": "dumbbell (right hand)",
+  "object_name": "dumbbell (left hand)",
   "parts": [
     "handle",
     "weight plates"
@@ -13,7 +13,12 @@
       ],
       "parts": {
         "handle": null,
-        "weight plates": null
+        "weight plates": [
+          322,
+          348,
+          660,
+          721
+        ]
       }
     },
     {
@@ -24,12 +29,17 @@
       ],
       "parts": {
         "handle": [
-          532,
-          445,
-          578,
-          496
+          488,
+          409,
+          558,
+          460
         ],
-        "weight plates": null
+        "weight plates": [
+          324,
+          292,
+          658,
+          759
+        ]
       }
     },
     {
@@ -40,7 +50,12 @@
       ],
       "parts": {
         "handle": null,
-        "weight plates": null
+        "weight plates": [
+          322,
+          296,
+          650,
+          624
+        ]
       }
     },
     {
@@ -51,17 +66,12 @@
       ],
       "parts": {
         "handle": [
-          409,
-          476,
-          552,
+          389,
+          481,
+          629,
           537
         ],
-        "weight plates": [
-          547,
-          391,
-          742,
-          680
-        ]
+        "weight plates": null
       }
     },
     {
@@ -71,18 +81,8 @@
         1024
       ],
       "parts": {
-        "handle": [
-          409,
-          460,
-          573,
-          532
-        ],
-        "weight plates": [
-          274,
-          332,
-          742,
-          701
-        ]
+        "handle": null,
+        "weight plates": null
       }
     },
     {
@@ -93,15 +93,15 @@
       ],
       "parts": {
         "handle": [
-          409,
-          486,
-          552,
+          399,
+          476,
+          624,
           537
         ],
         "weight plates": [
-          276,
-          358,
-          742,
+          624,
+          353,
+          732,
           640
         ]
       }
@@ -113,17 +113,12 @@
         1024
       ],
       "parts": {
-        "handle": [
-          558,
-          468,
-          578,
-          501
-        ],
+        "handle": null,
         "weight plates": [
-          481,
+          322,
           353,
-          703,
-          606
+          655,
+          706
         ]
       }
     },
@@ -135,16 +130,16 @@
       ],
       "parts": {
         "handle": [
-          506,
-          437,
-          580,
-          512
+          491,
+          409,
+          552,
+          460
         ],
         "weight plates": [
-          455,
-          307,
-          706,
-          568
+          394,
+          302,
+          660,
+          517
         ]
       }
     },
@@ -155,17 +150,12 @@
         1024
       ],
       "parts": {
-        "handle": [
-          486,
-          399,
-          583,
-          634
-        ],
+        "handle": null,
         "weight plates": [
-          491,
-          404,
-          701,
-          655
+          322,
+          286,
+          660,
+          686
         ]
       }
     },
@@ -176,18 +166,8 @@
         1024
       ],
       "parts": {
-        "handle": [
-          409,
-          486,
-          552,
-          537
-        ],
-        "weight plates": [
-          547,
-          373,
-          742,
-          655
-        ]
+        "handle": null,
+        "weight plates": null
       }
     },
     {
@@ -198,16 +178,16 @@
       ],
       "parts": {
         "handle": [
-          409,
-          471,
-          552,
-          532
+          389,
+          460,
+          629,
+          542
         ],
         "weight plates": [
-          547,
-          394,
+          619,
+          380,
           742,
-          680
+          670
         ]
       }
     },
@@ -219,10 +199,10 @@
       ],
       "parts": {
         "handle": [
-          409,
-          481,
-          552,
-          542
+          384,
+          471,
+          640,
+          532
         ],
         "weight plates": null
       }
