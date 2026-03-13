@@ -141,8 +141,8 @@ def parse_args() -> argparse.Namespace:
         help="Huber delta for reprojection residuals (px).",
     )
     p.add_argument("--lambda_img", type=float, default=1.0, help="Weight for image reprojection loss.")
-    p.add_argument("--lambda_a", type=float, default=10.0, help="Weight for acceleration smoothness loss.")
-    p.add_argument("--lambda_v", type=float, default=10.0, help="Weight for velocity smoothness loss.")
+    p.add_argument("--lambda_a", type=float, default=300.0, help="Weight for acceleration smoothness loss.")
+    p.add_argument("--lambda_v", type=float, default=80.0, help="Weight for velocity smoothness loss.")
     p.add_argument("--adam_iters", type=int, default=4000, help="Number of Adam iterations.")
     p.add_argument("--adam_lr", type=float, default=1e-2, help="Adam learning rate.")
     p.add_argument(
