@@ -14,6 +14,8 @@ import trimesh
 from geometry import decompose_T
 from models import (
     HumanData,
+    InteractionEdge,
+    InteractionNode,
     ObjectData,
     ObjectPartSegments,
     PAG,
@@ -21,7 +23,6 @@ from models import (
     PAGObjectState,
     PackedPointCloud2D,
     ProblemContext,
-    ResolvedEdge,
     SDFGrid,
 )
 from utils import (
@@ -226,72 +227,8 @@ def _sample_surface_points(
     return np.sum(sampled_tri * bary[:, :, None], axis=1).astype(np.float32)
 
 
-def _sample_face_barycentrics(
-    vertices: np.ndarray,
-    faces: np.ndarray,
-    count: int,
-    seed: int,
-) -> tuple[np.ndarray, np.ndarray]:
-    if count <= 0 or faces.size == 0:
-        return (
-            np.zeros((0,), dtype=np.int64),
-            np.zeros((0, 3), dtype=np.float32),
-        )
-
-    tri = vertices[faces]
-    edge_1 = tri[:, 1] - tri[:, 0]
-    edge_2 = tri[:, 2] - tri[:, 0]
-    areas = np.linalg.norm(np.cross(edge_1, edge_2), axis=1) * 0.5
-    positive = areas > 1e-12
-    if not np.any(positive):
-        face_ids = _subsample_indices(faces.shape[0], count)
-        bary = np.tile(
-            np.array([[1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0]], dtype=np.float32),
-            (len(face_ids), 1),
-        )
-        return face_ids, bary
-
-    valid_face_ids = np.flatnonzero(positive)
-    weights = areas[positive]
-    weights = weights / weights.sum()
-    rng = np.random.default_rng(seed)
-    chosen = rng.choice(valid_face_ids, size=count, replace=True, p=weights)
-    r1 = rng.random(count, dtype=np.float32)
-    r2 = rng.random(count, dtype=np.float32)
-    sqrt_r1 = np.sqrt(r1)
-    bary = np.stack(
-        [
-            1.0 - sqrt_r1,
-            sqrt_r1 * (1.0 - r2),
-            sqrt_r1 * r2,
-        ],
-        axis=1,
-    ).astype(np.float32)
-    return chosen.astype(np.int64), bary
-
-
-def _sample_sequence_points_from_barycentrics(
-    verts_seq: torch.Tensor,
-    faces_torch: torch.Tensor,
-    face_ids: torch.Tensor,
-    bary: torch.Tensor,
-) -> torch.Tensor:
-    if face_ids.numel() == 0:
-        return torch.zeros(
-            (verts_seq.shape[0], 0, 3),
-            dtype=verts_seq.dtype,
-            device=verts_seq.device,
-        )
-    face_vids = faces_torch[face_ids]
-    tri = verts_seq[:, face_vids, :]
-    bary_exp = bary.view(1, -1, 3, 1)
-    return (tri * bary_exp).sum(dim=2)
-
-
 def _mask_to_point_cloud(
     mask: np.ndarray,
-    width: int,
-    height: int,
     max_points: int,
 ) -> np.ndarray:
     ys, xs = np.nonzero(mask > 0)
@@ -299,8 +236,8 @@ def _mask_to_point_cloud(
         return np.zeros((0, 2), dtype=np.float32)
     pts = np.stack(
         [
-            (xs.astype(np.float32) + 0.5) / float(width),
-            (ys.astype(np.float32) + 0.5) / float(height),
+            xs.astype(np.float32) + 0.5,
+            ys.astype(np.float32) + 0.5,
         ],
         axis=1,
     )
@@ -352,7 +289,7 @@ def _load_mask_point_clouds(
                 (width, height),
                 interpolation=cv2.INTER_NEAREST,
             )
-        arrays.append(_mask_to_point_cloud(mask, width, height, max_points))
+        arrays.append(_mask_to_point_cloud(mask, max_points))
     return _pack_2d_point_clouds(arrays, device)
 
 
@@ -385,76 +322,23 @@ def _infer_image_size(dirs: dict[str, Path]) -> tuple[int, int]:
     raise FileNotFoundError("Could not infer image size from frames or masks.")
 
 
-def _resolve_human_mask_dir(seg_vid_dir: Path) -> Path | None:
-    humans_dir = seg_vid_dir / "humans"
-    if not humans_dir.exists():
-        return None
-    candidates = sorted(
-        d for d in humans_dir.iterdir()
-        if d.is_dir() and (d / "masks").exists()
-    )
-    if not candidates:
-        return None
-    return candidates[0] / "masks"
-
-
 def _load_human_data(
     human_verts_np: np.ndarray,
     human_faces: np.ndarray,
     body_seg: dict[str, np.ndarray],
-    dirs: dict[str, Path],
-    width: int,
-    height: int,
     device: torch.device,
-    args: argparse.Namespace,
 ) -> HumanData:
     base_verts = torch.from_numpy(human_verts_np).float().to(device)
     faces_torch = torch.from_numpy(human_faces.astype(np.int64)).to(device)
-    part_points_base: dict[str, torch.Tensor] = {}
+    part_points: dict[str, torch.Tensor] = {}
     for part_name, vert_ids in body_seg.items():
-        sub_ids = _subsample_indices(
-            len(vert_ids),
-            args.num_part_surface_points,
-        )
-        selected = vert_ids[sub_ids]
-        part_points_base[part_name] = base_verts[:, selected, :]
-
-    face_ids_np, bary_np = _sample_face_barycentrics(
-        human_verts_np[0],
-        human_faces,
-        args.num_human_surface_points,
-        SURFACE_SAMPLE_SEED,
-    )
-    sampled_points_base = _sample_sequence_points_from_barycentrics(
-        base_verts,
-        faces_torch,
-        torch.from_numpy(face_ids_np).to(device),
-        torch.from_numpy(bary_np).to(device),
-    )
-    if "hips" in body_seg and body_seg["hips"].size > 0:
-        centers = base_verts[:, body_seg["hips"], :].mean(dim=1)
-    else:
-        centers = base_verts.mean(dim=1)
-
-    human_mask_dir = _resolve_human_mask_dir(dirs["seg_vid"])
-    human_mask_points = None
-    if human_mask_dir is not None:
-        human_mask_points = _load_mask_point_clouds(
-            human_mask_dir,
-            human_verts_np.shape[0],
-            width,
-            height,
-            args.num_mask_points_2d,
-            device,
-        )
+        part_points[part_name] = base_verts[:, vert_ids, :]
     return HumanData(
         base_verts=base_verts,
         faces=human_faces,
         faces_torch=faces_torch,
-        part_points_base=part_points_base,
-        sampled_points_base=sampled_points_base,
-        centers=centers,
-        mask_points_2d=human_mask_points,
+        part_points=part_points,
+        part_vert_ids=body_seg,
     )
 
 
@@ -557,86 +441,53 @@ def _extract_vertex_colors(mesh: trimesh.Trimesh) -> np.ndarray | None:
     return colors.copy()
 
 
-def _mean_translation_step(tracked_poses: np.ndarray) -> float:
-    if tracked_poses.shape[0] < 2:
-        return 0.0
-    diffs = np.diff(tracked_poses[:, :3, 3], axis=0)
-    return float(np.linalg.norm(diffs, axis=1).mean())
-
-
-def _mean_rotation_step(tracked_poses: np.ndarray) -> float:
-    if tracked_poses.shape[0] < 2:
-        return 0.0
-    angles: list[float] = []
-    for t in range(tracked_poses.shape[0] - 1):
-        R1 = tracked_poses[t, :3, :3]
-        R2 = tracked_poses[t + 1, :3, :3]
-        R_rel = R1.T @ R2
-        cos_angle = np.clip((np.trace(R_rel) - 1.0) / 2.0, -1.0, 1.0)
-        angles.append(float(np.arccos(cos_angle)))
-    return float(np.mean(angles))
-
-
-def _reference_priority(od: ObjectData) -> tuple[int, int, float, float]:
-    return (
-        int(od.state.is_translational),
-        int(od.state.is_rotational),
-        _mean_translation_step(od.tracked_poses),
-        _mean_rotation_step(od.tracked_poses),
-    )
-
-
-def _select_canonical_reference_obj(
-    a_is_human: bool,
-    a_obj_idx: int,
-    b_is_human: bool,
-    b_obj_idx: int,
+def _resolve_interaction_node(
+    node_str: str,
     objects: dict[str, ObjectData],
-    obj_keys: list[str],
-) -> int:
-    if a_is_human and b_is_human:
-        return -1
-    if a_is_human:
-        return b_obj_idx
-    if b_is_human:
-        return a_obj_idx
+    body_seg: dict[str, np.ndarray],
+) -> InteractionNode:
+    entity_name, part_name = _parse_node(node_str)
+    part_name_norm = part_name.lower().strip()
+    if _is_human_node(node_str):
+        if part_name_norm not in body_seg:
+            raise KeyError(f"Body part '{part_name_norm}' not in segmentation")
+        return InteractionNode(
+            raw_node=node_str,
+            entity_name=entity_name,
+            part_name=part_name_norm,
+            is_human=True,
+            object_slug=None,
+            resolved_part_name=part_name_norm,
+            vert_ids=body_seg[part_name_norm],
+        )
 
-    od_a = objects[obj_keys[a_obj_idx]]
-    od_b = objects[obj_keys[b_obj_idx]]
-    if _reference_priority(od_a) <= _reference_priority(od_b):
-        return a_obj_idx
-    return b_obj_idx
+    obj_slug = _sanitize(entity_name)
+    if obj_slug not in objects:
+        raise KeyError(f"Object '{obj_slug}' not loaded")
 
+    resolved_part_name = None
+    vert_ids = np.arange(objects[obj_slug].template_verts.shape[0], dtype=np.int64)
+    for candidate_name, candidate_vids in objects[obj_slug].part_vert_ids.items():
+        if candidate_name.lower().strip() == part_name_norm:
+            resolved_part_name = candidate_name
+            vert_ids = candidate_vids
+            break
 
-def _uses_mean_contact_reduction(is_human: bool, part_name: str) -> bool:
-    if not is_human:
-        return False
-    part = part_name.lower().strip()
-    return part.endswith("hand") or part.endswith("foot")
+    if resolved_part_name is None:
+        print(
+            f"  [WARN] Part '{part_name}' not found in {obj_slug}, "
+            "using whole mesh."
+        )
 
-
-def _select_contact_reduction(
-    a_is_human: bool,
-    a_part_name: str,
-    b_is_human: bool,
-    b_part_name: str,
-) -> str:
-    if _uses_mean_contact_reduction(a_is_human, a_part_name):
-        return "mean"
-    if _uses_mean_contact_reduction(b_is_human, b_part_name):
-        return "mean"
-    return "min"
-
-
-def _select_contact_source_is_a(
-    a_is_human: bool,
-    a_vert_ids: np.ndarray,
-    b_is_human: bool,
-    b_vert_ids: np.ndarray,
-) -> bool:
-    if a_is_human != b_is_human:
-        return a_is_human
-    return len(a_vert_ids) <= len(b_vert_ids)
+    return InteractionNode(
+        raw_node=node_str,
+        entity_name=entity_name,
+        part_name=part_name_norm,
+        is_human=False,
+        object_slug=obj_slug,
+        resolved_part_name=resolved_part_name,
+        vert_ids=vert_ids,
+    )
 
 
 def load_problem_context(
@@ -682,11 +533,7 @@ def load_problem_context(
         human_verts_np=human_verts_np,
         human_faces=human_faces,
         body_seg=body_seg,
-        dirs=dirs,
-        width=width,
-        height=height,
         device=device,
-        args=args,
     )
     print(
         f"  Human: {num_frames} frames, {human_verts_np.shape[1]} verts, "
@@ -821,139 +668,30 @@ def load_problem_context(
     if not obj_keys:
         raise RuntimeError("No objects loaded — nothing to optimise.")
 
-    print("\nResolving PAG edges...")
-    obj_slug_to_idx = {slug: idx for idx, slug in enumerate(obj_keys)}
-    resolved_edges: list[ResolvedEdge] = []
-
+    print("\nResolving PAG interaction edges...")
+    interaction_edges: list[InteractionEdge] = []
     for edge in pag.edges:
         try:
-            a_entity, a_part = _parse_node(edge.node_a)
-            b_entity, b_part = _parse_node(edge.node_b)
-        except ValueError as exc:
+            node_a = _resolve_interaction_node(edge.node_a, objects, body_seg)
+            node_b = _resolve_interaction_node(edge.node_b, objects, body_seg)
+        except (KeyError, ValueError) as exc:
             print(f"  [WARN] Skipping edge: {exc}")
             continue
 
-        a_is_human = _is_human_node(edge.node_a)
-        b_is_human = _is_human_node(edge.node_b)
-
-        if a_is_human:
-            a_obj_idx = -1
-            a_part_norm = a_part.lower().strip()
-            if a_part_norm not in body_seg:
-                print(
-                    f"  [WARN] Body part '{a_part_norm}' "
-                    "not in segmentation, skipping edge."
-                )
-                continue
-            a_vids = body_seg[a_part_norm]
-        else:
-            a_slug = _sanitize(a_entity)
-            if a_slug not in obj_slug_to_idx:
-                print(f"  [WARN] Object '{a_slug}' not loaded, skipping edge.")
-                continue
-            a_obj_idx = obj_slug_to_idx[a_slug]
-            a_part_norm = a_part.lower().strip()
-            matched = None
-            for part_name, part_vids in objects[a_slug].part_vert_ids.items():
-                if part_name.lower().strip() == a_part_norm:
-                    matched = part_vids
-                    break
-            if matched is None:
-                print(
-                    f"  [WARN] Part '{a_part}' not found in {a_slug}, "
-                    "using whole mesh."
-                )
-                matched = np.arange(objects[a_slug].template_verts.shape[0])
-            a_vids = matched
-
-        if b_is_human:
-            b_obj_idx = -1
-            b_part_norm = b_part.lower().strip()
-            if b_part_norm not in body_seg:
-                print(
-                    f"  [WARN] Body part '{b_part_norm}' "
-                    "not in segmentation, skipping edge."
-                )
-                continue
-            b_vids = body_seg[b_part_norm]
-        else:
-            b_slug = _sanitize(b_entity)
-            if b_slug not in obj_slug_to_idx:
-                print(f"  [WARN] Object '{b_slug}' not loaded, skipping edge.")
-                continue
-            b_obj_idx = obj_slug_to_idx[b_slug]
-            b_part_norm = b_part.lower().strip()
-            matched = None
-            for part_name, part_vids in objects[b_slug].part_vert_ids.items():
-                if part_name.lower().strip() == b_part_norm:
-                    matched = part_vids
-                    break
-            if matched is None:
-                print(
-                    f"  [WARN] Part '{b_part}' not found in {b_slug}, "
-                    "using whole mesh."
-                )
-                matched = np.arange(objects[b_slug].template_verts.shape[0])
-            b_vids = matched
-
-        contact_reduction = _select_contact_reduction(
-            a_is_human,
-            a_part_norm,
-            b_is_human,
-            b_part_norm,
-        )
-        contact_source_is_a = _select_contact_source_is_a(
-            a_is_human,
-            a_vids,
-            b_is_human,
-            b_vids,
-        )
-        canonical_obj_idx = _select_canonical_reference_obj(
-            a_is_human,
-            a_obj_idx,
-            b_is_human,
-            b_obj_idx,
-            objects,
-            obj_keys,
-        )
-
-        resolved_edges.append(
-            ResolvedEdge(
-                a_is_human=a_is_human,
-                a_object_idx=a_obj_idx,
-                a_vert_ids=a_vids,
-                a_part_name=a_part_norm,
-                b_is_human=b_is_human,
-                b_object_idx=b_obj_idx,
-                b_vert_ids=b_vids,
-                b_part_name=b_part_norm,
+        interaction_edges.append(
+            InteractionEdge(
+                node_a=node_a,
+                node_b=node_b,
                 is_continuous=edge.is_continuous,
                 is_rel_static=edge.is_rel_static,
-                contact_reduction=contact_reduction,
-                contact_source_is_a=contact_source_is_a,
-                canonical_obj_idx=canonical_obj_idx,
             )
         )
-        a_label = (
-            f"human:{a_part}"
-            if a_is_human
-            else f"{obj_keys[a_obj_idx]}:{a_part}"
-        )
-        b_label = (
-            f"human:{b_part}"
-            if b_is_human
-            else f"{obj_keys[b_obj_idx]}:{b_part}"
-        )
-        ref_label = (
-            "none" if canonical_obj_idx < 0 else obj_keys[canonical_obj_idx]
-        )
         print(
-            f"  Edge: {a_label} ↔ {b_label}  "
-            f"(continuous={edge.is_continuous}, static={edge.is_rel_static}, "
-            f"contact={contact_reduction}, ref={ref_label})"
+            f"  Edge: {node_a.raw_node} ↔ {node_b.raw_node}  "
+            f"(continuous={edge.is_continuous}, static={edge.is_rel_static})"
         )
 
-    print(f"  → {len(resolved_edges)} edges resolved.\n")
+    print(f"  → {len(interaction_edges)} edges resolved.\n")
 
     return ProblemContext(
         dirs=dirs,
@@ -973,5 +711,5 @@ def load_problem_context(
         human_data=human_data,
         objects=objects,
         obj_keys=obj_keys,
-        resolved_edges=resolved_edges,
+        interaction_edges=interaction_edges,
     )

@@ -5,9 +5,9 @@
   "num_frames": 81,
   "num_objects": 2,
   "num_edges": 2,
-  "best_total_loss": 0.27342185378074646,
-  "optimisation_time_s": 84.29777233675122,
-  "best_iter": 1408,
+  "best_total_loss": 0.2811102271080017,
+  "optimisation_time_s": 322.3412545733154,
+  "best_iter": 819,
   "inputs": {
     "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01",
     "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_cotracker/video_01",
@@ -17,24 +17,47 @@
     "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/alignment_summary.json"
   },
   "weights": {
-    "lambda_prior": 20.0,
-    "lambda_contact": 200.0,
-    "lambda_dynamics": 150.0,
-    "lambda_penetration": 20.0,
-    "lambda_smooth": 30.0,
-    "lambda_human_prior": 100.0,
-    "lambda_human_smooth": 30.0,
-    "lambda_human_mask_2d": 40.0,
-    "lambda_object_mask_2d": 60.0,
-    "lambda_object_part_mask_2d": 120.0,
-    "lambda_object_scale": 30.0
+    "tracking": {
+      "fixed": 20.0
+    },
+    "object_cd2d": {
+      "start": 0.0001,
+      "end": 0.0001
+    },
+    "object_part_cd2d": {
+      "start": 0.0001,
+      "end": 0.0001
+    },
+    "object_smooth_trans": {
+      "start": 1000.0,
+      "end": 1000.0
+    },
+    "object_smooth_rot": {
+      "start": 1000.0,
+      "end": 1000.0
+    },
+    "object_scale": {
+      "start": 1.0,
+      "end": 1.0
+    },
+    "intersect": {
+      "start": 0.0,
+      "end": 10.0
+    },
+    "nocontact": {
+      "start": 1000.0,
+      "end": 1000.0
+    },
+    "contact_drift": {
+      "start": 10.0,
+      "end": 1000.0
+    }
   },
   "optimisation": {
     "adam_iters": 5000,
     "adam_lr": 0.001,
     "sdf_resolution": 128,
-    "optimize_human": false,
-    "optimize_object_scale": false,
+    "optimize_object_scale": true,
     "max_log_scale_delta": 0.22,
     "early_stop_start": 500,
     "early_stop_patience": 300,
@@ -44,62 +67,71 @@
   "debug_outputs": {
     "frame_loss_semantics": "diagnostic_local",
     "csv": {
-      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_01/debug/csv/iter_metrics.csv",
-      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_01/debug/csv/frame_loss_metrics.csv",
-      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_01/debug/csv/final_loss_summary.csv"
+      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Test_Same_As_Original_Code/output/video_01/debug/csv/iter_metrics.csv",
+      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Test_Same_As_Original_Code/output/video_01/debug/csv/frame_loss_metrics.csv",
+      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Test_Same_As_Original_Code/output/video_01/debug/csv/final_loss_summary.csv"
     },
     "plots": {
-      "iter_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_01/debug/plots/iter",
-      "frame_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_01/debug/plots/frame"
+      "iter_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Test_Same_As_Original_Code/output/video_01/debug/plots/iter",
+      "frame_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Test_Same_As_Original_Code/output/video_01/debug/plots/frame"
     },
     "iter_columns": [
       "iter",
       "total",
-      "prior_raw",
-      "prior_scaled",
-      "contact_raw",
-      "contact_scaled",
-      "dynamics_raw",
-      "dynamics_scaled",
-      "penetration_raw",
-      "penetration_scaled",
-      "smooth_raw",
-      "smooth_scaled",
-      "human_prior_raw",
-      "human_prior_scaled",
-      "human_smooth_raw",
-      "human_smooth_scaled",
-      "human_mask_2d_raw",
-      "human_mask_2d_scaled",
-      "object_mask_2d_raw",
-      "object_mask_2d_scaled",
-      "object_part_mask_2d_raw",
-      "object_part_mask_2d_scaled",
-      "object_scale_reg_raw",
-      "object_scale_reg_scaled"
+      "tracking_weight",
+      "tracking_raw",
+      "tracking_scaled",
+      "object_cd2d_weight",
+      "object_cd2d_raw",
+      "object_cd2d_scaled",
+      "object_part_cd2d_weight",
+      "object_part_cd2d_raw",
+      "object_part_cd2d_scaled",
+      "object_smooth_trans_weight",
+      "object_smooth_trans_raw",
+      "object_smooth_trans_scaled",
+      "object_smooth_rot_weight",
+      "object_smooth_rot_raw",
+      "object_smooth_rot_scaled",
+      "object_scale_weight",
+      "object_scale_raw",
+      "object_scale_scaled",
+      "intersect_weight",
+      "intersect_raw",
+      "intersect_scaled",
+      "nocontact_weight",
+      "nocontact_raw",
+      "nocontact_scaled",
+      "contact_drift_weight",
+      "contact_drift_raw",
+      "contact_drift_scaled"
     ],
     "frame_columns": [
       "frame_idx",
-      "prior_raw",
-      "prior_scaled",
-      "contact_raw",
-      "contact_scaled",
-      "dynamics_raw",
-      "dynamics_scaled",
-      "penetration_raw",
-      "penetration_scaled",
-      "smooth_raw",
-      "smooth_scaled",
-      "human_prior_raw",
-      "human_prior_scaled",
-      "human_smooth_raw",
-      "human_smooth_scaled",
-      "human_mask_2d_raw",
-      "human_mask_2d_scaled",
-      "object_mask_2d_raw",
-      "object_mask_2d_scaled",
-      "object_part_mask_2d_raw",
-      "object_part_mask_2d_scaled",
+      "tracking_weight",
+      "tracking_raw",
+      "tracking_scaled",
+      "object_cd2d_weight",
+      "object_cd2d_raw",
+      "object_cd2d_scaled",
+      "object_part_cd2d_weight",
+      "object_part_cd2d_raw",
+      "object_part_cd2d_scaled",
+      "object_smooth_trans_weight",
+      "object_smooth_trans_raw",
+      "object_smooth_trans_scaled",
+      "object_smooth_rot_weight",
+      "object_smooth_rot_raw",
+      "object_smooth_rot_scaled",
+      "intersect_weight",
+      "intersect_raw",
+      "intersect_scaled",
+      "nocontact_weight",
+      "nocontact_raw",
+      "nocontact_scaled",
+      "contact_drift_weight",
+      "contact_drift_raw",
+      "contact_drift_scaled",
       "total_raw_local",
       "total_scaled_local"
     ],
@@ -108,51 +140,56 @@
       "best_total_loss",
       "total_scaled",
       "frame_loss_semantics",
-      "prior_raw",
-      "prior_scaled",
-      "contact_raw",
-      "contact_scaled",
-      "dynamics_raw",
-      "dynamics_scaled",
-      "penetration_raw",
-      "penetration_scaled",
-      "smooth_raw",
-      "smooth_scaled",
-      "human_prior_raw",
-      "human_prior_scaled",
-      "human_smooth_raw",
-      "human_smooth_scaled",
-      "human_mask_2d_raw",
-      "human_mask_2d_scaled",
-      "object_mask_2d_raw",
-      "object_mask_2d_scaled",
-      "object_part_mask_2d_raw",
-      "object_part_mask_2d_scaled",
-      "object_scale_reg_raw",
-      "object_scale_reg_scaled"
+      "tracking_weight",
+      "tracking_raw",
+      "tracking_scaled",
+      "object_cd2d_weight",
+      "object_cd2d_raw",
+      "object_cd2d_scaled",
+      "object_part_cd2d_weight",
+      "object_part_cd2d_raw",
+      "object_part_cd2d_scaled",
+      "object_smooth_trans_weight",
+      "object_smooth_trans_raw",
+      "object_smooth_trans_scaled",
+      "object_smooth_rot_weight",
+      "object_smooth_rot_raw",
+      "object_smooth_rot_scaled",
+      "object_scale_weight",
+      "object_scale_raw",
+      "object_scale_scaled",
+      "intersect_weight",
+      "intersect_raw",
+      "intersect_scaled",
+      "nocontact_weight",
+      "nocontact_raw",
+      "nocontact_scaled",
+      "contact_drift_weight",
+      "contact_drift_raw",
+      "contact_drift_scaled"
     ],
     "global_only_terms": [
-      "object_scale_reg"
+      "object_scale"
     ]
   },
   "objects": {
     "iron": {
       "name": "iron",
-      "num_verts": 153316,
-      "num_faces": 306628,
+      "num_verts": 38328,
+      "num_faces": 76655,
       "num_parts": 2,
       "parts": [
         "handle",
         "soleplate"
       ],
       "is_translational": true,
-      "is_rotational": false,
-      "final_scale": 1.0
+      "is_rotational": true,
+      "final_scale": 1.014673113822937
     },
     "ironing_board": {
       "name": "ironing board",
-      "num_verts": 160992,
-      "num_faces": 321984,
+      "num_verts": 40249,
+      "num_faces": 80498,
       "num_parts": 2,
       "parts": [
         "support",
@@ -160,20 +197,15 @@
       ],
       "is_translational": false,
       "is_rotational": false,
-      "final_scale": 1.0
+      "final_scale": 1.0005764961242676
     }
   },
   "human": {
+    "status": "fixed_copy",
+    "source": "aligned_human_input",
+    "num_frames": 81,
     "num_verts": 6890,
-    "num_faces": 13776,
-    "optimize_human": false,
-    "delta_stats": {
-      "max_delta_rot_deg": 0.0,
-      "mean_delta_rot_deg": 0.0,
-      "max_delta_trans_m": 0.0,
-      "mean_delta_trans_m": 0.0,
-      "optimize_human": false
-    }
+    "num_faces": 13776
   },
   "edges": [
     {

@@ -1,4 +1,4 @@
-"""Output writing for joint human-object mesh refinement."""
+"""Output writing for human-object mesh refinement."""
 
 from __future__ import annotations
 
@@ -191,6 +191,44 @@ def _render_joint_overlay(
         close_ffmpeg(writer)
 
 
+def _scheduled_weights_summary(args: argparse.Namespace) -> dict[str, dict[str, float]]:
+    return {
+        "tracking": {"fixed": float(args.tracking_weight)},
+        "object_cd2d": {
+            "start": float(args.object_cd2d_weight_start),
+            "end": float(args.object_cd2d_weight_end),
+        },
+        "object_part_cd2d": {
+            "start": float(args.object_part_cd2d_weight_start),
+            "end": float(args.object_part_cd2d_weight_end),
+        },
+        "object_smooth_trans": {
+            "start": float(args.object_smooth_trans_weight_start),
+            "end": float(args.object_smooth_trans_weight_end),
+        },
+        "object_smooth_rot": {
+            "start": float(args.object_smooth_rot_weight_start),
+            "end": float(args.object_smooth_rot_weight_end),
+        },
+        "object_scale": {
+            "start": float(args.object_scale_weight_start),
+            "end": float(args.object_scale_weight_end),
+        },
+        "intersect": {
+            "start": float(args.intersect_weight_start),
+            "end": float(args.intersect_weight_end),
+        },
+        "nocontact": {
+            "start": float(args.nocontact_weight_start),
+            "end": float(args.nocontact_weight_end),
+        },
+        "contact_drift": {
+            "start": float(args.contact_drift_weight_start),
+            "end": float(args.contact_drift_weight_end),
+        },
+    }
+
+
 def save_run_outputs(
     context: ProblemContext,
     result: OptimizationResult,
@@ -223,18 +261,26 @@ def save_run_outputs(
             f"scale={stats['global_scale']:.4f}"
         )
 
-    human_out_dir = context.out_dir / "human" / "meshes"
-    ensure_dir(human_out_dir)
+    human_dir = context.out_dir / "human"
+    human_mesh_dir = human_dir / "meshes"
+    ensure_dir(human_mesh_dir)
     _save_human_mesh_sequence(
         result.final_human_verts_np,
         context.human_faces,
-        human_out_dir,
+        human_mesh_dir,
     )
-    with (context.out_dir / "human" / "delta_stats.json").open(
+    human_stats = {
+        "status": "fixed_copy",
+        "source": "aligned_human_input",
+        "num_frames": int(result.final_human_verts_np.shape[0]),
+        "num_verts": int(result.final_human_verts_np.shape[1]),
+        "num_faces": int(context.human_faces.shape[0]),
+    }
+    with (human_dir / "fixed_input_stats.json").open(
         "w",
         encoding="utf-8",
     ) as f:
-        json.dump(result.human_delta_stats, f, indent=2)
+        json.dump(human_stats, f, indent=2)
 
     debug_dir = context.out_dir / "debug"
     debug_csv_dir = debug_dir / "csv"
@@ -289,7 +335,7 @@ def save_run_outputs(
         "script": "track_human_object_mesh.py",
         "num_frames": context.num_frames,
         "num_objects": len(context.obj_keys),
-        "num_edges": len(context.resolved_edges),
+        "num_edges": len(context.interaction_edges),
         "best_total_loss": result.best_loss,
         "optimisation_time_s": result.optimisation_time_s,
         "best_iter": result.best_iter,
@@ -301,24 +347,11 @@ def save_run_outputs(
             "smpl_seg_json": str(context.smpl_seg_path),
             "intrinsics_source": str(context.intr_path),
         },
-        "weights": {
-            "lambda_prior": args.lambda_prior,
-            "lambda_contact": args.lambda_contact,
-            "lambda_dynamics": args.lambda_dynamics,
-            "lambda_penetration": args.lambda_penetration,
-            "lambda_smooth": args.lambda_smooth,
-            "lambda_human_prior": args.lambda_human_prior,
-            "lambda_human_smooth": args.lambda_human_smooth,
-            "lambda_human_mask_2d": args.lambda_human_mask_2d,
-            "lambda_object_mask_2d": args.lambda_object_mask_2d,
-            "lambda_object_part_mask_2d": args.lambda_object_part_mask_2d,
-            "lambda_object_scale": args.lambda_object_scale,
-        },
+        "weights": _scheduled_weights_summary(args),
         "optimisation": {
             "adam_iters": args.adam_iters,
             "adam_lr": args.adam_lr,
             "sdf_resolution": args.sdf_resolution,
-            "optimize_human": bool(args.optimize_human),
             "optimize_object_scale": bool(args.optimize_object_scale),
             "max_log_scale_delta": args.max_log_scale_delta,
             "early_stop_start": args.early_stop_start,
@@ -371,28 +404,15 @@ def save_run_outputs(
             }
             for slug in context.obj_keys
         },
-        "human": {
-            "num_verts": int(context.human_data.base_verts.shape[1]),
-            "num_faces": int(context.human_faces.shape[0]),
-            "optimize_human": bool(args.optimize_human),
-            "delta_stats": result.human_delta_stats,
-        },
+        "human": human_stats,
         "edges": [
             {
-                "node_a": (
-                    context.pag.edges[i].node_a
-                    if i < len(context.pag.edges)
-                    else "?"
-                ),
-                "node_b": (
-                    context.pag.edges[i].node_b
-                    if i < len(context.pag.edges)
-                    else "?"
-                ),
+                "node_a": edge.node_a.raw_node,
+                "node_b": edge.node_b.raw_node,
                 "is_continuous": edge.is_continuous,
                 "is_rel_static": edge.is_rel_static,
             }
-            for i, edge in enumerate(context.resolved_edges)
+            for edge in context.interaction_edges
         ],
         "conventions": {
             "coordinate_system": "OpenCV (X-right, Y-down, Z-forward)",
@@ -418,5 +438,5 @@ def save_run_outputs(
         print("  Overlay:  skipped")
     for slug in context.obj_keys:
         print(f"  {slug}:  transform_refined.json, meshes/")
-    print("  human:   meshes/")
+    print("  human:   meshes/ (fixed copy)")
     print(f"{'=' * 60}")
