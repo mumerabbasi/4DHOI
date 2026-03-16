@@ -5,9 +5,9 @@
   "num_frames": 81,
   "num_objects": 1,
   "num_edges": 1,
-  "best_total_loss": 16.517704010009766,
-  "optimisation_time_s": 536.7427965812385,
-  "best_iter": 2497,
+  "best_total_loss": 16.495744705200195,
+  "optimisation_time_s": 464.506410587579,
+  "best_iter": 2518,
   "inputs": {
     "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03",
     "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_cotracker/video_03",
@@ -67,13 +67,13 @@
   "debug_outputs": {
     "frame_loss_semantics": "diagnostic_local",
     "csv": {
-      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Test_Same_As_Original_Code/output/video_03/debug/csv/iter_metrics.csv",
-      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Test_Same_As_Original_Code/output/video_03/debug/csv/frame_loss_metrics.csv",
-      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Test_Same_As_Original_Code/output/video_03/debug/csv/final_loss_summary.csv"
+      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_03/debug/csv/iter_metrics.csv",
+      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_03/debug/csv/frame_loss_metrics.csv",
+      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_03/debug/csv/final_loss_summary.csv"
     },
     "plots": {
-      "iter_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Test_Same_As_Original_Code/output/video_03/debug/plots/iter",
-      "frame_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Test_Same_As_Original_Code/output/video_03/debug/plots/frame"
+      "iter_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_03/debug/plots/iter",
+      "frame_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_03/debug/plots/frame"
     },
     "iter_columns": [
       "iter",
@@ -184,7 +184,7 @@
       ],
       "is_translational": true,
       "is_rotational": false,
-      "final_scale": 0.9047136902809143
+      "final_scale": 0.904609739780426
     }
   },
   "human": {

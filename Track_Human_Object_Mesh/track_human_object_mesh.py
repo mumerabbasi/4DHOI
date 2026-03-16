@@ -22,7 +22,7 @@ def parse_args() -> argparse.Namespace:
         "--tracked_object_dir",
         type=str,
         default=None,
-        help="Track_Object_Mesh/output_cotracker/<video> (auto-resolved).",
+        help="Track_Object_Mesh/output/<video> (auto-resolved).",
     )
     p.add_argument(
         "--segment_object_dir",

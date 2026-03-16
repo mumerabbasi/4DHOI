@@ -5,9 +5,9 @@
   "num_frames": 81,
   "num_objects": 2,
   "num_edges": 2,
-  "best_total_loss": 1.383290410041809,
-  "optimisation_time_s": 115.79786812141538,
-  "best_iter": 799,
+  "best_total_loss": 1.869773030281067,
+  "optimisation_time_s": 184.529870249331,
+  "best_iter": 798,
   "inputs": {
     "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02",
     "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_cotracker/video_02",
@@ -67,13 +67,13 @@
   "debug_outputs": {
     "frame_loss_semantics": "diagnostic_local",
     "csv": {
-      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Test_Same_As_Original_Code/output/video_02/debug/csv/iter_metrics.csv",
-      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Test_Same_As_Original_Code/output/video_02/debug/csv/frame_loss_metrics.csv",
-      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Test_Same_As_Original_Code/output/video_02/debug/csv/final_loss_summary.csv"
+      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_02/debug/csv/iter_metrics.csv",
+      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_02/debug/csv/frame_loss_metrics.csv",
+      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_02/debug/csv/final_loss_summary.csv"
     },
     "plots": {
-      "iter_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Test_Same_As_Original_Code/output/video_02/debug/plots/iter",
-      "frame_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh_Test_Same_As_Original_Code/output/video_02/debug/plots/frame"
+      "iter_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_02/debug/plots/iter",
+      "frame_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_02/debug/plots/frame"
     },
     "iter_columns": [
       "iter",
@@ -183,8 +183,8 @@
         "weight_plates"
       ],
       "is_translational": true,
-      "is_rotational": false,
-      "final_scale": 0.9580253958702087
+      "is_rotational": true,
+      "final_scale": 0.95736163854599
     },
     "dumbbell_(right_hand)": {
       "name": "dumbbell (right hand)",
@@ -196,8 +196,8 @@
         "weight_plates"
       ],
       "is_translational": true,
-      "is_rotational": false,
-      "final_scale": 0.9709924459457397
+      "is_rotational": true,
+      "final_scale": 0.9759073853492737
     }
   },
   "human": {

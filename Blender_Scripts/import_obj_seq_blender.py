@@ -5,8 +5,8 @@ import re
 # -----------------------------
 # User settings
 # -----------------------------
-OBJ_FOLDER = r"C:\Users\umerh\Desktop\Thesis Temp\video_01\video_01_am_waft\iron\meshes"
-COLLECTION_NAME = "TrackedMeshes_waft_iron"
+OBJ_FOLDER = ""
+COLLECTION_NAME = ""
 
 # Pick your color here (R, G, B, A) in 0..1
 COLLECTION_COLOR = (0.0, 0.0, 1.0, 1.0)  # red

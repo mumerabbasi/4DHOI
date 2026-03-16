@@ -53,7 +53,7 @@ def resolve_dirs(
     tracked = (
         Path(args.tracked_object_dir)
         if args.tracked_object_dir
-        else parent / "Track_Object_Mesh" / "output_cotracker" / vname
+        else parent / "Track_Object_Mesh" / "output" / vname
     )
     seg_obj = (
         Path(args.segment_object_dir)

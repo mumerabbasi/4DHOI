@@ -34,13 +34,13 @@
     {
       "name": "dumbbell (left hand)",
       "is_translational": true,
-      "is_rotational": false,
+      "is_rotational": true,
       "description": "the dumbbell being held in the left hand"
     },
     {
       "name": "dumbbell (right hand)",
       "is_translational": true,
-      "is_rotational": false,
+      "is_rotational": true,
       "description": "the dumbbell being held in the right hand"
     }
   ],
