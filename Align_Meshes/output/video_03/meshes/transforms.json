@@ -68,43 +68,43 @@
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_alpha": 0.9498010873794556,
-        "scale_exp_alpha": 2.5851953801815455,
+        "log_scale_alpha": 0.9475180506706238,
+        "scale_exp_alpha": 2.5793000164556665,
         "tx_init_m": 0.0,
         "ty_init_m": 0.0,
         "tz_init_m": 0.0,
-        "delta_tx_m": -0.1120353639125824,
-        "delta_ty_m": -0.3159691095352173,
-        "delta_tz_m": 1.135113000869751,
-        "tx_total_m": -0.1120353639125824,
-        "ty_total_m": -0.3159691095352173,
-        "tz_total_m": 1.135113000869751,
+        "delta_tx_m": -0.11257831007242203,
+        "delta_ty_m": -0.31855425238609314,
+        "delta_tz_m": 1.144113540649414,
+        "tx_total_m": -0.11257831007242203,
+        "ty_total_m": -0.31855425238609314,
+        "tz_total_m": 1.144113540649414,
         "obs_3d_count": 6000,
         "obs_2d_count": 6000,
-        "model_sample_count": 4146,
+        "model_sample_count": 4099,
         "model_sample_count_total": 6000,
-        "model_sample_count_visible_fixed": 4146,
-        "model_sample_visible_ratio": 0.691,
+        "model_sample_count_visible_fixed": 4099,
+        "model_sample_visible_ratio": 0.6831666666666667,
         "visible_subset_mode": "strict_visible"
       },
       "source_to_output_matrix_4x4": [
         [
-          2.585195302963257,
+          2.5792999267578125,
           0.0,
           0.0,
-          -0.1120353639125824
+          -0.11257831007242203
         ],
         [
           0.0,
-          2.585195302963257,
+          2.5792999267578125,
           0.0,
-          -0.3159691095352173
+          -0.31855425238609314
         ],
         [
           0.0,
           0.0,
-          2.585195302963257,
-          1.135113000869751
+          2.5792999267578125,
+          1.144113540649414
         ],
         [
           0.0,

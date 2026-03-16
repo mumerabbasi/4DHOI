@@ -21,6 +21,7 @@ from mesh_generation_utils import (
     find_frame_image_path,
     generate_mesh,
     load_sam3d,
+    postprocess_trimesh_with_sam3d,
     sam3d_mesh_to_trimesh,
 )
 from rendering_utils import (
@@ -168,6 +169,7 @@ def generate_object_result(
     sam3d: Any,
     overlay_backend: QualityRenderBackend,
     overlay_device: str,
+    simplify_ratio: float,
 ) -> GeneratedObjectResult:
     """Generate, pose, render, and save outputs for a single object."""
     mask = load_binary_mask(object_spec.mask_path)
@@ -180,6 +182,11 @@ def generate_object_result(
         rotation_quat,
         translation,
         scale,
+    )
+    posed_mesh_p3d = postprocess_trimesh_with_sam3d(
+        posed_mesh_p3d,
+        simplify_ratio=simplify_ratio,
+        verbose=False,
     )
     posed_mesh_cv = convert_mesh_p3d_to_cv(posed_mesh_p3d)
 
@@ -255,6 +262,7 @@ def process_video_directory(
     mesh_output_root: Path,
     overlay_backend: QualityRenderBackend,
     overlay_device: str,
+    simplify_ratio: float,
 ) -> None:
     context = build_video_context(
         input_dir=input_dir,
@@ -275,6 +283,7 @@ def process_video_directory(
                 sam3d=sam3d,
                 overlay_backend=overlay_backend,
                 overlay_device=overlay_device,
+                simplify_ratio=simplify_ratio,
             )
             generated_objects.append(result)
             print(f"    Saved mesh (OpenCV camera coords): {result.mesh_path}")
@@ -313,7 +322,19 @@ def main() -> None:
         default="./output",
         help="Mesh output root (<output_dir>/<video_xx>/).",
     )
+    parser.add_argument(
+        "--simplify_ratio",
+        type=float,
+        default=0.75,
+        help=(
+            "SAM3D mesh simplification ratio passed to postprocessing "
+            "(0 disables simplification, 0.75 removes about 75 percent of faces)."
+        ),
+    )
     args = parser.parse_args()
+
+    if not 0.0 <= args.simplify_ratio < 1.0:
+        raise ValueError("--simplify_ratio must be in the range [0, 1).")
 
     input_dir = Path(args.input_dir)
     if not input_dir.is_absolute():
@@ -344,6 +365,7 @@ def main() -> None:
         mesh_output_root=output_dir,
         overlay_backend=overlay_backend,
         overlay_device=overlay_device,
+        simplify_ratio=args.simplify_ratio,
     )
 
     print(f"\n{'=' * 50}")

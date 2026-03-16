@@ -48,7 +48,7 @@ class ObjectPartSegments:
 
 @dataclass
 class SDFGrid:
-    """Pre-computed SDF volume for an object in canonical frame-0 pose."""
+    """Pre-computed SDF volume for an object in its canonical frame."""
 
     sdf_volume: torch.Tensor
     bbox_min: torch.Tensor
@@ -60,10 +60,8 @@ class HumanData:
     base_verts: torch.Tensor
     faces: np.ndarray
     faces_torch: torch.Tensor
-    part_points_base: dict[str, torch.Tensor]
-    sampled_points_base: torch.Tensor
-    centers: torch.Tensor
-    mask_points_2d: PackedPointCloud2D | None
+    part_points: dict[str, torch.Tensor]
+    part_vert_ids: dict[str, np.ndarray]
 
 
 @dataclass
@@ -75,8 +73,10 @@ class ObjectData:
     state: PAGObjectState
     template_verts: torch.Tensor
     faces: np.ndarray
+    vertex_colors: np.ndarray | None
     faces_torch: torch.Tensor
     tracked_poses: np.ndarray
+    tracked_poses_torch: torch.Tensor
     tracked_rotvecs: torch.Tensor
     tracked_trans: torch.Tensor
     part_vert_ids: dict[str, np.ndarray]
@@ -90,38 +90,37 @@ class ObjectData:
 
 
 @dataclass
-class ResolvedEdge:
-    """A PAG edge resolved to actual vertex index sets."""
+class InteractionNode:
+    raw_node: str
+    entity_name: str
+    part_name: str
+    is_human: bool
+    object_slug: str | None
+    resolved_part_name: str | None
+    vert_ids: np.ndarray
 
-    a_is_human: bool
-    a_object_idx: int
-    a_vert_ids: np.ndarray
-    a_part_name: str
-    b_is_human: bool
-    b_object_idx: int
-    b_vert_ids: np.ndarray
-    b_part_name: str
+
+@dataclass
+class InteractionEdge:
+    node_a: InteractionNode
+    node_b: InteractionNode
     is_continuous: bool
     is_rel_static: bool
-    contact_reduction: str
-    contact_source_is_a: bool
-    canonical_obj_idx: int
 
 
 @dataclass
 class LossResult:
     total: torch.Tensor
-    prior: torch.Tensor
-    contact: torch.Tensor
-    dynamics: torch.Tensor
-    penetration: torch.Tensor
-    smooth: torch.Tensor
-    human_prior: torch.Tensor
-    human_smooth: torch.Tensor
-    human_mask_2d: torch.Tensor
-    object_mask_2d: torch.Tensor
-    object_part_mask_2d: torch.Tensor
-    object_scale_reg: torch.Tensor
+    tracking: torch.Tensor
+    object_cd2d: torch.Tensor
+    object_part_cd2d: torch.Tensor
+    object_smooth_trans: torch.Tensor
+    object_smooth_rot: torch.Tensor
+    object_scale: torch.Tensor
+    intersect: torch.Tensor
+    nocontact: torch.Tensor
+    contact_drift: torch.Tensor
+    weights: dict[str, float]
 
 
 @dataclass
@@ -131,22 +130,51 @@ class DiagnosticLossResult:
     global_raw: dict[str, torch.Tensor]
 
 
-LOSS_WEIGHT_ATTRS = {
-    "prior": "lambda_prior",
-    "contact": "lambda_contact",
-    "dynamics": "lambda_dynamics",
-    "penetration": "lambda_penetration",
-    "smooth": "lambda_smooth",
-    "human_prior": "lambda_human_prior",
-    "human_smooth": "lambda_human_smooth",
-    "human_mask_2d": "lambda_human_mask_2d",
-    "object_mask_2d": "lambda_object_mask_2d",
-    "object_part_mask_2d": "lambda_object_part_mask_2d",
-    "object_scale_reg": "lambda_object_scale",
+FIXED_LOSS_WEIGHT_ATTRS = {
+    "tracking": "tracking_weight",
 }
-LOSS_TERM_KEYS = tuple(LOSS_WEIGHT_ATTRS.keys())
+
+SCHEDULED_LOSS_WEIGHT_ATTRS = {
+    "object_cd2d": (
+        "object_cd2d_weight_start",
+        "object_cd2d_weight_end",
+    ),
+    "object_part_cd2d": (
+        "object_part_cd2d_weight_start",
+        "object_part_cd2d_weight_end",
+    ),
+    "object_smooth_trans": (
+        "object_smooth_trans_weight_start",
+        "object_smooth_trans_weight_end",
+    ),
+    "object_smooth_rot": (
+        "object_smooth_rot_weight_start",
+        "object_smooth_rot_weight_end",
+    ),
+    "object_scale": (
+        "object_scale_weight_start",
+        "object_scale_weight_end",
+    ),
+    "intersect": (
+        "intersect_weight_start",
+        "intersect_weight_end",
+    ),
+    "nocontact": (
+        "nocontact_weight_start",
+        "nocontact_weight_end",
+    ),
+    "contact_drift": (
+        "contact_drift_weight_start",
+        "contact_drift_weight_end",
+    ),
+}
+
+LOSS_TERM_KEYS = tuple(
+    list(FIXED_LOSS_WEIGHT_ATTRS.keys())
+    + list(SCHEDULED_LOSS_WEIGHT_ATTRS.keys())
+)
 FRAME_DIAGNOSTIC_TERM_KEYS = tuple(
-    key for key in LOSS_TERM_KEYS if key != "object_scale_reg"
+    key for key in LOSS_TERM_KEYS if key != "object_scale"
 )
 
 
@@ -169,13 +197,14 @@ class ProblemContext:
     human_data: HumanData
     objects: dict[str, ObjectData]
     obj_keys: list[str]
-    resolved_edges: list[ResolvedEdge]
+    interaction_edges: list[InteractionEdge]
 
 
 @dataclass
 class OptimizationResult:
     best_loss: float
     best_iter: int
+    optimisation_time_s: float
     early_stop_triggered: bool
     iter_rows: list[dict[str, Any]]
     frame_rows: list[dict[str, Any]]
@@ -184,5 +213,4 @@ class OptimizationResult:
     final_T_mats: dict[str, np.ndarray]
     final_scales: dict[str, float]
     final_human_verts_np: np.ndarray
-    human_delta_stats: dict[str, Any]
     object_delta_stats: dict[str, dict[str, Any]]

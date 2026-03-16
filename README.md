@@ -28,6 +28,8 @@ layout in `Original_Code/`.
 - `Track_Object_Mesh/`: optimize per-frame object `SE(3)` trajectories.
 - `Track_Human_Object_Mesh/`: jointly refine human and object motion with PAG
   contact constraints, mask losses, and penetration losses.
+- `Blender_Scripts/`: optional Blender import helpers for inspecting exported
+  `.ply` / `.obj` frame sequences.
 - `Original_Code/`: reference implementation from the original framework.
 - `Conda_Environments/`: environment YAMLs used by the different stages.
 
@@ -53,7 +55,7 @@ flowchart TD
 
     A --> K[Segment_Object_Mesh/render_mesh_views.py]
     I --> K
-    K --> L[Segment_Object_Mesh/segment_parts.py]
+    K --> L[Segment_Object_Mesh/segment_renders.py]
     L --> M[Segment_Object_Mesh/segment_meshes.py]
 
     C --> N[Estimate_Optical_Flow/estimate_optical_flow_cotracker.py]
@@ -77,14 +79,14 @@ flowchart TD
 | PAG generation | `Generate_PAG/generate_pag.py` | `Generate_PAG/input_prompts/<video>/input_pag.json` | `Generate_PAG/output/<video>/output_pag_*.json` |
 | First frame generation | `Generate_Video/generate_first_frame.py` | PAG JSON | `Generate_Video/output/<video>/first_frames/*.png` |
 | Video generation | `Generate_Video/generate_video.py` | first frame, PAG JSON | `Generate_Video/output/<video>/*.mp4` |
-| Video segmentation | `Segment_Video/segment_video.py` | generated video, PAG JSON | masks for humans, objects, and object parts under `Segment_Video/output/<video>/` |
+| Video segmentation | `Segment_Video/segment_video.py` | generated video, PAG JSON | masks for humans, objects, and object parts, plus extracted `_frames/` under `Segment_Video/output/<video>/` |
 | Object mesh generation | `Generate_Object_Mesh/generate_objects_meshes.py` | first-frame object masks, first-frame image | per-object meshes, poses, overlays, intrinsics under `Generate_Object_Mesh/output/<video>/` |
 | Depth estimation | `Estimate_Depth/estimate_depth.py` | generated video | frame extraction, metric depth, optional relative depth, run summary under `Estimate_Depth/output/<video>/` |
 | Human motion estimation | `Estimate_Human_Motion/estimate_human_motion.py` | generated video | GVHMR outputs under `Estimate_Human_Motion/output/<video>/` |
 | Human mesh export | `Estimate_Human_Motion/export_human_motion_to_ply.py` | `hmr4d_results.pt` | `output_plys/frame_*.ply` |
 | Mesh alignment | `Align_Meshes/align_meshes.py` | object meshes, first-frame human mesh, depth, masks | aligned meshes, `transforms.json`, overlays, summaries under `Align_Meshes/output/<video>/` |
 | Full human sequence alignment | `Align_Meshes/align_human_motion_sequence.py` | `output_plys`, human entry in `transforms.json` | `Align_Meshes/output/<video>/human_motion_aligned/` |
-| Object mesh part segmentation | `Segment_Object_Mesh/render_mesh_views.py`, `segment_parts.py`, `segment_meshes.py` | aligned object meshes, PAG, video part names | rendered multi-view RGB/face IDs, part masks, triangle labels, segmented meshes |
+| Object mesh part segmentation | `Segment_Object_Mesh/render_mesh_views.py`, `segment_renders.py`, `segment_meshes.py` | aligned object meshes, PAG, video part names | rendered multi-view RGB/face IDs, part masks, triangle labels, segmented meshes |
 | Object track estimation | `Estimate_Optical_Flow/estimate_optical_flow_cotracker.py` or `estimate_optical_flow_waft.py` | video, frame-0 object masks | per-object tracks under `Estimate_Optical_Flow/output_*` |
 | Object pose tracking | `Track_Object_Mesh/track_object_mesh.py` | aligned meshes, tracks, video masks, intrinsics | per-object `poses.json`, mesh sequence, overlays, debug metrics |
 | Joint human-object refinement | `Track_Human_Object_Mesh/track_human_object_mesh.py` | aligned human sequence, tracked object poses, PAG, object-part labels, video masks | refined human meshes, refined object transforms, debug loss CSV/plots, overlay video |
@@ -114,7 +116,7 @@ joint refinement.
 
 1. Run the minimal aligned-scene pipeline above.
 2. `Segment_Object_Mesh/render_mesh_views.py`
-3. `Segment_Object_Mesh/segment_parts.py`
+3. `Segment_Object_Mesh/segment_renders.py`
 4. `Segment_Object_Mesh/segment_meshes.py`
 5. `Estimate_Optical_Flow/estimate_optical_flow_cotracker.py`
 6. `Track_Object_Mesh/track_object_mesh.py`
@@ -124,6 +126,24 @@ joint refinement.
 
 - Replace CoTracker with WAFT by using
   `Estimate_Optical_Flow/estimate_optical_flow_waft.py`.
+- If you use WAFT, pass its exported track directory into
+  `Track_Object_Mesh/track_object_mesh.py` via
+  `--cotracker_video_dir ../Estimate_Optical_Flow/output_waft/<video_name>`.
+- If you write tracked-object outputs somewhere other than
+  `Track_Object_Mesh/output/<video_name>`, pass that path into
+  `Track_Human_Object_Mesh/track_human_object_mesh.py --tracked_object_dir ...`.
+
+## Auxiliary Utilities
+
+- `Estimate_Depth/convert_depth_to_pointcloud.py`
+  - back-projects saved metric depth + intrinsics into a camera-space point
+    cloud for debugging or visualization.
+- `Blender_Scripts/import_ply_video_hierarchies_blender.py`
+  - imports nested video output directories of `.ply` sequences into Blender.
+- `Blender_Scripts/import_ply_seq_blender.py`
+  - imports one flat `.ply` sequence into Blender.
+- `Blender_Scripts/import_obj_seq_blender.py`
+  - imports one flat `.obj` sequence into Blender.
 
 ## Important Data Conventions
 
@@ -155,7 +175,7 @@ joint refinement.
 1. `render_mesh_views.py`
    - Blender renders each aligned object from multiple views.
    - Saves RGB renders and face-ID EXRs.
-2. `segment_parts.py`
+2. `segment_renders.py`
    - Uses Qwen-VL and SAM3 to segment part masks in those rendered views.
 3. `segment_meshes.py`
    - Maps 2D part masks back to mesh triangles via face IDs and exports part
@@ -182,7 +202,8 @@ human-object refinement with:
 It uses:
 
 - aligned human meshes from `Align_Meshes/output/<video>/human_motion_aligned/`,
-- object trajectories from `Track_Object_Mesh/output_cotracker/<video>/`,
+- tracked object outputs from `Track_Object_Mesh/` (often
+  `output/<video>/`, but configurable via `--tracked_object_dir`),
 - object part labels from `Segment_Object_Mesh/output/<video>/`,
 - PAG JSON from `Generate_PAG/output/<video>/`,
 - video masks from `Segment_Video/output/<video>/`.
@@ -215,6 +236,37 @@ to `4DHOI`, especially:
 - `sam-3d-objects/`
 - `Depth-Anything-3/`
 - `WAFT/`
+
+Additional runtime tooling used by parts of the flow:
+
+- Blender 4.2 for `Segment_Object_Mesh/render_mesh_views.py` and the scripts in
+  `Blender_Scripts/`
+- `ffmpeg` for overlay / trail video exports in the tracking and refinement
+  stages
+- an OpenAI-compatible endpoint for `Generate_PAG/generate_pag.py`,
+  `Segment_Video/segment_video.py`, and `Segment_Object_Mesh/segment_renders.py`
+
+To refresh the checked-in environment YAMLs, run:
+
+```bash
+python Conda_Environments/export_envs.py
+```
+
+Useful variants:
+
+```bash
+python Conda_Environments/export_envs.py --env 4dhoi
+python Conda_Environments/export_envs.py --env sam3 --env waft
+python Conda_Environments/export_envs.py --drop-prefix
+```
+
+The exporter reads the live Conda envs named `4dhoi`, `gvhmr`, `sam3`,
+`sam3d-objects`, and `waft`, then rewrites the matching YAMLs in
+`Conda_Environments/`.
+
+It also strips accidental local-only `sam-2` / `sam2` pip entries from the
+generated YAMLs so the tracked environment files stay aligned with the current
+SAM3-based pipeline.
 
 ## Notes on `Original_Code/`
 

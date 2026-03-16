@@ -21,41 +21,21 @@ def decompose_T(T: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return rotvec.astype(np.float32), t.astype(np.float32)
 
 
-def compose_T(rotvec: torch.Tensor, trans: torch.Tensor) -> torch.Tensor:
-    """rotvec [3], trans [3] -> T [4,4]."""
-    R = axis_angle_to_matrix(rotvec.unsqueeze(0)).squeeze(0)
-    Rt = torch.cat([R, trans.unsqueeze(1)], dim=1)
-    bottom = torch.tensor(
-        [[0.0, 0.0, 0.0, 1.0]],
-        dtype=torch.float32,
-        device=rotvec.device,
+def compose_T_sequence(
+    rotvecs: torch.Tensor,
+    trans: torch.Tensor,
+) -> torch.Tensor:
+    """rotvecs [F,3], trans [F,3] -> T [F,4,4]."""
+    R = axis_angle_to_matrix(rotvecs)
+    T = torch.zeros(
+        (rotvecs.shape[0], 4, 4),
+        dtype=rotvecs.dtype,
+        device=rotvecs.device,
     )
-    return torch.cat([Rt, bottom], dim=0)
-
-
-def apply_T_batch(verts: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
-    """verts [V,3], T [4,4] -> transformed [V,3]."""
-    R = T[:3, :3]
-    t = T[:3, 3]
-    return verts @ R.t() + t.unsqueeze(0)
-
-
-def apply_similarity_batch(
-    points: torch.Tensor,
-    T: torch.Tensor,
-    scale: torch.Tensor,
-) -> torch.Tensor:
-    return apply_T_batch(points * scale, T)
-
-
-def apply_inverse_similarity_batch(
-    points: torch.Tensor,
-    T: torch.Tensor,
-    scale: torch.Tensor,
-) -> torch.Tensor:
-    R = T[:3, :3]
-    t = T[:3, 3]
-    return ((points - t.unsqueeze(0)) @ R) / scale
+    T[:, :3, :3] = R
+    T[:, :3, 3] = trans
+    T[:, 3, 3] = 1.0
+    return T
 
 
 def apply_similarity_sequence(
@@ -79,79 +59,29 @@ def apply_inverse_similarity_sequence(
     return torch.matmul(points_seq - t[:, None, :], R) / scale
 
 
-def apply_local_se3_sequence(
-    points_seq: torch.Tensor,
-    rotvecs: torch.Tensor,
-    trans: torch.Tensor,
-    centers: torch.Tensor,
-) -> torch.Tensor:
-    if points_seq.numel() == 0:
-        return points_seq
-    R = axis_angle_to_matrix(rotvecs)
-    centered = points_seq - centers[:, None, :]
-    rotated = torch.matmul(centered, R.transpose(1, 2))
-    return rotated + centers[:, None, :] + trans[:, None, :]
-
-
-def project_points_normalized_torch(
+def project_points_with_intrinsics(
     points: torch.Tensor,
-    k: torch.Tensor,
-    width: int,
-    height: int,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    z = points[..., 2]
-    valid = torch.isfinite(points).all(dim=-1) & (z > 1e-6)
-    uv = torch.zeros(
-        (*points.shape[:2], 2),
-        dtype=points.dtype,
-        device=points.device,
-    )
-    z_safe = z.clamp(min=1e-6)
-    uv[..., 0] = (points[..., 0] * k[0, 0] / z_safe + k[0, 2]) / float(width)
-    uv[..., 1] = (points[..., 1] * k[1, 1] / z_safe + k[1, 2]) / float(height)
-    return uv, valid
-
-
-def pack_projected_points(
-    points_2d: torch.Tensor,
-    valid: torch.Tensor,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    order = torch.argsort(valid.to(torch.int64), dim=1, descending=True)
-    packed = torch.gather(
-        points_2d,
-        dim=1,
-        index=order.unsqueeze(-1).expand(-1, -1, 2),
-    )
-    lengths = valid.sum(dim=1)
-    return packed, lengths
-
-
-def masked_mean_from_lengths(
-    values: torch.Tensor,
-    lengths: torch.Tensor,
+    intrinsics: torch.Tensor,
 ) -> torch.Tensor:
-    idx = torch.arange(values.shape[1], device=values.device)[None, :]
-    mask = idx < lengths[:, None]
-    denom = mask.sum().clamp(min=1)
-    return (values * mask).sum() / denom
-
-
-def masked_mean_per_lengths(
-    values: torch.Tensor,
-    lengths: torch.Tensor,
-) -> torch.Tensor:
-    idx = torch.arange(values.shape[1], device=values.device)[None, :]
-    mask = idx < lengths[:, None]
-    denom = mask.sum(dim=1).clamp(min=1).to(values.dtype)
-    return (values * mask).sum(dim=1) / denom
+    assert points.shape[-1] == 3
+    assert intrinsics.shape == (3, 3)
+    fx = intrinsics[0, 0]
+    fy = intrinsics[1, 1]
+    cx = intrinsics[0, 2]
+    cy = intrinsics[1, 2]
+    px = points[..., 0] * fx / points[..., 2] + cx
+    py = points[..., 1] * fy / points[..., 2] + cy
+    d = points[..., 2]
+    return torch.stack([px, py, d], dim=-1)
 
 
 def query_sdf(
     sdf_grid: SDFGrid,
     points: torch.Tensor,
 ) -> torch.Tensor:
-    """Query SDF values for points. Returns [N] values (negative = inside)."""
-    pts = points.unsqueeze(0)
+    """Query SDF values for points. Returns [...,] values (negative = inside)."""
+    shape = points.shape[:-1]
+    pts = points.reshape(1, -1, 3)
     normalised = (
         (pts - sdf_grid.bbox_min)
         / (sdf_grid.bbox_max - sdf_grid.bbox_min)
@@ -165,15 +95,7 @@ def query_sdf(
         padding_mode="border",
         align_corners=True,
     )
-    return sampled.reshape(-1)
-
-
-def geodesic_distance_sq(R1: torch.Tensor, R2: torch.Tensor) -> torch.Tensor:
-    """Squared geodesic distance between two rotation matrices."""
-    R_rel = R1.t() @ R2
-    cos_angle = (R_rel.trace() - 1.0) / 2.0
-    cos_angle = cos_angle.clamp(-1.0 + 1e-7, 1.0 - 1e-7)
-    return 1.0 - cos_angle
+    return sampled.reshape(*shape)
 
 
 def bounded_log_scale_delta(

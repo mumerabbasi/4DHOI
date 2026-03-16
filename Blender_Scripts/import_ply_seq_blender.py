@@ -2,8 +2,8 @@ import bpy
 import os
 import re
 
-PLY_FOLDER = r"C:\Users\umerh\Desktop\Thesis Temp\video_01_hm\output_plys"
-COLLECTION_NAME = "Human_Motion"
+PLY_FOLDER = ""
+COLLECTION_NAME = ""
 
 # Pick your color here (R, G, B, A) in 0..1
 COLLECTION_COLOR = (1.0, 0.2, 0.2, 1.0)

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +13,6 @@ from models import (
     FRAME_DIAGNOSTIC_TERM_KEYS,
     LossResult,
     LOSS_TERM_KEYS,
-    LOSS_WEIGHT_ATTRS,
 )
 from utils import ensure_dir
 
@@ -22,14 +20,14 @@ from utils import ensure_dir
 def build_loss_row(
     iteration: int,
     result: LossResult,
-    args: argparse.Namespace,
 ) -> dict[str, Any]:
-    scaled_terms = get_scaled_loss_terms(result, args)
+    scaled_terms = get_scaled_loss_terms(result)
     row: dict[str, Any] = {
         "iter": iteration,
         "total": float(result.total.item()),
     }
     for key in LOSS_TERM_KEYS:
+        row[f"{key}_weight"] = float(result.weights[key])
         row[f"{key}_raw"] = float(getattr(result, key).item())
         row[f"{key}_scaled"] = float(scaled_terms[key].item())
     return row
@@ -39,68 +37,35 @@ def format_loss_log(
     iteration: int,
     total_iterations: int,
     result: LossResult,
-    args: argparse.Namespace,
 ) -> list[str]:
-    scaled_terms = get_scaled_loss_terms(result, args)
-    obj_scaled = "  ".join(
-        [
-            f"prior={scaled_terms['prior'].item():.5f}",
-            f"contact={scaled_terms['contact'].item():.5f}",
-            f"dyn={scaled_terms['dynamics'].item():.5f}",
-            f"pen={scaled_terms['penetration'].item():.5f}",
-            f"smooth={scaled_terms['smooth'].item():.5f}",
-            f"scale={scaled_terms['object_scale_reg'].item():.5f}",
-        ]
+    scaled_terms = get_scaled_loss_terms(result)
+    weights_fmt = "  ".join(
+        f"{key}={result.weights[key]:.4g}" for key in LOSS_TERM_KEYS
     )
-    aux_scaled = "  ".join(
-        [
-            f"hprior={scaled_terms['human_prior'].item():.5f}",
-            f"hsmooth={scaled_terms['human_smooth'].item():.5f}",
-            f"h2d={scaled_terms['human_mask_2d'].item():.5f}",
-            f"obj2d={scaled_terms['object_mask_2d'].item():.5f}",
-            f"part2d={scaled_terms['object_part_mask_2d'].item():.5f}",
-        ]
+    raw_fmt = "  ".join(
+        f"{key}={getattr(result, key).item():.5f}" for key in LOSS_TERM_KEYS
     )
-    obj_raw = "  ".join(
-        [
-            f"prior={result.prior.item():.5f}",
-            f"contact={result.contact.item():.5f}",
-            f"dyn={result.dynamics.item():.5f}",
-            f"pen={result.penetration.item():.5f}",
-            f"smooth={result.smooth.item():.5f}",
-            f"scale={result.object_scale_reg.item():.5f}",
-        ]
-    )
-    aux_raw = "  ".join(
-        [
-            f"hprior={result.human_prior.item():.5f}",
-            f"hsmooth={result.human_smooth.item():.5f}",
-            f"h2d={result.human_mask_2d.item():.5f}",
-            f"obj2d={result.object_mask_2d.item():.5f}",
-            f"part2d={result.object_part_mask_2d.item():.5f}",
-        ]
+    scaled_fmt = "  ".join(
+        f"{key}={scaled_terms[key].item():.5f}" for key in LOSS_TERM_KEYS
     )
     return [
-        f"  [{iteration:4d}/{total_iterations}] "
-        f"total={result.total.item():.5f}",
-        f"      scaled(obj): {obj_scaled}",
-        f"      scaled(aux): {aux_scaled}",
-        f"      raw(obj):    {obj_raw}",
-        f"      raw(aux):    {aux_raw}",
+        f"  [{iteration:4d}/{total_iterations}] total={result.total.item():.5f}",
+        f"      weights: {weights_fmt}",
+        f"      raw:     {raw_fmt}",
+        f"      scaled:  {scaled_fmt}",
     ]
 
 
 def build_frame_loss_rows(
     frame_offset: int,
     diagnostic: DiagnosticLossResult,
-    args: argparse.Namespace,
 ) -> list[dict[str, Any]]:
     if not diagnostic.per_frame_raw:
         return []
 
     num_frames = next(iter(diagnostic.per_frame_raw.values())).shape[0]
     per_frame_scaled = {
-        key: getattr(args, LOSS_WEIGHT_ATTRS[key]) * values
+        key: diagnostic.sequence.weights[key] * values
         for key, values in diagnostic.per_frame_raw.items()
     }
     device = next(iter(diagnostic.per_frame_raw.values())).device
@@ -114,6 +79,7 @@ def build_frame_loss_rows(
     for t in range(num_frames):
         row: dict[str, Any] = {"frame_idx": frame_offset + t}
         for key in FRAME_DIAGNOSTIC_TERM_KEYS:
+            row[f"{key}_weight"] = float(diagnostic.sequence.weights[key])
             row[f"{key}_raw"] = float(diagnostic.per_frame_raw[key][t].item())
             row[f"{key}_scaled"] = float(per_frame_scaled[key][t].item())
         row["total_raw_local"] = float(total_raw[t].item())
@@ -125,9 +91,8 @@ def build_frame_loss_rows(
 def build_final_loss_summary_row(
     best_iter: int,
     result: LossResult,
-    args: argparse.Namespace,
 ) -> dict[str, Any]:
-    scaled_terms = get_scaled_loss_terms(result, args)
+    scaled_terms = get_scaled_loss_terms(result)
     row: dict[str, Any] = {
         "best_iter": best_iter,
         "best_total_loss": float(result.total.item()),
@@ -135,6 +100,7 @@ def build_final_loss_summary_row(
         "frame_loss_semantics": "diagnostic_local",
     }
     for key in LOSS_TERM_KEYS:
+        row[f"{key}_weight"] = float(result.weights[key])
         row[f"{key}_raw"] = float(getattr(result, key).item())
         row[f"{key}_scaled"] = float(scaled_terms[key].item())
     return row

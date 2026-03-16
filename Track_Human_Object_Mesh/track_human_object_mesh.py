@@ -1,4 +1,4 @@
-"""Entry point for joint human-object mesh refinement."""
+"""Entry point for human-object mesh refinement."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Joint human-object mesh refinement with PAG constraints."
+        description="Human-object mesh refinement with Original_Code shared losses."
     )
 
     p.add_argument("--video_name", type=str, default="video_01")
@@ -22,7 +22,7 @@ def parse_args() -> argparse.Namespace:
         "--tracked_object_dir",
         type=str,
         default=None,
-        help="Track_Object_Mesh/output_cotracker/<video> (auto-resolved).",
+        help="Track_Object_Mesh/output/<video> (auto-resolved).",
     )
     p.add_argument(
         "--segment_object_dir",
@@ -91,15 +91,9 @@ def parse_args() -> argparse.Namespace:
     )
 
     p.add_argument(
-        "--optimize_human",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="Optimise per-frame global human SE(3) corrections.",
-    )
-    p.add_argument(
         "--optimize_object_scale",
         action=argparse.BooleanOptionalAction,
-        default=False,
+        default=True,
         help="Optimise one global uniform scale per object.",
     )
     p.add_argument(
@@ -110,71 +104,28 @@ def parse_args() -> argparse.Namespace:
     )
 
     p.add_argument(
-        "--lambda_prior",
+        "--tracking_weight",
         type=float,
         default=20.0,
-        help="Motion-prior weight (stay close to tracked poses).",
+        help="Fixed weight for the custom tracked-pose anchor term.",
     )
-    p.add_argument(
-        "--lambda_contact",
-        type=float,
-        default=200.0,
-        help="Contact consistency weight.",
-    )
-    p.add_argument(
-        "--lambda_dynamics",
-        type=float,
-        default=150.0,
-        help="Contact dynamics weight.",
-    )
-    p.add_argument(
-        "--lambda_penetration",
-        type=float,
-        default=20.0,
-        help="Max penetration weight (annealed from 0).",
-    )
-    p.add_argument(
-        "--lambda_smooth",
-        type=float,
-        default=12.0,
-        help="Temporal smoothness weight.",
-    )
-    p.add_argument(
-        "--lambda_human_prior",
-        type=float,
-        default=100.0,
-        help="Human correction prior weight.",
-    )
-    p.add_argument(
-        "--lambda_human_smooth",
-        type=float,
-        default=30.0,
-        help="Human correction smoothness weight.",
-    )
-    p.add_argument(
-        "--lambda_human_mask_2d",
-        type=float,
-        default=40.0,
-        help="2D human silhouette chamfer weight.",
-    )
-    p.add_argument(
-        "--lambda_object_mask_2d",
-        type=float,
-        default=60.0,
-        help="2D object silhouette chamfer weight.",
-    )
-    p.add_argument(
-        "--lambda_object_part_mask_2d",
-        type=float,
-        default=120.0,
-        help="2D object part silhouette chamfer weight.",
-    )
-    p.add_argument(
-        "--lambda_object_scale",
-        type=float,
-        default=30.0,
-        help="Object global scale regularisation weight.",
-    )
+
+    p.add_argument("--object_cd2d_weight_start", type=float, default=1e-4)
+    p.add_argument("--object_cd2d_weight_end", type=float, default=1e-4)
+    p.add_argument("--object_part_cd2d_weight_start", type=float, default=1e-4)
+    p.add_argument("--object_part_cd2d_weight_end", type=float, default=1e-4)
+    p.add_argument("--object_smooth_trans_weight_start", type=float, default=1e3)
+    p.add_argument("--object_smooth_trans_weight_end", type=float, default=1e3)
+    p.add_argument("--object_smooth_rot_weight_start", type=float, default=1e3)
+    p.add_argument("--object_smooth_rot_weight_end", type=float, default=1e3)
+    p.add_argument("--object_scale_weight_start", type=float, default=1.0)
+    p.add_argument("--object_scale_weight_end", type=float, default=1.0)
+    p.add_argument("--intersect_weight_start", type=float, default=0.0)
+    p.add_argument("--intersect_weight_end", type=float, default=10.0)
+    p.add_argument("--nocontact_weight_start", type=float, default=1e3)
+    p.add_argument("--nocontact_weight_end", type=float, default=1e3)
+    p.add_argument("--contact_drift_weight_start", type=float, default=10.0)
+    p.add_argument("--contact_drift_weight_end", type=float, default=1e3)
 
     p.add_argument(
         "--num_mask_points_2d",
@@ -193,12 +144,6 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=2048,
         help="Per-part sampled surface points.",
-    )
-    p.add_argument(
-        "--num_human_surface_points",
-        type=int,
-        default=4096,
-        help="Sampled human surface points per frame.",
     )
 
     p.add_argument("--fps", type=float, default=6.0)

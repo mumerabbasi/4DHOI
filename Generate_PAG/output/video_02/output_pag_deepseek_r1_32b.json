@@ -27,22 +27,6 @@
       ],
       "is_rel_static": true,
       "is_continuous": true
-    },
-    {
-      "nodes": [
-        "dumbbell (left hand), weight plates",
-        "person 1, left shoulder"
-      ],
-      "is_rel_static": false,
-      "is_continuous": false
-    },
-    {
-      "nodes": [
-        "dumbbell (right hand), weight plates",
-        "person 1, right shoulder"
-      ],
-      "is_rel_static": false,
-      "is_continuous": false
     }
   ],
   "interaction": "A person is standing upright and lifting dumbbells in each hand for exercise. The left hand grips the handle of the left dumbbell while the right hand holds the handle of the right dumbbell. Both hands maintain a firm, continuous grip on their respective handles as they lift the weights upwards. The shoulders support the movement by providing stability. The person has short black hair and a neutral facial expression. They wear a fitted tank top, gym shorts, and athletic sneakers. The scene is set in a clean, spacious indoor area with white walls and a wooden floor.",
@@ -50,13 +34,13 @@
     {
       "name": "dumbbell (left hand)",
       "is_translational": true,
-      "is_rotational": false,
+      "is_rotational": true,
       "description": "the dumbbell being held in the left hand"
     },
     {
       "name": "dumbbell (right hand)",
       "is_translational": true,
-      "is_rotational": false,
+      "is_rotational": true,
       "description": "the dumbbell being held in the right hand"
     }
   ],

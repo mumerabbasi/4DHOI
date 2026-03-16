@@ -22,11 +22,13 @@ from pathlib import Path
 import numpy as np
 import open3d as o3d
 from PIL import Image
+from scipy.ndimage import binary_erosion
 from scipy.spatial import cKDTree
 import OpenEXR  # type: ignore
 import Imath  # type: ignore
 
 
+MASK_EROSION_PIXELS = 3
 UNLABELED_COLOR_RGB = [128, 128, 128]
 
 
@@ -118,6 +120,16 @@ def load_mask(mask_path: Path) -> np.ndarray:
     return mask
 
 
+def erode_mask(mask: np.ndarray, radius_px: int = MASK_EROSION_PIXELS) -> np.ndarray:
+    """Erode a binary mask by an approximately circular radius in pixels."""
+    if radius_px <= 0 or not mask.any():
+        return mask
+
+    yy, xx = np.ogrid[-radius_px : radius_px + 1, -radius_px : radius_px + 1]
+    structure = (xx * xx + yy * yy) <= (radius_px * radius_px)
+    return binary_erosion(mask, structure=structure)
+
+
 def _view_name_from_face_id_file(face_id_file: Path) -> str:
     stem = face_id_file.stem
     return stem[:-4] if stem.endswith("0001") else stem
@@ -149,6 +161,7 @@ def collect_triangle_votes(
     masks_dir: Path,
     part_names: set[str],
     num_triangles: int,
+    mask_erosion_px: int = MASK_EROSION_PIXELS,
 ) -> dict[str, np.ndarray]:
     """
     Collect per-triangle votes for each part by mapping masks to face IDs.
@@ -174,6 +187,7 @@ def collect_triangle_votes(
                         Image.NEAREST,
                     )
                 ) > 0
+            mask = erode_mask(mask, radius_px=mask_erosion_px)
 
             masked_face_ids = face_ids[mask]
             valid_ids = masked_face_ids[
@@ -430,6 +444,7 @@ def segment_single_object(
     object_output_dir: Path,
     min_votes: int,
     min_margin: float,
+    mask_erosion_px: int,
     smooth: bool,
     k_neighbors: int,
     min_neighbor_agreement: float,
@@ -453,6 +468,7 @@ def segment_single_object(
     print(f"Masks:  {masks_dir}")
     print(f"Renders:{renders_dir}")
     print(f"Output: {object_output_dir}")
+    print(f"Mask erosion: {mask_erosion_px}px")
     print(f"{'=' * 70}")
 
     mesh = load_mesh(mesh_path)
@@ -476,6 +492,7 @@ def segment_single_object(
         masks_dir=masks_dir,
         part_names=part_names,
         num_triangles=num_triangles,
+        mask_erosion_px=mask_erosion_px,
     )
 
     print("\nAssigning triangle labels by vote count...")
@@ -531,6 +548,7 @@ def segment_video_meshes(
     output_subdir: str,
     min_votes: int,
     min_margin: float,
+    mask_erosion_px: int,
     smooth: bool,
     k_neighbors: int,
     min_neighbor_agreement: float,
@@ -573,6 +591,7 @@ def segment_video_meshes(
                 object_output_dir=object_output_dir,
                 min_votes=min_votes,
                 min_margin=min_margin,
+                mask_erosion_px=mask_erosion_px,
                 smooth=smooth,
                 k_neighbors=k_neighbors,
                 min_neighbor_agreement=min_neighbor_agreement,
@@ -648,6 +667,15 @@ def parse_args() -> argparse.Namespace:
         help="Minimum winning vote fraction in [0,1] (default: 0.6).",
     )
     parser.add_argument(
+        "--mask_erosion_px",
+        type=int,
+        default=MASK_EROSION_PIXELS,
+        help=(
+            "Erode binary masks by this many pixels before vote aggregation "
+            f"(default: {MASK_EROSION_PIXELS}; use 0 to disable)."
+        ),
+    )
+    parser.add_argument(
         "--not_smooth",
         action="store_true",
         help="Disable triangle-label smoothing post-processing.",
@@ -655,14 +683,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--k_neighbors",
         type=int,
-        default=500,
-        help="K neighbors for smoothing (default: 500).",
+        default=200,
+        help="K neighbors for smoothing (default: 200).",
     )
     parser.add_argument(
         "--min_neighbor_agreement",
         type=float,
-        default=0.5,
-        help="Neighbor vote agreement threshold for smoothing in [0,1] (default: 0.5).",
+        default=0.9,
+        help="Neighbor vote agreement threshold for smoothing in [0,1] (default: 0.9).",
     )
     return parser.parse_args()
 
@@ -680,6 +708,7 @@ def main() -> None:
         output_subdir=args.output_subdir,
         min_votes=args.min_votes,
         min_margin=args.min_margin,
+        mask_erosion_px=args.mask_erosion_px,
         smooth=not args.not_smooth,
         k_neighbors=args.k_neighbors,
         min_neighbor_agreement=args.min_neighbor_agreement,
