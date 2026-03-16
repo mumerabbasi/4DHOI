@@ -20,7 +20,7 @@ import bpy
 from mathutils import Matrix, Vector
 
 # Camera configuration
-ORBIT_ANGLES_DEG = [10, 100, 190, 280]  # horizontal orbit around object (Z-up)
+ORBIT_ANGLES_DEG = [10, 55, 100, 155, 190, 235, 280]  # horizontal orbit around object (Z-up)
 HEIGHT_ANGLES_DEG = [10, 30, -15]  # level orbit, then up orbit, then down orbit
 DEFAULT_CAMERA_DISTANCE = 1
 DEFAULT_RESOLUTION = 1024

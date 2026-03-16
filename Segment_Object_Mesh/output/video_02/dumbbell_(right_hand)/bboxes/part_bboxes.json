@@ -25,11 +25,16 @@
       "parts": {
         "handle": [
           532,
-          445,
+          450,
           578,
           496
         ],
-        "weight plates": null
+        "weight plates": [
+          291,
+          322,
+          701,
+          721
+        ]
       }
     },
     {
@@ -44,6 +49,59 @@
       }
     },
     {
+      "image": "az055_el+10.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          435,
+          486,
+          614,
+          537
+        ],
+        "weight plates": [
+          568,
+          381,
+          747,
+          642
+        ]
+      }
+    },
+    {
+      "image": "az055_el+30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          430,
+          481,
+          614,
+          542
+        ],
+        "weight plates": null
+      }
+    },
+    {
+      "image": "az055_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          430,
+          481,
+          614,
+          532
+        ],
+        "weight plates": null
+      }
+    },
+    {
       "image": "az100_el+10.png",
       "image_size": [
         1024,
@@ -53,15 +111,10 @@
         "handle": [
           409,
           476,
-          552,
+          558,
           537
         ],
-        "weight plates": [
-          547,
-          391,
-          742,
-          680
-        ]
+        "weight plates": null
       }
     },
     {
@@ -75,13 +128,13 @@
           409,
           460,
           573,
-          532
+          547
         ],
         "weight plates": [
-          274,
-          332,
-          742,
-          701
+          547,
+          411,
+          744,
+          702
         ]
       }
     },
@@ -98,11 +151,54 @@
           552,
           537
         ],
+        "weight plates": null
+      }
+    },
+    {
+      "image": "az155_el+10.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": null,
         "weight plates": [
-          276,
-          358,
-          742,
-          640
+          373,
+          348,
+          686,
+          706
+        ]
+      }
+    },
+    {
+      "image": "az155_el+30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          471,
+          430,
+          532,
+          460
+        ],
+        "weight plates": null
+      }
+    },
+    {
+      "image": "az155_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": null,
+        "weight plates": [
+          378,
+          317,
+          686,
+          624
         ]
       }
     },
@@ -113,18 +209,8 @@
         1024
       ],
       "parts": {
-        "handle": [
-          558,
-          468,
-          578,
-          501
-        ],
-        "weight plates": [
-          481,
-          353,
-          703,
-          606
-        ]
+        "handle": null,
+        "weight plates": null
       }
     },
     {
@@ -134,18 +220,8 @@
         1024
       ],
       "parts": {
-        "handle": [
-          506,
-          437,
-          580,
-          512
-        ],
-        "weight plates": [
-          455,
-          307,
-          706,
-          568
-        ]
+        "handle": null,
+        "weight plates": null
       }
     },
     {
@@ -155,17 +231,70 @@
         1024
       ],
       "parts": {
+        "handle": null,
+        "weight plates": null
+      }
+    },
+    {
+      "image": "az235_el+10.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
         "handle": [
-          486,
-          399,
-          583,
-          634
+          430,
+          481,
+          614,
+          532
         ],
         "weight plates": [
-          491,
-          404,
-          701,
-          655
+          568,
+          358,
+          747,
+          624
+        ]
+      }
+    },
+    {
+      "image": "az235_el+30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          416,
+          475,
+          621,
+          548
+        ],
+        "weight plates": [
+          570,
+          344,
+          749,
+          612
+        ]
+      }
+    },
+    {
+      "image": "az235_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "handle": [
+          435,
+          486,
+          614,
+          537
+        ],
+        "weight plates": [
+          568,
+          384,
+          742,
+          640
         ]
       }
     },
@@ -177,17 +306,12 @@
       ],
       "parts": {
         "handle": [
-          409,
+          471,
           486,
           552,
           537
         ],
-        "weight plates": [
-          547,
-          373,
-          742,
-          655
-        ]
+        "weight plates": null
       }
     },
     {
@@ -201,11 +325,11 @@
           409,
           471,
           552,
-          532
+          522
         ],
         "weight plates": [
-          547,
-          394,
+          276,
+          353,
           742,
           680
         ]
@@ -220,11 +344,16 @@
       "parts": {
         "handle": [
           409,
-          481,
+          476,
           552,
-          542
+          547
         ],
-        "weight plates": null
+        "weight plates": [
+          547,
+          332,
+          742,
+          624
+        ]
       }
     }
   ]
