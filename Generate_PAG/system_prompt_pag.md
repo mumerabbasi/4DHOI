@@ -159,9 +159,21 @@ is_rel_static". The "is_continuous"
 attribute is true if the two end nodes are
 in continuous physical contact during the
 interaction process, otherwise false.
+The "interaction edges" must represent
+actual touch only. Do not add edges for
+support, stabilization, proximity,
+alignment, or force transmission when the
+two nodes do not physically touch. Body
+parts such as shoulders, arms, hips, and
+head should be connected to an object only
+when they are in real physical contact with
+that object.
 Example: when holding a dumbbell, the hand
 is in continuous contact with the handle
-without any separation; when punching a
+without any separation, but the weight
+plates should not be connected to the
+shoulders unless they actually rest on the
+shoulders; when punching a
 boxing bag, the hands are not in continuous
 contact with the bag; when a person
 stepping up a ladder, the feet and hands
@@ -260,8 +272,25 @@ translational motions during interaction,
 otherwise false. The "is_rotational"
 attribute is true if the corresponding
 object has global rotational motions during
-interaction, otherwise false. Both "
-is_translational" and "is_rotational"
+interaction, otherwise false. Modest but
+plausible changes in the orientation of the
+whole object still count as rotational
+motion. For handheld objects, slight
+tilting, rolling, pitching, or turning
+caused by the hand should be treated as
+rotational motion when the whole object
+changes orientation. Use false when the
+object remains approximately orientation-
+stable as a whole. 
+For example, an iron moving across an ironing 
+board can be both translational and rotational 
+as it can tilt slightly while moving;
+a dumbbell can also be both translational 
+and rotational when being lifted; an umbrella 
+that is held upright is usually not rotational; an
+ironing board is typically neither
+translational nor rotational.
+Both " is_translational" and "is_rotational"
 attributes must consider only the object’s
 overall motion, not motions of individual
 parts, for example, a bike being ridden
