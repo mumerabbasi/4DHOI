@@ -285,13 +285,16 @@ def aggregate_samples(
 
 
 def main() -> None:
+    script_dir = Path(__file__).resolve().parent
+
     parser = argparse.ArgumentParser(
         description="Generate a Part Affordance Graph (PAG) using Ollama.",
     )
+    parser.add_argument("--video_name", default="video_01")
     parser.add_argument("--host", default="http://localhost:11434/v1")
     parser.add_argument("--model", default="qwen3.5:27b")
-    parser.add_argument("--system-prompt", default="./system_prompt_pag.md")
-    parser.add_argument("--input-dir", default="./input_prompts/video_01")
+    parser.add_argument("--system-prompt", default=None)
+    parser.add_argument("--input-dir", default=None)
     parser.add_argument("--temperature", type=float, default=0.3)
     parser.add_argument("--num-samples", type=int, default=5)
     parser.add_argument(
@@ -308,8 +311,19 @@ def main() -> None:
     if args.num_samples <= 0:
         raise ValueError("--num-samples must be a positive integer.")
 
-    system_prompt = Path(args.system_prompt).read_text(encoding="utf-8")
-    input_dir = Path(args.input_dir)
+    system_prompt_path = (
+        Path(args.system_prompt).resolve()
+        if args.system_prompt
+        else script_dir / "system_prompt_pag.md"
+    )
+    input_dir = (
+        Path(args.input_dir).resolve()
+        if args.input_dir
+        else script_dir / "input_prompts" / args.video_name
+    )
+    output_dir = script_dir / "output" / args.video_name
+
+    system_prompt = system_prompt_path.read_text(encoding="utf-8")
     user_payload = json.loads(
         (input_dir / "input_pag.json").read_text(encoding="utf-8")
     )
@@ -321,10 +335,14 @@ def main() -> None:
 
     client = OpenAI(base_url=args.host, api_key="ollama")
 
-    output_dir = Path("./output") / input_dir.name
     output_dir.mkdir(parents=True, exist_ok=True)
     samples_dir = output_dir / "samples"
     samples_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"Video name: {args.video_name}")
+    print(f"System prompt: {system_prompt_path}")
+    print(f"Input directory: {input_dir}")
+    print(f"Output directory: {output_dir}")
 
     samples: list[dict[str, Any]] = []
     for index in range(1, args.num_samples + 1):
