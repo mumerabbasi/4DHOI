@@ -7,15 +7,33 @@ from pathlib import Path
 import torch
 from diffusers import FluxPipeline
 
+# Always-on framing prompt additions
+FIRST_FRAME_FRAMING_SUFFIX = (
+    "Wide shot. The human and the object are both fully visible and placed "
+    "far enough from the camera to leave generous space around them. "
+    "Keep them comfortably inside the frame so they can remain in view for "
+    "the entire video without any camera movement."
+)
+
+
+def resolve_pag_path(script_dir: Path, video_name: str, raw_pag_dir: str | None) -> Path:
+    pag_dir = (
+        Path(raw_pag_dir).resolve()
+        if raw_pag_dir
+        else script_dir.parent / "Generate_PAG" / "output" / video_name
+    )
+    return next(pag_dir.glob("*.json"))
+
 
 def main() -> None:
+    script_dir = Path(__file__).resolve().parent
+
     parser = argparse.ArgumentParser(
         description="Sample FLUX.1-dev first-frame images from a PAG directory.",
     )
-    parser.add_argument(
-        "--pag-dir",
-        default="../Generate_PAG/output/video_03",
-    )
+    parser.add_argument("--video_name", default="video_01")
+    parser.add_argument("--pag-dir", default=None)
+    parser.add_argument("--outdir", default=None)
     parser.add_argument("--n", type=int, default=5)
     parser.add_argument("--seed", type=int, default=72)
     parser.add_argument("--height", type=int, default=720)
@@ -23,14 +41,16 @@ def main() -> None:
     parser.add_argument("--device", default="cuda:0")
     args = parser.parse_args()
 
-    pag_dir = Path(args.pag_dir)
-    pag_path = next(pag_dir.glob("*.json"))
-
-    outdir = Path("./output") / pag_dir.name / "first_frames"
+    pag_path = resolve_pag_path(script_dir, args.video_name, args.pag_dir)
+    outdir = (
+        Path(args.outdir).resolve()
+        if args.outdir
+        else script_dir / "output" / args.video_name / "first_frames"
+    )
     outdir.mkdir(parents=True, exist_ok=True)
 
     pag = json.loads(pag_path.read_text(encoding="utf-8"))
-    prompt = pag["interaction"]
+    prompt = pag["interaction"].rstrip() + "\n\n" + FIRST_FRAME_FRAMING_SUFFIX
 
     dtype = torch.bfloat16 if args.device.startswith("cuda") else torch.float32
     pipe = FluxPipeline.from_pretrained(
@@ -59,6 +79,7 @@ def main() -> None:
         img.save(outdir / f"frame_{i:02d}.png")
 
     print(f"Loaded PAG: {pag_path}")
+    print(f"Video name: {args.video_name}")
     print(f"Saved {len(images)} images to: {outdir}")
 
 
