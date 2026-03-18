@@ -5,9 +5,9 @@ all .ply meshes in the human motion directory (the same directory where
 align_meshes.py takes the first frame mesh).
 
 Default behavior:
-- Input human meshes: Estimate_Human_Motion/output/<video_name>/output_plys
+- Input human meshes: Estimate_Human_Motion/output/<video_name>/humans/<person_x>/human_plys
 - Transform source: Align_Meshes/output/<video_name>/meshes/transforms.json
-- Output meshes: Align_Meshes/output/<video_name>/human_motion_aligned
+- Output meshes: Align_Meshes/output/<video_name>/human_motion_aligned/<person_x>
 
 Required transform key in transforms.json:
 - source_to_output_matrix_4x4
@@ -38,30 +38,62 @@ def _apply_affine(vertices: np.ndarray, matrix_4x4: np.ndarray) -> np.ndarray:
     return (vertices @ rot.T + trans).astype(np.float32)
 
 
-def _resolve_human_transform(transforms_json_path: Path) -> np.ndarray:
-    """Return human source->output transform matrix."""
+def _resolve_human_transform_map(transforms_json_path: Path) -> dict[str, np.ndarray]:
+    """Return all human source->output transform matrices keyed by slug/name."""
     transforms_data = load_json(transforms_json_path)
     transforms = transforms_data.get("transforms", [])
     if not isinstance(transforms, list):
         raise ValueError(f"Invalid transforms payload in {transforms_json_path}")
 
-    human_entry = None
+    human_transforms: dict[str, np.ndarray] = {}
     for entry in transforms:
-        if entry.get("kind") == "human" or entry.get("slug") == "human":
-            human_entry = entry
-            break
-
-    if human_entry is None:
-        raise ValueError(f"No human transform entry found in {transforms_json_path}")
-
-    if "source_to_output_matrix_4x4" not in human_entry:
-        raise ValueError(
-            "Human transform missing required key: source_to_output_matrix_4x4"
+        if entry.get("kind") != "human" and entry.get("slug") != "human":
+            continue
+        if "source_to_output_matrix_4x4" not in entry:
+            raise ValueError(
+                "Human transform missing required key: source_to_output_matrix_4x4"
+            )
+        slug = str(entry.get("slug") or entry.get("name") or "human")
+        human_transforms[slug] = _as_4x4(
+            entry["source_to_output_matrix_4x4"],
+            "source_to_output_matrix_4x4",
         )
-    return _as_4x4(
-        human_entry["source_to_output_matrix_4x4"],
-        "source_to_output_matrix_4x4",
-    )
+
+    if not human_transforms:
+        raise ValueError(f"No human transform entry found in {transforms_json_path}")
+    return human_transforms
+
+
+def _discover_input_human_dirs(humans_root: Path) -> list[tuple[str, Path]]:
+    """Discover per-human input PLY directories from the new layout only."""
+    if not humans_root.exists() or not humans_root.is_dir():
+        raise NotADirectoryError(f"Human root directory not found: {humans_root}")
+
+    discovered = [
+        (person_dir.name, (person_dir / "human_plys").resolve())
+        for person_dir in sorted(humans_root.iterdir())
+        if person_dir.is_dir()
+        and person_dir.name.startswith("person_")
+        and (person_dir / "human_plys").is_dir()
+    ]
+    if not discovered:
+        raise FileNotFoundError(
+            f"No per-person human_plys directories found under: {humans_root}"
+        )
+    return discovered
+
+
+def _resolve_transform_for_person(
+    person_slug: str,
+    human_transform_map: dict[str, np.ndarray],
+) -> np.ndarray:
+    """Match one per-person input sequence to the same per-person transform."""
+    if person_slug not in human_transform_map:
+        raise ValueError(
+            f"Could not match human input '{person_slug}' to a transform entry. "
+            f"Available transform keys: {sorted(human_transform_map.keys())}"
+        )
+    return human_transform_map[person_slug]
 
 
 def parse_args() -> argparse.Namespace:
@@ -88,7 +120,10 @@ def parse_args() -> argparse.Namespace:
         "--input_human_dir",
         type=str,
         default=None,
-        help="Optional explicit input human .ply directory. Default: <human_video_dir>/output_plys",
+        help=(
+            "Optional explicit human root directory. "
+            "Default: <human_video_dir>/humans"
+        ),
     )
     parser.add_argument(
         "--transforms_json",
@@ -100,7 +135,10 @@ def parse_args() -> argparse.Namespace:
         "--output_dir",
         type=str,
         default=None,
-        help="Output directory for aligned human sequence. Default: <align_video_dir>/human_motion_aligned",
+        help=(
+            "Output root directory. Default: "
+            "<align_video_dir>/human_motion_aligned/<person_x>"
+        ),
     )
     return parser.parse_args()
 
@@ -115,47 +153,56 @@ def main() -> None:
     human_video_dir = resolve_path(args.human_video_dir, script_dir) or (
         script_dir.parent / "Estimate_Human_Motion" / "output" / args.video_name
     ).resolve()
-    input_human_dir = resolve_path(args.input_human_dir, script_dir) or (
-        human_video_dir / "output_plys"
+    humans_root = resolve_path(args.input_human_dir, script_dir) or (
+        human_video_dir / "humans"
     ).resolve()
     transforms_json_path = resolve_path(args.transforms_json, script_dir) or (
         align_video_dir / "meshes" / "transforms.json"
     ).resolve()
-    output_dir = resolve_path(args.output_dir, script_dir) or (
+    output_root = resolve_path(args.output_dir, script_dir) or (
         align_video_dir / "human_motion_aligned"
     ).resolve()
 
-    if not input_human_dir.exists() or not input_human_dir.is_dir():
-        raise NotADirectoryError(f"Input human mesh directory not found: {input_human_dir}")
     if not transforms_json_path.exists():
         raise FileNotFoundError(f"Transforms JSON not found: {transforms_json_path}")
 
-    ply_paths = sorted(input_human_dir.glob("*.ply"))
-    if not ply_paths:
-        raise FileNotFoundError(f"No .ply files found in {input_human_dir}")
+    discovered_inputs = _discover_input_human_dirs(humans_root)
+    human_transform_map = _resolve_human_transform_map(
+        transforms_json_path=transforms_json_path
+    )
 
-    matrix = _resolve_human_transform(transforms_json_path=transforms_json_path)
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-    print(f"Input human meshes: {input_human_dir}")
     print(f"Transforms: {transforms_json_path}")
     print("Transform key: source_to_output_matrix_4x4")
-    print(f"Saving aligned sequence to: {output_dir}")
+    print(f"Discovered human inputs: {[slug for slug, _ in discovered_inputs]}")
 
-    for mesh_path in ply_paths:
-        mesh = trimesh.load(str(mesh_path), force="mesh")
-        if not isinstance(mesh, trimesh.Trimesh):
-            raise ValueError(f"Failed to load mesh as Trimesh: {mesh_path}")
+    total_written = 0
+    for input_slug, input_dir in discovered_inputs:
+        ply_paths = sorted(input_dir.glob("*.ply"))
+        if not ply_paths:
+            raise FileNotFoundError(f"No .ply files found in {input_dir}")
 
-        verts = np.asarray(mesh.vertices, dtype=np.float32)
-        verts_aligned = _apply_affine(verts, matrix)
+        matrix = _resolve_transform_for_person(input_slug, human_transform_map)
+        output_dir = (output_root / input_slug).resolve()
+        output_dir.mkdir(parents=True, exist_ok=True)
 
-        out_mesh = mesh.copy()
-        out_mesh.vertices = verts_aligned
-        out_path = output_dir / mesh_path.name
-        out_mesh.export(str(out_path))
+        print(f"Input human meshes [{input_slug}]: {input_dir}")
+        print(f"Saving aligned sequence [{input_slug}] to: {output_dir}")
 
-    print(f"Done. Wrote {len(ply_paths)} aligned meshes to {output_dir}")
+        for mesh_path in ply_paths:
+            mesh = trimesh.load(str(mesh_path), force="mesh")
+            if not isinstance(mesh, trimesh.Trimesh):
+                raise ValueError(f"Failed to load mesh as Trimesh: {mesh_path}")
+
+            verts = np.asarray(mesh.vertices, dtype=np.float32)
+            verts_aligned = _apply_affine(verts, matrix)
+
+            out_mesh = mesh.copy()
+            out_mesh.vertices = verts_aligned
+            out_path = output_dir / mesh_path.name
+            out_mesh.export(str(out_path))
+            total_written += 1
+
+    print(f"Done. Wrote {total_written} aligned human meshes to {output_root}")
 
 
 if __name__ == "__main__":
