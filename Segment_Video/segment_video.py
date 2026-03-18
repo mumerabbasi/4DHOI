@@ -22,7 +22,7 @@ from openai import OpenAI
 # Ollama configuration
 OLLAMA_HOST = "http://127.0.0.1:11434/v1"
 OLLAMA_API_KEY = "ollama"
-QWEN_MODEL = "qwen3-vl:32b"
+QWEN_MODEL = "qwen3.5:27b"
 
 # SAM3 configuration
 SAM3_CHECKPOINT = None
@@ -38,6 +38,10 @@ VIZ_COLORS = [
     (128, 255, 0),  # Light green
     (255, 128, 0),  # Light blue
 ]
+
+
+def _normalize_slug(name: str) -> str:
+    return name.strip().replace(" ", "_").replace("-", "_")
 
 
 def encode_numpy_image_base64(image: np.ndarray) -> str:
@@ -515,7 +519,7 @@ def track_with_sam3(
 
         for name, mask in masks_dict.items():
             if use_subdirs:
-                item_mask_dir = output_masks_dir / name.replace(" ", "_")
+                item_mask_dir = output_masks_dir / _normalize_slug(name)
                 item_mask_dir.mkdir(exist_ok=True)
             else:
                 item_mask_dir = output_masks_dir
@@ -599,6 +603,16 @@ def rename_numeric_frames_to_prefixed(frames_dir: Path) -> None:
             pass
 
 
+def build_default_paths(video_name: str) -> tuple[Path, Path, Path]:
+    """Build default input/output paths for a given video name."""
+    script_dir = Path(__file__).parent.resolve()
+    project_dir = script_dir.parent
+    video_dir = project_dir / "Generate_Video" / "output" / video_name
+    pag_dir = project_dir / "Generate_PAG" / "output" / video_name
+    output_root = script_dir / "output" / video_name
+    return video_dir, pag_dir, output_root
+
+
 def process_video(
     video_path: Path,
     objects_info: dict[str, dict],
@@ -634,7 +648,7 @@ def process_video(
                 print(f"  {name}: NOT DETECTED")
 
         for human_name, human_bbox in human_bboxes.items():
-            human_dir_name = human_name.replace(" ", "_")
+            human_dir_name = _normalize_slug(human_name)
             human_output_dir = output_root / "humans" / human_dir_name
 
             print(f"\n{'─'*40}")
@@ -679,7 +693,7 @@ def process_video(
 
     for obj_name, obj_info in objects_info.items():
         parts = obj_info["parts"]
-        obj_dir_name = obj_name.replace(" ", "_")
+        obj_dir_name = _normalize_slug(obj_name)
         obj_output_dir = output_root / "objects" / obj_dir_name
 
         print(f"\n{'='*40}")
@@ -747,17 +761,23 @@ def main():
         description="Segment objects, parts, and humans from video using Qwen-VL + SAM3."
     )
     parser.add_argument(
+        "--video_name",
+        type=str,
+        default="video_01",
+        help="Video name used to build default paths for the other arguments.",
+    )
+    parser.add_argument(
         "--video_path",
         type=str,
-        default="../Generate_Video/output/video_03",
-        help="Path to video directory (e.g., ../Generate_Video/output/video_01).",
+        default=None,
+        help="Path to video directory. Defaults to ../Generate_Video/output/<video_name>/.",
     )
     parser.add_argument(
         "--pag_file",
         type=str,
         default=None,
         help="PAG JSON file to extract objects, parts, and humans. "
-        "If not specified, will look in ../Generate_PAG/output/video_xx/.",
+        "If not specified, will look in ../Generate_PAG/output/<video_name>/.",
     )
     parser.add_argument(
         "--output_root",
@@ -791,17 +811,19 @@ def main():
 
     args = parser.parse_args()
 
-    video_dir = Path(args.video_path).resolve()
+    default_video_dir, default_pag_dir, default_output_root = build_default_paths(
+        args.video_name
+    )
+
+    video_dir = Path(args.video_path).resolve() if args.video_path else default_video_dir
     video_file = find_video_file(video_dir)
 
     print(f"Video file: {video_file}")
-    video_name = video_dir.name
 
     if args.output_root:
         output_root = Path(args.output_root).resolve()
     else:
-        script_dir = Path(__file__).parent.resolve()
-        output_root = script_dir / "output" / video_name
+        output_root = default_output_root
 
     print(f"Output directory: {output_root}")
     print(f"Ollama host: {args.ollama_host}")
@@ -810,8 +832,7 @@ def main():
     if args.pag_file:
         pag_path = Path(args.pag_file).resolve()
     else:
-        pag_dir = Path(__file__).parent.parent / "Generate_PAG" / "output" / video_name
-        pag_path = next(pag_dir.glob("output_pag_*.json"))
+        pag_path = next(default_pag_dir.glob("output_pag_*.json"))
 
     print(f"PAG file: {pag_path}")
     objects_info, humans_info = parse_pag_file(str(pag_path))

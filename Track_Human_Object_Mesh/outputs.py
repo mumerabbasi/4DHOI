@@ -30,7 +30,12 @@ from utils import (
 
 OVERLAY_FILL_ALPHA = 0.55
 OVERLAY_CONTOUR_THICKNESS = 0
-HUMAN_COLOR_BGR: tuple[int, int, int] = (255, 200, 100)
+HUMAN_COLORS_BGR: list[tuple[int, int, int]] = [
+    (255, 200, 100),
+    (100, 220, 255),
+    (180, 255, 140),
+    (255, 160, 220),
+]
 
 
 def _save_transform_json(
@@ -126,7 +131,7 @@ def _render_joint_overlay(
     fps: float,
     save_pngs: bool = False,
 ) -> None:
-    num_frames = result.final_human_verts_np.shape[0]
+    num_frames = context.num_frames
     if not frame_paths or len(frame_paths) < num_frames:
         print("[WARN] Not enough frames for overlay rendering.")
         return
@@ -150,15 +155,18 @@ def _render_joint_overlay(
             if frame is None:
                 continue
 
-            overlay = draw_overlay(
-                frame_bgr=frame,
-                verts_cv=result.final_human_verts_np[t],
-                faces=context.human_faces,
-                k=context.k,
-                fill_alpha=OVERLAY_FILL_ALPHA * 0.6,
-                contour_thickness=OVERLAY_CONTOUR_THICKNESS,
-                color_bgr=HUMAN_COLOR_BGR,
-            )
+            overlay = frame
+            for idx, human_slug in enumerate(context.human_keys):
+                human_verts = result.final_human_verts_np_by_slug[human_slug]
+                overlay = draw_overlay(
+                    frame_bgr=overlay,
+                    verts_cv=human_verts[t],
+                    faces=context.humans[human_slug].faces,
+                    k=context.k,
+                    fill_alpha=OVERLAY_FILL_ALPHA * 0.6,
+                    contour_thickness=OVERLAY_CONTOUR_THICKNESS,
+                    color_bgr=HUMAN_COLORS_BGR[idx % len(HUMAN_COLORS_BGR)],
+                )
 
             for slug in context.obj_keys:
                 object_data = context.objects[slug]
@@ -261,26 +269,31 @@ def save_run_outputs(
             f"scale={stats['global_scale']:.4f}"
         )
 
-    human_dir = context.out_dir / "human"
-    human_mesh_dir = human_dir / "meshes"
-    ensure_dir(human_mesh_dir)
-    _save_human_mesh_sequence(
-        result.final_human_verts_np,
-        context.human_faces,
-        human_mesh_dir,
-    )
-    human_stats = {
-        "status": "fixed_copy",
-        "source": "aligned_human_input",
-        "num_frames": int(result.final_human_verts_np.shape[0]),
-        "num_verts": int(result.final_human_verts_np.shape[1]),
-        "num_faces": int(context.human_faces.shape[0]),
-    }
-    with (human_dir / "fixed_input_stats.json").open(
-        "w",
-        encoding="utf-8",
-    ) as f:
-        json.dump(human_stats, f, indent=2)
+    human_stats_by_slug: dict[str, dict[str, object]] = {}
+    for human_slug in context.human_keys:
+        human_dir = context.out_dir / human_slug
+        human_mesh_dir = human_dir / "meshes"
+        ensure_dir(human_mesh_dir)
+        _save_human_mesh_sequence(
+            result.final_human_verts_np_by_slug[human_slug],
+            context.humans[human_slug].faces,
+            human_mesh_dir,
+        )
+        human_stats = {
+            "status": "fixed_copy",
+            "source": "aligned_human_input",
+            "name": context.humans[human_slug].name,
+            "slug": human_slug,
+            "num_frames": int(result.final_human_verts_np_by_slug[human_slug].shape[0]),
+            "num_verts": int(result.final_human_verts_np_by_slug[human_slug].shape[1]),
+            "num_faces": int(context.humans[human_slug].faces.shape[0]),
+        }
+        with (human_dir / "fixed_input_stats.json").open(
+            "w",
+            encoding="utf-8",
+        ) as f:
+            json.dump(human_stats, f, indent=2)
+        human_stats_by_slug[human_slug] = human_stats
 
     debug_dir = context.out_dir / "debug"
     debug_csv_dir = debug_dir / "csv"
@@ -334,6 +347,7 @@ def save_run_outputs(
         "status": "completed",
         "script": "track_human_object_mesh.py",
         "num_frames": context.num_frames,
+        "num_humans": len(context.human_keys),
         "num_objects": len(context.obj_keys),
         "num_edges": len(context.interaction_edges),
         "best_total_loss": result.best_loss,
@@ -404,7 +418,7 @@ def save_run_outputs(
             }
             for slug in context.obj_keys
         },
-        "human": human_stats,
+        "humans": human_stats_by_slug,
         "edges": [
             {
                 "node_a": edge.node_a.raw_node,
@@ -438,5 +452,6 @@ def save_run_outputs(
         print("  Overlay:  skipped")
     for slug in context.obj_keys:
         print(f"  {slug}:  transform_refined.json, meshes/")
-    print("  human:   meshes/ (fixed copy)")
+    for human_slug in context.human_keys:
+        print(f"  {human_slug}:  meshes/ (fixed copy)")
     print(f"{'=' * 60}")

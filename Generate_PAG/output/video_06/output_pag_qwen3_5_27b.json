@@ -66,8 +66,8 @@
   "object states": [
     {
       "name": "boxing bag",
-      "is_translational": true,
-      "is_rotational": true,
+      "is_translational": false,
+      "is_rotational": false,
       "description": "the heavy punching bag being held and struck during interaction"
     }
   ],

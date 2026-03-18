@@ -74,16 +74,7 @@ class OptimizationResult:
 
 
 def slugify(text: str) -> str:
-    out = []
-    for ch in text.strip().lower():
-        if ch.isalnum() or ch in "()":
-            out.append(ch)
-        else:
-            out.append("_")
-    slug = "".join(out)
-    while "__" in slug:
-        slug = slug.replace("__", "_")
-    return slug.strip("_") or "mesh"
+    return text.strip().replace(" ", "_").replace("-", "_")
 
 
 def resolve_path(path_str: str | None, base_dir: Path) -> Path | None:

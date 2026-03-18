@@ -125,7 +125,7 @@ def erode_mask(mask: np.ndarray, radius_px: int = MASK_EROSION_PIXELS) -> np.nda
     if radius_px <= 0 or not mask.any():
         return mask
 
-    yy, xx = np.ogrid[-radius_px : radius_px + 1, -radius_px : radius_px + 1]
+    yy, xx = np.ogrid[-radius_px: radius_px + 1, -radius_px: radius_px + 1]
     structure = (xx * xx + yy * yy) <= (radius_px * radius_px)
     return binary_erosion(mask, structure=structure)
 

@@ -1,0 +1,35 @@
+{
+  "output_dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_04",
+  "inputs": {
+    "video_dir": "/my_workspace/4DHHOI/4DHOI/Generate_Video/output/video_04",
+    "video_mp4": "/my_workspace/4DHHOI/4DHOI/Generate_Video/output/video_04/frame_03_video_Wan_AI_Wan2_2_I2V_A14B_Diffusers.mp4",
+    "model_id": "depth-anything/DA3NESTED-GIANT-LARGE-1.1",
+    "device": "cuda:0",
+    "process_res_used": 1280
+  },
+  "outputs": {
+    "frame_00": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_04/frame_00.png",
+    "relative_depth": null,
+    "metric_depth": {
+      "dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_04/metric_depth",
+      "npy": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_04/metric_depth/metric_depth.npy",
+      "mask_png": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_04/metric_depth/metric_depth_mask.png",
+      "vis_png": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_04/metric_depth/metric_depth_vis.png",
+      "mask_percentile_range": {
+        "p01": 2.5611319279670717,
+        "p99": 3.816638729572296
+      },
+      "model_output_hw": [
+        714,
+        1274
+      ],
+      "saved_output_hw": [
+        720,
+        1280
+      ]
+    },
+    "camera_intrinsics": {
+      "json": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_04/camera_intrinsics.json"
+    }
+  }
+}
