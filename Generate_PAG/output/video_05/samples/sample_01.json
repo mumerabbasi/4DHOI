@@ -1,12 +1,12 @@
 {
   "object part nodes": [
+    "umbrella, canopy",
+    "umbrella, shaft",
     "bicycle, handlebar",
     "bicycle, pedal",
     "bicycle, seat",
     "bicycle, frame tubes",
-    "bicycle, wheels",
-    "umbrella, canopy",
-    "umbrella, shaft"
+    "bicycle, wheels"
   ],
   "body part nodes": [
     "person 1, left hand",
@@ -33,30 +33,6 @@
     },
     {
       "nodes": [
-        "bicycle, pedal",
-        "person 1, left foot"
-      ],
-      "is_rel_static": true,
-      "is_continuous": true
-    },
-    {
-      "nodes": [
-        "bicycle, pedal",
-        "person 1, right foot"
-      ],
-      "is_rel_static": true,
-      "is_continuous": true
-    },
-    {
-      "nodes": [
-        "bicycle, seat",
-        "person 1, hips"
-      ],
-      "is_rel_static": true,
-      "is_continuous": true
-    },
-    {
-      "nodes": [
         "umbrella, shaft",
         "person 1, right hand"
       ],
@@ -64,25 +40,25 @@
       "is_continuous": true
     }
   ],
-  "interaction": "A person is riding a bicycle at an extremely slow pace while holding an open umbrella above their head. The left hand grips the bicycle handlebar continuously, and the right hand holds the umbrella shaft. Feet remain on pedals, and hips rest on the seat. Non-contact arms swing slightly for balance. The person has short black hair, a neutral facial expression, wearing a gray shirt, blue jeans, and white sneakers. The scene is a clean, spacious indoor area with white walls and a wooden floor. The bicycle has a black frame, and the umbrella is open. All movements occur in slow motion to emphasize the physical contact points.",
+  "interaction": "A person is riding a bicycle at a slow pace while holding an umbrella above their head. The left hand grips the handlebar firmly, and the right hand holds the umbrella's shaft steadily. The bicycle moves smoothly with its black frame and straight handlebars. The rider has short brown hair, a neutral facial expression, wears a blue shirt, black shorts, and white sneakers. The scene is set in a clean, spacious indoor area with white walls and a wooden floor.",
   "object states": [
+    {
+      "name": "umbrella",
+      "is_translational": false,
+      "is_rotational": false,
+      "description": "the umbrella being held above the head"
+    },
     {
       "name": "bicycle",
       "is_translational": true,
       "is_rotational": false,
-      "description": "the bicycle with black frame being ridden slowly"
-    },
-    {
-      "name": "umbrella",
-      "is_translational": true,
-      "is_rotational": false,
-      "description": "the open umbrella held above the head"
+      "description": "the black-framed bicycle being ridden"
     }
   ],
   "human states": [
     {
       "name": "person 1",
-      "description": "the person with short black hair wearing gray shirt and blue jeans riding"
+      "description": "the person with short brown hair wearing a blue shirt and black shorts, riding the bicycle while holding an umbrella"
     }
   ]
 }

@@ -292,7 +292,7 @@ def main() -> None:
     )
     parser.add_argument("--video_name", default="video_01")
     parser.add_argument("--host", default="http://localhost:11434/v1")
-    parser.add_argument("--model", default="qwen3.5:27b")
+    parser.add_argument("--model", default="deepseek-r1:32b")
     parser.add_argument("--system-prompt", default=None)
     parser.add_argument("--input-dir", default=None)
     parser.add_argument("--temperature", type=float, default=0.3)

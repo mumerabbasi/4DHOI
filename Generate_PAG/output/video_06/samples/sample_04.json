@@ -62,23 +62,23 @@
       "is_continuous": false
     }
   ],
-  "interaction": "Person 1 holds a heavy boxing bag with both hands steadily while Person 2 strikes it with alternating punches at an extremely slow pace. Person 1's hands remain fixed. Person 2's arms swing slowly between punches, fists making intermittent contact, causing the bag to sway gently. The bag exhibits slight translational and rotational motion upon impact. Both participants move their non-contacting limbs slowly. Person 1 has short black hair, a neutral expression, wearing a gray shirt, blue jeans, and white sneakers. Person 2 has long brown hair, a focused expression, wearing a black tank top, black shorts, and black shoes. The setting is a clean, spacious indoor area with white walls and a wooden floor.",
+  "interaction": "Two people are interacting with a boxing bag in a clean, spacious indoor area. Person 1 is holding the heavy boxing bag steadily with both hands while person 2 strikes it with alternating punches from their left and right hands. All movements occur at an extremely slow pace to ensure realism. Person 1 has short black hair and a neutral facial expression, wearing a white t-shirt, black shorts, and black sneakers. Person 2 has medium-length brown hair and a focused facial expression, wearing a red tank top, gym shorts, and white boxing gloves. The boxing bag is a standard heavy punching bag with a dark leather finish.",
   "object states": [
     {
       "name": "boxing bag",
-      "is_translational": true,
-      "is_rotational": true,
-      "description": "the heavy boxing bag being held and struck by others"
+      "is_translational": false,
+      "is_rotational": false,
+      "description": "the heavy punching bag being held and struck"
     }
   ],
   "human states": [
     {
       "name": "person 1",
-      "description": "the person with short black hair wearing gray shirt holding the bag"
+      "description": "the person with short black hair who is wearing white t-shirt and holding the boxing bag"
     },
     {
       "name": "person 2",
-      "description": "the person with long brown hair wearing black tank top striking the bag"
+      "description": "the person with medium-length brown hair who is wearing red tank top and striking the boxing bag"
     }
   ]
 }

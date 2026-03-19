@@ -1,8 +1,8 @@
 {
   "object part nodes": [
-    "harp, strings",
-    "harp, neck",
     "harp, soundboard",
+    "harp, neck",
+    "harp, strings",
     "4-legged stool, seat",
     "4-legged stool, legs"
   ],
@@ -46,25 +46,25 @@
       "is_continuous": true
     }
   ],
-  "interaction": "A person is sitting on a stool and playing a harp at an extremely slow pace. Their right hand strums the harp strings continuously while their left hand holds the harp neck steady. Their hips rest continuously on the stool seat. Non-contact arms swing gently. The person has long brown hair and a focused facial expression. They wear a white dress and black flats. The scene takes place in a clean, spacious indoor area with white walls and a wooden floor. The harp is wooden with golden strings. The stool is simple and wooden. All movements are slow and deliberate.",
+  "interaction": "A person is sitting on a 4-legged stool and playing a harp at an extremely slow pace. Their right hand gently strums the strings while their left hand holds the neck steady. The harp has a classic design with a wooden soundboard and metal strings. The stool has a simple, sturdy appearance with four legs supporting a flat seat. The person has long brown hair, a calm facial expression, wears a white blouse, black pants, and brown loafers. The scene is set in a clean, spacious indoor area with white walls and a wooden floor.",
   "object states": [
     {
       "name": "harp",
-      "is_translational": false,
+      "is_translational": true,
       "is_rotational": false,
-      "description": "the wooden harp being held and played"
+      "description": "the harp being played with strings strummed"
     },
     {
       "name": "4-legged stool",
       "is_translational": false,
       "is_rotational": false,
-      "description": "the wooden stool being sat upon"
+      "description": "the 4-legged stool supporting the person"
     }
   ],
   "human states": [
     {
       "name": "person 1",
-      "description": "the person with long brown hair wearing white dress playing harp"
+      "description": "the person with long brown hair wearing white blouse and black pants playing the harp while sitting on a stool"
     }
   ]
 }

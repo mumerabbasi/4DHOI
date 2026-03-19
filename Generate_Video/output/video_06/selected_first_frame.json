@@ -3,7 +3,7 @@
   "frames_dir": "first_frames",
   "pag_path": "/my_workspace/4DHHOI/4DHOI/Generate_PAG/output/video_06/output_pag_qwen3_5_27b.json",
   "prompt_file": "/my_workspace/4DHHOI/4DHOI/Generate_Video/prompt_select_first_frame.md",
-  "model": "qwen3.5:27b",
+  "model": "qwen3-vl:32b-thinking:27b",
   "selected_frame": "frame_00.png",
   "selected_frame_path": "first_frames/frame_00.png",
   "rounds": [

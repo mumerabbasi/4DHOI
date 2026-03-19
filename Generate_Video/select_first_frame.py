@@ -12,7 +12,7 @@ from PIL import Image
 
 OLLAMA_HOST = "http://127.0.0.1:11434/v1"
 OLLAMA_API_KEY = "ollama"
-QWEN_MODEL = "qwen3.5:27b"
+QWEN_MODEL = "qwen3-vl:32b-thinking"
 
 
 def extract_text_content(content: Any) -> str:

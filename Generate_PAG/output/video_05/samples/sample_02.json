@@ -25,14 +25,6 @@
   "interaction edges": [
     {
       "nodes": [
-        "bicycle, handlebar",
-        "person 1, right hand"
-      ],
-      "is_rel_static": true,
-      "is_continuous": true
-    },
-    {
-      "nodes": [
         "umbrella, shaft",
         "person 1, left hand"
       ],
@@ -41,8 +33,8 @@
     },
     {
       "nodes": [
-        "bicycle, seat",
-        "person 1, hips"
+        "bicycle, handlebar",
+        "person 1, right hand"
       ],
       "is_rel_static": true,
       "is_continuous": true
@@ -62,27 +54,35 @@
       ],
       "is_rel_static": true,
       "is_continuous": true
+    },
+    {
+      "nodes": [
+        "bicycle, seat",
+        "person 1, hips"
+      ],
+      "is_rel_static": true,
+      "is_continuous": true
     }
   ],
-  "interaction": "A person is riding a bicycle with one hand holding the handlebar and the other holding an umbrella above their head at an extremely slow pace. The scene is a clean, spacious indoor area with white walls and a wooden floor. The person has short black hair and a neutral facial expression. They wear a gray shirt, blue jeans, and white sneakers. The bicycle has a black frame. The right hand grips the handlebar continuously, while the left hand holds the umbrella shaft. The umbrella canopy is open. The person pedals steadily, keeping hips on the seat. The head remains upright, looking forward. The motion is smooth, with the bicycle translating forward without rotation. The environment supports the action without complexity.",
+  "interaction": "A person is riding a bicycle at a slow pace while holding an umbrella above their head. The right hand grips the handlebar firmly, and the left hand holds the umbrella's shaft steadily. Both feet remain securely on the pedals, and the hips rest comfortably on the seat. The scene takes place in a clean, spacious indoor area with white walls and a wooden floor. The person has short brown hair, a neutral facial expression, wears a gray shirt, blue jeans, and black sneakers.",
   "object states": [
     {
       "name": "umbrella",
-      "is_translational": true,
+      "is_translational": false,
       "is_rotational": false,
-      "description": "the open umbrella being held above head"
+      "description": "the umbrella being held above the head"
     },
     {
       "name": "bicycle",
       "is_translational": true,
       "is_rotational": false,
-      "description": "the bicycle being ridden while holding umbrella"
+      "description": "the bicycle being ridden with handlebar and pedals in use"
     }
   ],
   "human states": [
     {
       "name": "person 1",
-      "description": "the person with short black hair wearing gray shirt riding bike holding umbrella"
+      "description": "the person with short brown hair who is wearing gray shirt and blue jeans while riding the bicycle and holding the umbrella"
     }
   ]
 }

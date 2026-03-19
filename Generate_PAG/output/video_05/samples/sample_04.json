@@ -1,12 +1,12 @@
 {
   "object part nodes": [
+    "umbrella, canopy",
+    "umbrella, shaft",
     "bicycle, handlebar",
     "bicycle, pedal",
     "bicycle, seat",
     "bicycle, frame tubes",
-    "bicycle, wheels",
-    "umbrella, canopy",
-    "umbrella, shaft"
+    "bicycle, wheels"
   ],
   "body part nodes": [
     "person 1, left hand",
@@ -26,9 +26,17 @@
     {
       "nodes": [
         "bicycle, handlebar",
-        "person 1, left hand"
+        "person 1, right hand"
       ],
       "is_rel_static": true,
+      "is_continuous": true
+    },
+    {
+      "nodes": [
+        "umbrella, shaft",
+        "person 1, left hand"
+      ],
+      "is_rel_static": false,
       "is_continuous": true
     },
     {
@@ -38,51 +46,27 @@
       ],
       "is_rel_static": true,
       "is_continuous": true
-    },
-    {
-      "nodes": [
-        "bicycle, pedal",
-        "person 1, left foot"
-      ],
-      "is_rel_static": true,
-      "is_continuous": true
-    },
-    {
-      "nodes": [
-        "bicycle, pedal",
-        "person 1, right foot"
-      ],
-      "is_rel_static": true,
-      "is_continuous": true
-    },
-    {
-      "nodes": [
-        "umbrella, shaft",
-        "person 1, right hand"
-      ],
-      "is_rel_static": true,
-      "is_continuous": true
     }
   ],
-  "interaction": "A person is riding a bicycle at an extremely slow pace in a clean, spacious indoor area with white walls and a wooden floor. Their left hand grips the handlebar firmly while the right hand holds an umbrella shaft above their head. The bicycle moves forward smoothly. The person has short black hair and a neutral facial expression. They wear a gray shirt, blue jeans, and white sneakers. The umbrella is open with a black canopy. The scene is calm and steady, focusing on the balance required to ride with one hand while holding the umbrella overhead. Non-contact body parts move expressively in slow motion to maintain equilibrium during the ride. The bicycle frame is black.",
+  "interaction": "A person is riding a bicycle with one hand holding the handlebar and the other hand holding an umbrella above their head. The interaction occurs at a slow pace in a clean, spacious indoor area with white walls and a wooden floor. The person's right hand grips the handlebar firmly, while the left hand holds the umbrella shaft. The bicycle moves forward smoothly, and the umbrella remains steady above the person's head. The person has short black hair and a neutral facial expression. They wear a gray shirt, blue jeans, and white sneakers.",
   "object states": [
-    {
-      "name": "bicycle",
-      "is_translational": true,
-      "is_rotational": false,
-      "description": "the bicycle having a black frame and being ridden"
-    },
     {
       "name": "umbrella",
       "is_translational": true,
       "is_rotational": false,
-      "description": "the open umbrella being held above head"
+      "description": "the open umbrella being held above the head"
+    },
+    {
+      "name": "bicycle",
+      "is_translational": true,
+      "is_rotational": false,
+      "description": "the bicycle being ridden with one hand on the handlebar"
     }
   ],
   "human states": [
     {
       "name": "person 1",
-      "description": "the person with short black hair who is wearing gray shirt and blue jeans"
+      "description": "the person with short black hair who is wearing gray shirt and blue jeans while riding and holding an umbrella"
     }
   ]
 }

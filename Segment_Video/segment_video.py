@@ -13,6 +13,7 @@ import base64
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
@@ -22,7 +23,7 @@ from openai import OpenAI
 # Ollama configuration
 OLLAMA_HOST = "http://127.0.0.1:11434/v1"
 OLLAMA_API_KEY = "ollama"
-QWEN_MODEL = "qwen3.5:27b"
+QWEN_MODEL = "qwen3-vl:32b-thinking"
 
 # SAM3 configuration
 SAM3_CHECKPOINT = None
@@ -126,11 +127,12 @@ def _detect_bboxes_qwen(
     names: list[str],
     image_width: int,
     image_height: int,
+    reasoning_effort: str | None,
 ) -> dict[str, list[int] | None]:
     try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "messages": [
                 {
                     "role": "user",
                     "content": [
@@ -142,9 +144,13 @@ def _detect_bboxes_qwen(
                     ],
                 }
             ],
-            temperature=0.1,
-            max_tokens=2048,
-        )
+            "temperature": 0.1,
+            "max_tokens": 2048,
+        }
+        if reasoning_effort is not None:
+            kwargs["reasoning_effort"] = reasoning_effort
+
+        response = client.chat.completions.create(**kwargs)
         response_text = _extract_text_content(response.choices[0].message.content)
         return _parse_bbox_response(response_text, names, image_width, image_height)
     except Exception as e:
@@ -159,6 +165,7 @@ def detect_objects_qwen(
     objects: list[str],
     image_width: int,
     image_height: int,
+    reasoning_effort: str | None,
 ) -> dict[str, list[int] | None]:
     """Use Qwen-VL to detect bounding boxes for objects in the first frame."""
     image_b64 = encode_numpy_image_base64(image)
@@ -182,6 +189,7 @@ Detect all objects listed above."""
         names=objects,
         image_width=image_width,
         image_height=image_height,
+        reasoning_effort=reasoning_effort,
     )
 
 
@@ -192,6 +200,7 @@ def detect_humans_qwen(
     humans: dict[str, str],
     image_width: int,
     image_height: int,
+    reasoning_effort: str | None,
 ) -> dict[str, list[int] | None]:
     """Use Qwen-VL to detect bounding boxes for humans in the first frame."""
     image_b64 = encode_numpy_image_base64(image)
@@ -223,6 +232,7 @@ Detect all people listed above."""
         names=list(humans.keys()),
         image_width=image_width,
         image_height=image_height,
+        reasoning_effort=reasoning_effort,
     )
 
 
@@ -234,6 +244,7 @@ def detect_parts_qwen(
     object_name: str,
     image_width: int,
     image_height: int,
+    reasoning_effort: str | None,
 ) -> dict[str, list[int] | None]:
     """Use Qwen-VL to detect bounding boxes for object parts."""
     image_b64 = encode_numpy_image_base64(image)
@@ -258,6 +269,7 @@ Detect all parts listed above."""
         names=parts,
         image_width=image_width,
         image_height=image_height,
+        reasoning_effort=reasoning_effort,
     )
 
 
@@ -621,6 +633,7 @@ def process_video(
     predictor,
     qwen_client: OpenAI,
     qwen_model: str,
+    reasoning_effort: str | None,
     mask_postprocess: bool = False,
 ) -> None:
     """Process a video to segment objects, parts, and humans."""
@@ -638,7 +651,13 @@ def process_video(
 
         print("\n[Human Step 1] Detecting humans in frame 0 with Qwen-VL...")
         human_bboxes = detect_humans_qwen(
-            qwen_client, qwen_model, first_frame, humans_dict, width, height
+            qwen_client,
+            qwen_model,
+            first_frame,
+            humans_dict,
+            width,
+            height,
+            reasoning_effort,
         )
 
         for name, bbox in human_bboxes.items():
@@ -682,7 +701,13 @@ def process_video(
 
     print("\n[Object Step 1] Detecting objects in frame 0 with Qwen-VL...")
     object_bboxes = detect_objects_qwen(
-        qwen_client, qwen_model, first_frame, objects, width, height
+        qwen_client,
+        qwen_model,
+        first_frame,
+        objects,
+        width,
+        height,
+        reasoning_effort,
     )
 
     for obj, bbox in object_bboxes.items():
@@ -723,7 +748,14 @@ def process_video(
 
         print(f"\n[Object Step 3] Detecting parts {parts} in frame 0...")
         part_bboxes = detect_parts_qwen(
-            qwen_client, qwen_model, first_frame, parts, obj_name, width, height
+            qwen_client,
+            qwen_model,
+            first_frame,
+            parts,
+            obj_name,
+            width,
+            height,
+            reasoning_effort,
         )
 
         for part, bbox in part_bboxes.items():
@@ -808,6 +840,15 @@ def main():
         default=QWEN_MODEL,
         help="Qwen-VL model name served by Ollama.",
     )
+    parser.add_argument(
+        "--reasoning-effort",
+        choices=["low", "medium", "high", "none"],
+        default="high",
+        help=(
+            "Reasoning control for Ollama's OpenAI-compatible endpoint. "
+            "Use 'none' to omit the field."
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -828,6 +869,7 @@ def main():
     print(f"Output directory: {output_root}")
     print(f"Ollama host: {args.ollama_host}")
     print(f"Qwen model: {args.qwen_model}")
+    print(f"Reasoning effort: {args.reasoning_effort}")
 
     if args.pag_file:
         pag_path = Path(args.pag_file).resolve()
@@ -851,6 +893,9 @@ def main():
 
     predictor = load_sam3_tracker()
     qwen_client = OpenAI(base_url=args.ollama_host, api_key=args.ollama_api_key)
+    reasoning_effort = None
+    if args.reasoning_effort != "none":
+        reasoning_effort = args.reasoning_effort
 
     process_video(
         video_path=video_file,
@@ -860,6 +905,7 @@ def main():
         predictor=predictor,
         qwen_client=qwen_client,
         qwen_model=args.qwen_model,
+        reasoning_effort=reasoning_effort,
         mask_postprocess=args.mask_postprocess,
     )
 

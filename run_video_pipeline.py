@@ -673,7 +673,7 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument("--video_name", required=True)
-    parser.add_argument("--start-stage", choices=STAGES, default=STAGES[4])
+    parser.add_argument("--start-stage", choices=STAGES, default=STAGES[0])
     parser.add_argument("--end-stage", choices=STAGES, default=STAGES[-1])
     parser.add_argument(
         "--force",
@@ -703,11 +703,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--no-start-ollama", dest="start_ollama", action="store_false")
     parser.add_argument("--ollama-wait-seconds", type=int, default=60)
-    parser.add_argument("--qwen-model", default="qwen3.5:27b")
+    parser.add_argument("--qwen-model", default="qwen3-vl:32b-thinking")
     parser.add_argument(
         "--qwen-reasoning-effort",
         choices=["low", "medium", "high", "none"],
-        default=None,
+        default="high",
     )
 
     parser.add_argument("--pag-env", default="4dhoi")
