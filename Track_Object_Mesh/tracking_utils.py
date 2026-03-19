@@ -106,7 +106,7 @@ def list_images(frames_dir: Path) -> list[Path]:
 
 def _sanitize_object_name(name: str) -> str:
     """Segment_Video object folder name convention."""
-    return name.strip().replace(" ", "_")
+    return name.strip().replace(" ", "_").replace("-", "_")
 
 
 def _resolve_default_dirs(

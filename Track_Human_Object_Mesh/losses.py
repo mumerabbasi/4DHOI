@@ -345,6 +345,61 @@ def _has_interaction(
     return False
 
 
+def _get_human_device_and_num_frames(
+    humans: dict[str, HumanData],
+) -> tuple[torch.device, int]:
+    if not humans:
+        raise RuntimeError("No humans loaded for optimisation.")
+    first_human = humans[next(iter(humans))]
+    return first_human.base_verts.device, first_human.base_verts.shape[0]
+
+
+def _concat_all_human_points(
+    humans: dict[str, HumanData],
+) -> torch.Tensor:
+    return torch.cat(
+        [humans[slug].base_verts for slug in sorted(humans)],
+        dim=1,
+    )
+
+
+def _build_human_part_getter(
+    humans: dict[str, HumanData],
+    device: torch.device,
+):
+    human_part_cache: dict[tuple[str, ...], torch.Tensor | None] = {}
+
+    def get_human_part_points(
+        human_slug: str | None,
+        part_name: str | list[str],
+    ) -> torch.Tensor | None:
+        if human_slug is None or human_slug not in humans:
+            return None
+        human_data = humans[human_slug]
+        if isinstance(part_name, str):
+            key = (human_slug, part_name)
+            if key not in human_part_cache:
+                human_part_cache[key] = human_data.part_points.get(part_name)
+            return human_part_cache[key]
+
+        key = tuple([human_slug] + sorted(part_name))
+        if key not in human_part_cache:
+            part_ids = [
+                human_data.part_vert_ids[name]
+                for name in part_name
+                if name in human_data.part_vert_ids
+            ]
+            if not part_ids:
+                human_part_cache[key] = None
+            else:
+                merged = np.unique(np.concatenate(part_ids, axis=0))
+                index = torch.from_numpy(merged.astype(np.int64)).to(device)
+                human_part_cache[key] = human_data.base_verts.index_select(1, index)
+        return human_part_cache[key]
+
+    return get_human_part_points
+
+
 def _one_way_2d_chamfer_diagnostic(
     observed_points,
     model_points_world: torch.Tensor,
@@ -379,7 +434,7 @@ def compute_all_losses(
     delta_trans: dict[str, torch.Tensor],
     raw_scale_deltas: dict[str, torch.Tensor],
     objects: dict[str, ObjectData],
-    human_data: HumanData,
+    humans: dict[str, HumanData],
     interaction_edges: list[InteractionEdge],
     obj_keys: list[str],
     args: argparse.Namespace,
@@ -389,7 +444,7 @@ def compute_all_losses(
     width: int,
     height: int,
 ) -> LossResult:
-    device = human_data.base_verts.device
+    device, _ = _get_human_device_and_num_frames(humans)
     weights = get_loss_weights(args, iteration, total_iters)
     eff_T, eff_rot_mats, eff_trans, eff_scales = _build_effective_object_state(
         delta_rotvecs,
@@ -418,29 +473,7 @@ def compute_all_losses(
             )
         return object_points_cache[key]
 
-    human_part_cache: dict[tuple[str, ...], torch.Tensor | None] = {}
-
-    def get_human_part_points(part_name: str | list[str]) -> torch.Tensor | None:
-        if isinstance(part_name, str):
-            key = (part_name,)
-            if key not in human_part_cache:
-                human_part_cache[key] = human_data.part_points.get(part_name)
-            return human_part_cache[key]
-
-        key = tuple(sorted(part_name))
-        if key not in human_part_cache:
-            part_ids = [
-                human_data.part_vert_ids[name]
-                for name in part_name
-                if name in human_data.part_vert_ids
-            ]
-            if not part_ids:
-                human_part_cache[key] = None
-            else:
-                merged = np.unique(np.concatenate(part_ids, axis=0))
-                index = torch.from_numpy(merged.astype(np.int64)).to(device)
-                human_part_cache[key] = human_data.base_verts.index_select(1, index)
-        return human_part_cache[key]
+    get_human_part_points = _build_human_part_getter(humans, device)
 
     def to_canonical(slug: str, points_world: torch.Tensor) -> torch.Tensor:
         return apply_inverse_similarity_sequence(
@@ -529,10 +562,11 @@ def compute_all_losses(
     else:
         loss_object_scale = torch.tensor(0.0, device=device)
 
+    all_human_points = _concat_all_human_points(humans)
     intersect_values: list[torch.Tensor] = []
     for slug in obj_keys:
         scalar, _ = _compute_intersect_diagnostic(
-            human_data.base_verts,
+            all_human_points,
             objects[slug],
             eff_T[slug],
             eff_scales[slug],
@@ -580,7 +614,7 @@ def compute_all_losses(
             if hpart in ("head", "hips"):
                 visited.add((hname, hpart, oname, opart))
                 visited.add((oname, opart, hname, hpart))
-                human_points = get_human_part_points(hpart)
+                human_points = get_human_part_points(human_node.human_slug, hpart)
                 pdists = pcd_distance(human_points, object_points, reduction=reduction)
                 if human_points is not None:
                     pcano = to_canonical(object_node.object_slug, human_points)
@@ -606,6 +640,7 @@ def compute_all_losses(
                 )
                 if has_left and has_right:
                     human_points = get_human_part_points(
+                        human_node.human_slug,
                         [f"left {hpart}", f"right {hpart}"]
                     )
                     pdists = pcd_distance(
@@ -616,8 +651,14 @@ def compute_all_losses(
                     if human_points is not None:
                         pcano = to_canonical(object_node.object_slug, human_points)
                 else:
-                    human_points_left = get_human_part_points(f"left {hpart}")
-                    human_points_right = get_human_part_points(f"right {hpart}")
+                    human_points_left = get_human_part_points(
+                        human_node.human_slug,
+                        f"left {hpart}",
+                    )
+                    human_points_right = get_human_part_points(
+                        human_node.human_slug,
+                        f"right {hpart}",
+                    )
                     pdists_left = pcd_distance(
                         human_points_left,
                         object_points,
@@ -726,7 +767,7 @@ def compute_final_loss_diagnostics(
     delta_trans: dict[str, torch.Tensor],
     raw_scale_deltas: dict[str, torch.Tensor],
     objects: dict[str, ObjectData],
-    human_data: HumanData,
+    humans: dict[str, HumanData],
     interaction_edges: list[InteractionEdge],
     obj_keys: list[str],
     args: argparse.Namespace,
@@ -736,14 +777,13 @@ def compute_final_loss_diagnostics(
     width: int,
     height: int,
 ) -> DiagnosticLossResult:
-    device = human_data.base_verts.device
-    num_frames = human_data.base_verts.shape[0]
+    device, num_frames = _get_human_device_and_num_frames(humans)
     sequence = compute_all_losses(
         delta_rotvecs,
         delta_trans,
         raw_scale_deltas,
         objects,
-        human_data,
+        humans,
         interaction_edges,
         obj_keys,
         args,
@@ -781,29 +821,7 @@ def compute_final_loss_diagnostics(
             )
         return object_points_cache[key]
 
-    human_part_cache: dict[tuple[str, ...], torch.Tensor | None] = {}
-
-    def get_human_part_points(part_name: str | list[str]) -> torch.Tensor | None:
-        if isinstance(part_name, str):
-            key = (part_name,)
-            if key not in human_part_cache:
-                human_part_cache[key] = human_data.part_points.get(part_name)
-            return human_part_cache[key]
-
-        key = tuple(sorted(part_name))
-        if key not in human_part_cache:
-            part_ids = [
-                human_data.part_vert_ids[name]
-                for name in part_name
-                if name in human_data.part_vert_ids
-            ]
-            if not part_ids:
-                human_part_cache[key] = None
-            else:
-                merged = np.unique(np.concatenate(part_ids, axis=0))
-                index = torch.from_numpy(merged.astype(np.int64)).to(device)
-                human_part_cache[key] = human_data.base_verts.index_select(1, index)
-        return human_part_cache[key]
+    get_human_part_points = _build_human_part_getter(humans, device)
 
     def to_canonical(slug: str, points_world: torch.Tensor) -> torch.Tensor:
         return apply_inverse_similarity_sequence(
@@ -819,6 +837,7 @@ def compute_final_loss_diagnostics(
     global_raw = {
         "object_scale": sequence.object_scale.detach().clone(),
     }
+    all_human_points = _concat_all_human_points(humans)
 
     per_frame_raw["tracking"] = _compute_tracking_per_frame(
         delta_rotvecs,
@@ -884,7 +903,7 @@ def compute_final_loss_diagnostics(
             )
 
             _, intersect_frames = _compute_intersect_diagnostic(
-                human_data.base_verts,
+                all_human_points,
                 objects[slug],
                 eff_T[slug],
                 eff_scales[slug],
@@ -936,7 +955,7 @@ def compute_final_loss_diagnostics(
             if hpart in ("head", "hips"):
                 visited.add((hname, hpart, oname, opart))
                 visited.add((oname, opart, hname, hpart))
-                human_points = get_human_part_points(hpart)
+                human_points = get_human_part_points(human_node.human_slug, hpart)
                 pdists = pcd_distance(human_points, object_points, reduction=reduction)
                 if human_points is not None:
                     pcano = to_canonical(object_node.object_slug, human_points)
@@ -961,6 +980,7 @@ def compute_final_loss_diagnostics(
                 )
                 if has_left and has_right:
                     human_points = get_human_part_points(
+                        human_node.human_slug,
                         [f"left {hpart}", f"right {hpart}"]
                     )
                     pdists = pcd_distance(
@@ -971,8 +991,14 @@ def compute_final_loss_diagnostics(
                     if human_points is not None:
                         pcano = to_canonical(object_node.object_slug, human_points)
                 else:
-                    human_points_left = get_human_part_points(f"left {hpart}")
-                    human_points_right = get_human_part_points(f"right {hpart}")
+                    human_points_left = get_human_part_points(
+                        human_node.human_slug,
+                        f"left {hpart}",
+                    )
+                    human_points_right = get_human_part_points(
+                        human_node.human_slug,
+                        f"right {hpart}",
+                    )
                     pdists_left = pcd_distance(
                         human_points_left,
                         object_points,

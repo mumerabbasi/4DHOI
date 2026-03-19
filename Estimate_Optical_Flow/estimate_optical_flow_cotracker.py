@@ -21,16 +21,32 @@ from optical_flow_utils import (
 )
 
 
+def build_default_paths(video_name: str, script_dir: Path) -> tuple[Path, Path, Path]:
+    """Build default video, segmentation, and output directories for one video."""
+    project_dir = script_dir.parent
+    video_dir = project_dir / "Generate_Video" / "output" / video_name
+    segment_video_dir = project_dir / "Segment_Video" / "output" / video_name
+    output_dir = script_dir / "output_cotracker" / video_name
+    return video_dir, segment_video_dir, output_dir
+
+
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments."""
     parser = argparse.ArgumentParser(
         description="Run CoTracker3 offline tracking per object for a video_xx directory."
     )
     parser.add_argument(
-        "--video_dir",
-        default="../Generate_Video/output/video_01",
+        "--video_name",
+        default="video_01",
         type=str,
-        help="Path to directory like */output/video_xx containing one .mp4.",
+        help="Video name used to build default paths for the other arguments.",
+    )
+    parser.add_argument(
+        "--video_dir",
+        default=None,
+        type=str,
+        help="Path to directory like */output/video_xx containing one .mp4. "
+        "Defaults to ../Generate_Video/output/<video_name>/.",
     )
     parser.add_argument(
         "--segment_video_dir",
@@ -237,23 +253,28 @@ def main() -> None:
     if int(args.track_point_max) <= 0:
         raise ValueError(f"--track_point_max must be > 0, got {args.track_point_max}")
 
-    video_dir = resolve_path(args.video_dir, script_dir)
+    default_video_dir, default_segmentation_dir, default_output_video_dir = (
+        build_default_paths(args.video_name, script_dir)
+    )
+
+    video_dir = (
+        resolve_path(args.video_dir, script_dir) if args.video_dir else default_video_dir
+    )
     if not video_dir.exists() or not video_dir.is_dir():
         raise NotADirectoryError(f"Video dir not found: {video_dir}")
 
-    video_name = video_dir.name
     video_mp4 = find_single_mp4(video_dir)
 
     if args.segment_video_dir is not None:
         segmentation_dir = resolve_path(args.segment_video_dir, script_dir)
     else:
-        segmentation_dir = (script_dir.parent / "Segment_Video" / "output" / video_name).resolve()
+        segmentation_dir = default_segmentation_dir
 
     if not segmentation_dir.exists() or not segmentation_dir.is_dir():
         raise NotADirectoryError(f"Segment_Video dir not found: {segmentation_dir}")
 
     if args.output_dir is None:
-        output_video_dir = (script_dir / "output_cotracker" / video_name).resolve()
+        output_video_dir = default_output_video_dir
     else:
         output_video_dir = resolve_path(args.output_dir, script_dir)
     output_video_dir.mkdir(parents=True, exist_ok=True)

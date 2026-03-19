@@ -1,0 +1,88 @@
+{
+  "object part nodes": [
+    "bicycle, handlebar",
+    "bicycle, pedal",
+    "bicycle, seat",
+    "bicycle, frame tubes",
+    "bicycle, wheels",
+    "umbrella, canopy",
+    "umbrella, shaft"
+  ],
+  "body part nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, left arm",
+    "person 1, right arm",
+    "person 1, left shoulder",
+    "person 1, right shoulder",
+    "person 1, left leg",
+    "person 1, right leg",
+    "person 1, left foot",
+    "person 1, right foot",
+    "person 1, head",
+    "person 1, hips"
+  ],
+  "interaction edges": [
+    {
+      "nodes": [
+        "bicycle, handlebar",
+        "person 1, left hand"
+      ],
+      "is_rel_static": true,
+      "is_continuous": true
+    },
+    {
+      "nodes": [
+        "bicycle, seat",
+        "person 1, hips"
+      ],
+      "is_rel_static": true,
+      "is_continuous": true
+    },
+    {
+      "nodes": [
+        "bicycle, pedal",
+        "person 1, left foot"
+      ],
+      "is_rel_static": true,
+      "is_continuous": true
+    },
+    {
+      "nodes": [
+        "bicycle, pedal",
+        "person 1, right foot"
+      ],
+      "is_rel_static": true,
+      "is_continuous": true
+    },
+    {
+      "nodes": [
+        "umbrella, shaft",
+        "person 1, right hand"
+      ],
+      "is_rel_static": true,
+      "is_continuous": true
+    }
+  ],
+  "interaction": "A person is riding a bicycle at an extremely slow pace in a clean, spacious indoor area with white walls and a wooden floor. Their left hand grips the handlebar firmly while the right hand holds an umbrella shaft above their head. The bicycle moves forward smoothly. The person has short black hair and a neutral facial expression. They wear a gray shirt, blue jeans, and white sneakers. The umbrella is open with a black canopy. The scene is calm and steady, focusing on the balance required to ride with one hand while holding the umbrella overhead. Non-contact body parts move expressively in slow motion to maintain equilibrium during the ride. The bicycle frame is black.",
+  "object states": [
+    {
+      "name": "bicycle",
+      "is_translational": true,
+      "is_rotational": false,
+      "description": "the bicycle having a black frame and being ridden"
+    },
+    {
+      "name": "umbrella",
+      "is_translational": true,
+      "is_rotational": false,
+      "description": "the open umbrella being held above head"
+    }
+  ],
+  "human states": [
+    {
+      "name": "person 1",
+      "description": "the person with short black hair who is wearing gray shirt and blue jeans"
+    }
+  ]
+}

@@ -138,22 +138,8 @@ def resolve_pag_path(args: argparse.Namespace, script_dir: Path) -> Path:
 
 
 def _sanitize_object_name(name: str) -> str:
-    """Match the object slug convention used by tracking scripts."""
-    return name.strip().replace(" ", "_")
-
-
-def _slugify_like_align(text: str) -> str:
-    """Mirror Align_Meshes slugify convention for fallback mesh lookup."""
-    out = []
-    for ch in text.strip().lower():
-        if ch.isalnum() or ch in "()":
-            out.append(ch)
-        else:
-            out.append("_")
-    slug = "".join(out)
-    while "__" in slug:
-        slug = slug.replace("__", "_")
-    return slug.strip("_") or "mesh"
+    """Match the repo slug convention used across object-processing scripts."""
+    return name.strip().replace(" ", "_").replace("-", "_")
 
 
 def load_pag_objects_from_states_only(pag_path: Path) -> list[tuple[str, str]]:
@@ -254,8 +240,7 @@ def resolve_object_mesh_path(
 
     slug_candidates = [
         object_slug,
-        _slugify_like_align(object_name),
-        object_slug.lower(),
+        _sanitize_object_name(object_name),
     ]
     for slug in slug_candidates:
         if slug in meshes_by_slug:

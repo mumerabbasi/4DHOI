@@ -57,6 +57,8 @@ class SDFGrid:
 
 @dataclass
 class HumanData:
+    name: str
+    slug: str
     base_verts: torch.Tensor
     faces: np.ndarray
     faces_torch: torch.Tensor
@@ -95,6 +97,7 @@ class InteractionNode:
     entity_name: str
     part_name: str
     is_human: bool
+    human_slug: str | None
     object_slug: str | None
     resolved_part_name: str | None
     vert_ids: np.ndarray
@@ -192,9 +195,8 @@ class ProblemContext:
     height: int
     num_frames: int
     pag: PAG
-    human_verts_np: np.ndarray
-    human_faces: np.ndarray
-    human_data: HumanData
+    humans: dict[str, HumanData]
+    human_keys: list[str]
     objects: dict[str, ObjectData]
     obj_keys: list[str]
     interaction_edges: list[InteractionEdge]
@@ -212,5 +214,5 @@ class OptimizationResult:
     final_diagnostic: DiagnosticLossResult
     final_T_mats: dict[str, np.ndarray]
     final_scales: dict[str, float]
-    final_human_verts_np: np.ndarray
+    final_human_verts_np_by_slug: dict[str, np.ndarray]
     object_delta_stats: dict[str, dict[str, Any]]

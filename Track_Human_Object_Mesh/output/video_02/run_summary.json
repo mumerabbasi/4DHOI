@@ -3,14 +3,15 @@
   "status": "completed",
   "script": "track_human_object_mesh.py",
   "num_frames": 81,
+  "num_humans": 1,
   "num_objects": 2,
   "num_edges": 2,
-  "best_total_loss": 1.869773030281067,
-  "optimisation_time_s": 184.529870249331,
-  "best_iter": 798,
+  "best_total_loss": 1.9026341438293457,
+  "optimisation_time_s": 153.84029944008216,
+  "best_iter": 799,
   "inputs": {
     "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02",
-    "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_cotracker/video_02",
+    "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_02",
     "segment_object_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output/video_02",
     "pag_file": "/my_workspace/4DHHOI/4DHOI/Generate_PAG/output/video_02/output_pag_deepseek_r1_32b.json",
     "smpl_seg_json": "/my_workspace/4DHHOI/GVHMR/hmr4d/utils/body_model/smpl_vert_segmentation.json",
@@ -184,7 +185,7 @@
       ],
       "is_translational": true,
       "is_rotational": true,
-      "final_scale": 0.95736163854599
+      "final_scale": 0.9569359421730042
     },
     "dumbbell_(right_hand)": {
       "name": "dumbbell (right hand)",
@@ -197,15 +198,19 @@
       ],
       "is_translational": true,
       "is_rotational": true,
-      "final_scale": 0.9759073853492737
+      "final_scale": 0.9758951663970947
     }
   },
-  "human": {
-    "status": "fixed_copy",
-    "source": "aligned_human_input",
-    "num_frames": 81,
-    "num_verts": 6890,
-    "num_faces": 13776
+  "humans": {
+    "person_1": {
+      "status": "fixed_copy",
+      "source": "aligned_human_input",
+      "name": "person 1",
+      "slug": "person_1",
+      "num_frames": 81,
+      "num_verts": 6890,
+      "num_faces": 13776
+    }
   },
   "edges": [
     {

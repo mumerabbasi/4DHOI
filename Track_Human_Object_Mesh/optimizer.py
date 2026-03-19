@@ -30,10 +30,11 @@ def _print_optimization_header(
     print(f"  video:    {args.video_name}")
     print(f"  device:   {context.device}")
     print(f"  frames:   {context.num_frames}")
+    print(f"  humans:   {', '.join(context.human_keys)}")
     print(f"  objects:  {', '.join(context.obj_keys)}")
     print(f"  edges:    {len(context.interaction_edges)}")
     print(
-        f"  human:    fixed  object_scale: "
+        f"  humans:   fixed  object_scale: "
         f"{'on' if args.optimize_object_scale else 'off'}"
     )
     print(
@@ -106,7 +107,7 @@ def run_joint_optimization(
             delta_trans,
             raw_scale_deltas,
             context.objects,
-            context.human_data,
+            context.humans,
             context.interaction_edges,
             context.obj_keys,
             args,
@@ -192,7 +193,7 @@ def run_joint_optimization(
             delta_trans,
             raw_scale_deltas,
             context.objects,
-            context.human_data,
+            context.humans,
             context.interaction_edges,
             context.obj_keys,
             args,
@@ -274,6 +275,9 @@ def run_joint_optimization(
         final_diagnostic=final_diagnostic,
         final_T_mats=final_T_mats,
         final_scales=final_scales,
-        final_human_verts_np=context.human_verts_np.copy(),
+        final_human_verts_np_by_slug={
+            slug: context.humans[slug].base_verts.detach().cpu().numpy().copy()
+            for slug in context.human_keys
+        },
         object_delta_stats=object_delta_stats,
     )

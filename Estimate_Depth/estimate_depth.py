@@ -167,23 +167,38 @@ def parse_device(device: str) -> torch.device:
     return torch.device(device)
 
 
+def build_default_paths(video_name: str, script_dir: Path) -> tuple[Path, Path]:
+    """Build default input/output paths for a given video name."""
+    project_dir = script_dir.parent
+    video_dir = project_dir / "Generate_Video" / "output" / video_name
+    output_root = script_dir / "output"
+    return video_dir, output_root
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Extract first frame and estimate depth + pose using Depth Anything 3."
     )
     parser.add_argument(
+        "--video_name",
+        type=str,
+        default="video_01",
+        help="Video name used to build default paths for the other arguments.",
+    )
+    parser.add_argument(
         "--video_dir",
         type=str,
-        default="../Generate_Video/output/video_01",
+        default=None,
         help=(
             "Directory like */video_xx containing exactly one .mp4, "
-            "or a direct path to an .mp4 file."
+            "or a direct path to an .mp4 file. "
+            "Defaults to ../Generate_Video/output/<video_name>/."
         ),
     )
     parser.add_argument(
         "--output_root",
         type=str,
-        default="./output",
+        default=None,
         help="Output root directory. Final output is <output_root>/<video_xx>.",
     )
     parser.add_argument(
@@ -248,7 +263,11 @@ def main() -> None:
     args = parse_args()
     script_dir = Path(__file__).resolve().parent
 
-    video_input = resolve_path(args.video_dir, script_dir)
+    default_video_dir, default_output_root = build_default_paths(args.video_name, script_dir)
+
+    video_input = (
+        resolve_path(args.video_dir, script_dir) if args.video_dir else default_video_dir
+    )
     if video_input.is_file():
         if video_input.suffix.lower() != ".mp4":
             raise ValueError(f"Expected an .mp4 file, got: {video_input}")
@@ -260,9 +279,13 @@ def main() -> None:
     else:
         raise FileNotFoundError(f"Video input does not exist: {video_input}")
 
-    video_name = video_dir.name
+    video_name = args.video_name
 
-    output_root = resolve_path(args.output_root, script_dir)
+    output_root = (
+        resolve_path(args.output_root, script_dir)
+        if args.output_root
+        else default_output_root
+    )
     output_dir = output_root / video_name
     output_dir.mkdir(parents=True, exist_ok=True)
 

@@ -2369,49 +2369,60 @@ def main() -> None:
             )
         )
 
-    if len(assets) == 0:
-        raise RuntimeError("No object meshes found to align.")
-
-    human_mesh_path = find_first_human_ply(human_video_dir / "output_plys")
-    if not human_mesh_path.exists():
-        raise FileNotFoundError(f"Human mesh not found: {human_mesh_path}")
-    if human_mesh_path.suffix.lower() != ".ply":
-        raise ValueError(f"Human mesh must be a .ply file, got: {human_mesh_path}")
-
     humans_dir = (segmentation_video_dir / "humans").resolve()
     if not humans_dir.exists():
         raise FileNotFoundError(f"Humans mask dir not found: {humans_dir}")
-    human_seg_dir = (humans_dir / "person_1").resolve()
-    if not human_seg_dir.exists():
-        human_candidates = sorted(d for d in humans_dir.iterdir() if d.is_dir())
-        if len(human_candidates) == 0:
-            raise FileNotFoundError(f"No human mask folders found in: {humans_dir}")
-        human_seg_dir = human_candidates[0].resolve()
+    human_motion_humans_dir = (human_video_dir / "humans").resolve()
+    if not human_motion_humans_dir.exists():
+        raise FileNotFoundError(f"Human motion dir not found: {human_motion_humans_dir}")
 
-    human_mask_dir = (human_seg_dir / "masks").resolve()
-    if not human_mask_dir.exists():
-        raise FileNotFoundError(f"Human mask dir not found: {human_mask_dir}")
+    human_seg_dirs = sorted(d.resolve() for d in humans_dir.iterdir() if d.is_dir())
+    if len(human_seg_dirs) == 0:
+        raise FileNotFoundError(f"No human mask folders found in: {humans_dir}")
 
-    human_mask_path = resolve_frame_0000_mask(human_mask_dir)
-    human_mask = load_binary_mask(human_mask_path, (depth_h, depth_w))
-    human_mask = erode_mask(human_mask, int(args.sam3_mask_erode_iters))
+    human_assets: list[MeshAsset] = []
+    for human_seg_dir in human_seg_dirs:
+        human_dir_name = human_seg_dir.name
+        human_mask_dir = (human_seg_dir / "masks").resolve()
+        if not human_mask_dir.exists():
+            raise FileNotFoundError(f"Human mask dir not found: {human_mask_dir}")
 
-    human_verts_src, human_faces, human_vertex_colors = load_mesh(human_mesh_path)
-    assets = [
-        MeshAsset(
-            name="human",
-            slug="human",
-            kind="human",
-            source_mesh_path=human_mesh_path,
-            source_coord="opencv_camera",
-            verts_source=human_verts_src,
-            faces=human_faces,
-            vertex_colors=human_vertex_colors,
-            source_to_cv=np.eye(3, dtype=np.float32),
-            mask_path=human_mask_path,
-            mask=human_mask,
+        human_mesh_dir = (human_motion_humans_dir / human_dir_name / "human_plys").resolve()
+        if not human_mesh_dir.exists():
+            raise FileNotFoundError(
+                f"Human PLY dir not found for '{human_dir_name}': {human_mesh_dir}"
+            )
+
+        human_mesh_path = find_first_human_ply(human_mesh_dir)
+        if not human_mesh_path.exists():
+            raise FileNotFoundError(f"Human mesh not found: {human_mesh_path}")
+        if human_mesh_path.suffix.lower() != ".ply":
+            raise ValueError(f"Human mesh must be a .ply file, got: {human_mesh_path}")
+
+        human_mask_path = resolve_frame_0000_mask(human_mask_dir)
+        human_mask = load_binary_mask(human_mask_path, (depth_h, depth_w))
+        human_mask = erode_mask(human_mask, int(args.sam3_mask_erode_iters))
+
+        human_verts_src, human_faces, human_vertex_colors = load_mesh(human_mesh_path)
+        human_assets.append(
+            MeshAsset(
+                name=human_dir_name,
+                slug=slugify(human_dir_name),
+                kind="human",
+                source_mesh_path=human_mesh_path,
+                source_coord="opencv_camera",
+                verts_source=human_verts_src,
+                faces=human_faces,
+                vertex_colors=human_vertex_colors,
+                source_to_cv=np.eye(3, dtype=np.float32),
+                mask_path=human_mask_path,
+                mask=human_mask,
+            )
         )
-    ] + assets
+
+    assets = human_assets + assets
+    if len(assets) == 0:
+        raise RuntimeError("No human or object meshes found to align.")
 
     names = [a.name for a in assets]
     print(f"Loaded meshes: {names}")

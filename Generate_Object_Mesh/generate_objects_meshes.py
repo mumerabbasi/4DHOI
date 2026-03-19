@@ -119,13 +119,22 @@ def load_binary_mask(mask_path: Path) -> np.ndarray:
     return (mask_gray > 127).astype("uint8")
 
 
+def build_default_paths(video_name: str) -> tuple[Path, Path]:
+    """Build default input/output roots for a given video name."""
+    script_dir = Path(__file__).parent.resolve()
+    project_dir = script_dir.parent
+    input_dir = project_dir / "Segment_Video" / "output" / video_name
+    output_dir = script_dir / "output"
+    return input_dir, output_dir
+
+
 def build_video_context(
+    video_name: str,
     input_dir: Path,
     sam3d: Any,
     mesh_output_root: Path,
 ) -> VideoGenerationContext:
     """Collect all per-video inputs and derived state needed for generation."""
-    video_name = input_dir.name
     output_paths = build_output_paths(mesh_output_root, video_name)
 
     frames_dir = input_dir / "_frames"
@@ -257,6 +266,7 @@ def print_generation_summary(
 
 
 def process_video_directory(
+    video_name: str,
     input_dir: Path,
     sam3d: Any,
     mesh_output_root: Path,
@@ -265,6 +275,7 @@ def process_video_directory(
     simplify_ratio: float,
 ) -> None:
     context = build_video_context(
+        video_name=video_name,
         input_dir=input_dir,
         sam3d=sam3d,
         mesh_output_root=mesh_output_root,
@@ -308,19 +319,27 @@ def process_video_directory(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Generate first-frame object meshes from Segment_Video output (sam3d-objects env)."
+        description="Generate first-frame object meshes from Segment_Video output"
+        "(sam3d-objects env)."
+    )
+    parser.add_argument(
+        "--video_name",
+        type=str,
+        default="video_01",
+        help="Video name used to build default paths for the other arguments.",
     )
     parser.add_argument(
         "--input_dir",
         type=str,
-        default="../Segment_Video/output/video_01",
-        help="Segment_Video output dir with _frames/ and objects/.",
+        default=None,
+        help="Segment_Video output dir with _frames/ and objects/. "
+        "Defaults to ../Segment_Video/output/<video_name>/.",
     )
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="./output",
-        help="Mesh output root (<output_dir>/<video_xx>/).",
+        default=None,
+        help="Mesh output root. Final outputs are written to <output_dir>/<video_name>/.",
     )
     parser.add_argument(
         "--simplify_ratio",
@@ -336,15 +355,11 @@ def main() -> None:
     if not 0.0 <= args.simplify_ratio < 1.0:
         raise ValueError("--simplify_ratio must be in the range [0, 1).")
 
-    input_dir = Path(args.input_dir)
-    if not input_dir.is_absolute():
-        input_dir = Path(__file__).parent / input_dir
-    input_dir = input_dir.resolve()
+    default_input_dir, default_output_dir = build_default_paths(args.video_name)
 
-    output_dir = Path(args.output_dir)
-    if not output_dir.is_absolute():
-        output_dir = Path(__file__).parent / args.output_dir
-    output_dir = output_dir.resolve()
+    input_dir = Path(args.input_dir).resolve() if args.input_dir else default_input_dir
+
+    output_dir = Path(args.output_dir).resolve() if args.output_dir else default_output_dir
 
     overlay_backend = QualityRenderBackend(
         torch=torch,
@@ -360,6 +375,7 @@ def main() -> None:
     print("SAM 3D Objects loaded successfully\n")
 
     process_video_directory(
+        video_name=args.video_name,
         input_dir=input_dir,
         sam3d=sam3d,
         mesh_output_root=output_dir,

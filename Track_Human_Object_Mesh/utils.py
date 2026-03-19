@@ -83,12 +83,16 @@ def resolve_pag_path(args: argparse.Namespace, script_dir: Path) -> Path:
     """Return the PAG JSON path for the current video."""
     if args.pag_file is not None:
         return Path(args.pag_file)
-    return (
-        script_dir.parent
-        / "Generate_PAG"
-        / "output"
-        / args.video_name
-        / "output_pag_deepseek_r1_32b.json"
+
+    for subdir in ("output", "pags"):
+        pag_dir = script_dir.parent / "Generate_PAG" / subdir / args.video_name
+        if pag_dir.exists():
+            candidates = sorted(pag_dir.glob("output_pag_*.json"))
+            if candidates:
+                return candidates[0]
+
+    raise FileNotFoundError(
+        f"No output_pag_*.json found for {args.video_name} under Generate_PAG/"
     )
 
 

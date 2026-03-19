@@ -36,6 +36,36 @@ def load_pag_prompt(path: Path) -> str:
     return pag["interaction"]
 
 
+def resolve_pag_path(script_dir: Path, video_name: str, raw_pag: str | None) -> Path:
+    if raw_pag:
+        return Path(raw_pag).resolve()
+    return next((script_dir.parent / "Generate_PAG" / "output" / video_name).glob("*.json"))
+
+
+def resolve_frame_path(
+    video_dir: Path,
+    raw_frame: str | None,
+    raw_selection_json: str | None,
+) -> tuple[Path, Path | None]:
+    if raw_frame:
+        return Path(raw_frame).resolve(), None
+
+    selection_path = (
+        Path(raw_selection_json).resolve()
+        if raw_selection_json
+        else video_dir / "selected_first_frame.json"
+    )
+    selection = json.loads(selection_path.read_text(encoding="utf-8"))
+    selected_value = selection.get("selected_frame_path") or selection.get("selected_frame")
+    if not selected_value:
+        raise KeyError(f"No selected frame found in: {selection_path}")
+
+    frame_path = Path(selected_value)
+    if not frame_path.is_absolute():
+        frame_path = (selection_path.parent / frame_path).resolve()
+    return frame_path, selection_path
+
+
 def load_and_prepare_image(path: Path, width: int, height: int) -> Image.Image:
     img = Image.open(path).convert("RGB")
     src_w, src_h = img.size
@@ -82,12 +112,16 @@ def generate_video_wan(
 
 
 def main() -> None:
+    script_dir = Path(__file__).resolve().parent
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("--frame", default="./output/video_03/first_frames/frame_00.png")
+    parser.add_argument("--video_name", default="video_01")
+    parser.add_argument("--frame", default=None)
+    parser.add_argument("--selection-json", default=None)
     parser.add_argument("--pag", default=None)
     parser.add_argument("--outdir", default=None)
     parser.add_argument("--model", default="Wan-AI/Wan2.2-I2V-A14B-Diffusers")
-    parser.add_argument("--device", default="cuda:0")
+    parser.add_argument("--device", default="cuda:7")
     parser.add_argument("--seed", type=int, default=72)
     parser.add_argument("--height", type=int, default=720)
     parser.add_argument("--width", type=int, default=1280)
@@ -97,15 +131,30 @@ def main() -> None:
     parser.add_argument("--fps", type=int, default=24)
     args = parser.parse_args()
 
-    frame_path = Path(args.frame)
-    video_name = frame_path.parent.parent.name
-    pag_path = (
-        Path(args.pag)
-        if args.pag
-        else next((Path("../Generate_PAG/output") / video_name).glob("*.json"))
+    video_dir = script_dir / "output" / args.video_name
+    frame_path, selection_path = resolve_frame_path(
+        video_dir,
+        args.frame,
+        args.selection_json,
     )
-    outdir = Path(args.outdir) if args.outdir else Path("./output") / video_name
+    pag_path = resolve_pag_path(script_dir, args.video_name, args.pag)
+    outdir = Path(args.outdir).resolve() if args.outdir else video_dir
     outdir.mkdir(parents=True, exist_ok=True)
+
+    print(f"Video name: {args.video_name}")
+    if selection_path is not None:
+        print(f"Frame selection JSON: {selection_path}")
+    print(f"Input frame: {frame_path}")
+    print(f"PAG file: {pag_path}")
+    print(f"Output directory: {outdir}")
+    print(f"Model: {args.model}")
+    print(f"Device: {args.device}")
+    print(f"Seed: {args.seed}")
+    print(f"Resolution: {args.width}x{args.height}")
+    print(f"Frames: {args.num_frames}")
+    print(f"Steps: {args.steps}")
+    print(f"Guidance scale: {args.guidance_scale}")
+    print(f"FPS: {args.fps}")
 
     prompt = load_pag_prompt(pag_path)
 
@@ -113,8 +162,10 @@ def main() -> None:
     prompt = prompt.rstrip() + "\n\n" + CAMERA_LOCK_SUFFIX
     negative_prompt = CAMERA_LOCK_NEGATIVE
 
+    print("Preparing input frame...")
     image = load_and_prepare_image(frame_path, args.width, args.height)
 
+    print("Loading Wan image-to-video pipeline...")
     from diffusers import WanImageToVideoPipeline
 
     dtype = torch.bfloat16 if args.device.startswith("cuda") else torch.float32
@@ -128,6 +179,7 @@ def main() -> None:
 
     generator = torch.Generator(device=args.device).manual_seed(args.seed)
 
+    print("Generating video frames...")
     frames = generate_video_wan(
         pipe,
         prompt,
@@ -142,8 +194,9 @@ def main() -> None:
     )
 
     out_path = outdir / f"{frame_path.stem}_video_{model_suffix(args.model)}.mp4"
+    print("Exporting MP4...")
     export_to_video(frames, out_path.as_posix(), fps=args.fps)
-    print(out_path)
+    print(f"Saved video: {out_path}")
 
 
 if __name__ == "__main__":

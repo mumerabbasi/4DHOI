@@ -16,6 +16,10 @@ SENSOR_WIDTH_MM = 36.0
 SENSOR_HEIGHT_MM = 24.0
 
 
+def normalize_object_slug(name: str) -> str:
+    return name.strip().replace(" ", "_").replace("-", "_")
+
+
 def estimate_camera_intrinsics(sam3d: Any, image_rgb: np.ndarray) -> Dict[str, Any]:
     """Estimate camera intrinsics from MoGe (via SAM3D depth model)."""
     h, w = image_rgb.shape[:2]
@@ -281,7 +285,7 @@ def discover_objects_with_first_frame_masks(
             continue
         mask_path = child / "object_segmentation" / "masks" / f"{first_frame_stem}.png"
         if mask_path.exists():
-            results.append((child.name, mask_path))
+            results.append((normalize_object_slug(child.name), mask_path))
 
     if not results:
         raise FileNotFoundError(

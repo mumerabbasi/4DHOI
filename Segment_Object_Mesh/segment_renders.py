@@ -29,7 +29,7 @@ from PIL import Image
 
 OLLAMA_HOST = "http://127.0.0.1:11434/v1"
 OLLAMA_API_KEY = "ollama"
-QWEN_MODEL = "qwen3-vl:32b"
+QWEN_MODEL = "qwen3.5:27b"
 
 SAM3_CHECKPOINT = None  # None -> auto-download from HuggingFace
 SAM3_BPE_PATH = "/my_workspace/4DHHOI/sam3/sam3/assets/bpe_simple_vocab_16e6.txt.gz"
@@ -66,7 +66,7 @@ def resolve_pag_path(args, script_dir: Path) -> Path:
 
 
 def _sanitize(name: str) -> str:
-    return name.strip().replace(" ", "_")
+    return name.strip().replace(" ", "_").replace("-", "_")
 
 
 def parse_pag_objects_and_parts(pag_path: Path) -> dict[str, list[str]]:
@@ -109,9 +109,12 @@ def _import_sam3():
         return build_sam3_image_model, Sam3Processor
 
 
-def load_sam3(checkpoint_path: str | None, bpe_path: str | None) -> dict:
+def load_sam3(
+    checkpoint_path: str | None, bpe_path: str | None, device: str | None,
+) -> dict:
     print("Loading SAM3 image model ...")
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
     build_fn, ProcessorCls = _import_sam3()
     model = build_fn(
         checkpoint_path=checkpoint_path,
@@ -121,6 +124,9 @@ def load_sam3(checkpoint_path: str | None, bpe_path: str | None) -> dict:
         enable_inst_interactivity=True,
         load_from_HF=(checkpoint_path is None),
     )
+    # The local SAM3 builder only moves the model when device == "cuda" exactly.
+    # Explicitly move here as well so devices like "cuda:1" work correctly.
+    model = model.to(device=device)
     processor = ProcessorCls(model=model, device=device)
     print(f"SAM3 ready on {device}")
     return {"model": model, "processor": processor, "device": device}
@@ -186,6 +192,7 @@ def detect_parts_qwen(
     object_name: str,
     img_w: int,
     img_h: int,
+    reasoning_effort: str | None,
 ) -> dict[str, list[int] | None]:
     b64 = _encode_image_b64(image_path)
     parts_list = "\n".join(f"- {p}" for p in parts)
@@ -202,9 +209,9 @@ def detect_parts_qwen(
     image_mime = "image/png" if image_ext == ".png" else "image/jpeg"
     image_url = f"data:{image_mime};base64,{b64}"
     try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
+        kwargs = {
+            "model": model,
+            "messages": [
                 {
                     "role": "user",
                     "content": [
@@ -213,8 +220,14 @@ def detect_parts_qwen(
                     ],
                 }
             ],
-            temperature=0.1,
-            max_tokens=2048,
+            "temperature": 0.1,
+            "max_tokens": 2048,
+        }
+        if reasoning_effort is not None:
+            kwargs["reasoning_effort"] = reasoning_effort
+
+        response = client.chat.completions.create(
+            **kwargs,
         )
         text = _extract_text_content(response.choices[0].message.content)
         return _parse_qwen_response(text, parts, img_w, img_h)
@@ -357,7 +370,7 @@ def make_masks_exclusive(
 
 
 def _mask_output_path(masks_dir: Path, image_stem: str, part: str) -> Path:
-    return masks_dir / f"{image_stem}_{part.replace(' ', '_')}.png"
+    return masks_dir / f"{image_stem}_{_sanitize(part)}.png"
 
 
 def _write_view_masks(
@@ -609,6 +622,7 @@ def _run_qwen_bbox_pass(
     qwen_client: OpenAI,
     qwen_model: str,
     qwen_retries: int,
+    reasoning_effort: str | None,
     bboxes_dir: Path | None = None,
 ) -> tuple[dict[str, dict[str, list[int] | None]], dict[str, list[int]]]:
     bboxes_by_image: dict[str, dict[str, list[int] | None]] = {}
@@ -646,6 +660,7 @@ def _run_qwen_bbox_pass(
                 object_name,
                 w,
                 h,
+                reasoning_effort,
             )
             if any(_clamp_bbox(qwen_boxes.get(part), w, h) is not None for part in parts):
                 break
@@ -681,6 +696,7 @@ def ensure_object_bbox_cache(
     qwen_client: OpenAI,
     qwen_model: str,
     qwen_retries: int,
+    reasoning_effort: str | None,
 ) -> dict[str, dict[str, list[int] | None]] | None:
     """Ensure per-object Qwen bbox cache exists. Returns loaded/generated bboxes."""
     renders_dir = object_dir / "renders"
@@ -709,6 +725,7 @@ def ensure_object_bbox_cache(
         qwen_client=qwen_client,
         qwen_model=qwen_model,
         qwen_retries=qwen_retries,
+        reasoning_effort=reasoning_effort,
         bboxes_dir=bboxes_dir,
     )
     _save_bbox_cache(
@@ -861,6 +878,15 @@ def main():
         help="Number of detection retries per view before giving up (default: 5).",
     )
     parser.add_argument(
+        "--reasoning-effort",
+        choices=["low", "medium", "high", "none"],
+        default="high",
+        help=(
+            "Reasoning control for Ollama's OpenAI-compatible endpoint. "
+            "Use 'none' to omit the field."
+        ),
+    )
+    parser.add_argument(
         "--sam3_checkpoint",
         type=str,
         default=SAM3_CHECKPOINT,
@@ -873,6 +899,15 @@ def main():
         help=f"SAM3 BPE vocab path (default: {SAM3_BPE_PATH}).",
     )
     parser.add_argument(
+        "--device",
+        type=str,
+        default=None,
+        help=(
+            "Device for SAM3 inference, for example cpu, cuda, or cuda:1 "
+            "(default: auto-select cuda if available, else cpu)."
+        ),
+    )
+    parser.add_argument(
         "--not_make_masks_exclusive",
         action="store_true",
         help="Disable post-processing that removes mask overlaps by prioritizing internal parts.",
@@ -882,6 +917,9 @@ def main():
     script_dir = Path(__file__).resolve().parent
     _, objects_video_dir = resolve_default_dirs(args, script_dir)
     pag_path = resolve_pag_path(args, script_dir)
+    reasoning_effort = None
+    if args.reasoning_effort != "none":
+        reasoning_effort = args.reasoning_effort
 
     objects_parts = parse_pag_objects_and_parts(pag_path)
     if not objects_parts:
@@ -900,6 +938,8 @@ def main():
     print(f"  ollama:  {args.ollama_host}")
     print(f"  model:   {args.qwen_model}")
     print(f"  retries: {args.qwen_retries}")
+    print(f"  reasoning effort: {args.reasoning_effort}")
+    print(f"  device:  {args.device or ('cuda' if torch.cuda.is_available() else 'cpu')}")
     print(f"  exclusive masks: {'on' if not args.not_make_masks_exclusive else 'off'}")
     print(f"  objects: {objects_video_dir}")
     for name, parts in objects_parts.items():
@@ -940,9 +980,10 @@ def main():
             qwen_client,
             args.qwen_model,
             args.qwen_retries,
+            reasoning_effort,
         )
 
-    sam3 = load_sam3(args.sam3_checkpoint, args.sam3_bpe_path)
+    sam3 = load_sam3(args.sam3_checkpoint, args.sam3_bpe_path, args.device)
     print(f"\n{'=' * 60}")
     print("Stage 2/2: SAM3 segmentation for all objects")
     print(f"{'=' * 60}")

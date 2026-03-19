@@ -1,0 +1,30 @@
+{
+  "video_dir": "/my_workspace/4DHHOI/4DHOI/Generate_Video/output/video_06",
+  "video_file": "/my_workspace/4DHHOI/4DHOI/Generate_Video/output/video_06/frame_00_video_Wan_AI_Wan2_2_I2V_A14B_Diffusers.mp4",
+  "segment_video_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Video/output/video_06",
+  "num_frames": 81,
+  "height": 720,
+  "width": 1280,
+  "track_point_density": 1000.0,
+  "track_point_max": 5000,
+  "vis_point_percent": 5.0,
+  "objects": [
+    {
+      "object": "boxing_bag",
+      "slug": "boxing_bag",
+      "mask_path": "/my_workspace/4DHHOI/4DHOI/Segment_Video/output/video_06/objects/boxing_bag/object_segmentation/masks/frame_0000.png",
+      "mask_area_px": 44529,
+      "track_point_density": 1000.0,
+      "track_point_max": 5000,
+      "track_target_points_uncapped": 44529,
+      "track_target_points": 5000,
+      "seed_points": 5000,
+      "num_frames": 81,
+      "tracks_file": "tracks.npy",
+      "visibility_file": "visibility.npy",
+      "trails_video": "trails.mp4",
+      "vis_point_percent": 5.0,
+      "vis_points_count": 250
+    }
+  ]
+}

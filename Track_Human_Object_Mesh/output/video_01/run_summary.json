@@ -3,14 +3,15 @@
   "status": "completed",
   "script": "track_human_object_mesh.py",
   "num_frames": 81,
+  "num_humans": 1,
   "num_objects": 2,
   "num_edges": 2,
-  "best_total_loss": 0.2885048985481262,
-  "optimisation_time_s": 661.0625347457826,
-  "best_iter": 1743,
+  "best_total_loss": 0.29162511229515076,
+  "optimisation_time_s": 554.0266206152737,
+  "best_iter": 1494,
   "inputs": {
     "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01",
-    "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output_cotracker/video_01",
+    "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01",
     "segment_object_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output/video_01",
     "pag_file": "/my_workspace/4DHHOI/4DHOI/Generate_PAG/output/video_01/output_pag_deepseek_r1_32b.json",
     "smpl_seg_json": "/my_workspace/4DHHOI/GVHMR/hmr4d/utils/body_model/smpl_vert_segmentation.json",
@@ -184,7 +185,7 @@
       ],
       "is_translational": true,
       "is_rotational": true,
-      "final_scale": 1.0210440158843994
+      "final_scale": 1.017771601676941
     },
     "ironing_board": {
       "name": "ironing board",
@@ -197,15 +198,19 @@
       ],
       "is_translational": false,
       "is_rotational": false,
-      "final_scale": 1.0082423686981201
+      "final_scale": 1.0092469453811646
     }
   },
-  "human": {
-    "status": "fixed_copy",
-    "source": "aligned_human_input",
-    "num_frames": 81,
-    "num_verts": 6890,
-    "num_faces": 13776
+  "humans": {
+    "person_1": {
+      "status": "fixed_copy",
+      "source": "aligned_human_input",
+      "name": "person 1",
+      "slug": "person_1",
+      "num_frames": 81,
+      "num_verts": 6890,
+      "num_faces": 13776
+    }
   },
   "edges": [
     {

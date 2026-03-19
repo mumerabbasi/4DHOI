@@ -78,7 +78,15 @@ def _load_intrinsics_from_alignment_summary(
 
 
 def _sanitize(name: str) -> str:
-    return name.strip().replace(" ", "_")
+    return name.strip().replace(" ", "_").replace("-", "_")
+
+
+def _human_entity_to_slug(entity_name: str) -> str:
+    return _sanitize(entity_name).lower()
+
+
+def _object_part_to_slug(part_name: str) -> str:
+    return _sanitize(part_name).lower()
 
 
 def _parse_pag(pag_path: Path) -> PAG:
@@ -303,9 +311,9 @@ def _infer_image_size(dirs: dict[str, Path]) -> tuple[int, int]:
                 height, width = frame.shape[:2]
                 return width, height
 
-    sample_candidates = [
-        dirs["seg_vid"] / "humans" / "person_1" / "masks" / "frame_0000.png",
-    ]
+    sample_candidates = sorted(
+        dirs["seg_vid"].glob("humans/*/masks/frame_0000.png")
+    )
     sample_candidates.extend(
         sorted(
             dirs["seg_vid"].glob(
@@ -323,6 +331,8 @@ def _infer_image_size(dirs: dict[str, Path]) -> tuple[int, int]:
 
 
 def _load_human_data(
+    human_name: str,
+    human_slug: str,
     human_verts_np: np.ndarray,
     human_faces: np.ndarray,
     body_seg: dict[str, np.ndarray],
@@ -334,6 +344,8 @@ def _load_human_data(
     for part_name, vert_ids in body_seg.items():
         part_points[part_name] = base_verts[:, vert_ids, :]
     return HumanData(
+        name=human_name,
+        slug=human_slug,
         base_verts=base_verts,
         faces=human_faces,
         faces_torch=faces_torch,
@@ -443,12 +455,16 @@ def _extract_vertex_colors(mesh: trimesh.Trimesh) -> np.ndarray | None:
 
 def _resolve_interaction_node(
     node_str: str,
+    humans: dict[str, HumanData],
     objects: dict[str, ObjectData],
     body_seg: dict[str, np.ndarray],
 ) -> InteractionNode:
     entity_name, part_name = _parse_node(node_str)
     part_name_norm = part_name.lower().strip()
     if _is_human_node(node_str):
+        human_slug = _human_entity_to_slug(entity_name)
+        if human_slug not in humans:
+            raise KeyError(f"Human '{human_slug}' not loaded")
         if part_name_norm not in body_seg:
             raise KeyError(f"Body part '{part_name_norm}' not in segmentation")
         return InteractionNode(
@@ -456,6 +472,7 @@ def _resolve_interaction_node(
             entity_name=entity_name,
             part_name=part_name_norm,
             is_human=True,
+            human_slug=human_slug,
             object_slug=None,
             resolved_part_name=part_name_norm,
             vert_ids=body_seg[part_name_norm],
@@ -467,8 +484,9 @@ def _resolve_interaction_node(
 
     resolved_part_name = None
     vert_ids = np.arange(objects[obj_slug].template_verts.shape[0], dtype=np.int64)
+    part_slug = _object_part_to_slug(part_name)
     for candidate_name, candidate_vids in objects[obj_slug].part_vert_ids.items():
-        if candidate_name.lower().strip() == part_name_norm:
+        if _object_part_to_slug(candidate_name) == part_slug:
             resolved_part_name = candidate_name
             vert_ids = candidate_vids
             break
@@ -484,6 +502,7 @@ def _resolve_interaction_node(
         entity_name=entity_name,
         part_name=part_name_norm,
         is_human=False,
+        human_slug=None,
         object_slug=obj_slug,
         resolved_part_name=resolved_part_name,
         vert_ids=vert_ids,
@@ -512,33 +531,62 @@ def load_problem_context(
         raise FileNotFoundError(
             f"Human motion aligned dir missing: {human_aligned_dir}"
         )
+    human_dirs = sorted(
+        path for path in human_aligned_dir.iterdir()
+        if path.is_dir() and path.name.startswith("person_")
+    )
+    if not human_dirs:
+        raise FileNotFoundError(
+            f"No per-person human directories found in {human_aligned_dir}"
+        )
 
-    human_ply_paths = sorted(
-        human_aligned_dir.glob("frame_*.ply"),
-        key=lambda path: int(path.stem.split("_")[-1]),
-    )
-    if not human_ply_paths:
-        raise FileNotFoundError(f"No frame_*.ply in {human_aligned_dir}")
+    humans: dict[str, HumanData] = {}
+    human_keys: list[str] = []
+    num_frames: int | None = None
+    for human_dir in human_dirs:
+        human_slug = human_dir.name
+        human_name = human_slug.replace("_", " ")
+        human_ply_paths = sorted(
+            human_dir.glob("frame_*.ply"),
+            key=lambda path: int(path.stem.split("_")[-1]),
+        )
+        if not human_ply_paths:
+            raise FileNotFoundError(f"No frame_*.ply in {human_dir}")
 
-    print(f"Loading {len(human_ply_paths)} human mesh frames...")
-    human_meshes = [
-        trimesh.load(str(path), process=False) for path in human_ply_paths
-    ]
-    human_verts_np = np.stack(
-        [np.asarray(mesh.vertices, dtype=np.float32) for mesh in human_meshes]
-    )
-    human_faces = np.asarray(human_meshes[0].faces, dtype=np.int32)
-    num_frames = human_verts_np.shape[0]
-    human_data = _load_human_data(
-        human_verts_np=human_verts_np,
-        human_faces=human_faces,
-        body_seg=body_seg,
-        device=device,
-    )
-    print(
-        f"  Human: {num_frames} frames, {human_verts_np.shape[1]} verts, "
-        f"{human_faces.shape[0]} faces"
-    )
+        print(
+            f"Loading {len(human_ply_paths)} human mesh frames for {human_slug}..."
+        )
+        human_meshes = [
+            trimesh.load(str(path), process=False) for path in human_ply_paths
+        ]
+        human_verts_np = np.stack(
+            [np.asarray(mesh.vertices, dtype=np.float32) for mesh in human_meshes]
+        )
+        human_faces = np.asarray(human_meshes[0].faces, dtype=np.int32)
+        if num_frames is None:
+            num_frames = human_verts_np.shape[0]
+        elif human_verts_np.shape[0] != num_frames:
+            raise ValueError(
+                f"Human '{human_slug}' has {human_verts_np.shape[0]} frames, "
+                f"expected {num_frames}"
+            )
+
+        humans[human_slug] = _load_human_data(
+            human_name=human_name,
+            human_slug=human_slug,
+            human_verts_np=human_verts_np,
+            human_faces=human_faces,
+            body_seg=body_seg,
+            device=device,
+        )
+        human_keys.append(human_slug)
+        print(
+            f"  Human {human_slug}: {human_verts_np.shape[0]} frames, "
+            f"{human_verts_np.shape[1]} verts, {human_faces.shape[0]} faces"
+        )
+
+    if num_frames is None:
+        raise RuntimeError("No human sequences loaded.")
 
     objects: dict[str, ObjectData] = {}
     obj_keys: list[str] = []
@@ -672,8 +720,8 @@ def load_problem_context(
     interaction_edges: list[InteractionEdge] = []
     for edge in pag.edges:
         try:
-            node_a = _resolve_interaction_node(edge.node_a, objects, body_seg)
-            node_b = _resolve_interaction_node(edge.node_b, objects, body_seg)
+            node_a = _resolve_interaction_node(edge.node_a, humans, objects, body_seg)
+            node_b = _resolve_interaction_node(edge.node_b, humans, objects, body_seg)
         except (KeyError, ValueError) as exc:
             print(f"  [WARN] Skipping edge: {exc}")
             continue
@@ -706,9 +754,8 @@ def load_problem_context(
         height=height,
         num_frames=num_frames,
         pag=pag,
-        human_verts_np=human_verts_np,
-        human_faces=human_faces,
-        human_data=human_data,
+        humans=humans,
+        human_keys=human_keys,
         objects=objects,
         obj_keys=obj_keys,
         interaction_edges=interaction_edges,

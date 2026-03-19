@@ -25,52 +25,33 @@ def write_ascii_ply(path: Path, vertices, faces) -> None:
             f.write(f"3 {int(face[0])} {int(face[1])} {int(face[2])}\n")
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--video_dir",
-        type=str,
-        default="./output/video_01",
-        help="Directory containing hmr4d_results.pt.",
-    )
-    parser.add_argument(
-        "--smpl_folder",
-        type=str,
-        default="../../GVHMR/inputs/checkpoints/body_models/",
-    )
-    parser.add_argument(
-        "--output_dir",
-        type=str,
-        default=None,
-        help=(
-            "Directory to save exported PLY files. If not provided, defaults to "
-            "<video_dir>/output_plys."
-        ),
-    )
-    parser.add_argument(
-        "--smplx2smpl_path",
-        type=str,
-        default="../../GVHMR/hmr4d/utils/body_model/smplx2smpl_sparse.pt",
-        help="Path to the smplx2smpl sparse matrix from GVHMR.",
-    )
-    args = parser.parse_args()
+def build_default_paths(video_name: str) -> tuple[Path, Path]:
+    """Build default GVHMR input/output roots for one video."""
+    script_dir = Path(__file__).parent.resolve()
+    human_motion_dir = script_dir / "output" / video_name / "humans"
+    return human_motion_dir, human_motion_dir
 
-    video_dir = Path(args.video_dir).resolve()
-    result_path = video_dir / "hmr4d_results.pt"
-    smpl_folder = Path(args.smpl_folder).resolve()
-    smplx2smpl_path = Path(args.smplx2smpl_path).resolve()
 
-    if not video_dir.exists() or not video_dir.is_dir():
-        raise NotADirectoryError(f"Video directory not found: {video_dir}")
+def discover_human_result_dirs(humans_root: Path) -> list[Path]:
+    """Find per-human GVHMR result directories under the new layout."""
+    result_dirs: list[Path] = []
+    for child in sorted(humans_root.iterdir()):
+        if child.is_dir() and (child / "hmr4d_results.pt").exists():
+            result_dirs.append(child)
+    return result_dirs
+
+
+def export_one_human(
+    result_dir: Path,
+    output_dir: Path,
+    smplx_layer,
+    smplx2smpl,
+    faces_smpl,
+) -> None:
+    result_path = result_dir / "hmr4d_results.pt"
     if not result_path.exists():
-        raise FileNotFoundError(f"Could not find hmr4d_results.pt in: {video_dir}")
+        raise FileNotFoundError(f"Could not find hmr4d_results.pt in: {result_dir}")
 
-    if args.output_dir is None:
-        output_dir = video_dir / "output_plys"
-    else:
-        output_dir = Path(args.output_dir).resolve()
-
-    # 1. Load Data
     print(f"Loading data from {result_path}...")
     data = torch.load(result_path)
 
@@ -84,8 +65,81 @@ def main() -> None:
     transl = params["transl"].clone()
 
     num_frames = body_pose.shape[0]
-    print(f"Found {num_frames} frames.")
+    print(f"Found {num_frames} frames for {result_dir.name}.")
     print(f"Input Pose Shape: {body_pose.shape}")
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"Exporting {result_dir.name} frames to .ply...")
+    for i in tqdm(range(num_frames)):
+        curr_betas = betas[i: i + 1] if betas.shape[0] > 1 else betas[:1]
+
+        output = smplx_layer(
+            betas=curr_betas,
+            body_pose=body_pose[i: i + 1],
+            global_orient=global_orient[i: i + 1],
+            transl=transl[i: i + 1],
+        )
+
+        smplx_verts = output.vertices[0]
+        smpl_verts = torch.matmul(smplx2smpl, smplx_verts)
+        vertices = smpl_verts.detach().cpu().numpy()
+
+        filename = output_dir / f"frame_{i:04d}.ply"
+        write_ascii_ply(filename, vertices, faces_smpl)
+
+    print(f"Saved {result_dir.name} PLYs to: {output_dir}")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--video_name",
+        type=str,
+        default="video_01",
+        help="Video name used to build default paths for the other arguments.",
+    )
+    parser.add_argument(
+        "--video_dir",
+        type=str,
+        default=None,
+        help="Directory containing per-human GVHMR results under humans/<person_name>/.",
+    )
+    parser.add_argument(
+        "--smpl_folder",
+        type=str,
+        default="../../GVHMR/inputs/checkpoints/body_models/",
+    )
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        default=None,
+        help=(
+            "Directory to save exported PLY files. If not provided, defaults to "
+            "Estimate_Human_Motion/output/<video_name>/humans/<person_name>/human_plys/."
+        ),
+    )
+    parser.add_argument(
+        "--smplx2smpl_path",
+        type=str,
+        default="../../GVHMR/hmr4d/utils/body_model/smplx2smpl_sparse.pt",
+        help="Path to the smplx2smpl sparse matrix from GVHMR.",
+    )
+    args = parser.parse_args()
+
+    default_video_dir, default_output_dir = build_default_paths(args.video_name)
+
+    video_dir = Path(args.video_dir).resolve() if args.video_dir else default_video_dir
+    smpl_folder = Path(args.smpl_folder).resolve()
+    smplx2smpl_path = Path(args.smplx2smpl_path).resolve()
+
+    if not video_dir.exists() or not video_dir.is_dir():
+        raise NotADirectoryError(f"Video directory not found: {video_dir}")
+
+    if args.output_dir is None:
+        output_dir = default_output_dir
+    else:
+        output_dir = Path(args.output_dir).resolve()
 
     # 3. Setup SMPL-X model (matching GVHMR's "supermotion" config)
     print(f"Loading SMPL-X from {smpl_folder}...")
@@ -112,29 +166,20 @@ def main() -> None:
     )
     faces_smpl = smpl_layer_for_faces.faces
 
-    # 4. Create Output Directory
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # 5. Loop through frames
-    print("Exporting frames to .ply...")
-    for i in tqdm(range(num_frames)):
-        # Handle shape parameters (repeat or slice)
-        curr_betas = betas[i: i + 1] if betas.shape[0] > 1 else betas[:1]
-
-        output = smplx_layer(
-            betas=curr_betas,
-            body_pose=body_pose[i: i + 1],
-            global_orient=global_orient[i: i + 1],
-            transl=transl[i: i + 1],
+    human_result_dirs = discover_human_result_dirs(video_dir)
+    if not human_result_dirs:
+        raise FileNotFoundError(
+            f"Could not find any per-human hmr4d_results.pt under: {video_dir}"
         )
 
-        # Convert SMPL-X vertices (10475) to SMPL vertices (6890)
-        smplx_verts = output.vertices[0]  # (10475, 3)
-        smpl_verts = torch.matmul(smplx2smpl, smplx_verts)  # (6890, 3)
-        vertices = smpl_verts.detach().cpu().numpy()
-
-        filename = output_dir / f"frame_{i:04d}.ply"
-        write_ascii_ply(filename, vertices, faces_smpl)
+    for result_dir in human_result_dirs:
+        export_one_human(
+            result_dir=result_dir,
+            output_dir=output_dir / result_dir.name / "human_plys",
+            smplx_layer=smplx_layer,
+            smplx2smpl=smplx2smpl,
+            faces_smpl=faces_smpl,
+        )
 
     print(f"\nDone! Files saved in: {output_dir}")
 
