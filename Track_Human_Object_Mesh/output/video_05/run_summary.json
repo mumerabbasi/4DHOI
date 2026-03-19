@@ -6,9 +6,9 @@
   "num_humans": 1,
   "num_objects": 2,
   "num_edges": 5,
-  "best_total_loss": 19.954208374023438,
-  "optimisation_time_s": 606.2732751802541,
-  "best_iter": 1220,
+  "best_total_loss": 28.901830673217773,
+  "optimisation_time_s": 377.05865137279034,
+  "best_iter": 877,
   "inputs": {
     "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_05",
     "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_05",
@@ -185,7 +185,7 @@
       ],
       "is_translational": true,
       "is_rotational": false,
-      "final_scale": 1.1052967309951782
+      "final_scale": 1.104338526725769
     },
     "bicycle": {
       "name": "bicycle",
@@ -201,7 +201,7 @@
       ],
       "is_translational": true,
       "is_rotational": false,
-      "final_scale": 0.8899822235107422
+      "final_scale": 0.9986882209777832
     }
   },
   "humans": {

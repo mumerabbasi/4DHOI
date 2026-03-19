@@ -6,9 +6,9 @@
   "num_humans": 2,
   "num_objects": 1,
   "num_edges": 4,
-  "best_total_loss": 5.438229560852051,
-  "optimisation_time_s": 162.97884310781956,
-  "best_iter": 1055,
+  "best_total_loss": 4.129765510559082,
+  "optimisation_time_s": 97.13569428911433,
+  "best_iter": 735,
   "inputs": {
     "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_06",
     "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_06",
@@ -184,7 +184,7 @@
       ],
       "is_translational": false,
       "is_rotational": false,
-      "final_scale": 1.075104832649231
+      "final_scale": 1.0415042638778687
     }
   },
   "humans": {
