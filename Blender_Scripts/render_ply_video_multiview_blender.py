@@ -1,4 +1,4 @@
-"""Render a stitched three-view video from animated PLY hierarchies.
+"""Render a stitched four-view video from animated PLY hierarchies.
 
 Run this file from Blender's Text Editor with "Run Script".
 
@@ -32,9 +32,9 @@ FPS = None
 AUTO_DETECT_FPS = False
 SAMPLES = 32
 ENGINE = None
-FRONT_BACKOFF = None
-TOP_DISTANCE_SCALE = 2.2
-PERSPECTIVE_DISTANCE_SCALE = 2.0
+FRONT_BACKOFF = 2.5
+TOP_DISTANCE_SCALE = 3.2
+PERSPECTIVE_DISTANCE_SCALE = 3.0
 KEEP_TEMP_FRAMES = False
 
 # On Windows, set these to your ffmpeg binaries if they are not on PATH.
@@ -109,20 +109,44 @@ def _clear_scene() -> None:
     bpy.ops.object.delete(use_global=False)
 
     for collection in list(bpy.data.collections):
-        if collection.users == 0:
-            bpy.data.collections.remove(collection)
+        bpy.data.collections.remove(collection)
 
-    for datablock_iter in (
-        bpy.data.meshes,
-        bpy.data.materials,
-        bpy.data.cameras,
-        bpy.data.images,
-        bpy.data.lights,
-        bpy.data.actions,
-    ):
+    for scene in bpy.data.scenes:
+        scene.world = None
+
+    datablock_iters = []
+    datablock_names = [
+        "meshes",
+        "materials",
+        "cameras",
+        "images",
+        "lights",
+        "actions",
+        "armatures",
+        "curves",
+        "grease_pencils",
+        "node_groups",
+        "worlds",
+    ]
+    for datablock_name in datablock_names:
+        datablock_iter = getattr(bpy.data, datablock_name, None)
+        if datablock_iter is not None:
+            datablock_iters.append(datablock_iter)
+
+    for datablock_iter in datablock_iters:
         for datablock in list(datablock_iter):
             if datablock.users == 0:
                 datablock_iter.remove(datablock)
+
+    if hasattr(bpy.ops.outliner, "orphans_purge"):
+        for _ in range(3):
+            result = bpy.ops.outliner.orphans_purge(
+                do_local_ids=True,
+                do_linked_ids=True,
+                do_recursive=True,
+            )
+            if result != {"FINISHED"}:
+                break
 
 
 def _delete_collection_tree(collection_name: str) -> None:
@@ -663,6 +687,27 @@ def _configure_perspective_camera(
     camera_obj.data.clip_end = max(1000.0, distance * 4.0)
 
 
+def _configure_opposite_perspective_camera(
+    camera_obj: bpy.types.Object,
+    scene_stats: dict,
+    distance_scale: float,
+) -> None:
+    center = scene_stats["center"]
+    radius = scene_stats["radius"]
+    distance = max(radius * float(distance_scale), 1.0)
+    position = center + Vector(
+        (0.85 * distance, -0.65 * distance, 0.95 * distance)
+    )
+
+    camera_obj.matrix_world = _create_look_at_matrix(
+        position,
+        center,
+        Vector((0.0, -1.0, 0.0)),
+    )
+    camera_obj.data.clip_start = 0.01
+    camera_obj.data.clip_end = max(1000.0, distance * 4.0)
+
+
 def _render_animation_from_camera(
     camera_obj: bpy.types.Object,
     output_dir: Path,
@@ -678,6 +723,7 @@ def _stitch_videos_from_png_sequences(
     front_dir: Path,
     top_dir: Path,
     perspective_dir: Path,
+    opposite_perspective_dir: Path,
     fps: float,
     output_path: Path,
 ) -> None:
@@ -708,8 +754,18 @@ def _stitch_videos_from_png_sequences(
         "1",
         "-i",
         str(perspective_dir / "frame_%04d.png"),
+        "-framerate",
+        f"{fps:.6f}",
+        "-start_number",
+        "1",
+        "-i",
+        str(opposite_perspective_dir / "frame_%04d.png"),
         "-filter_complex",
-        "[0:v][1:v][2:v]hstack=inputs=3[v]",
+        (
+            "[0:v][1:v]hstack=inputs=2[top];"
+            "[2:v][3:v]hstack=inputs=2[bottom];"
+            "[top][bottom]vstack=inputs=2[v]"
+        ),
         "-map",
         "[v]",
         "-an",
@@ -844,6 +900,8 @@ def main() -> None:
     temp_root = video_dir / "_multiview_render_tmp"
 
     _clear_scene()
+    if temp_root.exists():
+        shutil.rmtree(temp_root)
 
     intrinsics_path = _discover_intrinsics_path(video_dir)
     intrinsics_payload = (
@@ -917,9 +975,20 @@ def main() -> None:
         PERSPECTIVE_DISTANCE_SCALE,
     )
 
+    opposite_perspective_camera = _make_camera(
+        "OppositePerspectiveCamera",
+        intrinsics_payload,
+    )
+    _configure_opposite_perspective_camera(
+        opposite_perspective_camera,
+        scene_stats,
+        PERSPECTIVE_DISTANCE_SCALE,
+    )
+
     front_dir = temp_root / "front"
     top_dir = temp_root / "top"
     perspective_dir = temp_root / "perspective"
+    opposite_perspective_dir = temp_root / "opposite_perspective"
 
     print("Rendering front view...")
     _render_animation_from_camera(front_camera, front_dir)
@@ -927,12 +996,18 @@ def main() -> None:
     _render_animation_from_camera(top_camera, top_dir)
     print("Rendering three-quarter view...")
     _render_animation_from_camera(perspective_camera, perspective_dir)
+    print("Rendering opposite three-quarter view...")
+    _render_animation_from_camera(
+        opposite_perspective_camera,
+        opposite_perspective_dir,
+    )
 
-    print("Stitching three views with ffmpeg...")
+    print("Stitching four views with ffmpeg...")
     _stitch_videos_from_png_sequences(
         front_dir,
         top_dir,
         perspective_dir,
+        opposite_perspective_dir,
         fps,
         output_path,
     )
