@@ -280,7 +280,7 @@ def main() -> None:
     prompt_path = (
         Path(args.prompt_file).resolve()
         if args.prompt_file
-        else script_dir / "prompt_select_first_frame.md"
+        else script_dir / "system_prompt_select_first_frame.md"
     )
     output_json = (
         Path(args.output_json).resolve()

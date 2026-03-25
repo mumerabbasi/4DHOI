@@ -2,7 +2,7 @@
 
 ## First Rule
 
-Every newly spawned agent working inside this repo must read `4DHOI_Codex.md` before:
+Every newly spawned agent working inside this repo must read `Agents.md` before:
 
 - describing the method,
 - proposing architectural changes,
@@ -11,7 +11,7 @@ Every newly spawned agent working inside this repo must read `4DHOI_Codex.md` be
 - touching saved outputs,
 - or comparing the thesis against other papers.
 
-If there is any conflict between a quick assumption and `4DHOI_Codex.md`, follow `4DHOI_Codex.md` and then verify against code.
+If there is any conflict between a quick assumption and `Agents.md`, follow `Agents.md` and then verify against code.
 
 ## Repo Identity
 
@@ -53,7 +53,7 @@ Agents should preserve these implementation truths unless code changes prove oth
 
 Primary high-level docs and entry points:
 
-- `4DHOI_Codex.md`
+- `Agents.md`
 - `README.md`
 - `run_video_pipeline.py`
 
@@ -88,7 +88,7 @@ Main output roots:
 
 ## Working Norms
 
-- Ground claims in current code, current saved outputs, and `4DHOI_Codex.md`.
+- Ground claims in current code, current saved outputs, and `Agents.md`.
 - Do not rewrite the thesis narrative around `Original_Code/`.
 - Do not silently assume the README is perfectly up to date; verify against code.
 - Preserve generated outputs, run summaries, overlays, and debug CSVs unless the user explicitly asks to remove them.
@@ -118,7 +118,7 @@ Agents should not assume the entire pipeline runs in one environment. Check `Con
 
 When a future agent is spawned from this repo, the first actions should be:
 
-1. Read `4DHOI_Codex.md`.
+1. Read `Agents.md`.
 2. Skim `README.md` and `run_video_pipeline.py`.
 3. Confirm whether the task concerns:
    - generation,

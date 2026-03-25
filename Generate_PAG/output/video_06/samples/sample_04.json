@@ -1,0 +1,66 @@
+{
+  "object part nodes": [
+    "boxing bag, punching bag"
+  ],
+  "body part nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, left arm",
+    "person 1, right arm",
+    "person 2, left hand",
+    "person 2, right hand"
+  ],
+  "interaction edges": [
+    {
+      "nodes": [
+        "boxing bag, punching bag",
+        "person 1, left hand"
+      ],
+      "is_rel_static": true,
+      "is_continuous": true
+    },
+    {
+      "nodes": [
+        "boxing bag, punching bag",
+        "person 1, right hand"
+      ],
+      "is_rel_static": true,
+      "is_continuous": true
+    },
+    {
+      "nodes": [
+        "boxing bag, punching bag",
+        "person 2, left hand"
+      ],
+      "is_rel_static": false,
+      "is_continuous": false
+    },
+    {
+      "nodes": [
+        "boxing bag, punching bag",
+        "person 2, right hand"
+      ],
+      "is_rel_static": false,
+      "is_continuous": false
+    }
+  ],
+  "interaction": "In a clean, spacious indoor area with white walls and a wooden floor, person 1 holds the boxing bag steadily with both hands while person 2 slowly alternates punches. Person 1 has short black hair, a neutral expression, wears a gray shirt, blue jeans, and white sneakers. Person 2 has short brown hair, a focused expression, wears a black tank top, gym shorts, and athletic shoes.",
+  "object states": [
+    {
+      "name": "boxing bag",
+      "is_translational": false,
+      "is_rotational": true,
+      "description": "the heavy punching bag being held and struck"
+    }
+  ],
+  "human states": [
+    {
+      "name": "person 1",
+      "description": "the person with short black hair holding the boxing bag"
+    },
+    {
+      "name": "person 2",
+      "description": "the person with short brown hair punching the boxing bag"
+    }
+  ]
+}
