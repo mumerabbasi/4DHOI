@@ -479,6 +479,8 @@ def stage_extra_args(ctx: PipelineContext, stage_name: str) -> list[str]:
             str(ctx.smpl_folder),
             "--smplx2smpl_path",
             str(ctx.smplx2smpl_path),
+            "--gvhmr_path",
+            str(ctx.gvhmr_root),
         ]
 
     if stage_name == "align_meshes":
