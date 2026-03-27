@@ -1,0 +1,88 @@
+{
+  "object part nodes": [
+    "umbrella, canopy",
+    "umbrella, shaft",
+    "bike, handlebar",
+    "bike, pedal",
+    "bike, seat",
+    "bike, frame tubes",
+    "bike, wheels"
+  ],
+  "body part nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, left arm",
+    "person 1, right arm",
+    "person 1, left shoulder",
+    "person 1, right shoulder",
+    "person 1, left leg",
+    "person 1, right leg",
+    "person 1, left foot",
+    "person 1, right foot",
+    "person 1, head",
+    "person 1, hips"
+  ],
+  "interaction edges": [
+    {
+      "nodes": [
+        "bike, handlebar",
+        "person 1, left hand"
+      ],
+      "is_rel_static": true,
+      "is_continuous": true
+    },
+    {
+      "nodes": [
+        "umbrella, shaft",
+        "person 1, right hand"
+      ],
+      "is_rel_static": true,
+      "is_continuous": true
+    },
+    {
+      "nodes": [
+        "bike, pedal",
+        "person 1, left foot"
+      ],
+      "is_rel_static": false,
+      "is_continuous": true
+    },
+    {
+      "nodes": [
+        "bike, pedal",
+        "person 1, right foot"
+      ],
+      "is_rel_static": false,
+      "is_continuous": true
+    },
+    {
+      "nodes": [
+        "bike, seat",
+        "person 1, hips"
+      ],
+      "is_rel_static": true,
+      "is_continuous": true
+    }
+  ],
+  "interaction": "A person is riding a bicycle, which is moving to the left, while holding an umbrella above their head. The left hand grips the handlebar steadily, and the right hand holds the umbrella's shaft. Both feet are on the pedals, moving in a slow, continuous motion. The person sits comfortably on the bike seat. The scene occurs in a clean, spacious indoor area with white walls and wooden floors. The rider has short brown hair, a neutral facial expression, wears a blue shirt, black shorts, and white sneakers.",
+  "object states": [
+    {
+      "name": "umbrella",
+      "is_translational": true,
+      "is_rotational": false,
+      "description": "the umbrella being held above the head"
+    },
+    {
+      "name": "bike",
+      "is_translational": true,
+      "is_rotational": true,
+      "description": "the bicycle moving to the left with rotating wheels"
+    }
+  ],
+  "human states": [
+    {
+      "name": "person 1",
+      "description": "the person wearing a blue shirt and black shorts, riding the bike while holding an umbrella"
+    }
+  ]
+}
