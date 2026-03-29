@@ -1,9 +1,8 @@
 {
   "object part nodes": [
     "harp, strings",
-    "harp, soundboard",
     "harp, neck",
-    "harp, legs",
+    "harp, soundboard",
     "4-legged stool, seat",
     "4-legged stool, legs"
   ],
@@ -24,48 +23,48 @@
   "interaction edges": [
     {
       "nodes": [
+        "4-legged stool, seat",
+        "person 1, hips"
+      ],
+      "is_continuous": true,
+      "is_rel_static": true
+    },
+    {
+      "nodes": [
         "harp, strings",
         "person 1, right hand"
       ],
-      "is_rel_static": false,
-      "is_continuous": true
+      "is_continuous": true,
+      "is_rel_static": false
     },
     {
       "nodes": [
         "harp, neck",
         "person 1, left hand"
       ],
-      "is_rel_static": true,
-      "is_continuous": true
-    },
-    {
-      "nodes": [
-        "4-legged stool, seat",
-        "person 1, hips"
-      ],
-      "is_rel_static": true,
-      "is_continuous": true
+      "is_continuous": true,
+      "is_rel_static": true
     }
   ],
-  "interaction": "A person is sitting on a 4-legged stool and playing a harp at an extremely slow pace. Their right hand gently strums the strings while their left hand holds the neck steady. The harp's soundboard resonates softly as the strings are plucked. The stool remains stationary, providing stable support. The person has short brown hair and a focused facial expression. They wear a white blouse, black trousers, and brown loafers. The scene is set in a clean, spacious indoor area with white walls and a wooden floor.",
+  "interaction": "A person sits on a stool playing a harp at an extremely slow pace. Their left hand strums the strings continuously while moving, and their right hand holds the soundboard steady. Non-contact limbs sway gently. The person has short black hair, a neutral facial expression, wearing a gray shirt, blue jeans, and white sneakers. The harp is wooden with golden strings. The scene is a clean, spacious indoor area with white walls and a wooden floor.",
   "object states": [
     {
       "name": "harp",
       "is_translational": false,
       "is_rotational": false,
-      "description": "the harp being played with strings and soundboard"
+      "description": "the wooden harp being played and held steady"
     },
     {
       "name": "4-legged stool",
       "is_translational": false,
       "is_rotational": false,
-      "description": "the 4-legged stool providing seating support"
+      "description": "the wooden stool being sat upon"
     }
   ],
   "human states": [
     {
       "name": "person 1",
-      "description": "the person with short brown hair wearing a white blouse and playing the harp while seated"
+      "description": "the person with short black hair sitting and playing the harp"
     }
   ]
 }

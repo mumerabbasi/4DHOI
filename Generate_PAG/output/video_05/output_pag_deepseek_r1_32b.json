@@ -1,12 +1,12 @@
 {
   "object part nodes": [
+    "bicycle, handlebar",
+    "bicycle, pedal",
+    "bicycle, seat",
+    "bicycle, frame tubes",
+    "bicycle, wheels",
     "umbrella, canopy",
-    "umbrella, shaft",
-    "bike, handlebar",
-    "bike, pedal",
-    "bike, seat",
-    "bike, frame tubes",
-    "bike, wheels"
+    "umbrella, shaft"
   ],
   "body part nodes": [
     "person 1, left hand",
@@ -25,64 +25,64 @@
   "interaction edges": [
     {
       "nodes": [
-        "bike, handlebar",
+        "bicycle, handlebar",
         "person 1, left hand"
       ],
-      "is_rel_static": true,
-      "is_continuous": true
+      "is_continuous": true,
+      "is_rel_static": true
+    },
+    {
+      "nodes": [
+        "bicycle, pedal",
+        "person 1, left foot"
+      ],
+      "is_continuous": true,
+      "is_rel_static": true
+    },
+    {
+      "nodes": [
+        "bicycle, pedal",
+        "person 1, right foot"
+      ],
+      "is_continuous": true,
+      "is_rel_static": true
+    },
+    {
+      "nodes": [
+        "bicycle, seat",
+        "person 1, hips"
+      ],
+      "is_continuous": true,
+      "is_rel_static": true
     },
     {
       "nodes": [
         "umbrella, shaft",
         "person 1, right hand"
       ],
-      "is_rel_static": true,
-      "is_continuous": true
-    },
-    {
-      "nodes": [
-        "bike, pedal",
-        "person 1, left foot"
-      ],
-      "is_rel_static": false,
-      "is_continuous": true
-    },
-    {
-      "nodes": [
-        "bike, pedal",
-        "person 1, right foot"
-      ],
-      "is_rel_static": false,
-      "is_continuous": true
-    },
-    {
-      "nodes": [
-        "bike, seat",
-        "person 1, hips"
-      ],
-      "is_rel_static": true,
-      "is_continuous": true
+      "is_continuous": true,
+      "is_rel_static": true
     }
   ],
-  "interaction": "A person is riding a bicycle, which is moving to the left, while holding an umbrella above their head. The left hand grips the handlebar steadily, and the right hand holds the umbrella's shaft. Both feet are on the pedals, moving in a slow, continuous motion. The person sits comfortably on the bike seat. The scene occurs in a clean, spacious indoor area with white walls and wooden floors. The rider has short brown hair, a neutral facial expression, wears a blue shirt, black shorts, and white sneakers.",
+  "interaction": "A person is riding a bicycle at an extremely slow pace while holding an open umbrella above their head. The bicycle is moving to the left. The left hand grips the bicycle handlebar continuously, and the right hand holds the umbrella shaft. Feet remain on pedals, and hips rest on the seat. Non-contact arms swing slightly for balance. The person has short black hair, a neutral facial expression, wearing a gray shirt, blue jeans, and white sneakers. The scene is a clean, spacious indoor area with white walls and a wooden floor. The bicycle has a black frame, and the umbrella is open. All movements occur in slow motion to emphasize the physical contact points.",
   "object states": [
     {
       "name": "umbrella",
       "is_translational": true,
       "is_rotational": false,
-      "description": "the umbrella being held above the head"
+      "description": "the open umbrella held above the head"
     },
     {
-      "name": "bike",
+      "name": "bicycle",
       "is_translational": true,
-      "is_rotational": true,
-      "description": "the bicycle moving to the left with rotating wheels"
+      "is_rotational": false,
+      "description": "the bicycle with black frame being ridden slowly"
     }
   ],
   "human states": [
     {
       "name": "person 1",
-      "description": "the person wearing a blue shirt and black shorts, riding the bike while holding an umbrella"
+      "description": "the person with short black hair wearing gray shirt and blue jeans riding"
     }
   ]
 }

@@ -9,10 +9,24 @@
     "person 1, right arm",
     "person 1, left shoulder",
     "person 1, right shoulder",
+    "person 1, left leg",
+    "person 1, right leg",
+    "person 1, left foot",
+    "person 1, right foot",
+    "person 1, head",
+    "person 1, hips",
     "person 2, left hand",
     "person 2, right hand",
     "person 2, left arm",
-    "person 2, right arm"
+    "person 2, right arm",
+    "person 2, left shoulder",
+    "person 2, right shoulder",
+    "person 2, left leg",
+    "person 2, right leg",
+    "person 2, left foot",
+    "person 2, right foot",
+    "person 2, head",
+    "person 2, hips"
   ],
   "interaction edges": [
     {
@@ -20,51 +34,51 @@
         "boxing bag, punching bag",
         "person 1, left hand"
       ],
-      "is_rel_static": true,
-      "is_continuous": true
+      "is_continuous": true,
+      "is_rel_static": true
     },
     {
       "nodes": [
         "boxing bag, punching bag",
         "person 1, right hand"
       ],
-      "is_rel_static": true,
-      "is_continuous": true
+      "is_continuous": true,
+      "is_rel_static": true
     },
     {
       "nodes": [
         "boxing bag, punching bag",
         "person 2, left hand"
       ],
-      "is_rel_static": true,
-      "is_continuous": false
+      "is_continuous": false,
+      "is_rel_static": false
     },
     {
       "nodes": [
         "boxing bag, punching bag",
         "person 2, right hand"
       ],
-      "is_rel_static": true,
-      "is_continuous": false
+      "is_continuous": false,
+      "is_rel_static": false
     }
   ],
-  "interaction": "Two people are interacting with a boxing bag in a clean, spacious indoor area. Person 1 is holding the punching bag steady with both hands while person 2 strikes it with alternating punches from their left and right hands. The motions occur at an extremely slow pace to emphasize the physical contact details. Person 1 has short black hair, wears a white t-shirt, and blue shorts. Person 2 has medium-length brown hair, wears a red tank top, and black athletic shorts. Both are in a neutral facial expression.",
+  "interaction": "One person holds a heavy boxing bag steady with both hands while another strikes it with alternating punches in slow motion. The holder stands firm, gripping the bag's surface to stabilize it. The striker throws controlled punches, making brief contact with the bag's surface, swinging arms naturally between strikes. Both individuals move slowly, emphasizing the impact. The holder has short black hair, neutral expression, gray shirt, blue jeans, black shoes. The striker has short brown hair, focused expression, white tank top, black shorts, red sneakers. The scene is a clean, spacious indoor area with white walls and a wooden floor. The bag swings slightly upon impact.",
   "object states": [
     {
       "name": "boxing bag",
       "is_translational": false,
       "is_rotational": false,
-      "description": "the punching bag being held and struck"
+      "description": "the heavy punching bag being held and struck during interaction"
     }
   ],
   "human states": [
     {
       "name": "person 1",
-      "description": "the person with short black hair who is wearing white t-shirt and blue shorts holding the boxing bag"
+      "description": "the person with short black hair wearing gray shirt and blue jeans holding the bag"
     },
     {
       "name": "person 2",
-      "description": "the person with medium-length brown hair who is wearing red tank top and black athletic shorts striking the boxing bag"
+      "description": "the person with short brown hair wearing white tank top and black shorts striking the bag"
     }
   ]
 }
