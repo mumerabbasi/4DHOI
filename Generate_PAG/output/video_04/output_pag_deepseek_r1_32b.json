@@ -32,15 +32,15 @@
     {
       "nodes": [
         "harp, strings",
-        "person 1, right hand"
+        "person 1, left hand"
       ],
       "is_continuous": true,
       "is_rel_static": false
     },
     {
       "nodes": [
-        "harp, neck",
-        "person 1, left hand"
+        "harp, soundboard",
+        "person 1, right hand"
       ],
       "is_continuous": true,
       "is_rel_static": true

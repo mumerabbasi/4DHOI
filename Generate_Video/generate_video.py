@@ -121,7 +121,7 @@ def main() -> None:
     parser.add_argument("--pag", default=None)
     parser.add_argument("--outdir", default=None)
     parser.add_argument("--model", default="Wan-AI/Wan2.2-I2V-A14B-Diffusers")
-    parser.add_argument("--device", default="cuda:7")
+    parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--seed", type=int, default=72)
     parser.add_argument("--height", type=int, default=720)
     parser.add_argument("--width", type=int, default=1280)
