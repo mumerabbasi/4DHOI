@@ -1,11 +1,23 @@
 {
   "object part nodes": [
     "dumbbell (left hand), handle",
-    "dumbbell (right hand), handle"
+    "dumbbell (left hand), weight plates",
+    "dumbbell (right hand), handle",
+    "dumbbell (right hand), weight plates"
   ],
   "body part nodes": [
     "person 1, left hand",
-    "person 1, right hand"
+    "person 1, right hand",
+    "person 1, left arm",
+    "person 1, right arm",
+    "person 1, left shoulder",
+    "person 1, right shoulder",
+    "person 1, left leg",
+    "person 1, right leg",
+    "person 1, left foot",
+    "person 1, right foot",
+    "person 1, head",
+    "person 1, hips"
   ],
   "interaction edges": [
     {

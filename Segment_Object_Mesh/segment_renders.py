@@ -874,7 +874,7 @@ def main():
     parser.add_argument(
         "--qwen_retries",
         type=int,
-        default=5,
+        default=3,
         help="Number of detection retries per view before giving up (default: 5).",
     )
     parser.add_argument(

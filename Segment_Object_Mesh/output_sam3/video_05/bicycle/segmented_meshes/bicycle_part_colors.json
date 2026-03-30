@@ -1,0 +1,41 @@
+{
+  "label_map": {
+    "frame_tubes": 0,
+    "handlebar": 1,
+    "pedal": 2,
+    "seat": 3,
+    "wheels": 4
+  },
+  "part_colors_rgb_255": {
+    "frame_tubes": [
+      204,
+      71,
+      71
+    ],
+    "handlebar": [
+      41,
+      88,
+      204
+    ],
+    "pedal": [
+      123,
+      204,
+      10
+    ],
+    "seat": [
+      242,
+      85,
+      223
+    ],
+    "wheels": [
+      48,
+      242,
+      210
+    ]
+  },
+  "unlabeled_color_rgb_255": [
+    128,
+    128,
+    128
+  ]
+}

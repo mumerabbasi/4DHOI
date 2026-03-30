@@ -1,0 +1,123 @@
+{
+  "object_name": "4-legged stool",
+  "image": "az190_el+30.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output_sam3/video_04/4_legged_stool/renders/face_id/az190_el+300001.exr",
+  "parts": {
+    "seat": {
+      "sam3_prompt": "4-legged stool's flat top surface, seat",
+      "fallback_prompt": "seat",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "4-legged stool's flat top surface, seat",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "4-legged stool's flat top surface, seat",
+          "raw_candidates": [
+            {
+              "box": [
+                227.63265991210938,
+                155.52325439453125,
+                669.60009765625,
+                373.21356201171875
+              ],
+              "score": 0.90625
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                227.63265991210938,
+                155.52325439453125,
+                669.60009765625,
+                373.21356201171875
+              ],
+              "score": 0.90625,
+              "original_area": 59371,
+              "clipped_area": 59371,
+              "silhouette_overlap": 1.0
+            }
+          ]
+        }
+      ]
+    },
+    "legs": {
+      "sam3_prompt": "4-legged stool's four vertical supports, legs",
+      "fallback_prompt": "legs",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "4-legged stool's four vertical supports, legs",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "4-legged stool's four vertical supports, legs",
+          "raw_candidates": [
+            {
+              "box": [
+                579.114013671875,
+                359.055419921875,
+                760.26123046875,
+                825.188720703125
+              ],
+              "score": 0.8984375
+            },
+            {
+              "box": [
+                355.840087890625,
+                404.62457275390625,
+                408.58294677734375,
+                661.1129760742188
+              ],
+              "score": 0.6171875
+            },
+            {
+              "box": [
+                307.619384765625,
+                409.3348388671875,
+                405.25433349609375,
+                886.2705078125
+              ],
+              "score": 0.87890625
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                579.114013671875,
+                359.055419921875,
+                760.26123046875,
+                825.188720703125
+              ],
+              "score": 0.8984375,
+              "original_area": 21800,
+              "clipped_area": 21799,
+              "silhouette_overlap": 0.999954128440367
+            },
+            {
+              "box": [
+                307.619384765625,
+                409.3348388671875,
+                405.25433349609375,
+                886.2705078125
+              ],
+              "score": 0.87890625,
+              "original_area": 23475,
+              "clipped_area": 23475,
+              "silhouette_overlap": 1.0
+            },
+            {
+              "box": [
+                355.840087890625,
+                404.62457275390625,
+                408.58294677734375,
+                661.1129760742188
+              ],
+              "score": 0.6171875,
+              "original_area": 5285,
+              "clipped_area": 5285,
+              "silhouette_overlap": 1.0
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,217 @@
+{
+  "object_name": "bicycle",
+  "image": "az010_el+30.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output_sam3/video_05/bicycle/renders/face_id/az010_el+300001.exr",
+  "parts": {
+    "handlebar": {
+      "sam3_prompt": "handlebar of the bicycle",
+      "fallback_prompt": "handlebar",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "handlebar of the bicycle",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "handlebar of the bicycle",
+          "raw_candidates": [
+            {
+              "box": [
+                352.317138671875,
+                237.9434814453125,
+                716.435791015625,
+                320.500732421875
+              ],
+              "score": 0.81640625
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                352.317138671875,
+                237.9434814453125,
+                716.435791015625,
+                320.500732421875
+              ],
+              "score": 0.81640625,
+              "original_area": 7094,
+              "clipped_area": 7062,
+              "silhouette_overlap": 0.9954891457569778
+            }
+          ]
+        }
+      ]
+    },
+    "pedal": {
+      "sam3_prompt": "pedal of the bicycle",
+      "fallback_prompt": "pedal",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "pedal of the bicycle",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "pedal of the bicycle",
+          "raw_candidates": [
+            {
+              "box": [
+                366.34417724609375,
+                691.7731323242188,
+                417.1129150390625,
+                719.2595825195312
+              ],
+              "score": 0.7734375
+            },
+            {
+              "box": [
+                524.1016845703125,
+                582.577392578125,
+                574.5548095703125,
+                617.8896484375
+              ],
+              "score": 0.7265625
+            },
+            {
+              "box": [
+                508.2107238769531,
+                721.0571899414062,
+                560.8038940429688,
+                753.3917846679688
+              ],
+              "score": 0.75
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                366.34417724609375,
+                691.7731323242188,
+                417.1129150390625,
+                719.2595825195312
+              ],
+              "score": 0.7734375,
+              "original_area": 1222,
+              "clipped_area": 1217,
+              "silhouette_overlap": 0.9959083469721768
+            },
+            {
+              "box": [
+                508.2107238769531,
+                721.0571899414062,
+                560.8038940429688,
+                753.3917846679688
+              ],
+              "score": 0.75,
+              "original_area": 1350,
+              "clipped_area": 1349,
+              "silhouette_overlap": 0.9992592592592593
+            },
+            {
+              "box": [
+                524.1016845703125,
+                582.577392578125,
+                574.5548095703125,
+                617.8896484375
+              ],
+              "score": 0.7265625,
+              "original_area": 1432,
+              "clipped_area": 1423,
+              "silhouette_overlap": 0.9937150837988827
+            }
+          ]
+        }
+      ]
+    },
+    "seat": {
+      "sam3_prompt": "seat of the bicycle",
+      "fallback_prompt": "seat",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "seat of the bicycle",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "seat of the bicycle",
+          "raw_candidates": [
+            {
+              "box": [
+                458.1736145019531,
+                370.7341613769531,
+                536.7012939453125,
+                450.8691101074219
+              ],
+              "score": 0.87109375
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                458.1736145019531,
+                370.7341613769531,
+                536.7012939453125,
+                450.8691101074219
+              ],
+              "score": 0.87109375,
+              "original_area": 3351,
+              "clipped_area": 3350,
+              "silhouette_overlap": 0.9997015816174276
+            }
+          ]
+        }
+      ]
+    },
+    "frame tubes": {
+      "sam3_prompt": "frame tubes of the bicycle",
+      "fallback_prompt": "frame tubes",
+      "used_prompt_type": null,
+      "used_prompt": null,
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "frame tubes of the bicycle",
+          "raw_candidates": [],
+          "kept_candidates": []
+        },
+        {
+          "prompt_type": "fallback_prompt",
+          "prompt": "frame tubes",
+          "raw_candidates": [],
+          "kept_candidates": []
+        }
+      ]
+    },
+    "wheels": {
+      "sam3_prompt": "wheels of the bicycle",
+      "fallback_prompt": "wheels",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "wheels of the bicycle",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "wheels of the bicycle",
+          "raw_candidates": [
+            {
+              "box": [
+                419.4581298828125,
+                561.3731689453125,
+                492.4893798828125,
+                880.55029296875
+              ],
+              "score": 0.921875
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                419.4581298828125,
+                561.3731689453125,
+                492.4893798828125,
+                880.55029296875
+              ],
+              "score": 0.921875,
+              "original_area": 9307,
+              "clipped_area": 9288,
+              "silhouette_overlap": 0.997958525840765
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
