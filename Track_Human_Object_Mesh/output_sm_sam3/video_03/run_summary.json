@@ -1,0 +1,214 @@
+{
+  "video_name": "video_03",
+  "status": "completed",
+  "script": "track_human_object_mesh.py",
+  "num_frames": 81,
+  "num_humans": 1,
+  "num_objects": 1,
+  "num_edges": 1,
+  "best_total_loss": 15.263029098510742,
+  "optimisation_time_s": 338.79029627516866,
+  "best_iter": 2162,
+  "inputs": {
+    "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03",
+    "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_03",
+    "segment_object_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output/video_03",
+    "pag_file": "/my_workspace/4DHHOI/4DHOI/Generate_PAG/output/video_03/output_pag_deepseek_r1_32b.json",
+    "smpl_seg_json": "/my_workspace/4DHHOI/GVHMR/hmr4d/utils/body_model/smpl_vert_segmentation.json",
+    "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03/alignment_summary.json"
+  },
+  "weights": {
+    "tracking": {
+      "fixed": 20.0
+    },
+    "object_cd2d": {
+      "start": 0.0001,
+      "end": 0.0001
+    },
+    "object_part_cd2d": {
+      "start": 0.0001,
+      "end": 0.0001
+    },
+    "object_smooth_trans": {
+      "start": 1000.0,
+      "end": 1000.0
+    },
+    "object_smooth_rot": {
+      "start": 1000.0,
+      "end": 1000.0
+    },
+    "object_scale": {
+      "start": 1.0,
+      "end": 1.0
+    },
+    "intersect": {
+      "start": 0.0,
+      "end": 10.0
+    },
+    "nocontact": {
+      "start": 1000.0,
+      "end": 1000.0
+    },
+    "contact_drift": {
+      "start": 10.0,
+      "end": 1000.0
+    }
+  },
+  "optimisation": {
+    "adam_iters": 5000,
+    "adam_lr": 0.001,
+    "sdf_resolution": 128,
+    "optimize_object_scale": true,
+    "max_log_scale_delta": 0.22,
+    "early_stop_start": 500,
+    "early_stop_patience": 300,
+    "early_stop_rel_improve": 0.0001,
+    "early_stop_triggered": true
+  },
+  "debug_outputs": {
+    "frame_loss_semantics": "diagnostic_local",
+    "csv": {
+      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_03/debug/csv/iter_metrics.csv",
+      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_03/debug/csv/frame_loss_metrics.csv",
+      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_03/debug/csv/final_loss_summary.csv"
+    },
+    "plots": {
+      "iter_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_03/debug/plots/iter",
+      "frame_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_03/debug/plots/frame"
+    },
+    "iter_columns": [
+      "iter",
+      "total",
+      "tracking_weight",
+      "tracking_raw",
+      "tracking_scaled",
+      "object_cd2d_weight",
+      "object_cd2d_raw",
+      "object_cd2d_scaled",
+      "object_part_cd2d_weight",
+      "object_part_cd2d_raw",
+      "object_part_cd2d_scaled",
+      "object_smooth_trans_weight",
+      "object_smooth_trans_raw",
+      "object_smooth_trans_scaled",
+      "object_smooth_rot_weight",
+      "object_smooth_rot_raw",
+      "object_smooth_rot_scaled",
+      "object_scale_weight",
+      "object_scale_raw",
+      "object_scale_scaled",
+      "intersect_weight",
+      "intersect_raw",
+      "intersect_scaled",
+      "nocontact_weight",
+      "nocontact_raw",
+      "nocontact_scaled",
+      "contact_drift_weight",
+      "contact_drift_raw",
+      "contact_drift_scaled"
+    ],
+    "frame_columns": [
+      "frame_idx",
+      "tracking_weight",
+      "tracking_raw",
+      "tracking_scaled",
+      "object_cd2d_weight",
+      "object_cd2d_raw",
+      "object_cd2d_scaled",
+      "object_part_cd2d_weight",
+      "object_part_cd2d_raw",
+      "object_part_cd2d_scaled",
+      "object_smooth_trans_weight",
+      "object_smooth_trans_raw",
+      "object_smooth_trans_scaled",
+      "object_smooth_rot_weight",
+      "object_smooth_rot_raw",
+      "object_smooth_rot_scaled",
+      "intersect_weight",
+      "intersect_raw",
+      "intersect_scaled",
+      "nocontact_weight",
+      "nocontact_raw",
+      "nocontact_scaled",
+      "contact_drift_weight",
+      "contact_drift_raw",
+      "contact_drift_scaled",
+      "total_raw_local",
+      "total_scaled_local"
+    ],
+    "final_summary_columns": [
+      "best_iter",
+      "best_total_loss",
+      "total_scaled",
+      "frame_loss_semantics",
+      "tracking_weight",
+      "tracking_raw",
+      "tracking_scaled",
+      "object_cd2d_weight",
+      "object_cd2d_raw",
+      "object_cd2d_scaled",
+      "object_part_cd2d_weight",
+      "object_part_cd2d_raw",
+      "object_part_cd2d_scaled",
+      "object_smooth_trans_weight",
+      "object_smooth_trans_raw",
+      "object_smooth_trans_scaled",
+      "object_smooth_rot_weight",
+      "object_smooth_rot_raw",
+      "object_smooth_rot_scaled",
+      "object_scale_weight",
+      "object_scale_raw",
+      "object_scale_scaled",
+      "intersect_weight",
+      "intersect_raw",
+      "intersect_scaled",
+      "nocontact_weight",
+      "nocontact_raw",
+      "nocontact_scaled",
+      "contact_drift_weight",
+      "contact_drift_raw",
+      "contact_drift_scaled"
+    ],
+    "global_only_terms": [
+      "object_scale"
+    ]
+  },
+  "objects": {
+    "umbrella": {
+      "name": "umbrella",
+      "num_verts": 45088,
+      "num_faces": 90145,
+      "num_parts": 2,
+      "parts": [
+        "canopy",
+        "shaft"
+      ],
+      "is_translational": true,
+      "is_rotational": false,
+      "final_scale": 0.92537921667099
+    }
+  },
+  "humans": {
+    "person_1": {
+      "status": "fixed_copy",
+      "source": "aligned_human_input",
+      "name": "person 1",
+      "slug": "person_1",
+      "num_frames": 81,
+      "num_verts": 6890,
+      "num_faces": 13776
+    }
+  },
+  "edges": [
+    {
+      "node_a": "umbrella, shaft",
+      "node_b": "person 1, left hand",
+      "is_continuous": true,
+      "is_rel_static": true
+    }
+  ],
+  "conventions": {
+    "coordinate_system": "OpenCV (X-right, Y-down, Z-forward)",
+    "T_4x4": "rigid component only; true object transform also uses global_scale"
+  }
+}

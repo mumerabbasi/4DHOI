@@ -1,0 +1,22 @@
+{
+  "object_name": "dumbbell (right hand)",
+  "parts": [
+    "handle",
+    "weight plates"
+  ],
+  "prompt_views": [
+    "az010_el+10.png",
+    "az100_el+10.png",
+    "az190_el+10.png"
+  ],
+  "prompts": {
+    "handle": {
+      "sam3_prompt": "dumbbell handle, the central cylindrical bar on the dumbbell (right hand)",
+      "fallback_prompt": "handle"
+    },
+    "weight plates": {
+      "sam3_prompt": "dumbbell weight plates, the circular disc-shaped ends on the dumbbell (right hand)",
+      "fallback_prompt": "weight plates"
+    }
+  }
+}

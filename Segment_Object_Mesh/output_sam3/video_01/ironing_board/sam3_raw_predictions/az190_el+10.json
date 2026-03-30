@@ -1,0 +1,87 @@
+{
+  "object_name": "ironing board",
+  "image": "az190_el+10.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output_sam3/video_01/ironing_board/renders/face_id/az190_el+100001.exr",
+  "parts": {
+    "surface": {
+      "sam3_prompt": "The flat surface of the ironing board",
+      "fallback_prompt": "surface",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "The flat surface of the ironing board",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "The flat surface of the ironing board",
+          "raw_candidates": [
+            {
+              "box": [
+                311.36810302734375,
+                233.41162109375,
+                689.174072265625,
+                298.25103759765625
+              ],
+              "score": 0.9140625
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                311.36810302734375,
+                233.41162109375,
+                689.174072265625,
+                298.25103759765625
+              ],
+              "score": 0.9140625,
+              "original_area": 10008,
+              "clipped_area": 9988,
+              "silhouette_overlap": 0.9980015987210232
+            }
+          ]
+        }
+      ]
+    },
+    "support": {
+      "sam3_prompt": "The support frame of the ironing board",
+      "fallback_prompt": "support",
+      "used_prompt_type": "fallback_prompt",
+      "used_prompt": "support",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "The support frame of the ironing board",
+          "raw_candidates": [],
+          "kept_candidates": []
+        },
+        {
+          "prompt_type": "fallback_prompt",
+          "prompt": "support",
+          "raw_candidates": [
+            {
+              "box": [
+                555.6597900390625,
+                300.15179443359375,
+                631.4705810546875,
+                858.5109252929688
+              ],
+              "score": 0.5234375
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                555.6597900390625,
+                300.15179443359375,
+                631.4705810546875,
+                858.5109252929688
+              ],
+              "score": 0.5234375,
+              "original_area": 9657,
+              "clipped_area": 9611,
+              "silhouette_overlap": 0.9952366159262711
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

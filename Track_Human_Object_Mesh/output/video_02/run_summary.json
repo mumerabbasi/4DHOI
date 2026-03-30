@@ -6,8 +6,8 @@
   "num_humans": 1,
   "num_objects": 2,
   "num_edges": 2,
-  "best_total_loss": 1.9026341438293457,
-  "optimisation_time_s": 153.84029944008216,
+  "best_total_loss": 1.8042943477630615,
+  "optimisation_time_s": 150.05247127078474,
   "best_iter": 799,
   "inputs": {
     "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02",
@@ -185,7 +185,7 @@
       ],
       "is_translational": true,
       "is_rotational": true,
-      "final_scale": 0.9569359421730042
+      "final_scale": 0.941433846950531
     },
     "dumbbell_(right_hand)": {
       "name": "dumbbell (right hand)",
@@ -198,7 +198,7 @@
       ],
       "is_translational": true,
       "is_rotational": true,
-      "final_scale": 0.9758951663970947
+      "final_scale": 0.9607072472572327
     }
   },
   "humans": {

@@ -1,0 +1,85 @@
+{
+  "object_name": "iron",
+  "image": "az100_el+30.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output_sam3/video_01/iron/renders/face_id/az100_el+300001.exr",
+  "parts": {
+    "handle": {
+      "sam3_prompt": "The curved handle of the iron",
+      "fallback_prompt": "handle",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "The curved handle of the iron",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "The curved handle of the iron",
+          "raw_candidates": [
+            {
+              "box": [
+                578.8806762695312,
+                486.50408935546875,
+                668.1306762695312,
+                556.3804321289062
+              ],
+              "score": 0.92578125
+            },
+            {
+              "box": [
+                448.00244140625,
+                456.1390380859375,
+                580.7921142578125,
+                517.06201171875
+              ],
+              "score": 0.69140625
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                578.8806762695312,
+                486.50408935546875,
+                668.1306762695312,
+                556.3804321289062
+              ],
+              "score": 0.92578125,
+              "original_area": 1564,
+              "clipped_area": 1520,
+              "silhouette_overlap": 0.9718670076726342
+            },
+            {
+              "box": [
+                448.00244140625,
+                456.1390380859375,
+                580.7921142578125,
+                517.06201171875
+              ],
+              "score": 0.69140625,
+              "original_area": 3779,
+              "clipped_area": 3763,
+              "silhouette_overlap": 0.9957660756813972
+            }
+          ]
+        }
+      ]
+    },
+    "soleplate": {
+      "sam3_prompt": "The flat soleplate of the iron",
+      "fallback_prompt": "soleplate",
+      "used_prompt_type": null,
+      "used_prompt": null,
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "The flat soleplate of the iron",
+          "raw_candidates": [],
+          "kept_candidates": []
+        },
+        {
+          "prompt_type": "fallback_prompt",
+          "prompt": "soleplate",
+          "raw_candidates": [],
+          "kept_candidates": []
+        }
+      ]
+    }
+  }
+}

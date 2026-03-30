@@ -1,0 +1,64 @@
+{
+  "object_name": "dumbbell (right hand)",
+  "image": "az155_el+10.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output_sam3/video_02/dumbbell_(right_hand)/renders/face_id/az155_el+100001.exr",
+  "parts": {
+    "handle": {
+      "sam3_prompt": "dumbbell handle, the central cylindrical bar on the dumbbell (right hand)",
+      "fallback_prompt": "handle",
+      "used_prompt_type": null,
+      "used_prompt": null,
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "dumbbell handle, the central cylindrical bar on the dumbbell (right hand)",
+          "raw_candidates": [],
+          "kept_candidates": []
+        },
+        {
+          "prompt_type": "fallback_prompt",
+          "prompt": "handle",
+          "raw_candidates": [],
+          "kept_candidates": []
+        }
+      ]
+    },
+    "weight plates": {
+      "sam3_prompt": "dumbbell weight plates, the circular disc-shaped ends on the dumbbell (right hand)",
+      "fallback_prompt": "weight plates",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "dumbbell weight plates, the circular disc-shaped ends on the dumbbell (right hand)",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "dumbbell weight plates, the circular disc-shaped ends on the dumbbell (right hand)",
+          "raw_candidates": [
+            {
+              "box": [
+                376.60595703125,
+                354.9245300292969,
+                686.4814453125,
+                708.5567626953125
+              ],
+              "score": 0.65625
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                376.60595703125,
+                354.9245300292969,
+                686.4814453125,
+                708.5567626953125
+              ],
+              "score": 0.65625,
+              "original_area": 80823,
+              "clipped_area": 80822,
+              "silhouette_overlap": 0.9999876272843127
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

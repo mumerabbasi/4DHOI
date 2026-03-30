@@ -39,15 +39,15 @@
     },
     {
       "nodes": [
-        "harp, soundboard",
+        "harp, neck",
         "person 1, right hand"
       ],
       "is_continuous": true,
       "is_rel_static": true
     }
   ],
-  "interaction": "A person sits on a stool playing a harp at an extremely slow pace. Their left hand strums the strings continuously while moving, and their right hand holds the soundboard steady. Non-contact limbs sway gently. The person has short black hair, a neutral facial expression, wearing a gray shirt, blue jeans, and white sneakers. The harp is wooden with golden strings. The scene is a clean, spacious indoor area with white walls and a wooden floor.",
-  "object states": [
+    "interaction": "A person sits on a stool playing a harp at an extremely slow pace. Their left hand strums the strings continuously while moving, and their right hand holds the soundboard steady. Non-contact limbs sway gently. The person has short black hair, a neutral facial expression, wearing a gray shirt, blue jeans, and white sneakers. The harp is wooden with golden strings. The scene is a clean, spacious indoor area with white walls and a wooden floor.",
+    "object states": [
     {
       "name": "harp",
       "is_translational": false,
