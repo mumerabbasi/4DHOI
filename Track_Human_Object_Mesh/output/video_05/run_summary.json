@@ -6,14 +6,14 @@
   "num_humans": 1,
   "num_objects": 2,
   "num_edges": 5,
-  "best_total_loss": 28.901830673217773,
-  "optimisation_time_s": 377.05865137279034,
-  "best_iter": 877,
+  "best_total_loss": 30.181713104248047,
+  "optimisation_time_s": 177.58849023561925,
+  "best_iter": 799,
   "inputs": {
     "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_05",
     "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_05",
     "segment_object_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output/video_05",
-    "pag_file": "/my_workspace/4DHHOI/4DHOI/Generate_PAG/output/video_05/output_pag_qwen3_5_27b.json",
+    "pag_file": "/my_workspace/4DHHOI/4DHOI/Generate_PAG/output/video_05/output_pag_deepseek_r1_32b.json",
     "smpl_seg_json": "/my_workspace/4DHHOI/GVHMR/hmr4d/utils/body_model/smpl_vert_segmentation.json",
     "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_05/alignment_summary.json"
   },
@@ -176,8 +176,8 @@
   "objects": {
     "umbrella": {
       "name": "umbrella",
-      "num_verts": 43630,
-      "num_faces": 87234,
+      "num_verts": 43959,
+      "num_faces": 87912,
       "num_parts": 2,
       "parts": [
         "canopy",
@@ -185,12 +185,12 @@
       ],
       "is_translational": true,
       "is_rotational": false,
-      "final_scale": 1.104338526725769
+      "final_scale": 1.0673736333847046
     },
     "bicycle": {
       "name": "bicycle",
-      "num_verts": 22538,
-      "num_faces": 45288,
+      "num_verts": 22454,
+      "num_faces": 45164,
       "num_parts": 5,
       "parts": [
         "frame_tubes",
@@ -201,7 +201,7 @@
       ],
       "is_translational": true,
       "is_rotational": false,
-      "final_scale": 0.9986882209777832
+      "final_scale": 0.941250205039978
     }
   },
   "humans": {

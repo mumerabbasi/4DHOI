@@ -1,0 +1,44 @@
+{
+  "object_name": "boxing bag",
+  "image": "az100_el+30.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output_sam3/video_06/boxing_bag/renders/face_id/az100_el+300001.exr",
+  "parts": {
+    "punching bag": {
+      "sam3_prompt": "Cylindrical punching bag of the boxing bag.",
+      "fallback_prompt": "punching bag",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "Cylindrical punching bag of the boxing bag.",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "Cylindrical punching bag of the boxing bag.",
+          "raw_candidates": [
+            {
+              "box": [
+                338.851318359375,
+                69.71978759765625,
+                675.9789428710938,
+                850.0545654296875
+              ],
+              "score": 0.94140625
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                338.851318359375,
+                69.71978759765625,
+                675.9789428710938,
+                850.0545654296875
+              ],
+              "score": 0.94140625,
+              "original_area": 209783,
+              "clipped_area": 209783,
+              "silhouette_overlap": 1.0
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
 
+from incam_stabilization import stabilize_result_file
+
 
 F_MM_AUTO = "auto"
 
@@ -141,6 +143,17 @@ def create_masked_human_video(
     subprocess.run(cmd, check=True)
 
 
+def create_passthrough_human_video(
+    source_video_path: Path,
+    output_video_path: Path,
+) -> None:
+    """Copy the source video to a per-human filename without altering pixels."""
+    output_video_path.parent.mkdir(parents=True, exist_ok=True)
+    if output_video_path.exists():
+        output_video_path.unlink()
+    shutil.copy2(source_video_path, output_video_path)
+
+
 def probe_video_fps(video_path: Path) -> float:
     """Read the source video fps using ffprobe."""
     cmd = [
@@ -182,6 +195,24 @@ def finalize_gvhmr_output(
     return dst_dir
 
 
+def build_gvhmr_demo_cmd(
+    demo_script: Path,
+    video_path: Path,
+    output_root: Path,
+    resolved_f_mm: int | None,
+) -> list[str]:
+    cmd = [
+        sys.executable,
+        str(demo_script),
+        f"--video={video_path}",
+        f"--output_root={output_root}",
+        "-s",
+    ]
+    if resolved_f_mm is not None:
+        cmd.append(f"--f_mm={resolved_f_mm}")
+    return cmd
+
+
 def run_gvhmr_inference(
     video_path: Path,
     output_root: Path,
@@ -193,16 +224,7 @@ def run_gvhmr_inference(
     demo_script = gvhmr_path / "tools" / "demo" / "demo.py"
     print(f"Running GVHMR on {video_path.name} (f_mm={resolved_f_mm})")
 
-    cmd = [
-        sys.executable,
-        str(demo_script),
-        f"--video={video_path}",
-        f"--output_root={output_root}",
-        "-s",
-    ]
-    if resolved_f_mm is not None:
-        cmd.append(f"--f_mm={resolved_f_mm}")
-
+    cmd = build_gvhmr_demo_cmd(demo_script, video_path, output_root, resolved_f_mm)
     env = build_subprocess_env(gvhmr_path)
     src_dir = output_root / video_path.stem
     dst_dir = output_root / final_dir_name
@@ -222,6 +244,27 @@ def run_gvhmr_inference(
             raise
 
     return finalize_gvhmr_output(src_dir, dst_dir, allow_partial=allow_partial)
+
+
+def rerender_stabilized_incam_outputs(
+    video_path: Path,
+    output_root: Path,
+    result_dir: Path,
+    gvhmr_path: Path,
+    resolved_f_mm: int | None,
+) -> None:
+    """Regenerate incam videos after overwriting smpl_params_incam with stabilized motion."""
+    incam_artifacts = sorted(result_dir.glob("*incam*.mp4"))
+    for artifact in incam_artifacts:
+        artifact.unlink()
+
+    if not incam_artifacts:
+        return
+
+    demo_script = gvhmr_path / "tools" / "demo" / "demo.py"
+    cmd = build_gvhmr_demo_cmd(demo_script, video_path, output_root, resolved_f_mm)
+    env = build_subprocess_env(gvhmr_path)
+    subprocess.run(cmd, cwd=str(gvhmr_path), check=True, env=env)
 
 
 def main() -> None:
@@ -248,6 +291,17 @@ def main() -> None:
         help="Path to the cloned GVHMR repo.",
     )
     parser.add_argument("--device", default="cuda:0")
+    parser.add_argument(
+        "--stabilize_incam",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Project GVHMR's post-processed global trajectory back into the static "
+            "camera frame, overwrite smpl_params_incam with the stabilized motion, "
+            "preserve the raw camera-frame params under smpl_params_incam_raw, and "
+            "rerender the incam videos."
+        ),
+    )
     parser.add_argument(
         "--f_mm",
         type=parse_f_mm_arg,
@@ -295,7 +349,9 @@ def main() -> None:
             create_masked_human_video(video_path, human_spec, masked_video_path)
             gvhmr_input_video = masked_video_path
         else:
-            gvhmr_input_video = video_path
+            passthrough_video_path = masked_videos_dir / f"{human_spec.name}.mp4"
+            create_passthrough_human_video(video_path, passthrough_video_path)
+            gvhmr_input_video = passthrough_video_path
 
         final_output_dir = run_gvhmr_inference(
             video_path=gvhmr_input_video,
@@ -304,6 +360,17 @@ def main() -> None:
             gvhmr_path=gvhmr_path,
             resolved_f_mm=resolved_f_mm,
         )
+        if args.stabilize_incam:
+            result_path = final_output_dir / "hmr4d_results.pt"
+            print(f"Stabilizing camera-frame motion for {human_spec.name}...")
+            stabilize_result_file(result_path, gvhmr_path)
+            rerender_stabilized_incam_outputs(
+                video_path=gvhmr_input_video,
+                output_root=multi_root,
+                result_dir=final_output_dir,
+                gvhmr_path=gvhmr_path,
+                resolved_f_mm=resolved_f_mm,
+            )
         final_dirs.append(final_output_dir)
 
     print("\nSuccess! Motion data saved to:")

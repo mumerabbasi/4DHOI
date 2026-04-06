@@ -343,7 +343,6 @@ then the output is
 "person 1, right hand",
 "person 1, left arm",
 "person 1, right arm",
-16
 "person 1, left shoulder",
 "person 1, right shoulder",
 "person 1, left leg",
@@ -477,7 +476,6 @@ hand"
 "person 1, left
 foot"
 ],
-17
 "is_rel_static": true,
 "is_continuous": true
 },
@@ -611,7 +609,6 @@ person with short
 brown hair who is
 wearing blue jeans
 and playing the
-18
 guitar"
 }
 ]

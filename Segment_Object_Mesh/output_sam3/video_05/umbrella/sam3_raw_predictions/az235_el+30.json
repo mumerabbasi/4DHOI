@@ -1,0 +1,81 @@
+{
+  "object_name": "umbrella",
+  "image": "az235_el+30.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output_sam3/video_05/umbrella/renders/face_id/az235_el+300001.exr",
+  "parts": {
+    "canopy": {
+      "sam3_prompt": "Umbrella's canopy, the large curved top part",
+      "fallback_prompt": "canopy",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "Umbrella's canopy, the large curved top part",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "Umbrella's canopy, the large curved top part",
+          "raw_candidates": [
+            {
+              "box": [
+                199.84011840820312,
+                317.25091552734375,
+                802.767578125,
+                702.4185791015625
+              ],
+              "score": 0.96484375
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                199.84011840820312,
+                317.25091552734375,
+                802.767578125,
+                702.4185791015625
+              ],
+              "score": 0.96484375,
+              "original_area": 146027,
+              "clipped_area": 146023,
+              "silhouette_overlap": 0.9999726078054059
+            }
+          ]
+        }
+      ]
+    },
+    "shaft": {
+      "sam3_prompt": "Umbrella's shaft, the long central pole",
+      "fallback_prompt": "shaft",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "Umbrella's shaft, the long central pole",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "Umbrella's shaft, the long central pole",
+          "raw_candidates": [
+            {
+              "box": [
+                524.944580078125,
+                317.2130126953125,
+                547.798828125,
+                375.38690185546875
+              ],
+              "score": 0.5859375
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                524.944580078125,
+                317.2130126953125,
+                547.798828125,
+                375.38690185546875
+              ],
+              "score": 0.5859375,
+              "original_area": 788,
+              "clipped_area": 786,
+              "silhouette_overlap": 0.9974619289340102
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

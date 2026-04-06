@@ -2087,15 +2087,6 @@ def parse_args() -> argparse.Namespace:
             "'depth': camera_intrinsics.json intrinsics_pixels_3x3 (DA3 side)."
         ),
     )
-    parser.add_argument(
-        "--intrinsics_warn_threshold_px",
-        type=float,
-        default=100.0,
-        help=(
-            "Warn if max |object - depth intrinsics| exceeds this threshold "
-            "in pixels."
-        ),
-    )
 
     parser.add_argument("--device", type=str, default="cuda:0")
     parser.add_argument("--opt_max_side", type=int, default=1280)
@@ -2104,7 +2095,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lr", type=float, default=5e-3)
 
     parser.add_argument("--w_cd3d", type=float, default=1e3)
-    parser.add_argument("--w_cd2d", type=float, default=1e-4)
+    parser.add_argument("--w_cd2d", type=float, default=1e-3)  # Originally 1e-4, increased to improve 2D fitting
     parser.add_argument("--w_scale_reg", type=float, default=1e-3)
     parser.add_argument("--w_t_reg", type=float, default=1e-3)
     parser.add_argument("--rho_geman_3d", type=float, default=0.2)
@@ -2118,7 +2109,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max_scale", type=float, default=5.0)
     parser.add_argument("--max_abs_delta_tx", type=float, default=2.0)
     parser.add_argument("--max_abs_delta_ty", type=float, default=2.0)
-    parser.add_argument("--max_abs_delta_tz", type=float, default=2.0)
+    parser.add_argument("--max_abs_delta_tz", type=float, default=10.0)
 
     parser.add_argument("--min_obs_3d_points_per_mesh", type=int, default=32)
     parser.add_argument("--min_obs_2d_points_per_mesh", type=int, default=64)
@@ -2135,7 +2126,7 @@ def parse_args() -> argparse.Namespace:
         ),
     )
 
-    parser.add_argument("--debug_save_every", type=int, default=50)
+    parser.add_argument("--debug_save_every", type=int, default=250)
     parser.add_argument("--debug_point_radius", type=int, default=1)
     parser.add_argument("--debug_max_points_vis", type=int, default=50000)
     parser.add_argument("--debug_max_nn_lines", type=int, default=2000)
@@ -2150,13 +2141,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--checkpoint_every",
         type=int,
-        default=50,
+        default=250,
         help="Save per-mesh optimization checkpoint every N global iterations.",
     )
     parser.add_argument(
         "--early_stop_patience",
         type=int,
-        default=100,
+        default=500,
         help="Patience in global iterations for early stopping (0 disables).",
     )
     parser.add_argument(
@@ -2168,13 +2159,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--early_stop_min_iter",
         type=int,
-        default=300,
+        default=1000,
         help="Earliest global iteration to start applying early stopping checks.",
     )
     parser.add_argument(
         "--sam3_mask_erode_iters",
         type=int,
-        default=3,
+        default=1,
         help=(
             "Number of 3x3 erosion iterations applied to SAM3 masks "
             "(objects + human) before observation extraction."

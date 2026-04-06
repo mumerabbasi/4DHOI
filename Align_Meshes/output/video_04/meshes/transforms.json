@@ -11,43 +11,43 @@
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_alpha": 0.1349419802427292,
-        "scale_exp_alpha": 1.1444703805312844,
+        "log_scale_alpha": 0.192026749253273,
+        "scale_exp_alpha": 1.211702928679935,
         "tx_init_m": 0.0,
         "ty_init_m": 0.0,
         "tz_init_m": 0.0,
-        "delta_tx_m": 0.022669363766908646,
-        "delta_ty_m": 0.015315140597522259,
-        "delta_tz_m": 0.4190710484981537,
-        "tx_total_m": 0.022669363766908646,
-        "ty_total_m": 0.015315140597522259,
-        "tz_total_m": 0.4190710484981537,
+        "delta_tx_m": 0.013028162531554699,
+        "delta_ty_m": 0.017103951424360275,
+        "delta_tz_m": 0.30195075273513794,
+        "tx_total_m": 0.013028162531554699,
+        "ty_total_m": 0.017103951424360275,
+        "tz_total_m": 0.30195075273513794,
         "obs_3d_count": 6000,
         "obs_2d_count": 6000,
-        "model_sample_count": 2406,
+        "model_sample_count": 2385,
         "model_sample_count_total": 6000,
-        "model_sample_count_visible_fixed": 2406,
-        "model_sample_visible_ratio": 0.401,
+        "model_sample_count_visible_fixed": 2385,
+        "model_sample_visible_ratio": 0.3975,
         "visible_subset_mode": "strict_visible"
       },
       "source_to_output_matrix_4x4": [
         [
-          1.1444703340530396,
+          1.2117029428482056,
           0.0,
           0.0,
-          0.022669363766908646
+          0.013028162531554699
         ],
         [
           0.0,
-          1.1444703340530396,
+          1.2117029428482056,
           0.0,
-          0.015315140597522259
+          0.017103951424360275
         ],
         [
           0.0,
           0.0,
-          1.1444703340530396,
-          0.4190710484981537
+          1.2117029428482056,
+          0.30195075273513794
         ],
         [
           0.0,
@@ -58,7 +58,7 @@
       ]
     },
     {
-      "name": "4-legged stool",
+      "name": "4 legged stool",
       "slug": "4_legged_stool",
       "kind": "object",
       "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_04/meshes/4_legged_stool.ply",
@@ -68,43 +68,43 @@
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_alpha": 0.5657175779342651,
-        "scale_exp_alpha": 1.7607107767213057,
+        "log_scale_alpha": 0.6002829670906067,
+        "scale_exp_alpha": 1.8226344730019437,
         "tx_init_m": 0.0,
         "ty_init_m": 0.0,
         "tz_init_m": 0.0,
-        "delta_tx_m": 0.03429971635341644,
-        "delta_ty_m": 0.11389721930027008,
-        "delta_tz_m": 0.4804612100124359,
-        "tx_total_m": 0.03429971635341644,
-        "ty_total_m": 0.11389721930027008,
-        "tz_total_m": 0.4804612100124359,
+        "delta_tx_m": 0.02219979092478752,
+        "delta_ty_m": 0.09678419679403305,
+        "delta_tz_m": 0.40963447093963623,
+        "tx_total_m": 0.02219979092478752,
+        "ty_total_m": 0.09678419679403305,
+        "tz_total_m": 0.40963447093963623,
         "obs_3d_count": 6000,
         "obs_2d_count": 6000,
-        "model_sample_count": 3631,
+        "model_sample_count": 3632,
         "model_sample_count_total": 6000,
-        "model_sample_count_visible_fixed": 3631,
-        "model_sample_visible_ratio": 0.6051666666666666,
+        "model_sample_count_visible_fixed": 3632,
+        "model_sample_visible_ratio": 0.6053333333333333,
         "visible_subset_mode": "strict_visible"
       },
       "source_to_output_matrix_4x4": [
         [
-          1.7607108354568481,
+          1.8226344585418701,
           0.0,
           0.0,
-          0.03429971635341644
+          0.02219979092478752
         ],
         [
           0.0,
-          1.7607108354568481,
+          1.8226344585418701,
           0.0,
-          0.11389721930027008
+          0.09678419679403305
         ],
         [
           0.0,
           0.0,
-          1.7607108354568481,
-          0.4804612100124359
+          1.8226344585418701,
+          0.40963447093963623
         ],
         [
           0.0,
@@ -125,43 +125,43 @@
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_alpha": 0.5964022278785706,
-        "scale_exp_alpha": 1.8155750107590305,
+        "log_scale_alpha": 0.6004016995429993,
+        "scale_exp_alpha": 1.8228508917104462,
         "tx_init_m": 0.0,
         "ty_init_m": 0.0,
         "tz_init_m": 0.0,
-        "delta_tx_m": -0.16118896007537842,
-        "delta_ty_m": -0.18720309436321259,
-        "delta_tz_m": 0.368278831243515,
-        "tx_total_m": -0.16118896007537842,
-        "ty_total_m": -0.18720309436321259,
-        "tz_total_m": 0.368278831243515,
+        "delta_tx_m": -0.12052977085113525,
+        "delta_ty_m": -0.16227686405181885,
+        "delta_tz_m": 0.38606736063957214,
+        "tx_total_m": -0.12052977085113525,
+        "ty_total_m": -0.16227686405181885,
+        "tz_total_m": 0.38606736063957214,
         "obs_3d_count": 6000,
         "obs_2d_count": 6000,
-        "model_sample_count": 3639,
+        "model_sample_count": 3574,
         "model_sample_count_total": 6000,
-        "model_sample_count_visible_fixed": 3639,
-        "model_sample_visible_ratio": 0.6065,
+        "model_sample_count_visible_fixed": 3574,
+        "model_sample_visible_ratio": 0.5956666666666667,
         "visible_subset_mode": "strict_visible"
       },
       "source_to_output_matrix_4x4": [
         [
-          1.8155750036239624,
+          1.8228509426116943,
           0.0,
           0.0,
-          -0.16118896007537842
+          -0.12052977085113525
         ],
         [
           0.0,
-          1.8155750036239624,
+          1.8228509426116943,
           0.0,
-          -0.18720309436321259
+          -0.16227686405181885
         ],
         [
           0.0,
           0.0,
-          1.8155750036239624,
-          0.368278831243515
+          1.8228509426116943,
+          0.38606736063957214
         ],
         [
           0.0,

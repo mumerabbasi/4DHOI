@@ -1,0 +1,153 @@
+{
+  "object_name": "harp",
+  "image": "az100_el+30.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output_sam3/video_04/harp/renders/face_id/az100_el+300001.exr",
+  "parts": {
+    "strings": {
+      "sam3_prompt": "harp strings: thin taut lines connecting neck to soundboard",
+      "fallback_prompt": "strings",
+      "used_prompt_type": "fallback_prompt",
+      "used_prompt": "strings",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "harp strings: thin taut lines connecting neck to soundboard",
+          "raw_candidates": [],
+          "kept_candidates": []
+        },
+        {
+          "prompt_type": "fallback_prompt",
+          "prompt": "strings",
+          "raw_candidates": [
+            {
+              "box": [
+                505.2137451171875,
+                323.13531494140625,
+                538.124755859375,
+                702.2787475585938
+              ],
+              "score": 0.59375
+            },
+            {
+              "box": [
+                594.6807250976562,
+                221.9414825439453,
+                639.7484741210938,
+                634.2357788085938
+              ],
+              "score": 0.7109375
+            },
+            {
+              "box": [
+                571.8658447265625,
+                235.34832763671875,
+                615.9871826171875,
+                690.2072143554688
+              ],
+              "score": 0.66015625
+            },
+            {
+              "box": [
+                545.6334228515625,
+                241.31256103515625,
+                597.5283203125,
+                736.4738159179688
+              ],
+              "score": 0.6640625
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                594.6807250976562,
+                221.9414825439453,
+                639.7484741210938,
+                634.2357788085938
+              ],
+              "score": 0.7109375,
+              "original_area": 3799,
+              "clipped_area": 3595,
+              "silhouette_overlap": 0.9463016583311398
+            },
+            {
+              "box": [
+                545.6334228515625,
+                241.31256103515625,
+                597.5283203125,
+                736.4738159179688
+              ],
+              "score": 0.6640625,
+              "original_area": 6027,
+              "clipped_area": 5837,
+              "silhouette_overlap": 0.9684751949560312
+            },
+            {
+              "box": [
+                571.8658447265625,
+                235.34832763671875,
+                615.9871826171875,
+                690.2072143554688
+              ],
+              "score": 0.66015625,
+              "original_area": 3928,
+              "clipped_area": 3583,
+              "silhouette_overlap": 0.9121690427698574
+            },
+            {
+              "box": [
+                505.2137451171875,
+                323.13531494140625,
+                538.124755859375,
+                702.2787475585938
+              ],
+              "score": 0.59375,
+              "original_area": 3337,
+              "clipped_area": 3087,
+              "silhouette_overlap": 0.9250824093497153
+            }
+          ]
+        }
+      ]
+    },
+    "neck": {
+      "sam3_prompt": "harp neck: curved wooden structure connecting top to soundboard",
+      "fallback_prompt": "neck",
+      "used_prompt_type": null,
+      "used_prompt": null,
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "harp neck: curved wooden structure connecting top to soundboard",
+          "raw_candidates": [],
+          "kept_candidates": []
+        },
+        {
+          "prompt_type": "fallback_prompt",
+          "prompt": "neck",
+          "raw_candidates": [],
+          "kept_candidates": []
+        }
+      ]
+    },
+    "soundboard": {
+      "sam3_prompt": "harp soundboard: large curved flat surface at base",
+      "fallback_prompt": "soundboard",
+      "used_prompt_type": null,
+      "used_prompt": null,
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "harp soundboard: large curved flat surface at base",
+          "raw_candidates": [],
+          "kept_candidates": []
+        },
+        {
+          "prompt_type": "fallback_prompt",
+          "prompt": "soundboard",
+          "raw_candidates": [],
+          "kept_candidates": []
+        }
+      ]
+    }
+  }
+}

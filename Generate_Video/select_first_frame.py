@@ -12,7 +12,7 @@ from PIL import Image
 
 OLLAMA_HOST = "http://127.0.0.1:11434/v1"
 OLLAMA_API_KEY = "ollama"
-QWEN_MODEL = "qwen3.5:27b"
+QWEN_MODEL = "qwen3-vl:32b-thinking"
 
 
 def extract_text_content(content: Any) -> str:
@@ -280,7 +280,7 @@ def main() -> None:
     prompt_path = (
         Path(args.prompt_file).resolve()
         if args.prompt_file
-        else script_dir / "prompt_select_first_frame.md"
+        else script_dir / "system_prompt_select_first_frame.md"
     )
     output_json = (
         Path(args.output_json).resolve()

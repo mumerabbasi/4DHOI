@@ -1,0 +1,102 @@
+{
+  "object_name": "ironing board",
+  "image": "az010_el-15.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output_sam3/video_01/ironing_board/renders/face_id/az010_el-150001.exr",
+  "parts": {
+    "surface": {
+      "sam3_prompt": "The flat surface of the ironing board",
+      "fallback_prompt": "surface",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "The flat surface of the ironing board",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "The flat surface of the ironing board",
+          "raw_candidates": [
+            {
+              "box": [
+                307.7965087890625,
+                185.79454040527344,
+                644.754638671875,
+                409.729248046875
+              ],
+              "score": 0.8046875
+            },
+            {
+              "box": [
+                256.731689453125,
+                89.57022857666016,
+                639.725341796875,
+                237.3802490234375
+              ],
+              "score": 0.8046875
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                307.7965087890625,
+                185.79454040527344,
+                644.754638671875,
+                409.729248046875
+              ],
+              "score": 0.8046875,
+              "original_area": 37769,
+              "clipped_area": 37769,
+              "silhouette_overlap": 1.0
+            },
+            {
+              "box": [
+                256.731689453125,
+                89.57022857666016,
+                639.725341796875,
+                237.3802490234375
+              ],
+              "score": 0.8046875,
+              "original_area": 22595,
+              "clipped_area": 22595,
+              "silhouette_overlap": 1.0
+            }
+          ]
+        }
+      ]
+    },
+    "support": {
+      "sam3_prompt": "The support frame of the ironing board",
+      "fallback_prompt": "support",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "The support frame of the ironing board",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "The support frame of the ironing board",
+          "raw_candidates": [
+            {
+              "box": [
+                334.96795654296875,
+                202.35147094726562,
+                700.2199096679688,
+                798.264404296875
+              ],
+              "score": 0.640625
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                334.96795654296875,
+                202.35147094726562,
+                700.2199096679688,
+                798.264404296875
+              ],
+              "score": 0.640625,
+              "original_area": 46987,
+              "clipped_area": 46863,
+              "silhouette_overlap": 0.9973609721837955
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -6,14 +6,14 @@
   "num_humans": 2,
   "num_objects": 1,
   "num_edges": 4,
-  "best_total_loss": 4.129765510559082,
-  "optimisation_time_s": 97.13569428911433,
-  "best_iter": 735,
+  "best_total_loss": 3.663768768310547,
+  "optimisation_time_s": 98.60679831821471,
+  "best_iter": 813,
   "inputs": {
     "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_06",
     "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_06",
     "segment_object_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output/video_06",
-    "pag_file": "/my_workspace/4DHHOI/4DHOI/Generate_PAG/output/video_06/output_pag_qwen3_5_27b.json",
+    "pag_file": "/my_workspace/4DHHOI/4DHOI/Generate_PAG/output/video_06/output_pag_deepseek_r1_32b.json",
     "smpl_seg_json": "/my_workspace/4DHHOI/GVHMR/hmr4d/utils/body_model/smpl_vert_segmentation.json",
     "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_06/alignment_summary.json"
   },
@@ -176,15 +176,15 @@
   "objects": {
     "boxing_bag": {
       "name": "boxing bag",
-      "num_verts": 44068,
-      "num_faces": 88222,
+      "num_verts": 41605,
+      "num_faces": 83212,
       "num_parts": 1,
       "parts": [
         "punching_bag"
       ],
       "is_translational": false,
       "is_rotational": false,
-      "final_scale": 1.0415042638778687
+      "final_scale": 1.0097514390945435
     }
   },
   "humans": {

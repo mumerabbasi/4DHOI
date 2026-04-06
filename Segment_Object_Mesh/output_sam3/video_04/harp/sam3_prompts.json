@@ -1,0 +1,27 @@
+{
+  "object_name": "harp",
+  "parts": [
+    "strings",
+    "neck",
+    "soundboard"
+  ],
+  "prompt_views": [
+    "az010_el+10.png",
+    "az100_el+10.png",
+    "az190_el+10.png"
+  ],
+  "prompts": {
+    "strings": {
+      "sam3_prompt": "harp strings: thin taut lines connecting neck to soundboard",
+      "fallback_prompt": "strings"
+    },
+    "neck": {
+      "sam3_prompt": "harp neck: curved wooden structure connecting top to soundboard",
+      "fallback_prompt": "neck"
+    },
+    "soundboard": {
+      "sam3_prompt": "harp soundboard: large curved flat surface at base",
+      "fallback_prompt": "soundboard"
+    }
+  }
+}

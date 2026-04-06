@@ -29,7 +29,7 @@ from PIL import Image
 
 OLLAMA_HOST = "http://127.0.0.1:11434/v1"
 OLLAMA_API_KEY = "ollama"
-QWEN_MODEL = "qwen3.5:27b"
+QWEN_MODEL = "qwen3-vl:32b-thinking"
 
 SAM3_CHECKPOINT = None  # None -> auto-download from HuggingFace
 SAM3_BPE_PATH = "/my_workspace/4DHHOI/sam3/sam3/assets/bpe_simple_vocab_16e6.txt.gz"
@@ -874,7 +874,7 @@ def main():
     parser.add_argument(
         "--qwen_retries",
         type=int,
-        default=5,
+        default=3,
         help="Number of detection retries per view before giving up (default: 5).",
     )
     parser.add_argument(

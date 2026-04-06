@@ -6,14 +6,14 @@
   "num_humans": 1,
   "num_objects": 2,
   "num_edges": 3,
-  "best_total_loss": 3.5526819229125977,
-  "optimisation_time_s": 406.4068703260273,
-  "best_iter": 1074,
+  "best_total_loss": 1.4370524883270264,
+  "optimisation_time_s": 260.07556712441146,
+  "best_iter": 799,
   "inputs": {
     "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_04",
     "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_04",
     "segment_object_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output/video_04",
-    "pag_file": "/my_workspace/4DHHOI/4DHOI/Generate_PAG/output/video_04/output_pag_qwen3_5_27b.json",
+    "pag_file": "/my_workspace/4DHHOI/4DHOI/Generate_PAG/output/video_04/output_pag_deepseek_r1_32b.json",
     "smpl_seg_json": "/my_workspace/4DHHOI/GVHMR/hmr4d/utils/body_model/smpl_vert_segmentation.json",
     "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_04/alignment_summary.json"
   },
@@ -176,8 +176,8 @@
   "objects": {
     "harp": {
       "name": "harp",
-      "num_verts": 28596,
-      "num_faces": 57159,
+      "num_verts": 29049,
+      "num_faces": 58119,
       "num_parts": 3,
       "parts": [
         "neck",
@@ -186,12 +186,12 @@
       ],
       "is_translational": false,
       "is_rotational": false,
-      "final_scale": 0.9122446179389954
+      "final_scale": 0.9608704447746277
     },
     "4_legged_stool": {
       "name": "4-legged stool",
-      "num_verts": 77454,
-      "num_faces": 154944,
+      "num_verts": 76541,
+      "num_faces": 153110,
       "num_parts": 2,
       "parts": [
         "legs",
@@ -199,7 +199,7 @@
       ],
       "is_translational": false,
       "is_rotational": false,
-      "final_scale": 0.9931504726409912
+      "final_scale": 0.9935243129730225
     }
   },
   "humans": {
@@ -222,13 +222,13 @@
     },
     {
       "node_a": "harp, strings",
-      "node_b": "person 1, right hand",
+      "node_b": "person 1, left hand",
       "is_continuous": true,
       "is_rel_static": false
     },
     {
       "node_a": "harp, neck",
-      "node_b": "person 1, left hand",
+      "node_b": "person 1, right hand",
       "is_continuous": true,
       "is_rel_static": true
     }

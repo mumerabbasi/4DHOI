@@ -1,0 +1,22 @@
+{
+  "object_name": "umbrella",
+  "parts": [
+    "canopy",
+    "shaft"
+  ],
+  "prompt_views": [
+    "az010_el+10.png",
+    "az100_el+10.png",
+    "az190_el+10.png"
+  ],
+  "prompts": {
+    "canopy": {
+      "sam3_prompt": "the curved fabric canopy of the umbrella",
+      "fallback_prompt": "canopy"
+    },
+    "shaft": {
+      "sam3_prompt": "the long central shaft of the umbrella",
+      "fallback_prompt": "shaft"
+    }
+  }
+}

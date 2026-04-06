@@ -1,0 +1,102 @@
+{
+  "object_name": "umbrella",
+  "image": "az280_el+10.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output_sam3/video_05/umbrella/renders/face_id/az280_el+100001.exr",
+  "parts": {
+    "canopy": {
+      "sam3_prompt": "Umbrella's canopy, the large curved top part",
+      "fallback_prompt": "canopy",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "Umbrella's canopy, the large curved top part",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "Umbrella's canopy, the large curved top part",
+          "raw_candidates": [
+            {
+              "box": [
+                198.81295776367188,
+                350.4341735839844,
+                816.816162109375,
+                614.1650390625
+              ],
+              "score": 0.94921875
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                198.81295776367188,
+                350.4341735839844,
+                816.816162109375,
+                614.1650390625
+              ],
+              "score": 0.94921875,
+              "original_area": 99076,
+              "clipped_area": 99066,
+              "silhouette_overlap": 0.9998990673826154
+            }
+          ]
+        }
+      ]
+    },
+    "shaft": {
+      "sam3_prompt": "Umbrella's shaft, the long central pole",
+      "fallback_prompt": "shaft",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "Umbrella's shaft, the long central pole",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "Umbrella's shaft, the long central pole",
+          "raw_candidates": [
+            {
+              "box": [
+                499.5278015136719,
+                570.2073364257812,
+                512.934814453125,
+                643.1742553710938
+              ],
+              "score": 0.546875
+            },
+            {
+              "box": [
+                492.3729248046875,
+                570.8341674804688,
+                515.8353881835938,
+                710.6580200195312
+              ],
+              "score": 0.79296875
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                492.3729248046875,
+                570.8341674804688,
+                515.8353881835938,
+                710.6580200195312
+              ],
+              "score": 0.79296875,
+              "original_area": 2076,
+              "clipped_area": 2067,
+              "silhouette_overlap": 0.9956647398843931
+            },
+            {
+              "box": [
+                499.5278015136719,
+                570.2073364257812,
+                512.934814453125,
+                643.1742553710938
+              ],
+              "score": 0.546875,
+              "original_area": 722,
+              "clipped_area": 714,
+              "silhouette_overlap": 0.9889196675900277
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

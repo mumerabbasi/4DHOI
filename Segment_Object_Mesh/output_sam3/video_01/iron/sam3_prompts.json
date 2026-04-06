@@ -1,0 +1,22 @@
+{
+  "object_name": "iron",
+  "parts": [
+    "handle",
+    "soleplate"
+  ],
+  "prompt_views": [
+    "az010_el+10.png",
+    "az100_el+10.png",
+    "az190_el+10.png"
+  ],
+  "prompts": {
+    "handle": {
+      "sam3_prompt": "The curved handle of the iron",
+      "fallback_prompt": "handle"
+    },
+    "soleplate": {
+      "sam3_prompt": "The flat soleplate of the iron",
+      "fallback_prompt": "soleplate"
+    }
+  }
+}

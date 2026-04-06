@@ -1,0 +1,144 @@
+{
+  "object_name": "4-legged stool",
+  "image": "az190_el-15.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output_sam3/video_04/4_legged_stool/renders/face_id/az190_el-150001.exr",
+  "parts": {
+    "seat": {
+      "sam3_prompt": "4-legged stool's flat top surface, seat",
+      "fallback_prompt": "seat",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "4-legged stool's flat top surface, seat",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "4-legged stool's flat top surface, seat",
+          "raw_candidates": [
+            {
+              "box": [
+                265.35101318359375,
+                144.59408569335938,
+                645.9368896484375,
+                379.0074768066406
+              ],
+              "score": 0.74609375
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                265.35101318359375,
+                144.59408569335938,
+                645.9368896484375,
+                379.0074768066406
+              ],
+              "score": 0.74609375,
+              "original_area": 57494,
+              "clipped_area": 57494,
+              "silhouette_overlap": 1.0
+            }
+          ]
+        }
+      ]
+    },
+    "legs": {
+      "sam3_prompt": "4-legged stool's four vertical supports, legs",
+      "fallback_prompt": "legs",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "4-legged stool's four vertical supports, legs",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "4-legged stool's four vertical supports, legs",
+          "raw_candidates": [
+            {
+              "box": [
+                564.1424560546875,
+                246.46588134765625,
+                801.3226318359375,
+                742.328857421875
+              ],
+              "score": 0.87890625
+            },
+            {
+              "box": [
+                356.0380554199219,
+                372.36737060546875,
+                395.5896301269531,
+                838.0411987304688
+              ],
+              "score": 0.765625
+            },
+            {
+              "box": [
+                324.5791015625,
+                279.1076354980469,
+                383.434326171875,
+                814.9632568359375
+              ],
+              "score": 0.8515625
+            },
+            {
+              "box": [
+                548.1952514648438,
+                337.58441162109375,
+                718.4580688476562,
+                779.3031616210938
+              ],
+              "score": 0.86328125
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                564.1424560546875,
+                246.46588134765625,
+                801.3226318359375,
+                742.328857421875
+              ],
+              "score": 0.87890625,
+              "original_area": 27500,
+              "clipped_area": 27491,
+              "silhouette_overlap": 0.9996727272727273
+            },
+            {
+              "box": [
+                548.1952514648438,
+                337.58441162109375,
+                718.4580688476562,
+                779.3031616210938
+              ],
+              "score": 0.86328125,
+              "original_area": 17281,
+              "clipped_area": 17270,
+              "silhouette_overlap": 0.9993634627625716
+            },
+            {
+              "box": [
+                324.5791015625,
+                279.1076354980469,
+                383.434326171875,
+                814.9632568359375
+              ],
+              "score": 0.8515625,
+              "original_area": 25934,
+              "clipped_area": 25934,
+              "silhouette_overlap": 1.0
+            },
+            {
+              "box": [
+                356.0380554199219,
+                372.36737060546875,
+                395.5896301269531,
+                838.0411987304688
+              ],
+              "score": 0.765625,
+              "original_area": 4462,
+              "clipped_area": 4460,
+              "silhouette_overlap": 0.9995517705064993
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

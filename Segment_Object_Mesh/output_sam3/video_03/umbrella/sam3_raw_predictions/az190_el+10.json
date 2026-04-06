@@ -1,0 +1,123 @@
+{
+  "object_name": "umbrella",
+  "image": "az190_el+10.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output_sam3/video_03/umbrella/renders/face_id/az190_el+100001.exr",
+  "parts": {
+    "canopy": {
+      "sam3_prompt": "the curved fabric canopy of the umbrella",
+      "fallback_prompt": "canopy",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "the curved fabric canopy of the umbrella",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "the curved fabric canopy of the umbrella",
+          "raw_candidates": [
+            {
+              "box": [
+                205.70895385742188,
+                332.93328857421875,
+                805.181640625,
+                514.87109375
+              ],
+              "score": 0.76171875
+            },
+            {
+              "box": [
+                277.66058349609375,
+                260.6580505371094,
+                777.0364379882812,
+                396.6514587402344
+              ],
+              "score": 0.79296875
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                277.66058349609375,
+                260.6580505371094,
+                777.0364379882812,
+                396.6514587402344
+              ],
+              "score": 0.79296875,
+              "original_area": 25656,
+              "clipped_area": 25640,
+              "silhouette_overlap": 0.9993763642033052
+            },
+            {
+              "box": [
+                205.70895385742188,
+                332.93328857421875,
+                805.181640625,
+                514.87109375
+              ],
+              "score": 0.76171875,
+              "original_area": 70200,
+              "clipped_area": 70197,
+              "silhouette_overlap": 0.999957264957265
+            }
+          ]
+        }
+      ]
+    },
+    "shaft": {
+      "sam3_prompt": "the long central shaft of the umbrella",
+      "fallback_prompt": "shaft",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "the long central shaft of the umbrella",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "the long central shaft of the umbrella",
+          "raw_candidates": [
+            {
+              "box": [
+                503.8269348144531,
+                338.73370361328125,
+                518.6251220703125,
+                647.2847900390625
+              ],
+              "score": 0.69921875
+            },
+            {
+              "box": [
+                491.3349304199219,
+                335.39410400390625,
+                522.061767578125,
+                806.1342163085938
+              ],
+              "score": 0.5703125
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                503.8269348144531,
+                338.73370361328125,
+                518.6251220703125,
+                647.2847900390625
+              ],
+              "score": 0.69921875,
+              "original_area": 3011,
+              "clipped_area": 2996,
+              "silhouette_overlap": 0.9950182663566921
+            },
+            {
+              "box": [
+                491.3349304199219,
+                335.39410400390625,
+                522.061767578125,
+                806.1342163085938
+              ],
+              "score": 0.5703125,
+              "original_area": 6486,
+              "clipped_area": 6471,
+              "silhouette_overlap": 0.9976873265494912
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

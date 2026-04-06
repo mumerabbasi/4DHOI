@@ -1,0 +1,17 @@
+{
+  "object_name": "boxing bag",
+  "parts": [
+    "punching bag"
+  ],
+  "prompt_views": [
+    "az010_el+10.png",
+    "az100_el+10.png",
+    "az190_el+10.png"
+  ],
+  "prompts": {
+    "punching bag": {
+      "sam3_prompt": "Cylindrical punching bag of the boxing bag.",
+      "fallback_prompt": "punching bag"
+    }
+  }
+}

@@ -5,6 +5,8 @@ import smplx
 import torch
 from tqdm import tqdm
 
+from incam_stabilization import compute_stabilized_incam_params
+
 
 def write_ascii_ply(path: Path, vertices, faces) -> None:
     """Write a triangular mesh to an ASCII PLY file."""
@@ -47,6 +49,8 @@ def export_one_human(
     smplx_layer,
     smplx2smpl,
     faces_smpl,
+    gvhmr_path: Path,
+    stabilize_incam: bool,
 ) -> None:
     result_path = result_dir / "hmr4d_results.pt"
     if not result_path.exists():
@@ -55,9 +59,13 @@ def export_one_human(
     print(f"Loading data from {result_path}...")
     data = torch.load(result_path)
 
-    # Use smpl_params_incam so the human is in camera-frame coordinates,
-    # matching other camera-frame assets (e.g. object meshes from sam3d).
-    params = data["smpl_params_incam"]
+    # Export in camera-frame coordinates so the human matches other OpenCV-camera
+    # assets. By default we use a stabilized camera-frame trajectory derived from
+    # GVHMR's post-processed global motion to reduce visible foot sliding.
+    if stabilize_incam:
+        params = compute_stabilized_incam_params(data, gvhmr_path)
+    else:
+        params = data.get("smpl_params_incam_raw", data["smpl_params_incam"])
 
     body_pose = params["body_pose"]
     betas = params["betas"]
@@ -125,13 +133,31 @@ def main() -> None:
         default="../../GVHMR/hmr4d/utils/body_model/smplx2smpl_sparse.pt",
         help="Path to the smplx2smpl sparse matrix from GVHMR.",
     )
+    parser.add_argument(
+        "--gvhmr_path",
+        type=str,
+        default=None,
+        help="Path to the cloned GVHMR repo, used for stabilized camera-frame export.",
+    )
+    parser.add_argument(
+        "--stabilize_incam",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Export a stabilized camera-frame motion derived from GVHMR's "
+            "post-processed global trajectory. Use --no-stabilize_incam to export "
+            "the raw GVHMR incam motion instead."
+        ),
+    )
     args = parser.parse_args()
 
     default_video_dir, default_output_dir = build_default_paths(args.video_name)
+    default_gvhmr_path = Path(__file__).resolve().parents[2] / "GVHMR"
 
     video_dir = Path(args.video_dir).resolve() if args.video_dir else default_video_dir
     smpl_folder = Path(args.smpl_folder).resolve()
     smplx2smpl_path = Path(args.smplx2smpl_path).resolve()
+    gvhmr_path = Path(args.gvhmr_path).resolve() if args.gvhmr_path else default_gvhmr_path
 
     if not video_dir.exists() or not video_dir.is_dir():
         raise NotADirectoryError(f"Video directory not found: {video_dir}")
@@ -179,6 +205,8 @@ def main() -> None:
             smplx_layer=smplx_layer,
             smplx2smpl=smplx2smpl,
             faces_smpl=faces_smpl,
+            gvhmr_path=gvhmr_path,
+            stabilize_incam=bool(args.stabilize_incam),
         )
 
     print(f"\nDone! Files saved in: {output_dir}")

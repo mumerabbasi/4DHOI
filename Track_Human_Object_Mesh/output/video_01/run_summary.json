@@ -6,9 +6,9 @@
   "num_humans": 1,
   "num_objects": 2,
   "num_edges": 2,
-  "best_total_loss": 0.29162511229515076,
-  "optimisation_time_s": 554.0266206152737,
-  "best_iter": 1494,
+  "best_total_loss": 0.27860429883003235,
+  "optimisation_time_s": 363.1003585550934,
+  "best_iter": 903,
   "inputs": {
     "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01",
     "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01",
@@ -185,7 +185,7 @@
       ],
       "is_translational": true,
       "is_rotational": true,
-      "final_scale": 1.017771601676941
+      "final_scale": 0.9987800717353821
     },
     "ironing_board": {
       "name": "ironing board",
@@ -198,7 +198,7 @@
       ],
       "is_translational": false,
       "is_rotational": false,
-      "final_scale": 1.0092469453811646
+      "final_scale": 0.9999682903289795
     }
   },
   "humans": {

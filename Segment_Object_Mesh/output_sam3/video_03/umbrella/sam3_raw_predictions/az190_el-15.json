@@ -1,0 +1,85 @@
+{
+  "object_name": "umbrella",
+  "image": "az190_el-15.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output_sam3/video_03/umbrella/renders/face_id/az190_el-150001.exr",
+  "parts": {
+    "canopy": {
+      "sam3_prompt": "the curved fabric canopy of the umbrella",
+      "fallback_prompt": "canopy",
+      "used_prompt_type": null,
+      "used_prompt": null,
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "the curved fabric canopy of the umbrella",
+          "raw_candidates": [],
+          "kept_candidates": []
+        },
+        {
+          "prompt_type": "fallback_prompt",
+          "prompt": "canopy",
+          "raw_candidates": [],
+          "kept_candidates": []
+        }
+      ]
+    },
+    "shaft": {
+      "sam3_prompt": "the long central shaft of the umbrella",
+      "fallback_prompt": "shaft",
+      "used_prompt_type": "sam3_prompt",
+      "used_prompt": "the long central shaft of the umbrella",
+      "attempts": [
+        {
+          "prompt_type": "sam3_prompt",
+          "prompt": "the long central shaft of the umbrella",
+          "raw_candidates": [
+            {
+              "box": [
+                503.4831848144531,
+                368.5929260253906,
+                517.671875,
+                610.1656494140625
+              ],
+              "score": 0.52734375
+            },
+            {
+              "box": [
+                490.0203857421875,
+                363.54290771484375,
+                522.074951171875,
+                754.6408081054688
+              ],
+              "score": 0.73046875
+            }
+          ],
+          "kept_candidates": [
+            {
+              "box": [
+                490.0203857421875,
+                363.54290771484375,
+                522.074951171875,
+                754.6408081054688
+              ],
+              "score": 0.73046875,
+              "original_area": 5744,
+              "clipped_area": 5734,
+              "silhouette_overlap": 0.9982590529247911
+            },
+            {
+              "box": [
+                503.4831848144531,
+                368.5929260253906,
+                517.671875,
+                610.1656494140625
+              ],
+              "score": 0.52734375,
+              "original_area": 2364,
+              "clipped_area": 2364,
+              "silhouette_overlap": 1.0
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

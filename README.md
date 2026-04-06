@@ -12,7 +12,11 @@ Modular 4D human-object interaction pipeline built around:
 
 Every stage listed below is part of the intended 4DHOI pipeline.
 
-## Repo Layout
+1. turns a prompt into a structured interaction description,
+2. generates a video of that interaction,
+3. reconstructs the human and object geometry from that video,
+4. aligns everything into one shared 3D scene,
+5. segments object parts, tracks object motion, and refines the full interaction over time.
 
 - `Generate_PAG/`: generate a Part Affordance Graph (PAG) JSON from prompts.
 - `Generate_Video/`: generate a first frame and then a full video from the PAG.
@@ -35,40 +39,17 @@ Every stage listed below is part of the intended 4DHOI pipeline.
 ## Current Code Flow
 
 ```mermaid
-flowchart TD
-    A[Generate_PAG/generate_pag.py] --> B[Generate_Video/generate_first_frame.py]
-    A --> C[Generate_Video/generate_video.py]
-    B --> C
-
-    C --> D[Segment_Video/segment_video.py]
-    D --> E[Generate_Object_Mesh/generate_objects_meshes.py]
-
-    C --> F[Estimate_Depth/estimate_depth.py]
-    C --> G[Estimate_Human_Motion/estimate_human_motion.py]
-    G --> H[Estimate_Human_Motion/export_human_motion_to_ply.py]
-
-    E --> I[Align_Meshes/align_meshes.py]
-    F --> I
-    H --> I
-    I --> J[Align_Meshes/align_human_motion_sequence.py]
-
-    A --> K[Segment_Object_Mesh/render_mesh_views.py]
-    I --> K
-    K --> L[Segment_Object_Mesh/segment_renders.py]
-    L --> M[Segment_Object_Mesh/segment_meshes.py]
-
-    C --> N[Estimate_Optical_Flow/estimate_optical_flow_cotracker.py]
-    D --> N
-    I --> O[Track_Object_Mesh/track_object_mesh.py]
-    N --> O
-    D --> O
-
-    J --> P[Track_Human_Object_Mesh/track_human_object_mesh.py]
-    O --> P
-    M --> P
-    D --> P
-    A --> P
-    I --> P
+flowchart LR
+    A[Prompt / PAG] --> B[Video Generation]
+    B --> C[Video Understanding<br/>segmentation + depth + human motion]
+    B --> D[Object Mesh Reconstruction]
+    C --> E[Scene Alignment]
+    D --> E
+    E --> F[Object-Part Segmentation]
+    B --> G[Object Tracking Cues]
+    F --> H[Joint Human-Object Refinement]
+    G --> H
+    E --> H
 ```
 
 ## Main Stages
