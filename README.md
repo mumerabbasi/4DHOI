@@ -9,10 +9,7 @@ At a high level, the repo:
 2. generates a video of that interaction,
 3. reconstructs the human and object geometry from that video,
 4. aligns everything into one shared 3D scene,
-5. optionally tracks and refines motion over time.
-
-This README describes the current code in this repo. The original reference
-implementation is kept separately in `Original_Code/`.
+5. segments object parts, tracks object motion, and refines the full interaction over time.
 
 ## Pipeline Overview
 
@@ -23,9 +20,9 @@ flowchart LR
     B --> D[Object Mesh Reconstruction]
     C --> E[Scene Alignment]
     D --> E
-    E --> F[Optional Object-Part Segmentation]
-    B --> G[Optional Object Tracking Cues]
-    F --> H[Optional Joint Human-Object Refinement]
+    E --> F[Object-Part Segmentation]
+    B --> G[Object Tracking Cues]
+    F --> H[Joint Human-Object Refinement]
     G --> H
     E --> H
 ```
@@ -39,14 +36,10 @@ flowchart LR
 | Scene understanding | Segment the video, estimate depth, and recover human motion | `Segment_Video/`, `Estimate_Depth/`, `Estimate_Human_Motion/` |
 | Object reconstruction | Build object meshes from the generated scene | `Generate_Object_Mesh/` |
 | Alignment | Put the human and object assets into the same 3D coordinate frame | `Align_Meshes/` |
-| Optional object processing | Label object parts and estimate object tracks | `Segment_Object_Mesh/`, `Estimate_Optical_Flow/`, `Track_Object_Mesh/` |
-| Optional final refinement | Jointly refine human and object motion | `Track_Human_Object_Mesh/` |
+| Object processing | Label object parts and estimate object tracks | `Segment_Object_Mesh/`, `Estimate_Optical_Flow/`, `Track_Object_Mesh/` |
+| Final refinement | Jointly refine human and object motion | `Track_Human_Object_Mesh/` |
 
 ## Typical Flow
-
-### Core pipeline
-
-Use this when you want an aligned human-object scene.
 
 1. Generate the PAG.
 2. Generate the first frame and the video.
@@ -55,6 +48,10 @@ Use this when you want an aligned human-object scene.
 5. Estimate depth.
 6. Estimate human motion and export meshes.
 7. Align the human and object assets into one shared frame.
+8. Segment aligned object meshes into semantic parts.
+9. Estimate object tracks from the video.
+10. Track object poses over time.
+11. Run joint human-object refinement.
 
 Representative scripts:
 
@@ -68,20 +65,6 @@ Representative scripts:
 - `Estimate_Human_Motion/export_human_motion_to_ply.py`
 - `Align_Meshes/align_meshes.py`
 - `Align_Meshes/align_human_motion_sequence.py`
-
-### Full pipeline
-
-Use this when you want time-varying object motion and final human-object
-refinement.
-
-1. Run the core pipeline.
-2. Segment aligned object meshes into semantic parts.
-3. Estimate object tracks from the video.
-4. Track object poses over time.
-5. Run joint human-object refinement.
-
-Representative scripts:
-
 - `Segment_Object_Mesh/render_mesh_views.py`
 - `Segment_Object_Mesh/segment_renders.py`
 - `Segment_Object_Mesh/segment_meshes.py`
@@ -105,7 +88,6 @@ Representative scripts:
 | `Track_Object_Mesh/` | per-object motion tracking |
 | `Track_Human_Object_Mesh/` | final joint refinement |
 | `Conda_Environments/` | environment files for different stages |
-| `Original_Code/` | original reference codebase |
 
 ## Inputs and Outputs
 
@@ -119,6 +101,6 @@ Representative scripts:
 - Different stages use different Conda environments from
   `Conda_Environments/`.
 - Some stages rely on sibling repositories such as `GVHMR/`, `sam3/`,
-  `sam-3d-objects/`, `Depth-Anything-3/`, and optionally `WAFT/`.
+  `sam-3d-objects/`, `Depth-Anything-3/`, and `WAFT/`.
 - Blender and `ffmpeg` are needed for some visualization and mesh-processing
   steps.
