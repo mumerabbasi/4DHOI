@@ -6,11 +6,11 @@ Modular 4D human-object interaction pipeline built around:
 - video and mesh segmentation,
 - object mesh generation and alignment,
 - human motion estimation with GVHMR,
-- optional object tracking,
-- optional joint human-object refinement.
+- object part segmentation,
+- object tracking,
+- joint human-object refinement.
 
-This README reflects the current code in this repo, not the original paper
-layout in `Original_Code/`.
+Every stage listed below is part of the intended 4DHOI pipeline.
 
 ## Repo Layout
 
@@ -28,9 +28,8 @@ layout in `Original_Code/`.
 - `Track_Object_Mesh/`: optimize per-frame object `SE(3)` trajectories.
 - `Track_Human_Object_Mesh/`: jointly refine human and object motion with PAG
   contact constraints, mask losses, and penetration losses.
-- `Blender_Scripts/`: optional Blender import helpers for inspecting exported
+- `Blender_Scripts/`: Blender import helpers for inspecting exported
   `.ply` / `.obj` frame sequences.
-- `Original_Code/`: reference implementation from the original framework.
 - `Conda_Environments/`: environment YAMLs used by the different stages.
 
 ## Current Code Flow
@@ -81,7 +80,7 @@ flowchart TD
 | Video generation | `Generate_Video/generate_video.py` | first frame, PAG JSON | `Generate_Video/output/<video>/*.mp4` |
 | Video segmentation | `Segment_Video/segment_video.py` | generated video, PAG JSON | masks for humans, objects, and object parts, plus extracted `_frames/` under `Segment_Video/output/<video>/` |
 | Object mesh generation | `Generate_Object_Mesh/generate_objects_meshes.py` | first-frame object masks, first-frame image | per-object meshes, poses, overlays, intrinsics under `Generate_Object_Mesh/output/<video>/` |
-| Depth estimation | `Estimate_Depth/estimate_depth.py` | generated video | frame extraction, metric depth, optional relative depth, run summary under `Estimate_Depth/output/<video>/` |
+| Depth estimation | `Estimate_Depth/estimate_depth.py` | generated video | frame extraction, metric depth, relative depth when enabled, run summary under `Estimate_Depth/output/<video>/` |
 | Human motion estimation | `Estimate_Human_Motion/estimate_human_motion.py` | generated video | GVHMR outputs under `Estimate_Human_Motion/output/<video>/` |
 | Human mesh export | `Estimate_Human_Motion/export_human_motion_to_ply.py` | `hmr4d_results.pt` | `output_plys/frame_*.ply` |
 | Mesh alignment | `Align_Meshes/align_meshes.py` | object meshes, first-frame human mesh, depth, masks | aligned meshes, `transforms.json`, overlays, summaries under `Align_Meshes/output/<video>/` |
@@ -93,10 +92,7 @@ flowchart TD
 
 ## Recommended Run Orders
 
-### 1. Minimal aligned-scene pipeline
-
-Use this when the goal is to get aligned human and object geometry into a
-shared coordinate frame.
+### Complete pipeline
 
 1. `Generate_PAG/generate_pag.py`
 2. `Generate_Video/generate_first_frame.py`
@@ -108,30 +104,16 @@ shared coordinate frame.
 8. `Estimate_Human_Motion/export_human_motion_to_ply.py`
 9. `Align_Meshes/align_meshes.py`
 10. `Align_Meshes/align_human_motion_sequence.py`
+11. `Segment_Object_Mesh/render_mesh_views.py`
+12. `Segment_Object_Mesh/segment_renders.py`
+13. `Segment_Object_Mesh/segment_meshes.py`
+14. `Estimate_Optical_Flow/estimate_optical_flow_cotracker.py` or
+    `Estimate_Optical_Flow/estimate_optical_flow_waft.py`
+15. `Track_Object_Mesh/track_object_mesh.py`
+16. `Track_Human_Object_Mesh/track_human_object_mesh.py`
 
-### 2. Full refinement pipeline
-
-Use this when the goal is final 4D human-object motion with object tracking and
-joint refinement.
-
-1. Run the minimal aligned-scene pipeline above.
-2. `Segment_Object_Mesh/render_mesh_views.py`
-3. `Segment_Object_Mesh/segment_renders.py`
-4. `Segment_Object_Mesh/segment_meshes.py`
-5. `Estimate_Optical_Flow/estimate_optical_flow_cotracker.py`
-6. `Track_Object_Mesh/track_object_mesh.py`
-7. `Track_Human_Object_Mesh/track_human_object_mesh.py`
-
-### 3. Optional branches
-
-- Replace CoTracker with WAFT by using
-  `Estimate_Optical_Flow/estimate_optical_flow_waft.py`.
-- If you use WAFT, pass its exported track directory into
-  `Track_Object_Mesh/track_object_mesh.py` via
-  `--cotracker_video_dir ../Estimate_Optical_Flow/output_waft/<video_name>`.
-- If you write tracked-object outputs somewhere other than
-  `Track_Object_Mesh/output/<video_name>`, pass that path into
-  `Track_Human_Object_Mesh/track_human_object_mesh.py --tracked_object_dir ...`.
+Use the generated optical-flow output directory from step 14 as the tracking
+input for `Track_Object_Mesh/track_object_mesh.py`.
 
 ## Auxiliary Utilities
 
@@ -267,14 +249,3 @@ The exporter reads the live Conda envs named `4dhoi`, `gvhmr`, `sam3`,
 It also strips accidental local-only `sam-2` / `sam2` pip entries from the
 generated YAMLs so the tracked environment files stay aligned with the current
 SAM3-based pipeline.
-
-## Notes on `Original_Code/`
-
-`Original_Code/` contains the original `HumanMotionSynthesis` framework. It is
-not the same pipeline as the modular scripts in this repo.
-
-- The current `4DHOI/` scripts are a custom staged pipeline.
-- `Original_Code/` is best treated as a reference implementation for the
-  original framework and loss design.
-- The current joint refinement stage borrows PAG logic and some optimization
-  ideas from there, but it is not a drop-in wrapper around `Original_Code/`.
