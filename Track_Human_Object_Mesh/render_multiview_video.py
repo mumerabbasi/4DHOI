@@ -2,8 +2,8 @@
 
 Run this script with Blender in background mode:
 
-    blender --background --factory-startup --python render_multiview_video.py -- \
-        --video_name video_06
+    blender --background --python render_multiview_video.py -- \
+        --video_name video_01
 
 It imports every `<sequence>/meshes/*.ply` under
 `Track_Human_Object_Mesh/output/<video_name>`, renders the four standard
