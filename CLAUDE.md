@@ -25,9 +25,17 @@
 
 ### Extension: Scene-Conditioned HOI (in progress)
 Extending to generate interactions inside ScanNet++ scanned scenes. See `Extension_Claude.md` for full plan.
-- New modules: `Scene_Loading/`, `Generate_Motion/`, `Evaluation/`
-- Key approach: Skip video pipeline, generate SMPL motion directly in 3D, refine with extended losses
-- Dataset: ScanNet++ (Z-up, metric, PLY format)
+- **Key approach: Video-based (reuses most of existing pipeline)**
+  - Replace FLUX first frame with scene image (undistorted DSLR from ScanNet++)
+  - Replace estimated depth with GT depth (rendered from scene mesh)
+  - Add object-to-scene instance matching (new stage)
+  - Extend joint refinement with scene collision constraints (new losses)
+  - Keep: video generation, segmentation, GVHMR, SAM3D, optical flow, alignment, tracking
+- New modules: `Scene_Loading/`, `Evaluation/`, new files in `Track_Human_Object_Mesh/`
+- Dataset: ScanNet++ (Z-up, metric, PLY format, undistorted DSLR images are pinhole)
+- **Temporal contact simplification**: Initially target interactions with constant contact pattern (e.g., lifting, pushing). Temporal PAG for changing contacts is future work.
+- **DSLR images are fisheye** (Sony Alpha 7 IV + fisheye lens, 180° FOV). Use `resized_undistorted_images/` (pinhole model) or iPhone frames (standard perspective).
+- Objects are NOT static -- their motion is tracked via optical flow (same as current pipeline)
 
 ## Critical Rules
 
