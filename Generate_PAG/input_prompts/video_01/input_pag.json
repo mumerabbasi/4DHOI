@@ -4,16 +4,9 @@
     "camera": {
       "name": "DSC08445.JPG",
       "source": "dslr_resized_undistorted"
-    },
-    "target": {
-      "instance_id": 17,
-      "label": "chair"
     }
   },
   "interaction_context": {
-    "objects": [
-      "chair"
-    ],
     "interaction": "a person lifting a chair with both hands"
   }
 }

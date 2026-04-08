@@ -1,0 +1,76 @@
+{
+  "scene_context": {
+    "scene_id": "2b1dc6d6a5",
+    "camera": {
+      "name": "DSC08445.JPG",
+      "source": "dslr_resized_undistorted"
+    },
+    "target": {
+      "instance_id": 5,
+      "label": "chair",
+      "selection_source": "click_uv",
+      "seg_group_id": 5,
+      "visible_bbox_xyxy": [
+        1019,
+        726,
+        1402,
+        1115
+      ],
+      "mask_area_px": 58281
+    }
+  },
+  "pag": {
+    "object part nodes": [
+      "chair, seat",
+      "chair, backrest",
+      "chair, legs"
+    ],
+    "body part nodes": [
+      "person 1, left hand",
+      "person 1, right hand",
+      "person 1, left arm",
+      "person 1, right arm",
+      "person 1, left shoulder",
+      "person 1, right shoulder",
+      "person 1, left leg",
+      "person 1, right leg",
+      "person 1, left foot",
+      "person 1, right foot",
+      "person 1, head",
+      "person 1, hips"
+    ],
+    "interaction edges": [
+      {
+        "nodes": [
+          "chair, seat",
+          "person 1, left hand"
+        ],
+        "is_rel_static": true,
+        "is_continuous": true
+      },
+      {
+        "nodes": [
+          "chair, seat",
+          "person 1, right hand"
+        ],
+        "is_rel_static": true,
+        "is_continuous": true
+      }
+    ],
+    "interaction": "A person is lifting a chair with both hands at an extremely slow pace in a clean, spacious indoor area with white walls and a wooden floor. Their left and right hands grip the chair’s seat firmly as they raise it upwards smoothly. The chair moves steadily without tilting significantly. The person has short black hair and a focused facial expression. They wear a gray t-shirt, blue jeans, and white sneakers. The chair is a standard wooden model with four legs and a backrest. The environment is bright and uncluttered, supporting the smooth lifting action without distractions. All movements are fluid and deliberate, emphasizing the physical contact between the hands and the seat surface during the upward translation. The arms extend slightly as the chair rises higher. The lighting is soft and even, highlighting the textures of the wood and fabric. The legs adjust slightly for balance.",
+    "object states": [
+      {
+        "name": "chair",
+        "is_translational": true,
+        "is_rotational": false,
+        "description": "the wooden chair being lifted upwards by hands"
+      }
+    ],
+    "human states": [
+      {
+        "name": "person 1",
+        "description": "the person with short black hair lifting the chair"
+      }
+    ]
+  }
+}
