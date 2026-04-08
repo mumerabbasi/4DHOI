@@ -1,1 +1,1 @@
-Single-person multi-object interaction
+Single-person single-object in a scene interaction

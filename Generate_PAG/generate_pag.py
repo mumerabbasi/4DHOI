@@ -46,6 +46,26 @@ def request_sample(
     return json.loads(text)
 
 
+def build_model_input(user_payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "objects": user_payload["interaction_context"]["objects"],
+        "interaction": user_payload["interaction_context"]["interaction"],
+    }
+
+
+def build_output_pag(
+    generated_pag: dict[str, Any],
+    user_payload: dict[str, Any],
+) -> dict[str, Any]:
+    if not isinstance(generated_pag, dict):
+        raise TypeError("Expected generated PAG to be a JSON object.")
+
+    return {
+        "scene_context": user_payload["scene_context"],
+        "pag": generated_pag,
+    }
+
+
 def main() -> None:
     script_dir = Path(__file__).resolve().parent
 
@@ -54,7 +74,7 @@ def main() -> None:
     )
     parser.add_argument("--video_name", default="video_01")
     parser.add_argument("--host", default="http://localhost:11434/v1")
-    parser.add_argument("--model", default="deepseek-r1:32b")
+    parser.add_argument("--model", default="qwen3.5:27b")
     parser.add_argument("--system-prompt", default=None)
     parser.add_argument("--input-dir", default=None)
     parser.add_argument("--temperature", type=float, default=0.3)
@@ -85,6 +105,8 @@ def main() -> None:
     user_payload = json.loads(
         (input_dir / "input_pag.json").read_text(encoding="utf-8")
     )
+    model_input = build_model_input(user_payload)
+
     reasoning_effort = None
     if args.reasoning_effort != "none":
         reasoning_effort = args.reasoning_effort
@@ -98,14 +120,15 @@ def main() -> None:
     print(f"Input directory: {input_dir}")
     print(f"Output directory: {output_dir}")
 
-    final_pag = request_sample(
+    generated_pag = request_sample(
         client,
         args.model,
         system_prompt,
-        user_payload,
+        model_input,
         args.temperature,
         reasoning_effort,
     )
+    final_pag = build_output_pag(generated_pag, user_payload)
     model_tag = args.model.replace(":", "_").replace("-", "_").replace(".", "_")
     out_path = output_dir / f"output_pag_{model_tag}.json"
     out_path.write_text(

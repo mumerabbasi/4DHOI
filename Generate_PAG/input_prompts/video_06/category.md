@@ -1,1 +1,0 @@
-Multi-person single-object interaction

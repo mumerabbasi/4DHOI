@@ -1,7 +1,19 @@
 {
+  "scene_context": {
+    "scene_id": "2b1dc6d6a5",
+    "camera": {
+      "name": "DSC08445.JPG",
+      "source": "dslr_resized_undistorted"
+    },
+    "target": {
+      "instance_id": 17,
+      "label": "chair"
+    }
+  },
+  "interaction_context": {
     "objects": [
-        "iron",
-        "ironing board"
+      "chair"
     ],
-    "interaction": "a person moving an iron on an ironing board while standing"
+    "interaction": "a person lifting a chair with both hands"
+  }
 }
