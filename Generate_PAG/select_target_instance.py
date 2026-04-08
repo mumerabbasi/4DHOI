@@ -406,6 +406,11 @@ def build_mask_stats(mask: np.ndarray) -> dict[str, Any]:
     }
 
 
+def save_mask(path: Path, mask: np.ndarray) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    cv2.imwrite(str(path), mask.astype(np.uint8) * 255)
+
+
 def main() -> None:
     script_dir = Path(__file__).resolve().parent
 
@@ -484,6 +489,8 @@ def main() -> None:
     )
 
     selection_dir.mkdir(parents=True, exist_ok=True)
+    target_mask_path = selection_dir / "target_mask.png"
+    save_mask(target_mask_path, selected_mask)
 
     selection_payload = {
         "scene_context": scene_context,
@@ -492,6 +499,7 @@ def main() -> None:
             "instance_id": int(selected_meta["instance_id"]),
             "label": selected_meta["label"],
             "selection_source": "click_uv" if parsed_click_uv is not None else "manual_click",
+            "mask_path": target_mask_path.name,
             **visible_stats,
         },
     }
@@ -512,13 +520,14 @@ def main() -> None:
         2,
         cv2.LINE_AA,
     )
-    overlay_path = selection_dir / "selected_target_overlay.png"
+    overlay_path = selection_dir / "target_overlay.png"
     cv2.imwrite(str(overlay_path), overlay_bgr)
 
     print(f"Input directory: {input_dir}")
     print(f"Output directory: {output_root}")
     print(f"Scene image: {scene_paths['image_path']}")
     print(f"Saved selection JSON: {selection_json_path}")
+    print(f"Saved target mask: {target_mask_path}")
     print(f"Saved overlay image: {overlay_path}")
     print(
         "Selected target:",
