@@ -9,7 +9,6 @@
       "instance_id": 5,
       "label": "chair",
       "selection_source": "click_uv",
-      "seg_group_id": 5,
       "visible_bbox_xyxy": [
         1019,
         726,
@@ -57,13 +56,13 @@
         "is_continuous": true
       }
     ],
-    "interaction": "A person is lifting a chair with both hands at an extremely slow pace in a clean, spacious indoor area with white walls and a wooden floor. Their left and right hands grip the chair’s seat firmly as they raise it upwards smoothly. The chair moves steadily without tilting significantly. The person has short black hair and a focused facial expression. They wear a gray t-shirt, blue jeans, and white sneakers. The chair is a standard wooden model with four legs and a backrest. The environment is bright and uncluttered, supporting the smooth lifting action without distractions. All movements are fluid and deliberate, emphasizing the physical contact between the hands and the seat surface during the upward translation. The arms extend slightly as the chair rises higher. The lighting is soft and even, highlighting the textures of the wood and fabric. The legs adjust slightly for balance.",
+    "interaction": "A person lifts a chair with both hands at an extremely slow pace in a clean, spacious indoor area with white walls and a wooden floor. Their hands grip the chair's seat firmly. The chair has a simple wooden design. The person has short black hair and a neutral facial expression. They wear a gray shirt, blue jeans, and white sneakers. The legs bend slightly as the chair rises steadily upward.",
     "object states": [
       {
         "name": "chair",
         "is_translational": true,
         "is_rotational": false,
-        "description": "the wooden chair being lifted upwards by hands"
+        "description": "the wooden chair being lifted upward by hands"
       }
     ],
     "human states": [

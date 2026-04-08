@@ -108,7 +108,6 @@ def build_scene_context(
             "selection_source": selection_block.get(
                 "selection_source", "manual_click"
             ),
-            "seg_group_id": selection_block.get("seg_group_id"),
             "visible_bbox_xyxy": selection_block.get("visible_bbox_xyxy"),
             "mask_area_px": selection_block.get("mask_area_px"),
         },

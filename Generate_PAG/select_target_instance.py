@@ -184,7 +184,6 @@ def build_candidate_instances(
             continue
 
         object_id = int(group["objectId"])
-        group_id = int(group["id"])
         segments = np.asarray(group["segments"], dtype=np.int64)
         if segments.size == 0:
             continue
@@ -201,7 +200,6 @@ def build_candidate_instances(
         )
         instance_meta[object_id] = {
             "instance_id": object_id,
-            "seg_group_id": group_id,
             "label": label,
         }
 
@@ -492,7 +490,6 @@ def main() -> None:
         "target_selection": {
             "click_uv": [int(click_u), int(click_v)],
             "instance_id": int(selected_meta["instance_id"]),
-            "seg_group_id": int(selected_meta["seg_group_id"]),
             "label": selected_meta["label"],
             "selection_source": "click_uv" if parsed_click_uv is not None else "manual_click",
             **visible_stats,
@@ -527,7 +524,6 @@ def main() -> None:
         "Selected target:",
         {
             "instance_id": selected_meta["instance_id"],
-            "seg_group_id": selected_meta["seg_group_id"],
             "label": selected_meta["label"],
             "click_uv": [click_u, click_v],
             **visible_stats,
