@@ -32,14 +32,19 @@ def model_suffix(model: str) -> str:
 
 
 def load_pag_prompt(path: Path) -> str:
-    pag = json.loads(path.read_text(encoding="utf-8"))
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    pag = payload.get("pag", payload)
     return pag["interaction"]
 
 
 def resolve_pag_path(script_dir: Path, video_name: str, raw_pag: str | None) -> Path:
     if raw_pag:
         return Path(raw_pag).resolve()
-    return next((script_dir.parent / "Generate_PAG" / "output" / video_name).glob("*.json"))
+    pag_dir = (script_dir.parent / "Generate_PAG" / "output" / video_name).resolve()
+    candidates = sorted(pag_dir.glob("output_pag_*.json"))
+    if not candidates:
+        raise FileNotFoundError(f"No output_pag_*.json found in: {pag_dir}")
+    return candidates[0]
 
 
 def resolve_frame_path(

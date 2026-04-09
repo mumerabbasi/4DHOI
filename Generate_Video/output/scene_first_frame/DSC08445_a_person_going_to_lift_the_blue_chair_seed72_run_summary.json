@@ -1,0 +1,22 @@
+{
+  "image_path": "/my_workspace/4DHHOI/4DHSI/Generate_Video/input/DSC08445.JPG",
+  "mask_path": "/my_workspace/4DHHOI/4DHSI/Generate_PAG/output/video_01/selection/target_mask.png",
+  "original_size": [
+    1752,
+    1168
+  ],
+  "generation_size": [
+    1752,
+    1168
+  ],
+  "prompt": "a person going to lift the blue chair",
+  "final_prompt": "a person going to lift the blue chair",
+  "model": "black-forest-labs/FLUX.1-Fill-dev",
+  "device": "cuda:0",
+  "seed": 72,
+  "steps": 50,
+  "guidance_scale": 30.0,
+  "max_sequence_length": 512,
+  "saved_input_path": "/my_workspace/4DHHOI/4DHSI/Generate_Video/output/scene_first_frame/DSC08445_a_person_going_to_lift_the_blue_chair_seed72_input.png",
+  "saved_output_path": "/my_workspace/4DHHOI/4DHSI/Generate_Video/output/scene_first_frame/DSC08445_a_person_going_to_lift_the_blue_chair_seed72.png"
+}

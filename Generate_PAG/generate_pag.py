@@ -66,65 +66,20 @@ def build_model_input(
 
 
 def resolve_selection_path(
-    output_dir: Path,
+    selection_dir: Path,
     raw_selection_json: str | None,
 ) -> Path:
     if raw_selection_json:
         return Path(raw_selection_json).resolve()
-    return output_dir / "selection" / "target_selection.json"
+    return selection_dir / "target_selection.json"
 
 
-def resolve_pag_dir(output_root: Path) -> Path:
-    return output_root / "pag"
-
-
-def build_scene_context(
-    input_scene_context: dict[str, Any],
-    target_selection_payload: dict[str, Any],
-) -> dict[str, Any]:
-    selection_scene_context = target_selection_payload.get("scene_context", {})
-    selection_block = target_selection_payload.get("target_selection", {})
-
-    if not selection_block:
-        raise KeyError("Missing 'target_selection' in selection JSON.")
-
-    if selection_scene_context:
-        if selection_scene_context.get("scene_id") != input_scene_context.get("scene_id"):
-            raise ValueError("Selection JSON scene_id does not match input scene_id.")
-
-        input_camera = input_scene_context.get("camera", {})
-        selection_camera = selection_scene_context.get("camera", {})
-        for key in ("name", "source"):
-            if selection_camera.get(key) != input_camera.get(key):
-                raise ValueError(
-                    f"Selection JSON camera.{key} does not match input camera.{key}."
-                )
-
-    return {
-        **input_scene_context,
-        "target": {
-            "instance_id": selection_block["instance_id"],
-            "label": selection_block["label"],
-            "selection_source": selection_block.get(
-                "selection_source", "manual_click"
-            ),
-            "visible_bbox_xyxy": selection_block.get("visible_bbox_xyxy"),
-            "mask_area_px": selection_block.get("mask_area_px"),
-        },
-    }
-
-
-def build_output_pag(
+def validate_generated_pag(
     generated_pag: dict[str, Any],
-    scene_context: dict[str, Any],
 ) -> dict[str, Any]:
     if not isinstance(generated_pag, dict):
         raise TypeError("Expected generated PAG to be a JSON object.")
-
-    return {
-        "scene_context": scene_context,
-        "pag": generated_pag,
-    }
+    return generated_pag
 
 
 def main() -> None:
@@ -159,20 +114,16 @@ def main() -> None:
     input_dir = (
         Path(args.input_dir).resolve()
         if args.input_dir
-        else script_dir / "input_prompts" / args.video_name
+        else script_dir.parent / "Get_Input" / "input_prompts" / args.video_name
     )
+    selection_root = script_dir.parent / "Get_Input" / "output" / args.video_name
     output_root = script_dir / "output" / args.video_name
-    selection_json_path = resolve_selection_path(output_root, args.selection_json)
-    pag_dir = resolve_pag_dir(output_root)
+    selection_json_path = resolve_selection_path(selection_root, args.selection_json)
 
     system_prompt = system_prompt_path.read_text(encoding="utf-8")
     user_payload = load_json((input_dir / "input_pag.json").resolve())
     target_selection_payload = load_json(selection_json_path)
     model_input = build_model_input(user_payload, target_selection_payload)
-    scene_context = build_scene_context(
-        user_payload["scene_context"],
-        target_selection_payload,
-    )
 
     reasoning_effort = None
     if args.reasoning_effort != "none":
@@ -180,7 +131,7 @@ def main() -> None:
 
     client = OpenAI(base_url=args.host, api_key="ollama")
 
-    pag_dir.mkdir(parents=True, exist_ok=True)
+    output_root.mkdir(parents=True, exist_ok=True)
 
     print(f"Video name: {args.video_name}")
     print(f"System prompt: {system_prompt_path}")
@@ -196,9 +147,9 @@ def main() -> None:
         args.temperature,
         reasoning_effort,
     )
-    final_pag = build_output_pag(generated_pag, scene_context)
+    final_pag = validate_generated_pag(generated_pag)
     model_tag = args.model.replace(":", "_").replace("-", "_").replace(".", "_")
-    out_path = pag_dir / f"output_pag_{model_tag}.json"
+    out_path = output_root / f"output_pag_{model_tag}.json"
     out_path.write_text(
         json.dumps(final_pag, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",

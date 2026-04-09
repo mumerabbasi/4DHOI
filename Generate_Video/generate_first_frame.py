@@ -22,7 +22,16 @@ def resolve_pag_path(script_dir: Path, video_name: str, raw_pag_dir: str | None)
         if raw_pag_dir
         else script_dir.parent / "Generate_PAG" / "output" / video_name
     )
-    return next(pag_dir.glob("*.json"))
+    candidates = sorted(pag_dir.glob("output_pag_*.json"))
+    if not candidates:
+        raise FileNotFoundError(f"No output_pag_*.json found in: {pag_dir}")
+    return candidates[0]
+
+
+def load_pag_prompt(path: Path) -> str:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    pag = payload.get("pag", payload)
+    return pag["interaction"]
 
 
 def main() -> None:
@@ -49,8 +58,7 @@ def main() -> None:
     )
     outdir.mkdir(parents=True, exist_ok=True)
 
-    pag = json.loads(pag_path.read_text(encoding="utf-8"))
-    prompt = pag["interaction"].rstrip() + "\n\n" + FIRST_FRAME_FRAMING_SUFFIX
+    prompt = load_pag_prompt(pag_path).rstrip() + "\n\n" + FIRST_FRAME_FRAMING_SUFFIX
 
     dtype = torch.bfloat16 if args.device.startswith("cuda") else torch.float32
     pipe = FluxPipeline.from_pretrained(
