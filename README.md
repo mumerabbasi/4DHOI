@@ -198,3 +198,11 @@ The repository is intentionally modular, so individual stages can be swapped, re
 ## Acknowledgements
 
 This project integrates components and tooling around GVHMR, SAM3, SAM3D, Depth Anything 3, WAFT, and CoTracker.
+
+---
+
+<div align="center">
+
+Master's Thesis at the **3D AI Lab**, **Technical University of Munich**
+
+</div>
