@@ -71,6 +71,7 @@ logs/
 outputs/
 runs/
 wandb/
+data/
 
 # --- Model Weights (Large Files) ---
 *.safetensors
