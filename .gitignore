@@ -1,88 +1,62 @@
-# --- Python & Caches ---
+# 4DHOI - Git ignore rules
+# Keep source code, notebooks, and selection manifests trackable.
+
+## OS / Editor
+.DS_Store
+Thumbs.db
+._*
+__MACOSX/
+*~
+*.swp
+*.swo
+.vscode/
+.idea/
+*.code-workspace
+
+## Python cache / build artifacts
 __pycache__/
 *.py[cod]
 *.so
-*$py.class
 .pytest_cache/
-.cache/
+.mypy_cache/
 .ruff_cache/
 .ipynb_checkpoints/
 
-# --- Environment & Variables ---
+## Virtual environments and local config
 .env
-.venv
+.env.*
 .venv/
-env/
 venv/
+env/
 ENV/
-env.bak/
-venv.bak/
+.python-version
+
+## Logs
 *.log
 
-# --- VS Code & IDE Configs ---
-.vscode/
-*.code-workspace
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.swp
-*.swo
-*~
+## Experiment/runtime directories
+/checkpoints/
+/logs/
+/runs/
+/wandb/
+/first_frames/
+/generated_videos/
 
-# --- Linter & Formatters ---
-.flake8
-.pylintrc
-.mypy_cache/
-.dmypy.json
-dmypy.json
+## Local dataset payload (do not commit raw ScanNet++ data)
+/data/
 
-# --- Generated Media (Images & Videos) ---
-# Prevent accidental commit of thousands of generated frames
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.avi
-*.mov
-*.mkv
-*.webm
-*.exr
+## Export artifacts
+# Keep manifest files (.csv/.json) under outputs/selected_scenes_export,
+# but ignore copied scene assets and compressed bundles.
+/outputs/selected_scenes_export/scenes/
+/outputs/selected_scenes_export/representative_images/
+/outputs/*.tar.gz
+/outputs/**/*.tar.gz
 
-# --- 3D Media (Meshes & Point Clouds) ---
-*.obj
-*.fbx
-*.glb
-*.gltf
-*.ply
-*.stl
-*.pcd
-*.las
-*.laz
-*.npy
-
-# --- Output Directories ---
-# Ignore specific output folders you are creating
-first_frames/
-generated_videos/
-checkpoints/
-logs/
-runs/
-wandb/
-data/
-
-# --- Model Weights (Large Files) ---
-*.safetensors
+## Large model weights / binaries
 *.ckpt
 *.pt
 *.pth
 *.bin
 *.onnx
-*.obj
-
-# --- OS Specific ---
-.DS_Store
-Thumbs.db
-._*
-__MACOSX/
+*.safetensors
