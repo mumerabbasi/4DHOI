@@ -72,6 +72,12 @@ outputs/
 runs/
 wandb/
 
+# --- Keep Generated First Frames Tracked ---
+!**/first_frames/
+!**/first_frames/**
+!**/first_frames_resized/
+!**/first_frames_resized/**
+
 # --- Model Weights (Large Files) ---
 *.safetensors
 *.ckpt
