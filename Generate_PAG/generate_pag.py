@@ -55,12 +55,13 @@ def build_model_input(
     user_payload: dict[str, Any],
     target_selection_payload: dict[str, Any],
 ) -> dict[str, Any]:
-    selection_block = target_selection_payload.get("target_selection", {})
-    if not selection_block:
-        raise KeyError("Missing 'target_selection' in selection JSON.")
+    selection_block = target_selection_payload["target_selection"]
+    target_object = str(selection_block["object"]).strip()
+    if not target_object:
+        raise ValueError("target_selection.object must be a non-empty string.")
 
     return {
-        "objects": [selection_block["label"]],
+        "objects": [target_object],
         "interaction": user_payload["interaction_context"]["interaction"],
     }
 

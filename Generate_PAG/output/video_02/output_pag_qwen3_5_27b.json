@@ -1,0 +1,53 @@
+{
+  "object part nodes": [
+    "white trash bin, main container",
+    "white trash bin, rim"
+  ],
+  "body part nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, left arm",
+    "person 1, right arm",
+    "person 1, left shoulder",
+    "person 1, right shoulder",
+    "person 1, left leg",
+    "person 1, right leg",
+    "person 1, left foot",
+    "person 1, right foot",
+    "person 1, head",
+    "person 1, hips"
+  ],
+  "interaction edges": [
+    {
+      "nodes": [
+        "white trash bin, rim",
+        "person 1, left hand"
+      ],
+      "is_rel_static": true,
+      "is_continuous": true
+    },
+    {
+      "nodes": [
+        "white trash bin, rim",
+        "person 1, right hand"
+      ],
+      "is_rel_static": true,
+      "is_continuous": true
+    }
+  ],
+  "interaction": "A person is lifting a white trash bin with both hands at an extremely slow pace. Their left and right hands grip the bin's rim continuously without sliding. The bin moves upward translationally while maintaining a stable orientation. The person has short black hair and a neutral facial expression. They wear a gray t-shirt, blue jeans, and white sneakers. The scene is set in a clean, spacious indoor area with white walls and a wooden floor. The bin is rectangular with a smooth plastic surface. Lighting is bright and even throughout the space. The person's legs bend slightly while hips shift weight to assist the lift. Arms bend slightly at the elbows to lift the weight. The movement is smooth and controlled, emphasizing the physical contact between the hands and the bin's rim during the lifting process. Non-contact body parts move minimally in slow motion.",
+  "object states": [
+    {
+      "name": "white trash bin",
+      "is_translational": true,
+      "is_rotational": false,
+      "description": "the white trash bin being lifted upwards"
+    }
+  ],
+  "human states": [
+    {
+      "name": "person 1",
+      "description": "the person with short black hair lifting the bin"
+    }
+  ]
+}
