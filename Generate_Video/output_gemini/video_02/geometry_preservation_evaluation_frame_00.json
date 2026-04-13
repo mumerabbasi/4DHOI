@@ -1,0 +1,28 @@
+{
+  "video_name": "video_02",
+  "frame_name": "frame_00",
+  "reference_path": "/my_workspace/4DHHOI/4DHSI/Select_Target_Instance/output/video_02/2d/scene_image.png",
+  "generated_path": "/my_workspace/4DHHOI/4DHSI/Generate_Video/output_gemini/video_02/first_frames_resized/frame_00.png",
+  "object_mask_path_visualization_only": "/my_workspace/4DHHOI/4DHSI/Select_Target_Instance/output/video_02/2d/target_mask.png",
+  "detector": "SIFT",
+  "n_keypoints_reference": 3629,
+  "n_keypoints_generated": 4898,
+  "n_good_matches": 434,
+  "n_inliers": 301,
+  "inlier_ratio": 0.6935483870967742,
+  "median_reprojection_error_px": 0.6628513932228088,
+  "mean_reprojection_error_px": 0.8325223326683044,
+  "fullframe_mae_rgb": 7.986423969268799,
+  "fullframe_psnr_db": 19.753121113773197,
+  "fullframe_edge_iou": 0.5953016444906583,
+  "checks": {
+    "inlier_ratio_ok": true,
+    "median_reprojection_ok": true,
+    "mae_ok": true,
+    "edge_iou_ok": true
+  },
+  "pass_fraction": 1.0,
+  "verdict": "Strong full-frame preservation",
+  "source_generated_path": "/my_workspace/4DHHOI/4DHSI/Generate_Video/output_gemini/video_02/first_frames/frame_00.png",
+  "resized_generated_path": "/my_workspace/4DHHOI/4DHSI/Generate_Video/output_gemini/video_02/first_frames_resized/frame_00.png"
+}
