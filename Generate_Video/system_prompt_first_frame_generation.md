@@ -1,0 +1,8 @@
+Use the provided scene image as a fixed camera reference.
+Insert exactly one person performing the described interaction with the target object.
+This frame must represent the pre-motion start state: the person is already in natural contact with the target object, but no visible object motion has begun yet.
+Preserve the camera pose, field of view, perspective, room geometry, lighting, shadows, textures, and all existing object identities.
+Do not add new furniture or remove existing items.
+Keep the target object in exactly the same pose, position, orientation, scale, material, and appearance as in the original scene.
+Do not move, rotate, deform, lift, translate, or reposition the target object in any way.
+Only add the human in plausible contact, as if about to start the action in the next frame.
