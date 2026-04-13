@@ -1,0 +1,18 @@
+{
+  "target_selection_2d": {
+    "sam3_prompt": "small table",
+    "target_mask_score": 0.9396451711654663,
+    "mask_path": "2d/target_mask.png"
+  },
+  "target_selection_3d": {
+    "projected_mask_path": "3d/projected_target_mask.png",
+    "overlay_path": "3d/target_overlay.png",
+    "overlap_iou": 0.7194725433526011,
+    "projected_mask_area_px": 8856
+  },
+  "target_selection": {
+    "selection_source": "sam3_text_prompt",
+    "instance_id": 18,
+    "label": "side table"
+  }
+}
