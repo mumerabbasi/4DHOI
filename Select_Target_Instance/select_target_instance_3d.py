@@ -16,7 +16,6 @@ from select_target_instance_click import (
     load_colmap_pose,
     load_json,
     load_mesh,
-    normalize_label,
     rasterize_instance_id_map,
     resolve_input_path,
     resolve_output_dir,
@@ -28,7 +27,6 @@ from select_target_instance_click import (
 
 def build_visible_instances(
     instance_id_map: np.ndarray,
-    instance_meta: dict[int, dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], dict[int, np.ndarray]]:
     visible_instances: list[dict[str, Any]] = []
     visible_masks: dict[int, np.ndarray] = {}
@@ -43,19 +41,17 @@ def build_visible_instances(
             continue
 
         stats = build_mask_stats(mask)
-        meta = instance_meta[instance_id]
         visible_masks[instance_id] = mask
         visible_instances.append(
             {
                 "instance_id": instance_id,
-                "label": meta["label"],
                 "visible_area_px": int(stats["mask_area_px"]),
                 "visible_bbox_xyxy": stats["visible_bbox_xyxy"],
             }
         )
 
     visible_instances.sort(
-        key=lambda item: (-int(item["visible_area_px"]), normalize_label(item["label"]), int(item["instance_id"]))
+        key=lambda item: (-int(item["visible_area_px"]), int(item["instance_id"]))
     )
     return visible_instances, visible_masks
 
@@ -90,7 +86,6 @@ def select_best_instance_match(
     target_mask: np.ndarray,
     visible_instances: list[dict[str, Any]],
     visible_masks: dict[int, np.ndarray],
-    instance_meta: dict[int, dict[str, Any]],
 ) -> dict[str, Any]:
     best_match: dict[str, Any] | None = None
 
@@ -105,7 +100,6 @@ def select_best_instance_match(
         candidate = {
             **overlap,
             "instance_id": instance_id,
-            "label": instance_meta[instance_id]["label"],
             "overall_score": float(overall_score),
         }
         if best_match is None or candidate["overall_score"] > best_match["overall_score"]:
@@ -123,8 +117,8 @@ def build_overlay(
     image_bgr: np.ndarray,
     sam_mask: np.ndarray,
     projected_mask: np.ndarray,
-    selected_meta: dict[str, Any],
-    selected_prompt: str,
+    target_label: str,
+    matched_instance_id: int,
     overlap_iou: float,
     sam3_score: float,
 ) -> np.ndarray:
@@ -150,8 +144,8 @@ def build_overlay(
         cv2.rectangle(overlay, (x0, y0), (x1, y1), tuple(int(v) for v in OVERLAY_PALETTE_BGR[2]), 2)
 
     lines = [
-        f"instance {selected_meta['instance_id']}: {selected_meta['label']}",
-        f"SAM3 prompt: {selected_prompt}",
+        f"target label: {target_label}",
+        f"matched instance id: {matched_instance_id}",
         f"IoU {overlap_iou:.3f} | SAM3 score {sam3_score:.3f}",
     ]
     y = 32
@@ -180,6 +174,13 @@ def load_binary_mask(path: Path) -> np.ndarray:
 
 def resolve_stage_output_dir(output_root: Path) -> Path:
     return output_root / "3d"
+
+
+def resolve_target_label(metadata_2d: dict[str, Any]) -> str:
+    target_label = str(metadata_2d["sam3_prompt"]).strip()
+    if not target_label:
+        raise ValueError("target_selection_2d.sam3_prompt must be a non-empty string.")
+    return target_label
 
 
 def main() -> None:
@@ -218,13 +219,14 @@ def main() -> None:
     )
     metadata_payload = load_json(metadata_json_path)
     metadata_2d = metadata_payload["target_selection_2d"]
+    target_label = resolve_target_label(metadata_2d)
     input_payload = load_json(input_dir / "input_pag.json")
     scene_context = input_payload["scene_context"]
 
     target_mask_path = (
         Path(args.target_mask).resolve()
         if args.target_mask
-        else output_root / str(metadata_2d.get("mask_path", Path("2d") / "target_mask.png"))
+        else output_root / str(metadata_2d["mask_path"])
     )
     target_mask = load_binary_mask(target_mask_path)
 
@@ -255,7 +257,7 @@ def main() -> None:
     seg_indices = np.asarray(segments_payload["segIndices"], dtype=np.int64)
     anno_payload = load_json(scene_paths["segments_anno_path"])
 
-    candidate_faces, face_instance_ids, instance_meta = build_candidate_instances(
+    candidate_faces, face_instance_ids, _instance_meta = build_candidate_instances(
         mesh_faces=faces,
         seg_indices=seg_indices,
         seg_groups=anno_payload["segGroups"],
@@ -270,7 +272,7 @@ def main() -> None:
         width=width,
         height=height,
     )
-    visible_instances, visible_masks = build_visible_instances(instance_id_map, instance_meta)
+    visible_instances, visible_masks = build_visible_instances(instance_id_map)
     if not visible_instances:
         raise ValueError("No visible 3D object instances were found in the selected camera view.")
 
@@ -278,20 +280,19 @@ def main() -> None:
         target_mask=target_mask,
         visible_instances=visible_instances,
         visible_masks=visible_masks,
-        instance_meta=instance_meta,
     )
-    selected_meta = instance_meta[int(best_match["instance_id"])]
-    projected_mask = visible_masks[int(best_match["instance_id"])]
+    matched_instance_id = int(best_match["instance_id"])
+    projected_mask = visible_masks[matched_instance_id]
     sam3_stats = build_mask_stats(target_mask)
     projected_stats = build_mask_stats(projected_mask)
     overlay_bgr = build_overlay(
         image_bgr=image_bgr,
         sam_mask=target_mask,
         projected_mask=projected_mask,
-        selected_meta=selected_meta,
-        selected_prompt=str(metadata_2d.get("sam3_prompt", "")),
+        target_label=target_label,
+        matched_instance_id=matched_instance_id,
         overlap_iou=float(best_match["iou"]),
-        sam3_score=float(metadata_2d.get("target_mask_score", 0.0)),
+        sam3_score=float(metadata_2d["target_mask_score"]),
     )
 
     stage_output_dir.mkdir(parents=True, exist_ok=True)
@@ -306,9 +307,9 @@ def main() -> None:
 
     selection_payload = {
         "target_selection_2d": {
-            "sam3_prompt": str(metadata_2d.get("sam3_prompt", "")),
-            "target_mask_score": float(metadata_2d.get("target_mask_score", 0.0)),
-            "mask_path": str(metadata_2d.get("mask_path", Path("2d") / "target_mask.png")),
+            "sam3_prompt": target_label,
+            "target_mask_score": float(metadata_2d["target_mask_score"]),
+            "mask_path": str(metadata_2d["mask_path"]),
         },
         "target_selection_3d": {
             "projected_mask_path": str(Path("3d") / projected_mask_path.name),
@@ -318,8 +319,8 @@ def main() -> None:
         },
         "target_selection": {
             "selection_source": "sam3_text_prompt",
-            "instance_id": int(selected_meta["instance_id"]),
-            "label": str(selected_meta["label"]),
+            "instance_id": matched_instance_id,
+            "object": target_label,
         },
     }
     selection_json_path.write_text(
@@ -338,11 +339,11 @@ def main() -> None:
     print(
         "Selected 3D target:",
         {
-            "instance_id": selected_meta["instance_id"],
-            "label": selected_meta["label"],
-            "selected_sam3_prompt": metadata_2d.get("sam3_prompt", ""),
+            "instance_id": matched_instance_id,
+            "object": target_label,
+            "selected_sam3_prompt": target_label,
             "overlap_iou": best_match["iou"],
-            "sam3_model_score": metadata_2d.get("target_mask_score", 0.0),
+            "sam3_model_score": metadata_2d["target_mask_score"],
             "target_mask_area_px": sam3_stats["mask_area_px"],
             "projected_mask_area_px": projected_stats["mask_area_px"],
         },

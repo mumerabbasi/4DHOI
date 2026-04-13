@@ -487,7 +487,7 @@ def main() -> None:
         "target_selection": {
             "click_uv": [int(click_u), int(click_v)],
             "instance_id": int(selected_meta["instance_id"]),
-            "label": selected_meta["label"],
+            "object": selected_meta["label"],
             "selection_source": "click_uv" if parsed_click_uv is not None else "manual_click",
             "mask_path": target_mask_path.name,
             **visible_stats,
@@ -523,7 +523,7 @@ def main() -> None:
         "Selected target:",
         {
             "instance_id": selected_meta["instance_id"],
-            "label": selected_meta["label"],
+            "object": selected_meta["label"],
             "click_uv": [click_u, click_v],
             **visible_stats,
         },
