@@ -114,9 +114,9 @@ def main() -> None:
     input_dir = (
         Path(args.input_dir).resolve()
         if args.input_dir
-        else script_dir.parent / "Get_Input" / "input_prompts" / args.video_name
+        else script_dir.parent / "Select_Target_Instance" / "input_prompts" / args.video_name
     )
-    selection_root = script_dir.parent / "Get_Input" / "output" / args.video_name
+    selection_root = script_dir.parent / "Select_Target_Instance" / "output" / args.video_name
     output_root = script_dir / "output" / args.video_name
     selection_json_path = resolve_selection_path(selection_root, args.selection_json)
 
