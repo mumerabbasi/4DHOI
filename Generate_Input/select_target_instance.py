@@ -10,16 +10,11 @@ import cv2
 import numpy as np
 import trimesh
 
-try:
-    import torch
-    from pytorch3d.renderer import MeshRasterizer, RasterizationSettings
-    from pytorch3d.structures import Meshes
-    from pytorch3d.utils import cameras_from_opencv_projection
-except Exception as exc:  # pragma: no cover - import guard for env mismatch
-    raise ImportError(
-        "select_target_instance.py requires PyTorch3D. "
-        "Run it inside the 'sam3d-objects' conda env."
-    ) from exc
+import torch
+from pytorch3d.renderer import MeshRasterizer, RasterizationSettings
+from pytorch3d.structures import Meshes
+from pytorch3d.utils import cameras_from_opencv_projection
+
 
 OVERLAY_PALETTE_BGR: list[tuple[int, int, int]] = [
     (0, 255, 255),
