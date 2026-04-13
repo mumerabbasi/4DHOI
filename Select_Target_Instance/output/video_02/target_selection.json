@@ -1,14 +1,14 @@
 {
   "target_selection_2d": {
     "sam3_prompt": "white trash bin",
-    "target_mask_score": 0.9507768154144287,
+    "target_mask_score": 0.9087098240852356,
     "mask_path": "2d/target_mask.png"
   },
   "target_selection_3d": {
     "projected_mask_path": "3d/projected_target_mask.png",
     "overlay_path": "3d/target_overlay.png",
-    "overlap_iou": 0.8832206818293946,
-    "projected_mask_area_px": 18167
+    "overlap_iou": 0.932487392223849,
+    "projected_mask_area_px": 5769
   },
   "target_selection": {
     "selection_source": "sam3_text_prompt",
