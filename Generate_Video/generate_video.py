@@ -71,23 +71,15 @@ def resolve_frame_path(
     return frame_path, selection_path
 
 
-def load_and_prepare_image(path: Path, width: int, height: int) -> Image.Image:
+def load_input_image(path: Path, width: int, height: int) -> Image.Image:
     img = Image.open(path).convert("RGB")
     src_w, src_h = img.size
-
-    target_ratio = width / height
-    src_ratio = src_w / src_h
-
-    if src_ratio > target_ratio:
-        new_w = int(src_h * target_ratio)
-        left = (src_w - new_w) // 2
-        img = img.crop((left, 0, left + new_w, src_h))
-    else:
-        new_h = int(src_w / target_ratio)
-        top = (src_h - new_h) // 2
-        img = img.crop((0, top, src_w, top + new_h))
-
-    return img.resize((width, height), resample=Image.BICUBIC)
+    if (src_w, src_h) != (width, height):
+        raise ValueError(
+            f"Input frame size {(src_w, src_h)} does not match the requested "
+            f"resolution {(width, height)}."
+        )
+    return img
 
 
 def generate_video_wan(
@@ -168,7 +160,7 @@ def main() -> None:
     negative_prompt = CAMERA_LOCK_NEGATIVE
 
     print("Preparing input frame...")
-    image = load_and_prepare_image(frame_path, args.width, args.height)
+    image = load_input_image(frame_path, args.width, args.height)
 
     print("Loading Wan image-to-video pipeline...")
     from diffusers import WanImageToVideoPipeline
