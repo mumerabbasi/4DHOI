@@ -61,13 +61,11 @@ def resolve_frame_path(
         else video_dir / "selected_first_frame.json"
     )
     selection = json.loads(selection_path.read_text(encoding="utf-8"))
-    selected_value = selection.get("selected_frame_path") or selection.get("selected_frame")
-    if not selected_value:
+    selected_frame = selection.get("selected_frame")
+    if not selected_frame:
         raise KeyError(f"No selected frame found in: {selection_path}")
 
-    frame_path = Path(selected_value)
-    if not frame_path.is_absolute():
-        frame_path = (selection_path.parent / frame_path).resolve()
+    frame_path = (video_dir / "first_frames_resized" / selected_frame).resolve()
     return frame_path, selection_path
 
 

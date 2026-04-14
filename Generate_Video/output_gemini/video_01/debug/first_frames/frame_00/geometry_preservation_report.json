@@ -1,0 +1,47 @@
+{
+  "video_name": "video_01",
+  "frame_name": "frame_00",
+  "detector": "SIFT",
+  "n_keypoints_reference": 204,
+  "n_keypoints_generated": 314,
+  "n_good_matches": 89,
+  "n_inliers": 65,
+  "inlier_ratio": 0.7303370786516854,
+  "median_reprojection_error_px": 0.5779234170913696,
+  "mean_reprojection_error_px": 0.873502790927887,
+  "fullframe_mae_rgb": 4.707675933837891,
+  "fullframe_psnr_db": 24.735882810849635,
+  "fullframe_edge_iou": 0.48153585905333374,
+  "checks": {
+    "inlier_ratio_ok": true,
+    "median_reprojection_ok": true,
+    "mae_ok": true,
+    "edge_iou_ok": true
+  },
+  "pass_fraction": 1.0,
+  "verdict": "Strong full-frame preservation",
+  "source_generated_path": "/my_workspace/4DHHOI/4DHSI/Generate_Video/output/video_01/first_frames/frame_00.png",
+  "resized_generated_path": "/my_workspace/4DHHOI/4DHSI/Generate_Video/output/video_01/first_frames_resized/frame_00.png",
+  "target_mask_path": "/my_workspace/4DHHOI/4DHSI/Generate_Video/output/video_01/first_frames_resized/target_mask.png",
+  "camera_json_path": "/my_workspace/4DHHOI/4DHSI/Generate_Video/output/video_01/resized_camera.json",
+  "target_label": "small table",
+  "reference_preprocess": {
+    "source_width": 1752,
+    "source_height": 1168,
+    "target_width": 1280,
+    "target_height": 720,
+    "scale": 0.730593607305936,
+    "scaled_height": 853,
+    "crop_top": 66
+  },
+  "target_3d_overlay_path": "/my_workspace/4DHHOI/4DHSI/Generate_Video/output/video_01/debug/first_frames/frame_00/target_3d_overlay.png",
+  "target_instance_id": 18,
+  "target_instance_label": "side table",
+  "projected_mask_area_px": 4721,
+  "projected_bbox_xyxy": [
+    660,
+    441,
+    756,
+    571
+  ]
+}

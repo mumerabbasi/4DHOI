@@ -1,7 +1,6 @@
 {
   "object part nodes": [
-    "white trash bin, main container",
-    "white trash bin, rim"
+    "white trash bin, main container"
   ],
   "body part nodes": [
     "person 1, left hand",
@@ -20,7 +19,7 @@
   "interaction edges": [
     {
       "nodes": [
-        "white trash bin, rim",
+        "white trash bin, main container",
         "person 1, left hand"
       ],
       "is_rel_static": true,
@@ -28,14 +27,14 @@
     },
     {
       "nodes": [
-        "white trash bin, rim",
+        "white trash bin, main container",
         "person 1, right hand"
       ],
       "is_rel_static": true,
       "is_continuous": true
     }
   ],
-  "interaction": "A person is lifting a white trash bin with both hands at an extremely slow pace. Their left and right hands grip the bin's rim continuously without sliding. The bin moves upward translationally while maintaining a stable orientation. The person has short black hair and a neutral facial expression. They wear a gray t-shirt, blue jeans, and white sneakers. The scene is set in a clean, spacious indoor area with white walls and a wooden floor. The bin is rectangular with a smooth plastic surface. Lighting is bright and even throughout the space. The person's legs bend slightly while hips shift weight to assist the lift. Arms bend slightly at the elbows to lift the weight. The movement is smooth and controlled, emphasizing the physical contact between the hands and the bin's rim during the lifting process. Non-contact body parts move minimally in slow motion.",
+  "interaction": "A person is lifting a white trash bin with both hands at an extremely slow pace. Their left and right hands grip the bin's main container continuously without sliding. The bin moves upward translationally while maintaining a stable orientation. The person has short black hair and a neutral facial expression. They wear a gray t-shirt, blue jeans, and white sneakers. The scene is set in a clean, spacious indoor area with white walls and a wooden floor. The bin is rectangular with a smooth plastic surface. Lighting is bright and even throughout the space. The person's legs bend slightly while hips shift weight to assist the lift. Arms bend slightly at the elbows to lift the weight. The movement is smooth and controlled, emphasizing the physical contact between the hands and the bin's main container during the lifting process. Non-contact body parts move minimally in slow motion.",
   "object states": [
     {
       "name": "white trash bin",
