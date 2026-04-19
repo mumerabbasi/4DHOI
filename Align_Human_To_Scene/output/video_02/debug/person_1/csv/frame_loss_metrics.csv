@@ -1,0 +1,2 @@
+frame_idx,stage,mask_weight,mask_raw,mask_scaled,front_weight,front_raw,front_scaled,scale_reg_weight,scale_reg_raw,scale_reg_scaled,translation_reg_weight,translation_reg_raw,translation_reg_scaled,nocontact_weight,nocontact_raw,nocontact_scaled,total_raw_local,total_scaled_local
+0,stage2,1.0,0.00011371706932550296,0.00011371706932550296,20.0,0.00013973609020467848,0.0027947218040935695,0.01,0.020850693807005882,0.00020850693807005882,0.5,0.19142448902130127,0.09571224451065063,100.0,0.0005815023323521018,0.05815023323521018,0.21311013832018944,0.15697942355734995

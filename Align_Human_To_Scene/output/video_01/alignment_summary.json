@@ -1,0 +1,244 @@
+{
+  "video_name": "video_01",
+  "inputs": {
+    "scene_mesh_path": "/my_workspace/4DHHOI/Scannet++/data/442b144761/scans/mesh_aligned_0.05.ply",
+    "target_selection_json": "/my_workspace/4DHHOI/4DHSI/Select_Target_Instance/output/video_01/target_selection.json",
+    "input_pag_json": "/my_workspace/4DHHOI/4DHSI/Select_Target_Instance/input_prompts/video_01/input_pag.json",
+    "pag_json": "/my_workspace/4DHHOI/4DHSI/Generate_PAG/output/video_01/output_pag_qwen3_5_27b.json",
+    "resized_camera_json": "/my_workspace/4DHHOI/4DHSI/Generate_Video/output/video_01/resized_camera.json",
+    "human_motion_root": "/my_workspace/4DHHOI/4DHSI/Estimate_Human_Motion/output/video_01/humans"
+  },
+  "camera": {
+    "camera_name": "f7226bb3_DSC03404.JPG",
+    "width": 1280,
+    "height": 720,
+    "intrinsics_3x3": [
+      [
+        338.3348388671875,
+        0.0,
+        640.0
+      ],
+      [
+        0.0,
+        338.4128112792969,
+        360.6666564941406
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "world_to_camera_4x4": [
+      [
+        0.970353364944458,
+        0.24168561398983002,
+        0.001539667951874435,
+        -1.852695345878601
+      ],
+      [
+        0.03221525996923447,
+        -0.12302350252866745,
+        -0.9918807148933411,
+        1.602565884590149
+      ],
+      [
+        -0.23953388631343842,
+        0.9625244140625,
+        -0.12716223299503326,
+        -0.9723661541938782
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ]
+  },
+  "optimization": {
+    "transform": "X' = exp(alpha) * X + [tx, ty, tz]^T",
+    "stage1": {
+      "iters": 400,
+      "lr": 0.02
+    },
+    "stage2": {
+      "iters": 250,
+      "lr": 0.01
+    },
+    "weights": {
+      "mask": 1.0,
+      "front": 20.0,
+      "scale_reg": 0.01,
+      "translation_reg": 0.5,
+      "nocontact": {
+        "start": 100.0,
+        "end": 100.0
+      }
+    },
+    "sampling": {
+      "human_surface_samples": 6000,
+      "target_surface_samples": 6000,
+      "mask_points": 2500
+    },
+    "geometry": {
+      "front_margin_m": 0.03,
+      "init_depth_offset_m": 0.25,
+      "visible_tol_m": 0.02,
+      "human_dilate_kernel": 25
+    }
+  },
+  "scene": {
+    "depth": {
+      "path": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/scene/depth/scene_depth.npy",
+      "vis_path": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/scene/depth/scene_depth_vis.png",
+      "valid_pixels": 920798,
+      "depth_min_m": 0.47157207131385803,
+      "depth_max_m": 2.689070224761963
+    },
+    "target_object": {
+      "instance_id": 18,
+      "label": "side table",
+      "projection_overlap": {
+        "intersection_px": 4564,
+        "union_px": 4905,
+        "area_a_px": 4724,
+        "area_b_px": 4745,
+        "iou": 0.9304791029561672,
+        "dice": 0.9639877494983631
+      },
+      "visible_surface_stats": {
+        "mode": "strict_visible",
+        "num_total_points": 6000,
+        "num_in_frame_points": 6000,
+        "num_visible_points": 3673,
+        "num_kept_points": 3673,
+        "visible_tol_m": 0.02
+      },
+      "artifacts": {
+        "surface_samples_npy": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/scene/target/target_surface_samples.npy",
+        "visible_surface_samples_npy": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/scene/target/target_surface_visible_samples.npy",
+        "visible_surface_samples_ply": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/scene/target/target_surface_visible_samples.ply",
+        "projection_overlay": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/scene/target/target_projection_overlay.png",
+        "projection_comparison_overlay": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/scene/target/target_projection_comparison_overlay.png"
+      }
+    }
+  },
+  "tracks": [
+    {
+      "name": "person_1",
+      "initialization": {
+        "scene_depth_region_source": "dilated_human_mask",
+        "scene_depth_region_median_m": 2.1250760555267334,
+        "tz_init_m": 0.2088003158569336
+      },
+      "optimization": {
+        "best_iter": 418,
+        "best_stage": "stage2",
+        "best_total_loss": 0.29685699939727783
+      },
+      "frame_0": {
+        "mask_overlap": {
+          "intersection_px": 15088,
+          "union_px": 21683,
+          "area_a_px": 20896,
+          "area_b_px": 15875,
+          "iou": 0.6958446709403681,
+          "dice": 0.8206467052840554
+        },
+        "behind_fraction": {
+          "num_visible_points": 2199,
+          "num_behind_points": 131,
+          "behind_fraction": 0.05968109339407745,
+          "mode": "strict_visible",
+          "num_total_points": 6000,
+          "num_in_frame_points": 6000,
+          "num_kept_points": 2199,
+          "visible_tol_m": 0.02
+        },
+        "contact_edges": [
+          {
+            "node_a": "small table, tabletop",
+            "node_b": "person 1, left hand",
+            "moving_entity_name": "person 1",
+            "moving_part_name": "left hand",
+            "fixed_entity_name": "small table",
+            "fixed_part_name": "tabletop",
+            "reduction": "mean",
+            "is_continuous": true,
+            "nocontact_raw": 0.0013222504639998078,
+            "nocontact_distance_m": 0.03636276205130474
+          },
+          {
+            "node_a": "small table, tabletop",
+            "node_b": "person 1, right hand",
+            "moving_entity_name": "person 1",
+            "moving_part_name": "right hand",
+            "fixed_entity_name": "small table",
+            "fixed_part_name": "tabletop",
+            "reduction": "mean",
+            "is_continuous": true,
+            "nocontact_raw": 0.00294167990796268,
+            "nocontact_distance_m": 0.05423725571931788
+          }
+        ]
+      },
+      "sequence_checks": [
+        {
+          "num_visible_points": 2199,
+          "num_behind_points": 131,
+          "behind_fraction": 0.05968109339407745,
+          "mode": "strict_visible",
+          "num_total_points": 6000,
+          "num_in_frame_points": 6000,
+          "num_kept_points": 2199,
+          "visible_tol_m": 0.02,
+          "frame_index": 0
+        },
+        {
+          "num_visible_points": 2323,
+          "num_behind_points": 19,
+          "behind_fraction": 0.008186126669538992,
+          "mode": "strict_visible",
+          "num_total_points": 6000,
+          "num_in_frame_points": 6000,
+          "num_kept_points": 2323,
+          "visible_tol_m": 0.02,
+          "frame_index": 96
+        },
+        {
+          "num_visible_points": 2363,
+          "num_behind_points": 75,
+          "behind_fraction": 0.031806615776081425,
+          "mode": "strict_visible",
+          "num_total_points": 6000,
+          "num_in_frame_points": 6000,
+          "num_kept_points": 2363,
+          "visible_tol_m": 0.02,
+          "frame_index": 191
+        }
+      ],
+      "artifacts": {
+        "camera_mesh_dir": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/meshes/person_1/camera",
+        "world_mesh_dir": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/meshes/person_1/world",
+        "frame_overlay": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/debug/person_1/overlays/frame_0000_mask_overlay.png",
+        "frame_depth_vis": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/debug/person_1/depth/frame_0000_depth_vis.png",
+        "sequence_checks_dir": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/debug/person_1/overlays/sequence_checks",
+        "csv": {
+          "iter_metrics": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/debug/person_1/csv/iter_metrics.csv",
+          "frame_loss_metrics": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/debug/person_1/csv/frame_loss_metrics.csv",
+          "final_loss_summary": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/debug/person_1/csv/final_loss_summary.csv"
+        },
+        "plots": {
+          "iter_dir": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/debug/person_1/plots/iter",
+          "frame_dir": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/debug/person_1/plots/frame"
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "meshes_dir": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/meshes",
+    "debug_dir": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/debug",
+    "transforms_json": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/meshes/transforms.json"
+  }
+}
