@@ -9,6 +9,8 @@ from tqdm import tqdm
 
 from incam_stabilization import compute_stabilized_incam_params
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+
 
 def write_ascii_ply(path: Path, vertices, faces) -> None:
     """Write a triangular mesh to an ASCII PLY file."""
@@ -31,10 +33,9 @@ def write_ascii_ply(path: Path, vertices, faces) -> None:
 
 def build_default_paths(video_name: str) -> tuple[Path, Path, Path]:
     """Build default input/output roots for one video."""
-    script_dir = Path(__file__).parent.resolve()
-    human_motion_dir = script_dir / "output" / video_name / "humans"
+    human_motion_dir = SCRIPT_DIR / "output" / video_name / "humans"
     camera_json_path = (
-        script_dir.parent / "Generate_Video" / "output" / video_name / "resized_camera.json"
+        SCRIPT_DIR.parent / "Generate_Video" / "output" / video_name / "resized_camera.json"
     )
     return human_motion_dir, human_motion_dir, camera_json_path
 
@@ -76,13 +77,19 @@ def transform_camera_to_world(
     ) @ rotation_world_to_camera
 
 
+def resolve_path(raw_path: str, base_dir: Path) -> Path:
+    path = Path(raw_path)
+    if path.is_absolute():
+        return path.resolve()
+    return (base_dir / path).resolve()
+
+
 def export_camera_and_world_ply_sequence(
     params: dict,
     camera_output_dir: Path,
     world_output_dir: Path,
     smplx_layer,
-    smplx2smpl,
-    faces_smpl,
+    faces_smplx,
     rotation_world_to_camera: np.ndarray,
     translation_world_to_camera: np.ndarray,
     label: str,
@@ -103,16 +110,26 @@ def export_camera_and_world_ply_sequence(
     for i in tqdm(range(num_frames), desc=label, leave=False):
         curr_betas = betas[i: i + 1] if betas.shape[0] > 1 else betas[:1]
 
-        output = smplx_layer(
-            betas=curr_betas,
-            body_pose=body_pose[i: i + 1],
-            global_orient=global_orient[i: i + 1],
-            transl=transl[i: i + 1],
-        )
+        smplx_kwargs = {
+            "betas": curr_betas,
+            "body_pose": body_pose[i: i + 1],
+            "global_orient": global_orient[i: i + 1],
+            "transl": transl[i: i + 1],
+        }
+        for optional_key in (
+            "left_hand_pose",
+            "right_hand_pose",
+            "expression",
+            "jaw_pose",
+            "leye_pose",
+            "reye_pose",
+        ):
+            if optional_key in params:
+                smplx_kwargs[optional_key] = params[optional_key][i: i + 1]
 
-        smplx_verts = output.vertices[0]
-        smpl_verts = torch.matmul(smplx2smpl, smplx_verts)
-        camera_vertices = smpl_verts.detach().cpu().numpy()
+        output = smplx_layer(**smplx_kwargs)
+
+        camera_vertices = output.vertices[0].detach().cpu().numpy()
         world_vertices = transform_camera_to_world(
             camera_vertices,
             rotation_world_to_camera=rotation_world_to_camera,
@@ -120,8 +137,8 @@ def export_camera_and_world_ply_sequence(
         )
 
         filename = f"frame_{i:04d}.ply"
-        write_ascii_ply(camera_output_dir / filename, camera_vertices, faces_smpl)
-        write_ascii_ply(world_output_dir / filename, world_vertices, faces_smpl)
+        write_ascii_ply(camera_output_dir / filename, camera_vertices, faces_smplx)
+        write_ascii_ply(world_output_dir / filename, world_vertices, faces_smplx)
 
     print(f"Saved {label} camera PLYs to: {camera_output_dir}")
     print(f"Saved {label} world PLYs to: {world_output_dir}")
@@ -132,8 +149,7 @@ def export_one_human(
     result_dir: Path,
     output_dir: Path,
     smplx_layer,
-    smplx2smpl,
-    faces_smpl,
+    faces_smplx,
     gvhmr_path: Path,
     camera_json_path: Path,
     stabilize_incam: bool,
@@ -165,8 +181,7 @@ def export_one_human(
         camera_output_dir=camera_output_dir,
         world_output_dir=world_output_dir,
         smplx_layer=smplx_layer,
-        smplx2smpl=smplx2smpl,
-        faces_smpl=faces_smpl,
+        faces_smplx=faces_smplx,
         rotation_world_to_camera=rotation_world_to_camera,
         translation_world_to_camera=translation_world_to_camera,
         label=result_dir.name,
@@ -198,15 +213,9 @@ def main() -> None:
         default=None,
         help=(
             "Directory to save exported PLY files. If not provided, defaults to "
-            "Estimate_Human_Motion/output/<video_name>/humans/<person_name>/meshes/"
-            " with camera/ and world/ subdirectories."
+            "Estimate_Human_Motion/output/<video_name>/humans/<person_name>/meshes/ "
+            "with SMPL-X camera/ and world/ subdirectories."
         ),
-    )
-    parser.add_argument(
-        "--smplx2smpl_path",
-        type=str,
-        default="../../GVHMR/hmr4d/utils/body_model/smplx2smpl_sparse.pt",
-        help="Path to the smplx2smpl sparse matrix from GVHMR.",
     )
     parser.add_argument(
         "--gvhmr_path",
@@ -241,13 +250,11 @@ def main() -> None:
     default_gvhmr_path = Path(__file__).resolve().parents[2] / "GVHMR"
 
     video_dir = Path(args.video_dir).resolve() if args.video_dir else default_video_dir
-    smpl_folder = Path(args.smpl_folder).resolve()
-    smplx2smpl_path = Path(args.smplx2smpl_path).resolve()
+    smpl_folder = resolve_path(args.smpl_folder, SCRIPT_DIR)
     gvhmr_path = Path(args.gvhmr_path).resolve() if args.gvhmr_path else default_gvhmr_path
     camera_json_path = (
         Path(args.camera_json).resolve() if args.camera_json else default_camera_json
     )
-
     if not video_dir.exists() or not video_dir.is_dir():
         raise NotADirectoryError(f"Video directory not found: {video_dir}")
     if not camera_json_path.exists():
@@ -271,18 +278,7 @@ def main() -> None:
         create_global_orient=False,
         create_transl=False,
     )
-
-    # Load the SMPL-X to SMPL vertex conversion matrix (6890 x 10475)
-    print(f"Loading smplx2smpl matrix from {smplx2smpl_path}...")
-    smplx2smpl = torch.load(smplx2smpl_path)
-
-    smpl_layer_for_faces = smplx.create(
-        str(smpl_folder),
-        model_type="smpl",
-        gender="neutral",
-    )
-    faces_smpl = smpl_layer_for_faces.faces
-
+    faces_smplx = smplx_layer.faces
     human_result_dirs = discover_human_result_dirs(video_dir)
     if not human_result_dirs:
         raise FileNotFoundError(
@@ -294,8 +290,7 @@ def main() -> None:
             result_dir=result_dir,
             output_dir=output_dir / result_dir.name / "meshes",
             smplx_layer=smplx_layer,
-            smplx2smpl=smplx2smpl,
-            faces_smpl=faces_smpl,
+            faces_smplx=faces_smplx,
             gvhmr_path=gvhmr_path,
             camera_json_path=camera_json_path,
             stabilize_incam=bool(args.stabilize_incam),
