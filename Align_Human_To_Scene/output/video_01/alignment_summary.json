@@ -58,22 +58,31 @@
   },
   "optimization": {
     "transform": "X' = exp(alpha) * X + [tx, ty, tz]^T",
-    "stage1": {
+    "optimizer": {
+      "type": "adam",
       "iters": 4000,
-      "lr": 0.005
-    },
-    "stage2": {
-      "iters": 2500,
-      "lr": 0.005
+      "lr": 0.001
     },
     "weights": {
-      "mask": 1.0,
-      "front": 20.0,
+      "mask": 0.1,
+      "front": 1.0,
       "scale_reg": 0.01,
       "translation_reg": 0.5,
       "nocontact": {
-        "start": 100.0,
-        "end": 100.0
+        "start": 1000.0,
+        "end": 1000.0
+      },
+      "floor_nocontact": {
+        "start": 1000.0,
+        "end": 1000.0
+      },
+      "intersect": {
+        "start": 0.0,
+        "end": 10.0
+      },
+      "floor_intersect": {
+        "start": 0.0,
+        "end": 10.0
       }
     },
     "sampling": {
@@ -133,27 +142,26 @@
         "tz_init_m": 0.19325268268585205
       },
       "optimization": {
-        "best_iter": 4154,
-        "best_stage": "stage2",
-        "best_total_loss": 0.21504676342010498
+        "final_iter": 4000,
+        "final_total_loss": 2.136018753051758
       },
       "frame_0": {
         "mask_overlap": {
-          "intersection_px": 12588,
-          "union_px": 21684,
+          "intersection_px": 9243,
+          "union_px": 23356,
           "area_a_px": 20896,
-          "area_b_px": 13376,
-          "iou": 0.5805201992252352,
-          "dice": 0.7345938375350141
+          "area_b_px": 11703,
+          "iou": 0.3957441342695667,
+          "dice": 0.5670726095892512
         },
         "behind_fraction": {
-          "num_visible_points": 2190,
-          "num_behind_points": 177,
-          "behind_fraction": 0.08082191780821918,
+          "num_visible_points": 2203,
+          "num_behind_points": 181,
+          "behind_fraction": 0.08234758871701547,
           "mode": "strict_visible",
           "num_total_points": 6000,
           "num_in_frame_points": 6000,
-          "num_kept_points": 2190,
+          "num_kept_points": 2203,
           "visible_tol_m": 0.02
         },
         "contact_edges": [
@@ -167,8 +175,8 @@
             "fixed_part_name": "tabletop",
             "reduction": "mean",
             "is_continuous": true,
-            "nocontact_raw": 0.0017718898598104715,
-            "nocontact_distance_m": 0.04209382210978793
+            "nocontact_raw": 0.0015760816168040037,
+            "nocontact_distance_m": 0.03969989441804605
           },
           {
             "node_a": "small table, tabletop",
@@ -180,60 +188,48 @@
             "fixed_part_name": "tabletop",
             "reduction": "mean",
             "is_continuous": true,
-            "nocontact_raw": 0.002017989754676819,
-            "nocontact_distance_m": 0.044922040856096676
+            "nocontact_raw": 0.0018675155006349087,
+            "nocontact_distance_m": 0.04321476021725573
+          },
+          {
+            "node_a": "person_1.left_foot",
+            "node_b": "floor",
+            "moving_entity_name": "person_1",
+            "moving_part_name": "left foot",
+            "moving_segment_name": "left foot",
+            "fixed_entity_name": "floor",
+            "fixed_part_name": "floor",
+            "reduction": "min",
+            "is_continuous": false,
+            "nocontact_raw": 1.2165377484052442e-05,
+            "nocontact_distance_m": 0.0034878901192629966
+          },
+          {
+            "node_a": "person_1.right_foot",
+            "node_b": "floor",
+            "moving_entity_name": "person_1",
+            "moving_part_name": "right foot",
+            "moving_segment_name": "right foot",
+            "fixed_entity_name": "floor",
+            "fixed_part_name": "floor",
+            "reduction": "min",
+            "is_continuous": false,
+            "nocontact_raw": 0.0001742828608257696,
+            "nocontact_distance_m": 0.01320162341629883
           }
         ]
       },
-      "sequence_checks": [
-        {
-          "num_visible_points": 2190,
-          "num_behind_points": 177,
-          "behind_fraction": 0.08082191780821918,
-          "mode": "strict_visible",
-          "num_total_points": 6000,
-          "num_in_frame_points": 6000,
-          "num_kept_points": 2190,
-          "visible_tol_m": 0.02,
-          "frame_index": 0
-        },
-        {
-          "num_visible_points": 2387,
-          "num_behind_points": 283,
-          "behind_fraction": 0.11885762284754305,
-          "mode": "strict_visible",
-          "num_total_points": 6000,
-          "num_in_frame_points": 6000,
-          "num_kept_points": 2387,
-          "visible_tol_m": 0.02,
-          "frame_index": 96
-        },
-        {
-          "num_visible_points": 2463,
-          "num_behind_points": 269,
-          "behind_fraction": 0.10939406262708418,
-          "mode": "strict_visible",
-          "num_total_points": 6000,
-          "num_in_frame_points": 6000,
-          "num_kept_points": 2463,
-          "visible_tol_m": 0.02,
-          "frame_index": 191
-        }
-      ],
       "artifacts": {
         "camera_mesh_dir": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/meshes/person_1/camera",
         "world_mesh_dir": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/meshes/person_1/world",
         "frame_overlay": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/debug/person_1/overlays/frame_0000_mask_overlay.png",
         "frame_depth_vis": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/debug/person_1/depth/frame_0000_depth_vis.png",
-        "sequence_checks_dir": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/debug/person_1/overlays/sequence_checks",
         "csv": {
           "iter_metrics": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/debug/person_1/csv/iter_metrics.csv",
-          "frame_loss_metrics": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/debug/person_1/csv/frame_loss_metrics.csv",
           "final_loss_summary": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/debug/person_1/csv/final_loss_summary.csv"
         },
         "plots": {
-          "iter_dir": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/debug/person_1/plots/iter",
-          "frame_dir": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/debug/person_1/plots/frame"
+          "iter_dir": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_01/debug/person_1/plots/iter"
         }
       }
     }

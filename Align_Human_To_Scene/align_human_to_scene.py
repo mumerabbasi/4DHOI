@@ -24,7 +24,10 @@ ALIGN_LOSS_TERM_KEYS = (
     "front",
     "scale_reg",
     "translation_reg",
+    "intersect",
+    "floor_intersect",
     "nocontact",
+    "floor_nocontact",
 )
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -87,6 +90,13 @@ class ContactEdgeTorch:
     reduction: str
     moving_points_base: torch.Tensor
     fixed_points_base: torch.Tensor
+
+
+@dataclass
+class SDFGrid:
+    sdf_volume: torch.Tensor
+    bbox_min: torch.Tensor
+    bbox_max: torch.Tensor
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -195,6 +205,35 @@ def build_candidate_instances(
         np.concatenate(face_instance_ids, axis=0),
         instance_meta,
     )
+
+
+def build_faces_for_labels(
+    mesh_faces: np.ndarray,
+    seg_indices: np.ndarray,
+    seg_groups: list[dict[str, Any]],
+    labels: set[str],
+) -> np.ndarray:
+    face_batches: list[np.ndarray] = []
+    labels_norm = {normalize_label(label) for label in labels}
+    for group in seg_groups:
+        label = normalize_label(str(group["label"]))
+        if label not in labels_norm:
+            continue
+
+        segments = np.asarray(group["segments"], dtype=np.int64)
+        if segments.size == 0:
+            continue
+
+        vertex_mask = np.isin(seg_indices, segments)
+        face_mask = np.all(vertex_mask[mesh_faces], axis=1)
+        candidate_faces = mesh_faces[face_mask]
+        if candidate_faces.size == 0:
+            continue
+        face_batches.append(candidate_faces.astype(np.int64))
+
+    if not face_batches:
+        return np.zeros((0, 3), dtype=np.int64)
+    return np.concatenate(face_batches, axis=0)
 
 
 def resize_and_center_crop(
@@ -319,28 +358,16 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
-        "--stage1_iters",
+        "--adam_iters",
         type=int,
         default=4000,
-        help="Optimization iterations for the stage-1 mask+front pass.",
+        help="Optimization iterations for the Adam pass.",
     )
     parser.add_argument(
-        "--stage2_iters",
-        type=int,
-        default=2500,
-        help="Optimization iterations for the stage-2 contact-enabled pass.",
-    )
-    parser.add_argument(
-        "--stage1_lr",
+        "--adam_lr",
         type=float,
-        default=0.005,
-        help="Adam learning rate for stage 1.",
-    )
-    parser.add_argument(
-        "--stage2_lr",
-        type=float,
-        default=0.005,
-        help="Adam learning rate for stage 2.",
+        default=1e-3,
+        help="Adam learning rate for the optimization.",
     )
     parser.add_argument(
         "--front_margin_m",
@@ -354,13 +381,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--mask_weight",
         type=float,
-        default=1.0,
+        default=0.1,
         help="Fixed weight for the 2D silhouette chamfer term.",
     )
     parser.add_argument(
         "--front_weight",
         type=float,
-        default=20.0,
+        default=1.0,
         help="Fixed weight for the front-of-scene depth term.",
     )
     parser.add_argument(
@@ -376,16 +403,52 @@ def parse_args() -> argparse.Namespace:
         help="Fixed weight for the translation regularizer.",
     )
     parser.add_argument(
+        "--intersect_weight_start",
+        type=float,
+        default=0.0,
+        help="Start weight for target-object penetration.",
+    )
+    parser.add_argument(
+        "--intersect_weight_end",
+        type=float,
+        default=10.0,
+        help="End weight for target-object penetration.",
+    )
+    parser.add_argument(
+        "--floor_intersect_weight_start",
+        type=float,
+        default=0.0,
+        help="Start weight for feet-floor penetration.",
+    )
+    parser.add_argument(
+        "--floor_intersect_weight_end",
+        type=float,
+        default=10.0,
+        help="End weight for feet-floor penetration.",
+    )
+    parser.add_argument(
         "--nocontact_weight_start",
         type=float,
-        default=100.0,
-        help="Stage-2 start weight for the nocontact term.",
+        default=1000.0,
+        help="Start weight for the nocontact term.",
     )
     parser.add_argument(
         "--nocontact_weight_end",
         type=float,
-        default=100.0,
-        help="Stage-2 end weight for the nocontact term.",
+        default=1000.0,
+        help="End weight for the nocontact term.",
+    )
+    parser.add_argument(
+        "--floor_nocontact_weight_start",
+        type=float,
+        default=1000.0,
+        help="Start weight for the feet-floor nocontact term.",
+    )
+    parser.add_argument(
+        "--floor_nocontact_weight_end",
+        type=float,
+        default=1000.0,
+        help="End weight for the feet-floor nocontact term.",
     )
     parser.add_argument(
         "--init_depth_offset_m",
@@ -424,7 +487,13 @@ def parse_args() -> argparse.Namespace:
         "--log_every",
         type=int,
         default=50,
-        help="Iteration logging frequency for both optimization stages.",
+        help="Iteration logging frequency for the optimizer.",
+    )
+    parser.add_argument(
+        "--sdf_resolution",
+        type=int,
+        default=128,
+        help="Voxel resolution for target-object and floor SDF grids.",
     )
     return parser.parse_args()
 
@@ -529,7 +598,7 @@ def linear_weight(
     )
 
 
-def get_stage2_loss_weights(
+def get_optimizer_loss_weights(
     args: argparse.Namespace,
     iteration: int,
     total_iters: int,
@@ -539,35 +608,41 @@ def get_stage2_loss_weights(
         "front": float(args.front_weight),
         "scale_reg": float(args.scale_reg_weight),
         "translation_reg": float(args.translation_reg_weight),
+        "intersect": linear_weight(
+            args.intersect_weight_start,
+            args.intersect_weight_end,
+            iteration,
+            total_iters,
+        ),
+        "floor_intersect": linear_weight(
+            args.floor_intersect_weight_start,
+            args.floor_intersect_weight_end,
+            iteration,
+            total_iters,
+        ),
         "nocontact": linear_weight(
             args.nocontact_weight_start,
             args.nocontact_weight_end,
             iteration,
             total_iters,
         ),
-    }
-
-
-def get_stage1_loss_weights(args: argparse.Namespace) -> dict[str, float]:
-    return {
-        "mask": float(args.mask_weight),
-        "front": float(args.front_weight),
-        "scale_reg": float(args.scale_reg_weight),
-        "translation_reg": float(args.translation_reg_weight),
-        "nocontact": 0.0,
+        "floor_nocontact": linear_weight(
+            args.floor_nocontact_weight_start,
+            args.floor_nocontact_weight_end,
+            iteration,
+            total_iters,
+        ),
     }
 
 
 def build_loss_row(
     iteration: int,
-    stage: str,
     losses: dict[str, torch.Tensor | dict[str, float]],
 ) -> dict[str, Any]:
     weights = losses["weights"]
     assert isinstance(weights, dict)
     row: dict[str, Any] = {
         "iter": int(iteration),
-        "stage": stage,
         "total": float(losses["total"].detach().cpu().item()),
     }
     for key in ALIGN_LOSS_TERM_KEYS:
@@ -582,7 +657,6 @@ def build_loss_row(
 def format_loss_log(
     iteration: int,
     total_iterations: int,
-    stage: str,
     losses: dict[str, torch.Tensor | dict[str, float]],
 ) -> list[str]:
     weights = losses["weights"]
@@ -598,7 +672,7 @@ def format_loss_log(
         for key in ALIGN_LOSS_TERM_KEYS
     )
     return [
-        f"  [{stage}:{iteration:4d}/{total_iterations}] "
+        f"  [iter {iteration:4d}/{total_iterations}] "
         f"total={float(losses['total'].detach().cpu().item()):.5f}",
         f"      weights: {weights_fmt}",
         f"      raw:     {raw_fmt}",
@@ -607,16 +681,14 @@ def format_loss_log(
 
 
 def build_final_loss_summary_row(
-    best_iter: int,
-    stage: str,
+    final_iter: int,
     losses: dict[str, torch.Tensor | dict[str, float]],
 ) -> dict[str, Any]:
     weights = losses["weights"]
     assert isinstance(weights, dict)
     row: dict[str, Any] = {
-        "best_iter": int(best_iter),
-        "stage": stage,
-        "best_total_loss": float(losses["total"].detach().cpu().item()),
+        "final_iter": int(final_iter),
+        "final_total_loss": float(losses["total"].detach().cpu().item()),
         "total_scaled": float(losses["total"].detach().cpu().item()),
     }
     for key in ALIGN_LOSS_TERM_KEYS:
@@ -794,6 +866,72 @@ def load_smpl_segments(
         )
 
     return body_segments, contact_segments
+
+
+def build_sdf_grid(
+    vertices: np.ndarray,
+    faces: np.ndarray,
+    resolution: int,
+    device: torch.device,
+    padding: float = 0.05,
+) -> SDFGrid:
+    try:
+        from pysdf import SDF as PySDF
+    except ImportError as exc:
+        raise RuntimeError(
+            "The penetration losses require the 'pysdf' package, but it is not "
+            "installed in the current environment."
+        ) from exc
+
+    sdf_func = PySDF(vertices.astype(np.float32), faces.astype(np.uint32))
+    vmin = vertices.min(axis=0) - float(padding)
+    vmax = vertices.max(axis=0) + float(padding)
+    lin = [np.linspace(vmin[i], vmax[i], int(resolution)) for i in range(3)]
+    gx, gy, gz = np.meshgrid(lin[0], lin[1], lin[2], indexing="ij")
+    query_pts = np.stack([gx.ravel(), gy.ravel(), gz.ravel()], axis=1).astype(np.float32)
+    sdf_vals = -sdf_func(query_pts)
+    sdf_vol = sdf_vals.reshape(1, 1, int(resolution), int(resolution), int(resolution))
+    return SDFGrid(
+        sdf_volume=torch.from_numpy(sdf_vol.astype(np.float32)).to(device),
+        bbox_min=torch.tensor(vmin.reshape(1, 1, 3), dtype=torch.float32, device=device),
+        bbox_max=torch.tensor(vmax.reshape(1, 1, 3), dtype=torch.float32, device=device),
+    )
+
+
+def query_sdf(
+    sdf_grid: SDFGrid,
+    points: torch.Tensor,
+) -> torch.Tensor:
+    shape = points.shape[:-1]
+    pts = points.reshape(1, -1, 3)
+    normalized = (
+        (pts - sdf_grid.bbox_min)
+        / (sdf_grid.bbox_max - sdf_grid.bbox_min)
+        * 2.0
+        - 1.0
+    )
+    grid = normalized[:, :, [2, 1, 0]].view(1, -1, 1, 1, 3)
+    sampled = F.grid_sample(
+        sdf_grid.sdf_volume,
+        grid,
+        padding_mode="border",
+        align_corners=True,
+    )
+    return sampled.reshape(*shape)
+
+
+def compute_penetration_loss(
+    sdf_grid: SDFGrid | None,
+    points: torch.Tensor,
+) -> torch.Tensor:
+    if sdf_grid is None or points.numel() == 0:
+        return points.new_tensor(0.0)
+    sdf_vals = query_sdf(sdf_grid, points)
+    intersects = F.relu(-sdf_vals)
+    icount = (intersects > 0).sum()
+    if icount.item() == 0:
+        return points.new_tensor(0.0)
+    return intersects.sum() / icount.to(intersects.dtype)
 
 
 def resolve_contact_reduction(part_name: str) -> str:
@@ -1379,6 +1517,51 @@ def build_contact_edges(
     return contact_edges
 
 
+def build_floor_contact_edges(
+    track_name: str,
+    body_segments: dict[str, np.ndarray],
+    human_verts: np.ndarray,
+    floor_points_visible: np.ndarray,
+) -> list[ContactEdgeData]:
+    if floor_points_visible.shape[0] == 0:
+        return []
+
+    floor_node = InteractionNode(
+        raw_node="floor",
+        entity_name="floor",
+        part_name="floor",
+        is_human=False,
+    )
+    contact_edges: list[ContactEdgeData] = []
+    for part_name in ("left foot", "right foot"):
+        part_vert_ids = body_segments.get(part_name)
+        if part_vert_ids is None:
+            continue
+        moving_points_base = human_verts[part_vert_ids].astype(np.float32)
+        if moving_points_base.shape[0] == 0:
+            continue
+        moving_node = InteractionNode(
+            raw_node=f"{track_name}.{part_name.replace(' ', '_')}",
+            entity_name=track_name,
+            part_name=part_name,
+            is_human=True,
+        )
+        contact_edges.append(
+            ContactEdgeData(
+                node_a=moving_node,
+                node_b=floor_node,
+                moving_node=moving_node,
+                fixed_node=floor_node,
+                moving_segment_name=part_name,
+                is_continuous=False,
+                reduction="min",
+                moving_points_base=moving_points_base,
+                fixed_points_base=floor_points_visible.astype(np.float32),
+            )
+        )
+    return contact_edges
+
+
 def contact_edges_to_torch(
     contact_edges: list[ContactEdgeData],
     device: torch.device,
@@ -1564,6 +1747,10 @@ def compute_alignment_loss(
     human_mask_t: torch.Tensor,
     scene_depth_t: torch.Tensor,
     contact_edges_t: list[ContactEdgeTorch],
+    floor_contact_edges_t: list[ContactEdgeTorch],
+    feet_points_base: list[torch.Tensor],
+    object_sdf_grid: SDFGrid | None,
+    floor_sdf_grid: SDFGrid | None,
     intrinsics_t: torch.Tensor,
     width: int,
     height: int,
@@ -1628,6 +1815,28 @@ def compute_alignment_loss(
     else:
         front_loss = zero
 
+    intersect_values: list[torch.Tensor] = []
+    for edge in contact_edges_t:
+        moving_points = scale * edge.moving_points_base + translation[None]
+        intersect = compute_penetration_loss(object_sdf_grid, moving_points)
+        if intersect.item() > 0.0:
+            intersect_values.append(intersect)
+    if intersect_values:
+        loss_intersect = torch.stack(intersect_values, dim=0).mean()
+    else:
+        loss_intersect = zero
+
+    floor_intersect_values: list[torch.Tensor] = []
+    for foot_points_base in feet_points_base:
+        foot_points = scale * foot_points_base + translation[None]
+        floor_intersect = compute_penetration_loss(floor_sdf_grid, foot_points)
+        if floor_intersect.item() > 0.0:
+            floor_intersect_values.append(floor_intersect)
+    if floor_intersect_values:
+        loss_floor_intersect = torch.stack(floor_intersect_values, dim=0).mean()
+    else:
+        loss_floor_intersect = zero
+
     nocontact_values: list[torch.Tensor] = []
     for edge in contact_edges_t:
         if edge.fixed_points_base.shape[0] == 0:
@@ -1653,6 +1862,32 @@ def compute_alignment_loss(
     else:
         loss_nocontact = zero
 
+    floor_nocontact_values: list[torch.Tensor] = []
+    for edge in floor_contact_edges_t:
+        if edge.fixed_points_base.shape[0] == 0:
+            continue
+        moving_points_seq = (
+            scale * edge.moving_points_base + translation[None]
+        ).unsqueeze(0)
+        fixed_points_seq = edge.fixed_points_base.unsqueeze(0)
+        pdists = pcd_distance(
+            moving_points_seq,
+            fixed_points_seq,
+            reduction=edge.reduction,
+        )
+        if pdists is None:
+            continue
+        if edge.is_continuous:
+            floor_nocontact_values.append(pdists.mean())
+        else:
+            floor_nocontact_values.append(pdists.min())
+
+    if floor_nocontact_values:
+        loss_floor_nocontact = torch.stack(
+            floor_nocontact_values, dim=0).mean()
+    else:
+        loss_floor_nocontact = zero
+
     scale_reg = log_scale.pow(2)
     translation_reg = delta_tx.pow(2) + delta_ty.pow(2) + delta_tz.pow(2)
     total = (
@@ -1660,7 +1895,10 @@ def compute_alignment_loss(
         + front_loss * float(weights["front"])
         + scale_reg * float(weights["scale_reg"])
         + translation_reg * float(weights["translation_reg"])
+        + loss_intersect * float(weights["intersect"])
+        + loss_floor_intersect * float(weights["floor_intersect"])
         + loss_nocontact * float(weights["nocontact"])
+        + loss_floor_nocontact * float(weights["floor_nocontact"])
     )
     return {
         "total": total,
@@ -1671,7 +1909,10 @@ def compute_alignment_loss(
         "translation": translation,
         "mask": mask_loss,
         "front": front_loss,
+        "intersect": loss_intersect,
+        "floor_intersect": loss_floor_intersect,
         "nocontact": loss_nocontact,
+        "floor_nocontact": loss_floor_nocontact,
         "scale_reg": scale_reg,
         "translation_reg": translation_reg,
         "weights": weights,
@@ -1684,16 +1925,18 @@ def optimize_alignment(
     human_mask: np.ndarray,
     scene_depth: np.ndarray,
     contact_edges: list[ContactEdgeData],
+    floor_contact_edges: list[ContactEdgeData],
+    feet_points_base_np: list[np.ndarray],
+    object_sdf_grid: SDFGrid | None,
+    floor_sdf_grid: SDFGrid | None,
     intrinsics: np.ndarray,
     width: int,
     height: int,
     tx_init: float,
     ty_init: float,
     tz_init: float,
-    stage1_iters: int,
-    stage2_iters: int,
-    stage1_lr: float,
-    stage2_lr: float,
+    adam_iters: int,
+    adam_lr: float,
     front_margin_m: float,
     log_every: int,
     args: argparse.Namespace,
@@ -1713,6 +1956,12 @@ def optimize_alignment(
     scene_depth_t = torch.from_numpy(
         scene_depth.astype(np.float32)).to(device=device)
     contact_edges_t = contact_edges_to_torch(contact_edges, device)
+    floor_contact_edges_t = contact_edges_to_torch(floor_contact_edges, device)
+    feet_points_base_t = [
+        torch.from_numpy(points.astype(np.float32)).to(device=device)
+        for points in feet_points_base_np
+        if points.size > 0
+    ]
     intrinsics_t = torch.from_numpy(
         intrinsics.astype(np.float32)).to(device=device)
 
@@ -1733,122 +1982,69 @@ def optimize_alignment(
         0.0, device=device, dtype=torch.float32))
 
     iter_rows: list[dict[str, Any]] = []
-    best_total = float("inf")
-    best_iter = -1
-    best_stage = ""
-    best_weights: dict[str, float] | None = None
-    best_state: dict[str, float] | None = None
     global_iter = 0
+    final_weights: dict[str, float] | None = None
 
-    def run_stage(
-        stage_name: str,
-        num_iters: int,
-        lr: float,
-        track_best: bool,
-    ) -> None:
-        nonlocal best_total
-        nonlocal best_iter
-        nonlocal best_stage
-        nonlocal best_weights
-        nonlocal best_state
-        nonlocal global_iter
-        if num_iters <= 0:
-            return
-        optimizer = torch.optim.Adam(
-            [log_scale, delta_tx, delta_ty, delta_tz],
-            lr=float(lr),
+    if adam_iters <= 0:
+        raise RuntimeError("adam_iters must be > 0.")
+
+    optimizer = torch.optim.Adam(
+        [log_scale, delta_tx, delta_ty, delta_tz],
+        lr=float(adam_lr),
+    )
+    for iter_idx in range(1, adam_iters + 1):
+        global_iter = iter_idx
+        weights = get_optimizer_loss_weights(args, iter_idx - 1, adam_iters - 1)
+        optimizer.zero_grad(set_to_none=True)
+        losses = compute_alignment_loss(
+            human_points_visible_base=human_points_visible_base_t,
+            obs_mask_pixels_norm=obs_mask_pixels_norm_t,
+            human_mask_t=human_mask_t,
+            scene_depth_t=scene_depth_t,
+            contact_edges_t=contact_edges_t,
+            floor_contact_edges_t=floor_contact_edges_t,
+            feet_points_base=feet_points_base_t,
+            object_sdf_grid=object_sdf_grid,
+            floor_sdf_grid=floor_sdf_grid,
+            intrinsics_t=intrinsics_t,
+            width=width,
+            height=height,
+            log_scale=log_scale,
+            delta_tx=delta_tx,
+            delta_ty=delta_ty,
+            delta_tz=delta_tz,
+            tx_init_t=tx_init_t,
+            ty_init_t=ty_init_t,
+            tz_init_t=tz_init_t,
+            front_margin_m=front_margin_m,
+            weights=weights,
         )
-        for iter_idx in range(1, num_iters + 1):
-            global_iter += 1
-            if stage_name == "stage1":
-                weights = get_stage1_loss_weights(args)
-            else:
-                weights = get_stage2_loss_weights(
-                    args, iter_idx - 1, num_iters - 1)
-            optimizer.zero_grad(set_to_none=True)
-            losses = compute_alignment_loss(
-                human_points_visible_base=human_points_visible_base_t,
-                obs_mask_pixels_norm=obs_mask_pixels_norm_t,
-                human_mask_t=human_mask_t,
-                scene_depth_t=scene_depth_t,
-                contact_edges_t=contact_edges_t,
-                intrinsics_t=intrinsics_t,
-                width=width,
-                height=height,
-                log_scale=log_scale,
-                delta_tx=delta_tx,
-                delta_ty=delta_ty,
-                delta_tz=delta_tz,
-                tx_init_t=tx_init_t,
-                ty_init_t=ty_init_t,
-                tz_init_t=tz_init_t,
-                front_margin_m=front_margin_m,
-                weights=weights,
-            )
-            losses["total"].backward()
-            optimizer.step()
-            with torch.no_grad():
-                log_scale.clamp_(math.log(0.65), math.log(1.6))
-                delta_tx.clamp_(-2.0, 2.0)
-                delta_ty.clamp_(-2.0, 2.0)
-                delta_tz.clamp_(-3.0, 3.0)
+        losses["total"].backward()
+        optimizer.step()
+        with torch.no_grad():
+            log_scale.clamp_(math.log(0.65), math.log(1.6))
+            delta_tx.clamp_(-2.0, 2.0)
+            delta_ty.clamp_(-2.0, 2.0)
+            delta_tz.clamp_(-3.0, 3.0)
+        final_weights = dict(weights)
 
-            loss_val = float(losses["total"].detach().cpu().item())
-            if track_best and loss_val < best_total:
-                best_total = loss_val
-                best_iter = global_iter
-                best_stage = stage_name
-                best_weights = dict(weights)
-                best_state = {
-                    "log_scale": float(log_scale.detach().cpu().item()),
-                    "delta_tx": float(delta_tx.detach().cpu().item()),
-                    "delta_ty": float(delta_ty.detach().cpu().item()),
-                    "delta_tz": float(delta_tz.detach().cpu().item()),
-                }
-
-            row = build_loss_row(global_iter, stage_name, losses)
-            iter_rows.append(row)
-            if (
-                global_iter == 1
-                or global_iter % max(int(log_every), 1) == 0
-                or iter_idx == num_iters
+        row = build_loss_row(global_iter, losses)
+        iter_rows.append(row)
+        if (
+            global_iter == 1
+            or global_iter % max(int(log_every), 1) == 0
+            or iter_idx == adam_iters
+        ):
+            for line in format_loss_log(
+                global_iter,
+                adam_iters,
+                losses,
             ):
-                for line in format_loss_log(
-                    global_iter,
-                    stage1_iters + stage2_iters,
-                    stage_name,
-                    losses,
-                ):
-                    print(line)
+                print(line)
 
-    track_best_in_stage1 = stage2_iters <= 0
-    run_stage("stage1", stage1_iters, stage1_lr, track_best_in_stage1)
-    run_stage("stage2", stage2_iters, stage2_lr, True)
-
-    if best_state is None or best_weights is None:
+    if final_weights is None or global_iter <= 0:
         raise RuntimeError(
             "Alignment optimization did not produce a valid state.")
-
-    with torch.no_grad():
-        log_scale.copy_(
-            torch.tensor(
-                best_state["log_scale"],
-                device=device,
-                dtype=torch.float32,
-            )
-        )
-        delta_tx.copy_(
-            torch.tensor(best_state["delta_tx"],
-                         device=device, dtype=torch.float32)
-        )
-        delta_ty.copy_(
-            torch.tensor(best_state["delta_ty"],
-                         device=device, dtype=torch.float32)
-        )
-        delta_tz.copy_(
-            torch.tensor(best_state["delta_tz"],
-                         device=device, dtype=torch.float32)
-        )
 
     final_losses = compute_alignment_loss(
         human_points_visible_base=human_points_visible_base_t,
@@ -1856,6 +2052,10 @@ def optimize_alignment(
         human_mask_t=human_mask_t,
         scene_depth_t=scene_depth_t,
         contact_edges_t=contact_edges_t,
+        floor_contact_edges_t=floor_contact_edges_t,
+        feet_points_base=feet_points_base_t,
+        object_sdf_grid=object_sdf_grid,
+        floor_sdf_grid=floor_sdf_grid,
         intrinsics_t=intrinsics_t,
         width=width,
         height=height,
@@ -1867,7 +2067,7 @@ def optimize_alignment(
         ty_init_t=ty_init_t,
         tz_init_t=tz_init_t,
         front_margin_m=front_margin_m,
-        weights=best_weights,
+        weights=final_weights,
     )
 
     return {
@@ -1882,12 +2082,11 @@ def optimize_alignment(
         "tx_init": float(tx_init),
         "ty_init": float(ty_init),
         "tz_init": float(tz_init),
-        "best_iter": int(best_iter),
-        "best_stage": best_stage,
-        "best_total_loss": float(final_losses["total"].detach().cpu().item()),
+        "final_iter": int(global_iter),
+        "final_total_loss": float(final_losses["total"].detach().cpu().item()),
         "iter_rows": iter_rows,
         "final_losses": final_losses,
-        "final_weights": best_weights,
+        "final_weights": final_weights,
     }
 
 
@@ -2098,6 +2297,47 @@ def main() -> None:
             f"No faces found for target instance {target_instance_id}.")
     target_verts_camera, target_faces_compact = compact_mesh(
         scene_verts_camera, target_faces)
+    target_sdf_grid = build_sdf_grid(
+        target_verts_camera,
+        target_faces_compact,
+        resolution=int(args.sdf_resolution),
+        device=device,
+    )
+
+    floor_faces = build_faces_for_labels(
+        mesh_faces=scene_faces,
+        seg_indices=seg_indices,
+        seg_groups=anno_payload["segGroups"],
+        labels={"floor"},
+    )
+    floor_sdf_grid: SDFGrid | None = None
+    floor_points_visible = np.zeros((0, 3), dtype=np.float32)
+    if floor_faces.shape[0] > 0:
+        floor_verts_camera, floor_faces_compact = compact_mesh(
+            scene_verts_camera,
+            floor_faces,
+        )
+        if floor_faces_compact.shape[0] > 0:
+            floor_sdf_grid = build_sdf_grid(
+                floor_verts_camera,
+                floor_faces_compact,
+                resolution=int(args.sdf_resolution),
+                device=device,
+            )
+            floor_surface_samples = sample_mesh_surface_points(
+                verts=floor_verts_camera,
+                faces=floor_faces_compact,
+                num_samples=int(args.target_surface_samples),
+                seed=int(args.seed),
+            )
+            floor_points_visible, _ = build_visible_subset(
+                sampled_points=floor_surface_samples,
+                mesh_verts=floor_verts_camera,
+                mesh_faces=floor_faces_compact,
+                camera_ctx=camera_ctx,
+                device=device,
+                visible_tol_m=float(args.visible_tol_m),
+            )
 
     target_depth, target_mask_rendered, _ = rasterize_depth_and_mask(
         target_verts_camera,
@@ -2223,6 +2463,17 @@ def main() -> None:
             human_verts=first_human_verts,
             target_points_visible=target_points_visible,
         )
+        floor_contact_edges = build_floor_contact_edges(
+            track_name=track.name,
+            body_segments=body_segments,
+            human_verts=first_human_verts,
+            floor_points_visible=floor_points_visible,
+        )
+        feet_points_base_np = [
+            first_human_verts[body_segments[part_name]].astype(np.float32)
+            for part_name in ("left foot", "right foot")
+            if part_name in body_segments
+        ]
 
         tz_init, init_info = compute_init_depth_translation(
             scene_depth=scene_depth,
@@ -2259,16 +2510,18 @@ def main() -> None:
             human_mask=human_mask,
             scene_depth=scene_depth,
             contact_edges=contact_edges,
+            floor_contact_edges=floor_contact_edges,
+            feet_points_base_np=feet_points_base_np,
+            object_sdf_grid=target_sdf_grid,
+            floor_sdf_grid=floor_sdf_grid,
             intrinsics=intrinsics,
             width=width,
             height=height,
             tx_init=0.0,
             ty_init=0.0,
             tz_init=tz_init,
-            stage1_iters=int(args.stage1_iters),
-            stage2_iters=int(args.stage2_iters),
-            stage1_lr=float(args.stage1_lr),
-            stage2_lr=float(args.stage2_lr),
+            adam_iters=int(args.adam_iters),
+            adam_lr=float(args.adam_lr),
             front_margin_m=float(args.front_margin_m),
             log_every=int(args.log_every),
             args=args,
@@ -2309,7 +2562,7 @@ def main() -> None:
         human_mask_overlap = compute_binary_overlap(
             human_mask, rendered_human_mask)
         contact_edge_metrics = compute_contact_edge_metrics(
-            contact_edges=contact_edges,
+            contact_edges=contact_edges + floor_contact_edges,
             scale=scale,
             tx=tx,
             ty=ty,
@@ -2334,8 +2587,7 @@ def main() -> None:
         iter_metrics_csv = debug_csv_dir / "iter_metrics.csv"
         final_loss_summary_csv = debug_csv_dir / "final_loss_summary.csv"
         final_loss_summary_row = build_final_loss_summary_row(
-            optimization["best_iter"],
-            optimization["best_stage"],
+            optimization["final_iter"],
             optimization["final_losses"],
         )
         save_csv_rows(iter_metrics_csv, optimization["iter_rows"])
@@ -2415,9 +2667,8 @@ def main() -> None:
                     "tz_init_m": init_info["tz_init_m"],
                 },
                 "optimization": {
-                    "best_iter": int(optimization["best_iter"]),
-                    "best_stage": optimization["best_stage"],
-                    "best_total_loss": float(optimization["best_total_loss"]),
+                    "final_iter": int(optimization["final_iter"]),
+                    "final_total_loss": float(optimization["final_total_loss"]),
                 },
                 "frame_0": {
                     "mask_overlap": human_mask_overlap,
@@ -2459,13 +2710,10 @@ def main() -> None:
         },
         "optimization": {
             "transform": "X' = exp(alpha) * X + [tx, ty, tz]^T",
-            "stage1": {
-                "iters": int(args.stage1_iters),
-                "lr": float(args.stage1_lr),
-            },
-            "stage2": {
-                "iters": int(args.stage2_iters),
-                "lr": float(args.stage2_lr),
+            "optimizer": {
+                "type": "adam",
+                "iters": int(args.adam_iters),
+                "lr": float(args.adam_lr),
             },
             "weights": {
                 "mask": float(args.mask_weight),
@@ -2475,6 +2723,18 @@ def main() -> None:
                 "nocontact": {
                     "start": float(args.nocontact_weight_start),
                     "end": float(args.nocontact_weight_end),
+                },
+                "floor_nocontact": {
+                    "start": float(args.floor_nocontact_weight_start),
+                    "end": float(args.floor_nocontact_weight_end),
+                },
+                "intersect": {
+                    "start": float(args.intersect_weight_start),
+                    "end": float(args.intersect_weight_end),
+                },
+                "floor_intersect": {
+                    "start": float(args.floor_intersect_weight_start),
+                    "end": float(args.floor_intersect_weight_end),
                 },
             },
             "sampling": {
