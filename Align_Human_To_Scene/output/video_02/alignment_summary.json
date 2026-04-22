@@ -59,12 +59,12 @@
   "optimization": {
     "transform": "X' = exp(alpha) * X + [tx, ty, tz]^T",
     "stage1": {
-      "iters": 400,
-      "lr": 0.02
+      "iters": 4000,
+      "lr": 0.005
     },
     "stage2": {
-      "iters": 250,
-      "lr": 0.01
+      "iters": 2500,
+      "lr": 0.005
     },
     "weights": {
       "mask": 1.0,
@@ -130,30 +130,30 @@
       "initialization": {
         "scene_depth_region_source": "dilated_human_mask",
         "scene_depth_region_median_m": 2.509725570678711,
-        "tz_init_m": 0.7172660827636719
+        "tz_init_m": 0.7272911071777344
       },
       "optimization": {
-        "best_iter": 650,
+        "best_iter": 6500,
         "best_stage": "stage2",
-        "best_total_loss": 0.15697941184043884
+        "best_total_loss": 0.15219534933567047
       },
       "frame_0": {
         "mask_overlap": {
-          "intersection_px": 9694,
-          "union_px": 21899,
+          "intersection_px": 9663,
+          "union_px": 21918,
           "area_a_px": 20729,
-          "area_b_px": 10864,
-          "iou": 0.4426686150052514,
-          "dice": 0.6136802456240307
+          "area_b_px": 10852,
+          "iou": 0.4408705173829729,
+          "dice": 0.6119502232354896
         },
         "behind_fraction": {
-          "num_visible_points": 2561,
-          "num_behind_points": 267,
-          "behind_fraction": 0.10425614994142914,
+          "num_visible_points": 2628,
+          "num_behind_points": 274,
+          "behind_fraction": 0.10426179604261795,
           "mode": "strict_visible",
           "num_total_points": 6000,
           "num_in_frame_points": 6000,
-          "num_kept_points": 2561,
+          "num_kept_points": 2628,
           "visible_tol_m": 0.02
         },
         "contact_edges": [
@@ -162,58 +162,60 @@
             "node_b": "person 1, left hand",
             "moving_entity_name": "person 1",
             "moving_part_name": "left hand",
+            "moving_segment_name": "left hand contact",
             "fixed_entity_name": "white trash bin",
             "fixed_part_name": "main container",
             "reduction": "mean",
             "is_continuous": true,
-            "nocontact_raw": 0.00047723448369652033,
-            "nocontact_distance_m": 0.02184569714375168
+            "nocontact_raw": 0.00044730125227943063,
+            "nocontact_distance_m": 0.021149497683856006
           },
           {
             "node_a": "white trash bin, main container",
             "node_b": "person 1, right hand",
             "moving_entity_name": "person 1",
             "moving_part_name": "right hand",
+            "moving_segment_name": "right hand contact",
             "fixed_entity_name": "white trash bin",
             "fixed_part_name": "main container",
             "reduction": "mean",
             "is_continuous": true,
-            "nocontact_raw": 0.0006857701228000224,
-            "nocontact_distance_m": 0.026187212963582483
+            "nocontact_raw": 0.0005765929818153381,
+            "nocontact_distance_m": 0.024012350609953582
           }
         ]
       },
       "sequence_checks": [
         {
-          "num_visible_points": 2561,
-          "num_behind_points": 267,
-          "behind_fraction": 0.10425614994142914,
+          "num_visible_points": 2628,
+          "num_behind_points": 274,
+          "behind_fraction": 0.10426179604261795,
           "mode": "strict_visible",
           "num_total_points": 6000,
           "num_in_frame_points": 6000,
-          "num_kept_points": 2561,
+          "num_kept_points": 2628,
           "visible_tol_m": 0.02,
           "frame_index": 0
         },
         {
-          "num_visible_points": 2437,
-          "num_behind_points": 74,
-          "behind_fraction": 0.030365203118588428,
+          "num_visible_points": 2503,
+          "num_behind_points": 31,
+          "behind_fraction": 0.012385137834598482,
           "mode": "strict_visible",
           "num_total_points": 6000,
           "num_in_frame_points": 6000,
-          "num_kept_points": 2437,
+          "num_kept_points": 2503,
           "visible_tol_m": 0.02,
           "frame_index": 96
         },
         {
-          "num_visible_points": 2272,
-          "num_behind_points": 34,
-          "behind_fraction": 0.014964788732394365,
+          "num_visible_points": 2222,
+          "num_behind_points": 220,
+          "behind_fraction": 0.09900990099009901,
           "mode": "strict_visible",
           "num_total_points": 6000,
           "num_in_frame_points": 6000,
-          "num_kept_points": 2272,
+          "num_kept_points": 2222,
           "visible_tol_m": 0.02,
           "frame_index": 191
         }

@@ -19,30 +19,6 @@ from pytorch3d.renderer import MeshRasterizer, RasterizationSettings
 from pytorch3d.structures import Meshes
 from pytorch3d.utils import cameras_from_opencv_projection
 
-IMAGE_SOURCE_TO_REL_PATHS: dict[str, tuple[str, str]] = {
-    "dslr_resized_undistorted": (
-        "dslr/resized_undistorted_images",
-        "dslr/nerfstudio/transforms_undistorted.json",
-    ),
-}
-BODY_PART_TO_SEG_KEYS: dict[str, list[str]] = {
-    "left hand": ["leftHand", "leftHandIndex1"],
-    "right hand": ["rightHand", "rightHandIndex1"],
-    "left foot": ["leftFoot", "leftToeBase"],
-    "right foot": ["rightFoot", "rightToeBase"],
-    "left shoulder": ["leftShoulder"],
-    "right shoulder": ["rightShoulder"],
-    "left arm": ["leftArm", "leftForeArm"],
-    "right arm": ["rightArm", "rightForeArm"],
-    "left leg": ["leftUpLeg", "leftLeg"],
-    "right leg": ["rightUpLeg", "rightLeg"],
-    "left hip": ["leftUpLeg"],
-    "right hip": ["rightUpLeg"],
-    "hips": ["hips"],
-    "head": ["head"],
-    "neck": ["neck"],
-    "spine": ["spine", "spine1", "spine2"],
-}
 ALIGN_LOSS_TERM_KEYS = (
     "mask",
     "front",
@@ -60,7 +36,7 @@ class HumanTrack:
     name: str
     mask_dir: Path
     result_dir: Path
-    human_plys_dir: Path
+    source_camera_mesh_dir: Path
 
 
 @dataclass
@@ -93,6 +69,7 @@ class ContactEdgeData:
     node_b: InteractionNode
     moving_node: InteractionNode
     fixed_node: InteractionNode
+    moving_segment_name: str
     is_continuous: bool
     reduction: str
     moving_points_base: np.ndarray
@@ -105,6 +82,7 @@ class ContactEdgeTorch:
     node_b: InteractionNode
     moving_node: InteractionNode
     fixed_node: InteractionNode
+    moving_segment_name: str
     is_continuous: bool
     reduction: str
     moving_points_base: torch.Tensor
@@ -148,6 +126,10 @@ def normalize_label(text: str) -> str:
     )
 
 
+def snake_to_pag_name(segment_name: str) -> str:
+    return normalize_label(segment_name.replace("_inner", "").replace("_", " "))
+
+
 def resolve_scannet_root(
     script_dir: Path,
     raw_scannet_root: str | None,
@@ -159,26 +141,11 @@ def resolve_scannet_root(
 
 def resolve_scene_paths(
     scannet_root: Path,
-    scene_context: dict[str, Any],
+    scene_id: str,
 ) -> dict[str, Path]:
-    scene_id = scene_context["scene_id"]
-    camera = scene_context["camera"]
-    camera_source = camera["source"]
-    camera_name = camera["name"]
-
-    if camera_source not in IMAGE_SOURCE_TO_REL_PATHS:
-        raise ValueError(
-            f"Unsupported camera.source '{camera_source}'. "
-            f"Supported values: {sorted(IMAGE_SOURCE_TO_REL_PATHS)}"
-        )
-
-    image_rel, transforms_rel = IMAGE_SOURCE_TO_REL_PATHS[camera_source]
     scene_root = scannet_root / scene_id
     return {
         "scene_root": scene_root,
-        "image_path": scene_root / image_rel / camera_name,
-        "transforms_path": scene_root / transforms_rel,
-        "colmap_images_path": scene_root / "dslr" / "colmap" / "images.txt",
         "mesh_path": scene_root / "scans" / "mesh_aligned_0.05.ply",
         "segments_path": scene_root / "scans" / "segments.json",
         "segments_anno_path": scene_root / "scans" / "segments_anno.json",
@@ -354,25 +321,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--stage1_iters",
         type=int,
-        default=400,
+        default=4000,
         help="Optimization iterations for the stage-1 mask+front pass.",
     )
     parser.add_argument(
         "--stage2_iters",
         type=int,
-        default=250,
+        default=2500,
         help="Optimization iterations for the stage-2 contact-enabled pass.",
     )
     parser.add_argument(
         "--stage1_lr",
         type=float,
-        default=0.02,
+        default=0.005,
         help="Adam learning rate for stage 1.",
     )
     parser.add_argument(
         "--stage2_lr",
         type=float,
-        default=0.01,
+        default=0.005,
         help="Adam learning rate for stage 2.",
     )
     parser.add_argument(
@@ -500,12 +467,10 @@ def build_default_paths(video_name: str) -> dict[str, Path]:
         "Generate_PAG" /
         "output" /
         video_name,
-        "smpl_seg_json": PROJECT_DIR.parent /
-        "GVHMR" /
-        "hmr4d" /
-        "utils" /
-        "body_model" /
-        "smpl_vert_segmentation.json",
+        "smpl_seg_json": PROJECT_DIR /
+        "Estimate_Human_Motion" /
+        "assets" /
+        "smplx_vert_segmentation.json",
         "output_root": SCRIPT_DIR /
         "output" /
         video_name,
@@ -641,32 +606,6 @@ def format_loss_log(
     ]
 
 
-def build_frame_loss_row(
-    frame_idx: int,
-    stage: str,
-    losses: dict[str, torch.Tensor | dict[str, float]],
-) -> dict[str, Any]:
-    weights = losses["weights"]
-    assert isinstance(weights, dict)
-    row: dict[str, Any] = {
-        "frame_idx": int(frame_idx),
-        "stage": stage,
-    }
-    total_raw_local = 0.0
-    total_scaled_local = 0.0
-    for key in ALIGN_LOSS_TERM_KEYS:
-        raw_value = float(losses[key].detach().cpu().item())
-        scaled_value = float(weights[key]) * raw_value
-        row[f"{key}_weight"] = float(weights[key])
-        row[f"{key}_raw"] = raw_value
-        row[f"{key}_scaled"] = scaled_value
-        total_raw_local += raw_value
-        total_scaled_local += scaled_value
-    row["total_raw_local"] = total_raw_local
-    row["total_scaled_local"] = total_scaled_local
-    return row
-
-
 def build_final_loss_summary_row(
     best_iter: int,
     stage: str,
@@ -679,7 +618,6 @@ def build_final_loss_summary_row(
         "stage": stage,
         "best_total_loss": float(losses["total"].detach().cpu().item()),
         "total_scaled": float(losses["total"].detach().cpu().item()),
-        "frame_loss_semantics": "frame0_local",
     }
     for key in ALIGN_LOSS_TERM_KEYS:
         raw_value = float(losses[key].detach().cpu().item())
@@ -804,16 +742,58 @@ def parse_pag_interaction_edges(
     return edges
 
 
-def load_smpl_body_seg(seg_path: Path) -> dict[str, np.ndarray]:
+def load_smpl_segments(
+    seg_path: Path,
+) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
     raw = load_json(seg_path)
-    result: dict[str, np.ndarray] = {}
-    for pag_name, seg_keys in BODY_PART_TO_SEG_KEYS.items():
-        indices: list[int] = []
-        for seg_key in seg_keys:
-            indices.extend(raw.get(seg_key, []))
-        if indices:
-            result[pag_name] = np.unique(np.asarray(indices, dtype=np.int64))
-    return result
+    raw_segments = raw.get("segments")
+    if not isinstance(raw_segments, dict):
+        raise KeyError(
+            f"Expected a 'segments' mapping in {seg_path}, but it was not found."
+        )
+
+    body_segment_keys = raw.get("project_body_part_order")
+    body_part_nodes = raw.get("project_body_part_nodes")
+    if not isinstance(body_segment_keys, list) or not isinstance(body_part_nodes, list):
+        raise KeyError(
+            "Expected 'project_body_part_order' and 'project_body_part_nodes' in "
+            f"{seg_path}."
+        )
+    if len(body_segment_keys) != len(body_part_nodes):
+        raise ValueError(
+            "The SMPL-X segmentation asset has mismatched body-part key/name lists: "
+            f"{len(body_segment_keys)} vs {len(body_part_nodes)}."
+        )
+
+    body_segments: dict[str, np.ndarray] = {}
+    for segment_key, part_name in zip(body_segment_keys, body_part_nodes):
+        indices = raw_segments.get(segment_key)
+        if indices is None:
+            raise KeyError(
+                f"Missing body segment '{segment_key}' in the SMPL-X segmentation asset."
+            )
+        body_segments[normalize_label(str(part_name))] = np.unique(
+            np.asarray(indices, dtype=np.int64)
+        )
+
+    contact_segment_keys = raw.get("contact_segment_names")
+    if not isinstance(contact_segment_keys, list):
+        raise KeyError(
+            f"Expected 'contact_segment_names' in {seg_path}, but it was not found."
+        )
+
+    contact_segments: dict[str, np.ndarray] = {}
+    for segment_key in contact_segment_keys:
+        indices = raw_segments.get(segment_key)
+        if indices is None:
+            raise KeyError(
+                f"Missing contact segment '{segment_key}' in the SMPL-X segmentation asset."
+            )
+        contact_segments[snake_to_pag_name(str(segment_key))] = np.unique(
+            np.asarray(indices, dtype=np.int64)
+        )
+
+    return body_segments, contact_segments
 
 
 def resolve_contact_reduction(part_name: str) -> str:
@@ -1279,33 +1259,33 @@ def discover_human_tracks(segment_root: Path,
             continue
         mask_dir = mask_track_dir / "masks"
         result_dir = human_motion_root / mask_track_dir.name
-        human_plys_dir = result_dir / "human_plys"
+        source_camera_mesh_dir = result_dir / "meshes" / "camera"
         if (
             mask_dir.is_dir()
             and result_dir.is_dir()
-            and human_plys_dir.is_dir()
+            and source_camera_mesh_dir.is_dir()
         ):
             tracks.append(
                 HumanTrack(
                     name=mask_track_dir.name,
                     mask_dir=mask_dir,
                     result_dir=result_dir,
-                    human_plys_dir=human_plys_dir,
+                    source_camera_mesh_dir=source_camera_mesh_dir,
                 )
             )
     if not tracks:
         raise FileNotFoundError(
-            "No matching human tracks found between "
+            "No matching human tracks with meshes/camera exports found between "
             f"{humans_dir} and {human_motion_root}"
         )
     return tracks
 
 
-def list_human_ply_frames(human_plys_dir: Path) -> list[Path]:
-    frames = sorted(human_plys_dir.glob("frame_*.ply"))
+def list_human_mesh_frames(human_mesh_dir: Path) -> list[Path]:
+    frames = sorted(human_mesh_dir.glob("frame_*.ply"))
     if not frames:
         raise FileNotFoundError(
-            f"No frame_*.ply files found in: {human_plys_dir}")
+            f"No frame_*.ply files found in: {human_mesh_dir}")
     return frames
 
 
@@ -1317,7 +1297,8 @@ def build_contact_edges(
     pag_payload: dict[str, Any],
     track_name: str,
     target_object_name: str,
-    smpl_body_seg: dict[str, np.ndarray],
+    body_segments: dict[str, np.ndarray],
+    contact_segments: dict[str, np.ndarray],
     human_verts: np.ndarray,
     target_points_visible: np.ndarray,
 ) -> list[ContactEdgeData]:
@@ -1340,11 +1321,20 @@ def build_contact_edges(
             continue
 
         moving_part_name = normalize_label(moving_node.part_name)
-        if moving_part_name not in smpl_body_seg:
+        part_vert_ids = contact_segments.get(
+            moving_part_name,
+            body_segments.get(moving_part_name),
+        )
+        moving_segment_name = (
+            f"{moving_part_name} contact"
+            if moving_part_name in contact_segments
+            else moving_part_name
+        )
+        if part_vert_ids is None:
             raise KeyError(
                 "Unsupported human contact part "
                 f"'{moving_node.part_name}' for {track_name}. Missing "
-                "SMPL segmentation mapping."
+                "SMPL-X segmentation mapping."
             )
 
         dedup_key = (
@@ -1355,7 +1345,6 @@ def build_contact_edges(
             continue
         seen.add(dedup_key)
 
-        part_vert_ids = smpl_body_seg[moving_part_name]
         moving_points_base = human_verts[part_vert_ids].astype(np.float32)
         if moving_points_base.shape[0] == 0:
             raise RuntimeError(
@@ -1374,6 +1363,7 @@ def build_contact_edges(
                 node_b=edge.node_b,
                 moving_node=moving_node,
                 fixed_node=fixed_node,
+                moving_segment_name=moving_segment_name,
                 is_continuous=bool(edge.is_continuous),
                 reduction=resolve_contact_reduction(moving_part_name),
                 moving_points_base=moving_points_base,
@@ -1401,6 +1391,7 @@ def contact_edges_to_torch(
                 node_b=edge.node_b,
                 moving_node=edge.moving_node,
                 fixed_node=edge.fixed_node,
+                moving_segment_name=edge.moving_segment_name,
                 is_continuous=edge.is_continuous,
                 reduction=edge.reduction,
                 moving_points_base=torch.from_numpy(
@@ -1464,6 +1455,7 @@ def compute_contact_edge_metrics(
                 "node_b": edge.node_b.raw_node,
                 "moving_entity_name": edge.moving_node.entity_name,
                 "moving_part_name": edge.moving_node.part_name,
+                "moving_segment_name": edge.moving_segment_name,
                 "fixed_entity_name": edge.fixed_node.entity_name,
                 "fixed_part_name": edge.fixed_node.part_name,
                 "reduction": edge.reduction,
@@ -1983,40 +1975,6 @@ def compute_visible_behind_fraction(
     }
 
 
-def save_sequence_overlays(
-    background_frame_paths: list[Path],
-    human_frame_paths: list[Path],
-    faces: np.ndarray,
-    scale: float,
-    tx: float,
-    ty: float,
-    tz: float,
-    camera_ctx: IdentityCameraContext,
-    device: torch.device,
-    output_dir: Path,
-) -> list[dict[str, Any]]:
-    indices = sorted({0, len(human_frame_paths) //
-                     2, len(human_frame_paths) - 1})
-    saved: list[dict[str, Any]] = []
-    for idx in indices:
-        verts_frame, _ = load_mesh(human_frame_paths[idx])
-        aligned_verts = apply_similarity_transform(
-            verts_frame, scale, tx, ty, tz)
-        _, rendered_mask, _ = rasterize_depth_and_mask(
-            aligned_verts, faces, camera_ctx, device)
-        frame_path = background_frame_paths[idx]
-        background = read_bgr(frame_path)
-        overlay = background.astype(np.float32).copy()
-        overlay[rendered_mask] = 0.6 * overlay[rendered_mask] + \
-            0.4 * np.array([0, 255, 255], dtype=np.float32)
-        overlay_u8 = np.clip(overlay, 0.0, 255.0).astype(np.uint8)
-        out_path = output_dir / f"{frame_path.stem}_overlay.png"
-        cv2.imwrite(str(out_path), overlay_u8)
-        saved.append({"frame_index": int(idx), "frame_path": str(
-            frame_path), "overlay_path": str(out_path)})
-    return saved
-
-
 def main() -> None:
     args = parse_args()
     defaults = build_default_paths(args.video_name)
@@ -2056,6 +2014,9 @@ def main() -> None:
         width,
         height,
     ) = load_camera_payload(generated_root / "resized_camera.json")
+    first_frame_path = generated_root / "first_frames_resized" / "frame_00.png"
+    if not first_frame_path.exists():
+        raise FileNotFoundError(f"Generated first frame not found: {first_frame_path}")
     camera_ctx = build_identity_camera(
         intrinsics=intrinsics,
         width=width,
@@ -2066,9 +2027,9 @@ def main() -> None:
     input_payload = load_json(input_pag_json_path)
     selection_payload = load_json(selection_json_path)
     pag_payload = load_json(pag_json_path)
-    smpl_body_seg = load_smpl_body_seg(smpl_seg_json_path)
-    scene_context = input_payload["scene_context"]
-    scene_paths = resolve_scene_paths(scannet_root, scene_context)
+    body_segments, contact_segments = load_smpl_segments(smpl_seg_json_path)
+    scene_id = input_payload["scene_context"]["scene_id"]
+    scene_paths = resolve_scene_paths(scannet_root, scene_id)
 
     print(f"Loading ScanNet scene mesh from: {scene_paths['mesh_path']}")
     scene_verts_world, scene_faces = load_mesh(scene_paths["mesh_path"])
@@ -2188,7 +2149,7 @@ def main() -> None:
     target_mask_overlap = compute_binary_overlap(
         stored_target_mask, target_mask_rendered)
     target_overlay = render_target_overlay(
-        background_bgr=read_bgr(segment_root / "_frames" / "frame_0000.jpg"),
+        background_bgr=read_bgr(first_frame_path),
         mask=target_mask_rendered,
         lines=[
             f"Target instance {target_instance_id}: {target_meta['label']}",
@@ -2199,7 +2160,7 @@ def main() -> None:
     target_overlay_path = scene_target_dir / "target_projection_overlay.png"
     cv2.imwrite(str(target_overlay_path), target_overlay)
     target_compare_overlay = render_mask_overlay(
-        background_bgr=read_bgr(segment_root / "_frames" / "frame_0000.jpg"),
+        background_bgr=read_bgr(first_frame_path),
         observed_mask=stored_target_mask,
         rendered_mask=target_mask_rendered,
         title_lines=[
@@ -2220,11 +2181,6 @@ def main() -> None:
         segment_root=segment_root,
         human_motion_root=human_motion_root,
     )
-    background_frame_paths = sorted(
-        (segment_root / "_frames").glob("frame_*.jpg"))
-    if not background_frame_paths:
-        raise FileNotFoundError(
-            f"No extracted frames found in: {segment_root / '_frames'}")
     camera_to_world = np.linalg.inv(
         np.asarray(camera_payload["world_to_camera_4x4"], dtype=np.float32)
     ).astype(np.float32)
@@ -2239,9 +2195,7 @@ def main() -> None:
         track_diag_root = ensure_dir(debug_root / track.name)
         debug_csv_dir = ensure_dir(track_diag_root / "csv")
         plot_iter_dir = ensure_dir(track_diag_root / "plots" / "iter")
-        plot_frame_dir = ensure_dir(track_diag_root / "plots" / "frame")
         overlay_dir = ensure_dir(track_diag_root / "overlays")
-        sequence_debug_dir = ensure_dir(overlay_dir / "sequence_checks")
         depth_vis_dir = ensure_dir(track_diag_root / "depth")
 
         first_mask_path = track.mask_dir / "frame_0000.png"
@@ -2252,13 +2206,7 @@ def main() -> None:
                 f"got {human_mask.shape[::-1]}, expected {(width, height)}"
             )
 
-        human_frame_paths = list_human_ply_frames(track.human_plys_dir)
-        if len(background_frame_paths) < len(human_frame_paths):
-            raise RuntimeError(
-                f"Not enough extracted video frames for {track.name}: "
-                f"{len(background_frame_paths)} backgrounds vs "
-                f"{len(human_frame_paths)} human meshes."
-            )
+        human_frame_paths = list_human_mesh_frames(track.source_camera_mesh_dir)
         first_human_verts, human_faces = load_mesh(human_frame_paths[0])
         human_surface_samples = sample_mesh_surface_points(
             verts=first_human_verts,
@@ -2270,7 +2218,8 @@ def main() -> None:
             pag_payload=pag_payload,
             track_name=track.name,
             target_object_name=selection_payload["target_selection"]["object"],
-            smpl_body_seg=smpl_body_seg,
+            body_segments=body_segments,
+            contact_segments=contact_segments,
             human_verts=first_human_verts,
             target_points_visible=target_points_visible,
         )
@@ -2369,7 +2318,7 @@ def main() -> None:
         )
 
         first_frame_overlay = render_mask_overlay(
-            background_bgr=read_bgr(background_frame_paths[0]),
+            background_bgr=read_bgr(first_frame_path),
             observed_mask=human_mask,
             rendered_mask=rendered_human_mask,
             title_lines=[
@@ -2383,20 +2332,13 @@ def main() -> None:
         cv2.imwrite(str(frame_overlay_path), first_frame_overlay)
         save_depth_visualization(frame_depth_vis_path, rendered_human_depth)
         iter_metrics_csv = debug_csv_dir / "iter_metrics.csv"
-        frame_loss_metrics_csv = debug_csv_dir / "frame_loss_metrics.csv"
         final_loss_summary_csv = debug_csv_dir / "final_loss_summary.csv"
-        frame_loss_row = build_frame_loss_row(
-            0,
-            optimization["best_stage"],
-            optimization["final_losses"],
-        )
         final_loss_summary_row = build_final_loss_summary_row(
             optimization["best_iter"],
             optimization["best_stage"],
             optimization["final_losses"],
         )
         save_csv_rows(iter_metrics_csv, optimization["iter_rows"])
-        save_csv_rows(frame_loss_metrics_csv, [frame_loss_row])
         save_csv_rows(final_loss_summary_csv, [final_loss_summary_row])
         save_loss_plot_tree(
             plot_iter_dir,
@@ -2406,15 +2348,6 @@ def main() -> None:
             term_keys=ALIGN_LOSS_TERM_KEYS,
             x_label="Iteration",
             title_prefix=f"{track.name} Iter",
-        )
-        save_loss_plot_tree(
-            plot_frame_dir,
-            [frame_loss_row],
-            x_key="frame_idx",
-            total_key="total_scaled_local",
-            term_keys=ALIGN_LOSS_TERM_KEYS,
-            x_label="Frame Index",
-            title_prefix=f"{track.name} Frame",
         )
 
         behind_fraction_first = compute_visible_behind_fraction(
@@ -2444,44 +2377,6 @@ def main() -> None:
             write_ascii_ply(world_mesh_dir / human_frame_path.name,
                             aligned_world_verts, human_faces)
 
-        sequence_overlay_paths = save_sequence_overlays(
-            background_frame_paths=background_frame_paths,
-            human_frame_paths=human_frame_paths,
-            faces=human_faces,
-            scale=scale,
-            tx=tx,
-            ty=ty,
-            tz=tz,
-            camera_ctx=camera_ctx,
-            device=device,
-            output_dir=sequence_debug_dir,
-        )
-
-        sampled_frame_metrics: list[dict[str, Any]] = []
-        for item in sequence_overlay_paths:
-            frame_idx = int(item["frame_index"])
-            verts_frame, _ = load_mesh(human_frame_paths[frame_idx])
-            aligned_frame = apply_similarity_transform(
-                verts_frame, scale, tx, ty, tz)
-            frame_surface_samples = sample_mesh_surface_points(
-                verts=verts_frame,
-                faces=human_faces,
-                num_samples=int(args.surface_samples),
-                seed=int(args.seed) + frame_idx,
-            )
-            frame_metric = compute_visible_behind_fraction(
-                verts=aligned_frame,
-                faces=human_faces,
-                sampled_points_base=apply_similarity_transform(
-                    frame_surface_samples, scale, tx, ty, tz),
-                camera_ctx=camera_ctx,
-                scene_depth=scene_depth,
-                device=device,
-                visible_tol_m=float(args.visible_tol_m),
-                front_margin_m=float(args.front_margin_m),
-            )
-            frame_metric["frame_index"] = frame_idx
-            sampled_frame_metrics.append(frame_metric)
         source_to_aligned_camera = build_similarity_matrix_4x4(
             scale,
             tx,
@@ -2492,7 +2387,7 @@ def main() -> None:
             {
                 "name": track.name,
                 "kind": "human",
-                "source_mesh_dir": str(track.human_plys_dir),
+                "source_mesh_dir": str(track.source_camera_mesh_dir),
                 "aligned_camera_mesh_dir": str(camera_mesh_dir),
                 "aligned_world_mesh_dir": str(world_mesh_dir),
                 "source_to_aligned_camera_4x4": (
@@ -2529,21 +2424,17 @@ def main() -> None:
                     "behind_fraction": behind_fraction_first,
                     "contact_edges": contact_edge_metrics,
                 },
-                "sequence_checks": sampled_frame_metrics,
                 "artifacts": {
                     "camera_mesh_dir": str(camera_mesh_dir),
                     "world_mesh_dir": str(world_mesh_dir),
                     "frame_overlay": str(frame_overlay_path),
                     "frame_depth_vis": str(frame_depth_vis_path),
-                    "sequence_checks_dir": str(sequence_debug_dir),
                     "csv": {
                         "iter_metrics": str(iter_metrics_csv),
-                        "frame_loss_metrics": str(frame_loss_metrics_csv),
                         "final_loss_summary": str(final_loss_summary_csv),
                     },
                     "plots": {
                         "iter_dir": str(plot_iter_dir),
-                        "frame_dir": str(plot_frame_dir),
                     },
                 },
             }

@@ -3,27 +3,27 @@
     {
       "name": "person_1",
       "kind": "human",
-      "source_mesh_dir": "/my_workspace/4DHHOI/4DHSI/Estimate_Human_Motion/output/video_02/humans/person_1/human_plys",
+      "source_mesh_dir": "/my_workspace/4DHHOI/4DHSI/Estimate_Human_Motion/output/video_02/humans/person_1/meshes/camera",
       "aligned_camera_mesh_dir": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_02/meshes/person_1/camera",
       "aligned_world_mesh_dir": "/my_workspace/4DHHOI/4DHSI/Align_Human_To_Scene/output/video_02/meshes/person_1/world",
       "source_to_aligned_camera_4x4": [
         [
-          0.86554354429245,
+          0.8632156252861023,
           0.0,
           0.0,
-          0.2398751676082611
+          0.24072763323783875
         ],
         [
           0.0,
-          0.86554354429245,
+          0.8632156252861023,
           0.0,
-          0.2897088825702667
+          0.2935454249382019
         ],
         [
           0.0,
           0.0,
-          0.86554354429245,
-          0.4937640428543091
+          0.8632156252861023,
+          0.49667054414749146
         ],
         [
           0.0,
@@ -59,10 +59,10 @@
         ]
       ],
       "optimized_similarity": {
-        "scale": 0.86554354429245,
-        "tx_m": 0.2398751676082611,
-        "ty_m": 0.2897088825702667,
-        "tz_m": 0.4937640428543091
+        "scale": 0.8632156252861023,
+        "tx_m": 0.24072763323783875,
+        "ty_m": 0.2935454249382019,
+        "tz_m": 0.49667054414749146
       }
     }
   ]
