@@ -25,7 +25,12 @@ PROJECT_BODY_PART_ORDER = [
     "head",
     "hips",
 ]
-CONTACT_SEGMENT_ORDER = ["left_hand_inner", "right_hand_inner"]
+CONTACT_SEGMENT_ORDER = [
+    "left_hand_inner",
+    "right_hand_inner",
+    "left_foot_bottom",
+    "right_foot_bottom",
+]
 VISUALIZATION_SEGMENT_ORDER = PROJECT_BODY_PART_ORDER + CONTACT_SEGMENT_ORDER
 PROJECT_BODY_PART_NODES = [
     "left hand",
@@ -70,6 +75,8 @@ SEGMENT_COLORS = {
     "hips": (210, 180, 140),
     "left_hand_inner": (220, 20, 60),
     "right_hand_inner": (30, 144, 255),
+    "left_foot_bottom": (255, 69, 0),
+    "right_foot_bottom": (0, 191, 255),
 }
 
 
@@ -115,6 +122,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         type=float,
         default=0.2,
         help="Minimum vertex-normal alignment with the palm direction for inner hands.",
+    )
+    parser.add_argument(
+        "--foot_bottom_normal_threshold",
+        type=float,
+        default=0.2,
+        help="Minimum vertex-normal alignment with the downward direction for foot bottoms.",
     )
     return parser
 
@@ -235,11 +248,29 @@ def build_inner_hand_segment(
     return inner_list
 
 
+def build_foot_bottom_segment(
+    rest_vertices: torch.Tensor,
+    vertex_normals: torch.Tensor,
+    full_ids: list[int],
+    side: str,
+    foot_bottom_normal_threshold: float,
+) -> list[int]:
+    full_ids_t = torch.as_tensor(full_ids, dtype=torch.long)
+    down = torch.tensor([0.0, -1.0, 0.0], dtype=rest_vertices.dtype)
+    bottom_scores = vertex_normals[full_ids_t] @ down
+    bottom_ids = full_ids_t[bottom_scores >= foot_bottom_normal_threshold]
+    bottom_list = normalize_segment(bottom_ids.tolist())
+    if not bottom_list:
+        raise RuntimeError(f"The foot-bottom region for {side} is empty.")
+    return bottom_list
+
+
 def build_payload(
     model,
     source_segmentation: dict,
     wrist_forward_cutoff: float,
     inner_normal_threshold: float,
+    foot_bottom_normal_threshold: float,
 ) -> tuple[dict, torch.Tensor]:
     rest_output = get_rest_pose_output(model)
     rest_vertices = rest_output.vertices[0].detach().cpu()
@@ -272,6 +303,20 @@ def build_payload(
         wrist_forward_cutoff=wrist_forward_cutoff,
         inner_normal_threshold=inner_normal_threshold,
     )
+    project_segments["left_foot_bottom"] = build_foot_bottom_segment(
+        rest_vertices=rest_vertices,
+        vertex_normals=vertex_normals,
+        full_ids=project_segments["left_foot"],
+        side="left",
+        foot_bottom_normal_threshold=foot_bottom_normal_threshold,
+    )
+    project_segments["right_foot_bottom"] = build_foot_bottom_segment(
+        rest_vertices=rest_vertices,
+        vertex_normals=vertex_normals,
+        full_ids=project_segments["right_foot"],
+        side="right",
+        foot_bottom_normal_threshold=foot_bottom_normal_threshold,
+    )
 
     payload = {
         "mesh_type": "smplx",
@@ -286,10 +331,12 @@ def build_payload(
             "method": (
                 "project body parts are unions of the GVHMR SMPL-X coarse segmentation; "
                 "inner hands are the palm-facing subset of the full hand after trimming vertices "
-                "behind the wrist plane on the neutral SMPL-X template."
+                "behind the wrist plane on the neutral SMPL-X template; foot bottoms are the "
+                "downward-facing subset of the full foot on the neutral SMPL-X template."
             ),
             "wrist_forward_cutoff": float(wrist_forward_cutoff),
             "inner_normal_threshold": float(inner_normal_threshold),
+            "foot_bottom_normal_threshold": float(foot_bottom_normal_threshold),
             "up_axis": [0.0, 1.0, 0.0],
         },
     }
@@ -323,6 +370,10 @@ def validate_payload(payload: dict) -> None:
         inner_set = set(segments[f"{side}_hand_inner"])
         if not inner_set < full_set:
             raise RuntimeError(f"{side}_hand_inner must be a strict subset of {side}_hand.")
+        foot_set = set(segments[f"{side}_foot"])
+        bottom_set = set(segments[f"{side}_foot_bottom"])
+        if not bottom_set < foot_set:
+            raise RuntimeError(f"{side}_foot_bottom must be a strict subset of {side}_foot.")
 
 
 def write_payload(output_json: Path, payload: dict) -> None:
@@ -480,6 +531,7 @@ def main() -> None:
         source_segmentation=source_segmentation,
         wrist_forward_cutoff=float(args.wrist_forward_cutoff),
         inner_normal_threshold=float(args.inner_normal_threshold),
+        foot_bottom_normal_threshold=float(args.foot_bottom_normal_threshold),
     )
     write_payload(output_json, payload)
 
