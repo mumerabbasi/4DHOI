@@ -505,7 +505,7 @@ def run_eval(
 
     resized_dir = ensure_dir(generated_root_path / "first_frames_resized")
     resized_frame_path = resized_dir / frame_path.name
-    resized_mask_path = resized_dir / "target_mask.png"
+    resized_mask_path = resized_dir / "frame_00_target_mask.png"
     camera_json_path = generated_root_path / "resized_camera.json"
 
     save_image(resized_frame_path, resized_generated_bgr)
