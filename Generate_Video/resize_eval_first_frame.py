@@ -158,6 +158,13 @@ def resolve_optional_video_path(
     return candidates[0].resolve()
 
 
+def resolve_optional_contact_overlay_path(generated_root: Path) -> Path | None:
+    candidate = (generated_root / "first_frames" / "frame_00_contact_overlay.png")
+    if candidate.exists():
+        return candidate.resolve()
+    return None
+
+
 def resolve_scene_image_path(selection_root: Path) -> Path:
     path = (selection_root / "2d" / "scene_image.png").resolve()
     if not path.exists():
@@ -448,6 +455,7 @@ def run_eval(
     generated_root_path = context["generated_root"]
     frame_path = resolve_first_frame_path(generated_root_path, frame)
     video_path = resolve_optional_video_path(generated_root_path, video)
+    contact_overlay_path = resolve_optional_contact_overlay_path(generated_root_path)
 
     scene_bgr = read_bgr(context["scene_image_path"])
     generated_bgr = read_bgr(frame_path)
@@ -525,6 +533,27 @@ def run_eval(
     image_overlay = create_mask_overlay(resized_generated_bgr, resized_mask)
     save_image(image_overlay_path, image_overlay)
 
+    contact_overlay_eval_path: Path | None = None
+    resized_contact_overlay_path: Path | None = None
+    if contact_overlay_path is not None:
+        contact_overlay_bgr = read_bgr(contact_overlay_path)
+        resized_contact_overlay_bgr, _ = resize_and_center_crop(
+            contact_overlay_bgr,
+            target_width,
+            target_height,
+            interpolation=cv2.INTER_CUBIC,
+        )
+        contact_overlay_eval = create_mask_overlay(
+            resized_contact_overlay_bgr,
+            resized_mask,
+        )
+        contact_overlay_eval_path = (
+            overlays_dir / "contact_overlay_first_frame_overlay.png"
+        )
+        save_image(contact_overlay_eval_path, contact_overlay_eval)
+        resized_contact_overlay_path = resized_dir / "frame_00_contact_overlay.png"
+        save_image(resized_contact_overlay_path, resized_contact_overlay_bgr)
+
     video_overlay_path: Path | None = None
     if video_path is not None:
         video_first_frame_bgr = extract_first_frame(video_path)
@@ -542,6 +571,8 @@ def run_eval(
         "target_mask_path": resized_mask_path,
         "camera_json_path": camera_json_path,
         "image_overlay_path": image_overlay_path,
+        "contact_overlay_eval_path": contact_overlay_eval_path,
+        "resized_contact_overlay_path": resized_contact_overlay_path,
         "video_overlay_path": video_overlay_path,
         "video_path": video_path,
     }
@@ -623,6 +654,22 @@ def main() -> None:
     print(f"Saved resized target mask: {result['target_mask_path']}")
     print(f"Saved camera JSON: {result['camera_json_path']}")
     print(f"Saved image overlay: {result['image_overlay_path']}")
+
+    if result["contact_overlay_eval_path"] is not None:
+        print(
+            "Saved contact overlay check: "
+            f"{result['contact_overlay_eval_path']}"
+        )
+    else:
+        print("No frame_00_contact_overlay.png found; skipped contact overlay check.")
+
+    if result["resized_contact_overlay_path"] is not None:
+        print(
+            "Saved resized contact overlay: "
+            f"{result['resized_contact_overlay_path']}"
+        )
+    else:
+        print("No frame_00_contact_overlay.png found; skipped resizing contact overlay.")
 
     if result["video_overlay_path"] is not None:
         print(f"Saved video overlay: {result['video_overlay_path']}")

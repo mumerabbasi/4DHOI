@@ -1,4 +1,4 @@
-SCENE_PRESERVATION_INSTRUCTIONS = (
+"system_prompt" = (
     "Use the provided scene image as a fixed camera reference. "
     "Insert exactly one person performing the described interaction with the target object. "
     "This frame must represent the pre-motion start state: the person is already in natural contact "
