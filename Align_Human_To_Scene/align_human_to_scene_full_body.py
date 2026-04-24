@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import csv
+import json
 import math
 from dataclasses import dataclass
 from pathlib import Path
@@ -9,17 +11,20 @@ from typing import Any
 import cv2
 import numpy as np
 import smplx
+import trimesh
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from pytorch3d.ops import knn_points
+from pytorch3d.renderer import MeshRasterizer, RasterizationSettings
+from pytorch3d.structures import Meshes
+from pytorch3d.utils import cameras_from_opencv_projection
 from pytorch3d.transforms import (
     axis_angle_to_matrix,
     matrix_to_axis_angle,
     matrix_to_rotation_6d,
     rotation_6d_to_matrix,
 )
-
-import align_human_to_scene as base
 
 try:
     from mesh_intersection.bvh_search_tree import BVH
@@ -44,22 +49,1101 @@ LOSS_TERM_KEYS = (
     # "angle",
     # "self_intersect",
 )
+CONTACT_SEGMENT_BY_BODY_SEGMENT = {
+    "left_hand": "left_hand_inner",
+    "right_hand": "right_hand_inner",
+    "left_foot": "left_foot_bottom",
+    "right_foot": "right_foot_bottom",
+}
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
 
 
 @dataclass
+class HumanTrack:
+    name: str
+    mask_dir: Path
+    result_dir: Path
+    source_camera_mesh_dir: Path
+
+
+@dataclass
+class IdentityCameraContext:
+    intrinsics: np.ndarray
+    width: int
+    height: int
+    camera: Any
+
+
+@dataclass
+class InteractionNode:
+    raw_node: str
+    entity_name: str
+    part_name: str
+    is_human: bool
+
+
+@dataclass
+class InteractionEdge:
+    node_a: InteractionNode
+    node_b: InteractionNode
+
+
+@dataclass
+class SDFGrid:
+    sdf_volume: torch.Tensor
+    bbox_min: torch.Tensor
+    bbox_max: torch.Tensor
+
+
+@dataclass
+class SmplxSegmentCatalog:
+    vertex_count: int
+    segments: dict[str, np.ndarray]
+    body_segment_ids: list[str]
+    contact_segment_ids: list[str]
+
+    def get_indices(self, segment_id: str) -> np.ndarray:
+        indices = self.segments.get(segment_id)
+        if indices is None:
+            raise KeyError(f"Unknown SMPL-X segment id '{segment_id}'.")
+        return indices
+
+    def get_display_name(self, segment_id: str) -> str:
+        if segment_id not in self.segments:
+            raise KeyError(f"Unknown SMPL-X segment id '{segment_id}'.")
+        return segment_id.replace("_", " ")
+
+    def get_body_segment_id(self, pag_part_name: str) -> str | None:
+        segment_id = slugify_segment_name(pag_part_name)
+        if segment_id in self.body_segment_ids:
+            return segment_id
+        return None
+
+    def get_body_indices(self, pag_part_name: str) -> np.ndarray | None:
+        segment_id = self.get_body_segment_id(pag_part_name)
+        return None if segment_id is None else self.get_indices(segment_id)
+
+    def get_contact_segment_id(self, pag_part_name: str) -> str | None:
+        body_segment_id = slugify_segment_name(pag_part_name)
+        segment_id = CONTACT_SEGMENT_BY_BODY_SEGMENT.get(body_segment_id)
+        if segment_id in self.contact_segment_ids:
+            return segment_id
+        return None
+
+    def get_contact_indices(self, pag_part_name: str) -> np.ndarray | None:
+        segment_id = self.get_contact_segment_id(pag_part_name)
+        return None if segment_id is None else self.get_indices(segment_id)
+
+
+def load_json(path: Path) -> dict[str, Any]:
+    with path.open("r", encoding="utf-8") as file_obj:
+        return json.load(file_obj)
+
+
+def read_bgr(path: Path) -> np.ndarray:
+    image = cv2.imread(str(path), cv2.IMREAD_COLOR)
+    if image is None:
+        raise FileNotFoundError(f"Failed to read image: {path}")
+    return image
+
+
+def load_mesh(path: Path) -> tuple[np.ndarray, np.ndarray]:
+    mesh = trimesh.load(str(path), force="mesh")
+    if not isinstance(mesh, trimesh.Trimesh):
+        raise ValueError(f"Failed to load mesh: {path}")
+
+    verts = np.asarray(mesh.vertices, dtype=np.float32)
+    faces = np.asarray(mesh.faces, dtype=np.int64)
+    if (
+        verts.ndim != 2
+        or verts.shape[1] != 3
+        or faces.ndim != 2
+        or faces.shape[1] != 3
+    ):
+        raise ValueError(
+            f"Unexpected mesh shapes for {path}: {verts.shape}, {faces.shape}"
+        )
+    return verts, faces
+
+
+def normalize_label(text: str) -> str:
+    return " ".join(
+        text.strip().lower().replace("_", " ").replace("-", " ").split()
+    )
+
+
+def slugify_segment_name(text: str) -> str:
+    return normalize_label(text).replace(" ", "_")
+
+
+def resolve_scannet_root(
+    script_dir: Path,
+    raw_scannet_root: str | None,
+) -> Path:
+    if raw_scannet_root:
+        return Path(raw_scannet_root).resolve()
+    return (script_dir.parent.parent / "Scannet++" / "data").resolve()
+
+
+def resolve_scene_paths(
+    scannet_root: Path,
+    scene_id: str,
+) -> dict[str, Path]:
+    scene_root = scannet_root / scene_id
+    return {
+        "scene_root": scene_root,
+        "mesh_path": scene_root / "scans" / "mesh_aligned_0.05.ply",
+        "segments_path": scene_root / "scans" / "segments.json",
+        "segments_anno_path": scene_root / "scans" / "segments_anno.json",
+    }
+
+
+def build_candidate_instances(
+    mesh_faces: np.ndarray,
+    seg_indices: np.ndarray,
+    seg_groups: list[dict[str, Any]],
+) -> tuple[np.ndarray, np.ndarray, dict[int, dict[str, Any]]]:
+    face_batches: list[np.ndarray] = []
+    face_instance_ids: list[np.ndarray] = []
+    instance_meta: dict[int, dict[str, Any]] = {}
+
+    for group in seg_groups:
+        label = str(group["label"])
+        if not normalize_label(label):
+            continue
+
+        object_id = int(group["objectId"])
+        segments = np.asarray(group["segments"], dtype=np.int64)
+        if segments.size == 0:
+            continue
+
+        vertex_mask = np.isin(seg_indices, segments)
+        face_mask = np.all(vertex_mask[mesh_faces], axis=1)
+        candidate_faces = mesh_faces[face_mask]
+        if candidate_faces.size == 0:
+            continue
+
+        face_batches.append(candidate_faces.astype(np.int64))
+        face_instance_ids.append(
+            np.full((candidate_faces.shape[0],), object_id, dtype=np.int32)
+        )
+        instance_meta[object_id] = {
+            "instance_id": object_id,
+            "label": label,
+        }
+
+    if not face_batches:
+        raise ValueError(
+            "No valid instance annotations were found for the scene.")
+
+    return (
+        np.concatenate(face_batches, axis=0),
+        np.concatenate(face_instance_ids, axis=0),
+        instance_meta,
+    )
+
+
+def build_faces_for_labels(
+    mesh_faces: np.ndarray,
+    seg_indices: np.ndarray,
+    seg_groups: list[dict[str, Any]],
+    labels: set[str],
+) -> np.ndarray:
+    face_batches: list[np.ndarray] = []
+    labels_norm = {normalize_label(label) for label in labels}
+    for group in seg_groups:
+        label = normalize_label(str(group["label"]))
+        if label not in labels_norm:
+            continue
+
+        segments = np.asarray(group["segments"], dtype=np.int64)
+        if segments.size == 0:
+            continue
+
+        vertex_mask = np.isin(seg_indices, segments)
+        face_mask = np.all(vertex_mask[mesh_faces], axis=1)
+        candidate_faces = mesh_faces[face_mask]
+        if candidate_faces.size == 0:
+            continue
+        face_batches.append(candidate_faces.astype(np.int64))
+
+    if not face_batches:
+        return np.zeros((0, 3), dtype=np.int64)
+    return np.concatenate(face_batches, axis=0)
+
+
+def load_camera_payload(
+    camera_path: Path,
+) -> tuple[dict[str, Any], np.ndarray, np.ndarray, np.ndarray, int, int]:
+    payload = load_json(camera_path)
+    intrinsics = np.asarray(payload["intrinsics"], dtype=np.float32)
+    world_to_camera = np.asarray(
+        payload["world_to_camera_4x4"],
+        dtype=np.float32,
+    )
+    width = int(payload["width"])
+    height = int(payload["height"])
+
+    if intrinsics.shape != (3, 3):
+        raise ValueError(
+            f"Expected a 3x3 intrinsics matrix in {camera_path}, "
+            f"got {intrinsics.shape}."
+        )
+    if world_to_camera.shape != (4, 4):
+        raise ValueError(
+            "Expected a 4x4 world_to_camera_4x4 matrix in "
+            f"{camera_path}, got {world_to_camera.shape}."
+        )
+
+    rotation_world_to_camera = world_to_camera[:3, :3].astype(np.float32)
+    translation_world_to_camera = world_to_camera[:3, 3].astype(np.float32)
+    return (
+        payload,
+        intrinsics,
+        rotation_world_to_camera,
+        translation_world_to_camera,
+        width,
+        height,
+    )
+
+
+def ensure_dir(path: Path) -> Path:
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def resolve_path(raw_path: str | None, default_path: Path) -> Path:
+    return default_path if raw_path is None else Path(raw_path).resolve()
+
+
+def build_shared_default_paths(video_name: str) -> dict[str, Path]:
+    return {
+        "generated_root": PROJECT_DIR /
+        "Generate_Video" /
+        "output" /
+        video_name,
+        "selection_json": PROJECT_DIR /
+        "Select_Target_Instance" /
+        "output" /
+        video_name /
+        "target_selection.json",
+        "input_pag_json": PROJECT_DIR /
+        "Select_Target_Instance" /
+        "input_prompts" /
+        video_name /
+        "input_pag.json",
+        "segment_root": PROJECT_DIR /
+        "Segment_Video" /
+        "output" /
+        video_name,
+        "human_motion_root": PROJECT_DIR /
+        "Estimate_Human_Motion" /
+        "output" /
+        video_name /
+        "humans",
+        "pag_root": PROJECT_DIR /
+        "Generate_PAG" /
+        "output" /
+        video_name,
+        "smpl_seg_json": PROJECT_DIR /
+        "Estimate_Human_Motion" /
+        "assets" /
+        "smplx_vert_segmentation.json",
+        "output_root": SCRIPT_DIR /
+        "output" /
+        video_name,
+    }
+
+
+def find_pag_json(pag_dir: Path) -> Path:
+    candidates = sorted(pag_dir.glob("*.json"))
+    if not candidates:
+        raise FileNotFoundError(f"No PAG JSON found in: {pag_dir}")
+    for candidate in candidates:
+        if candidate.name.startswith("output_pag"):
+            return candidate
+    return candidates[0]
+
+
+def parse_device(raw_device: str) -> torch.device:
+    device = torch.device(raw_device)
+    if device.type == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("CUDA was requested but is not available.")
+    return device
+
+
+def load_mask(path: Path) -> np.ndarray:
+    mask = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+    if mask is None:
+        raise FileNotFoundError(f"Failed to read mask image: {path}")
+    return mask > 127
+
+
+def save_json(path: Path, payload: dict[str, Any]) -> None:
+    path.write_text(json.dumps(payload, ensure_ascii=False,
+                    indent=2) + "\n", encoding="utf-8")
+
+
+def save_csv_rows(path: Path, rows: list[dict[str, Any]]) -> None:
+    if not rows:
+        return
+    ensure_dir(path.parent)
+    fieldnames = list(rows[0].keys())
+    with path.open("w", encoding="utf-8", newline="") as file_obj:
+        writer = csv.DictWriter(file_obj, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def linear_weight(
+        start: float,
+        end: float,
+        step_id: int,
+        n_steps: int) -> float:
+    if n_steps <= 0:
+        return float(start)
+    return float(start) + (float(end) - float(start)) * float(step_id) / float(
+        n_steps
+    )
+
+
+def save_loss_plot_tree(
+    plot_dir: Path,
+    rows: list[dict[str, Any]],
+    x_key: str,
+    total_key: str,
+    term_keys: tuple[str, ...] | list[str],
+    x_label: str,
+    title_prefix: str,
+) -> None:
+    if not rows:
+        return
+
+    ensure_dir(plot_dir)
+    raw_dir = ensure_dir(plot_dir / "raw")
+    scaled_dir = ensure_dir(plot_dir / "scaled")
+
+    try:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        return
+
+    xs = [float(row[x_key]) for row in rows]
+
+    def save_plot(
+        keys: list[str],
+        labels: list[str],
+        title: str,
+        out_path: Path,
+    ) -> None:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        for key, label in zip(keys, labels):
+            values = [float(row.get(key, 0.0)) for row in rows]
+            ax.plot(xs, values, linewidth=1.3, label=label)
+        ax.set_xlabel(x_label)
+        ax.set_ylabel("Loss")
+        ax.set_title(title)
+        if labels:
+            ax.legend(loc="best")
+        ax.grid(True, alpha=0.3)
+        fig.tight_layout()
+        fig.savefig(str(out_path), dpi=140)
+        plt.close(fig)
+
+    save_plot(
+        [total_key],
+        ["total"],
+        f"{title_prefix} Total Loss",
+        plot_dir / "loss_total.png",
+    )
+
+    raw_keys = [f"{key}_raw" for key in term_keys]
+    scaled_keys = [f"{key}_scaled" for key in term_keys]
+    save_plot(
+        raw_keys,
+        list(term_keys),
+        f"{title_prefix} Raw Loss Terms",
+        raw_dir / "loss_all_terms.png",
+    )
+    save_plot(
+        scaled_keys,
+        list(term_keys),
+        f"{title_prefix} Scaled Loss Terms",
+        scaled_dir / "loss_all_terms.png",
+    )
+
+    for key in term_keys:
+        save_plot(
+            [f"{key}_raw"],
+            [key],
+            f"{title_prefix} Raw: {key}",
+            raw_dir / f"{key}.png",
+        )
+        save_plot(
+            [f"{key}_scaled"],
+            [key],
+            f"{title_prefix} Scaled: {key}",
+            scaled_dir / f"{key}.png",
+        )
+
+
+def parse_pag_node(node_str: str) -> InteractionNode:
+    parts = node_str.split(",", 1)
+    if len(parts) != 2:
+        raise ValueError(f"Cannot parse PAG node: '{node_str}'")
+    entity_name = parts[0].strip()
+    part_name = parts[1].strip()
+    return InteractionNode(
+        raw_node=node_str,
+        entity_name=entity_name,
+        part_name=part_name,
+        is_human=entity_name.lower().startswith("person"),
+    )
+
+
+def parse_pag_interaction_edges(
+        pag_payload: dict[str, Any]) -> list[InteractionEdge]:
+    edges: list[InteractionEdge] = []
+    for edge_payload in pag_payload.get("interaction edges", []):
+        node_values = edge_payload.get("nodes", [])
+        if len(node_values) != 2:
+            continue
+        edges.append(
+            InteractionEdge(
+                node_a=parse_pag_node(str(node_values[0])),
+                node_b=parse_pag_node(str(node_values[1])),
+            )
+        )
+    return edges
+
+
+def load_smpl_segment_catalog(seg_path: Path) -> SmplxSegmentCatalog:
+    raw = load_json(seg_path)
+    raw_segments = raw.get("segments")
+    if not isinstance(raw_segments, dict):
+        raise KeyError(
+            f"Expected a 'segments' mapping in {seg_path}, but it was not found."
+        )
+
+    body_segment_ids = raw.get("body_segment_ids")
+    if not isinstance(body_segment_ids, list):
+        raise KeyError(
+            f"Expected 'body_segment_ids' in {seg_path}, but it was not found."
+        )
+
+    contact_segment_ids = raw.get("contact_segment_ids")
+    if not isinstance(contact_segment_ids, list):
+        raise KeyError(
+            f"Expected 'contact_segment_ids' in {seg_path}, but it was not found."
+        )
+
+    segments: dict[str, np.ndarray] = {}
+    vertex_count = int(raw["vertex_count"])
+    for segment_id, indices in raw_segments.items():
+        indices_array = np.unique(np.asarray(indices, dtype=np.int64))
+        if indices_array.size == 0:
+            raise ValueError(f"Segment '{segment_id}' is empty.")
+        if indices_array[0] < 0 or indices_array[-1] >= vertex_count:
+            raise ValueError(f"Segment '{segment_id}' has out-of-range ids.")
+        segments[str(segment_id)] = indices_array
+
+    body_segment_ids = [str(segment_id) for segment_id in body_segment_ids]
+    contact_segment_ids = [
+        str(segment_id) for segment_id in contact_segment_ids
+    ]
+    for segment_id in body_segment_ids + contact_segment_ids:
+        if segment_id not in segments:
+            raise KeyError(
+                f"Missing SMPL-X segment '{segment_id}' in {seg_path}."
+            )
+    for body_segment_id, contact_segment_id in (
+        CONTACT_SEGMENT_BY_BODY_SEGMENT.items()
+    ):
+        if body_segment_id not in body_segment_ids:
+            raise KeyError(
+                f"Missing body segment '{body_segment_id}' in {seg_path}."
+            )
+        if contact_segment_id not in contact_segment_ids:
+            raise KeyError(
+                f"Missing contact segment '{contact_segment_id}' in {seg_path}."
+            )
+
+    return SmplxSegmentCatalog(
+        vertex_count=vertex_count,
+        segments=segments,
+        body_segment_ids=body_segment_ids,
+        contact_segment_ids=contact_segment_ids,
+    )
+
+
+def build_sdf_grid(
+    vertices: np.ndarray,
+    faces: np.ndarray,
+    resolution: int,
+    device: torch.device,
+    padding: float = 0.05,
+) -> SDFGrid:
+    try:
+        from pysdf import SDF as PySDF
+    except ImportError as exc:
+        raise RuntimeError(
+            "The penetration losses require the 'pysdf' package, but it is not "
+            "installed in the current environment."
+        ) from exc
+
+    sdf_func = PySDF(vertices.astype(np.float32), faces.astype(np.uint32))
+    vmin = vertices.min(axis=0) - float(padding)
+    vmax = vertices.max(axis=0) + float(padding)
+    lin = [np.linspace(vmin[i], vmax[i], int(resolution)) for i in range(3)]
+    gx, gy, gz = np.meshgrid(lin[0], lin[1], lin[2], indexing="ij")
+    query_pts = np.stack([gx.ravel(), gy.ravel(), gz.ravel()], axis=1).astype(np.float32)
+    sdf_vals = -sdf_func(query_pts)
+    sdf_vol = sdf_vals.reshape(1, 1, int(resolution), int(resolution), int(resolution))
+    return SDFGrid(
+        sdf_volume=torch.from_numpy(sdf_vol.astype(np.float32)).to(device),
+        bbox_min=torch.tensor(vmin.reshape(1, 1, 3), dtype=torch.float32, device=device),
+        bbox_max=torch.tensor(vmax.reshape(1, 1, 3), dtype=torch.float32, device=device),
+    )
+
+
+def query_sdf(
+    sdf_grid: SDFGrid,
+    points: torch.Tensor,
+) -> torch.Tensor:
+    shape = points.shape[:-1]
+    pts = points.reshape(1, -1, 3)
+    normalized = (
+        (pts - sdf_grid.bbox_min)
+        / (sdf_grid.bbox_max - sdf_grid.bbox_min)
+        * 2.0
+        - 1.0
+    )
+    grid = normalized[:, :, [2, 1, 0]].view(1, -1, 1, 1, 3)
+    sampled = F.grid_sample(
+        sdf_grid.sdf_volume,
+        grid,
+        padding_mode="border",
+        align_corners=True,
+    )
+    return sampled.reshape(*shape)
+
+
+def compute_penetration_loss(
+    sdf_grid: SDFGrid | None,
+    points: torch.Tensor,
+) -> torch.Tensor:
+    if sdf_grid is None or points.numel() == 0:
+        return points.new_tensor(0.0)
+    sdf_vals = query_sdf(sdf_grid, points)
+    intersects = F.relu(-sdf_vals)
+    icount = (intersects > 0).sum()
+    if icount.item() == 0:
+        return points.new_tensor(0.0)
+    return intersects.sum() / icount.to(intersects.dtype)
+
+
+def _get_reduction(nodes: tuple[InteractionNode, InteractionNode]) -> str:
+    for node in nodes:
+        if node.is_human and node.part_name.split(" ")[-1] in ("hand", "foot"):
+            return "mean"
+    return "min"
+
+
+def pcd_distance(
+    p1: torch.Tensor | None,
+    p2: torch.Tensor | None,
+    reduction: str = "min",
+) -> torch.Tensor | None:
+    if p1 is None or p2 is None:
+        return None
+    if p1.ndim != 3 or p2.ndim != 3:
+        raise ValueError("pcd_distance expects tensors with shape [F, N, 3].")
+    nnres = knn_points(p1=p1, p2=p2, norm=2, K=1)
+    nn_dists = nnres.dists[..., 0]
+    if reduction == "min":
+        return torch.min(nn_dists, dim=1)[0]
+    if reduction == "mean":
+        return torch.mean(nn_dists, dim=1)
+    raise RuntimeError(f"Unknown reduction: {reduction}")
+
+
+def save_depth_visualization(path: Path, depth: np.ndarray) -> None:
+    valid = np.isfinite(depth) & (depth > 0.0)
+    vis = np.zeros(depth.shape, dtype=np.uint8)
+    if np.any(valid):
+        vals = depth[valid]
+        lo = float(np.percentile(vals, 2.0))
+        hi = float(np.percentile(vals, 98.0))
+        if not np.isfinite(lo) or not np.isfinite(hi) or hi <= lo:
+            lo = float(vals.min())
+            hi = float(vals.max())
+        denom = max(hi - lo, 1e-6)
+        vis_f = np.clip((depth - lo) / denom, 0.0, 1.0)
+        vis[valid] = np.round(vis_f[valid] * 255.0).astype(np.uint8)
+    color = cv2.applyColorMap(vis, cv2.COLORMAP_TURBO)
+    color[~valid] = 0
+    cv2.imwrite(str(path), color)
+
+
+def build_identity_camera(
+    intrinsics: np.ndarray,
+    width: int,
+    height: int,
+    device: torch.device,
+) -> IdentityCameraContext:
+    rotation = torch.eye(3, dtype=torch.float32, device=device)[None]
+    translation = torch.zeros((1, 3), dtype=torch.float32, device=device)
+    camera_matrix = torch.from_numpy(intrinsics.astype(np.float32))[
+        None].to(device)
+    image_size = torch.tensor(
+        [[height, width]], dtype=torch.float32, device=device)
+    camera = cameras_from_opencv_projection(
+        R=rotation,
+        tvec=translation,
+        camera_matrix=camera_matrix,
+        image_size=image_size,
+    )
+    return IdentityCameraContext(
+        intrinsics=intrinsics.astype(np.float32),
+        width=int(width),
+        height=int(height),
+        camera=camera,
+    )
+
+
+def build_rasterizer(camera_ctx: IdentityCameraContext) -> MeshRasterizer:
+    device = camera_ctx.camera.device
+    raster_settings = RasterizationSettings(
+        image_size=(camera_ctx.height, camera_ctx.width),
+        blur_radius=0.0,
+        faces_per_pixel=1,
+        bin_size=0 if device.type == "cuda" else None,
+        max_faces_per_bin=400000 if device.type == "cuda" else None,
+    )
+    return MeshRasterizer(
+        cameras=camera_ctx.camera,
+        raster_settings=raster_settings)
+
+
+def to_meshes(
+    verts: np.ndarray,
+    faces: np.ndarray,
+    device: torch.device,
+) -> Meshes:
+    verts_t = torch.from_numpy(verts.astype(np.float32)).to(device=device)
+    faces_t = torch.from_numpy(faces.astype(np.int64)).to(device=device)
+    return Meshes(verts=[verts_t], faces=[faces_t])
+
+
+def rasterize_depth_and_mask(
+    verts: np.ndarray,
+    faces: np.ndarray,
+    camera_ctx: IdentityCameraContext,
+    device: torch.device,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    mesh = to_meshes(verts, faces, device=device)
+    rasterizer = build_rasterizer(camera_ctx)
+    with torch.no_grad():
+        fragments = rasterizer(mesh)
+    pix_to_face = (
+        fragments.pix_to_face[0, ..., 0]
+        .detach()
+        .cpu()
+        .numpy()
+        .astype(np.int64)
+    )
+    depth = fragments.zbuf[0, ..., 0].detach().cpu().numpy().astype(np.float32)
+    mask = pix_to_face >= 0
+    depth[~mask] = 0.0
+    return depth, mask, pix_to_face
+
+
+def render_mask_overlay(
+    background_bgr: np.ndarray,
+    observed_mask: np.ndarray,
+    rendered_mask: np.ndarray,
+    title_lines: list[str],
+) -> np.ndarray:
+    overlay = background_bgr.astype(np.float32).copy()
+    observed_only = np.logical_and(
+        observed_mask, np.logical_not(rendered_mask))
+    rendered_only = np.logical_and(
+        rendered_mask, np.logical_not(observed_mask))
+    overlap = np.logical_and(observed_mask, rendered_mask)
+
+    overlay[observed_only] = 0.55 * overlay[observed_only] + \
+        0.45 * np.array([0, 0, 255], dtype=np.float32)
+    overlay[rendered_only] = 0.55 * overlay[rendered_only] + \
+        0.45 * np.array([255, 200, 0], dtype=np.float32)
+    overlay[overlap] = 0.45 * overlay[overlap] + \
+        0.55 * np.array([0, 255, 0], dtype=np.float32)
+
+    overlay_u8 = np.clip(overlay, 0.0, 255.0).astype(np.uint8)
+    y = 30
+    for line in title_lines:
+        cv2.putText(
+            overlay_u8,
+            line,
+            (20, y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (255, 255, 255),
+            2,
+            cv2.LINE_AA,
+        )
+        y += 34
+    return overlay_u8
+
+
+def compute_binary_overlap(a: np.ndarray, b: np.ndarray) -> dict[str, float]:
+    a_bool = a.astype(bool)
+    b_bool = b.astype(bool)
+    intersection = int(np.count_nonzero(np.logical_and(a_bool, b_bool)))
+    union = int(np.count_nonzero(np.logical_or(a_bool, b_bool)))
+    area_a = int(np.count_nonzero(a_bool))
+    area_b = int(np.count_nonzero(b_bool))
+    return {
+        "intersection_px": intersection,
+        "union_px": union,
+        "area_a_px": area_a,
+        "area_b_px": area_b,
+        "iou": float(intersection / union) if union > 0 else 0.0,
+        "dice": (
+            float((2.0 * intersection) / (area_a + area_b))
+            if (area_a + area_b) > 0
+            else 0.0
+        ),
+    }
+
+
+def transform_world_to_camera(
+    points_world: np.ndarray,
+    rotation_world_to_camera: np.ndarray,
+    translation_world_to_camera: np.ndarray,
+) -> np.ndarray:
+    return points_world @ rotation_world_to_camera.T + \
+        translation_world_to_camera[None]
+
+
+def transform_camera_to_world(
+    points_camera: np.ndarray,
+    rotation_world_to_camera: np.ndarray,
+    translation_world_to_camera: np.ndarray,
+) -> np.ndarray:
+    return (
+        points_camera -
+        translation_world_to_camera[None]) @ rotation_world_to_camera
+
+
+def sample_mesh_surface_points(
+    verts: np.ndarray,
+    faces: np.ndarray,
+    num_samples: int,
+    seed: int,
+) -> np.ndarray:
+    if num_samples <= 0:
+        raise ValueError("num_samples must be > 0")
+    if verts.shape[0] == 0 or faces.shape[0] == 0:
+        return np.zeros((0, 3), dtype=np.float32)
+
+    triangles = verts[faces]
+    v0 = triangles[:, 0, :]
+    v1 = triangles[:, 1, :]
+    v2 = triangles[:, 2, :]
+    areas = 0.5 * np.linalg.norm(np.cross(v1 - v0, v2 - v0), axis=1)
+    area_sum = float(np.sum(areas))
+    rng = np.random.default_rng(seed)
+
+    if not np.isfinite(area_sum) or area_sum <= 1e-8:
+        chosen = rng.choice(verts.shape[0], size=int(
+            num_samples), replace=True)
+        return verts[chosen].astype(np.float32)
+
+    probs = areas / area_sum
+    face_indices = rng.choice(faces.shape[0], size=int(
+        num_samples), replace=True, p=probs)
+    tri = triangles[face_indices]
+
+    r1 = rng.random(int(num_samples), dtype=np.float32)
+    r2 = rng.random(int(num_samples), dtype=np.float32)
+    sr1 = np.sqrt(r1)
+    w0 = 1.0 - sr1
+    w1 = sr1 * (1.0 - r2)
+    w2 = sr1 * r2
+    samples = (
+        w0[:, None] * tri[:, 0, :]
+        + w1[:, None] * tri[:, 1, :]
+        + w2[:, None] * tri[:, 2, :]
+    )
+    return samples.astype(np.float32)
+
+
+def project_points_np(
+        points: np.ndarray,
+        intrinsics: np.ndarray) -> np.ndarray:
+    z = np.clip(points[:, 2], 1e-6, None)
+    u = intrinsics[0, 0] * points[:, 0] / z + intrinsics[0, 2] - 0.5
+    v = intrinsics[1, 1] * points[:, 1] / z + intrinsics[1, 2] - 0.5
+    return np.stack([u, v], axis=1).astype(np.float32)
+
+
+def filter_faces_to_camera_view(
+    verts_camera: np.ndarray,
+    faces: np.ndarray,
+    intrinsics: np.ndarray,
+    width: int,
+    height: int,
+    max_depth_m: float | None = None,
+    border_px: float = 64.0,
+) -> np.ndarray:
+    triangles = verts_camera[faces]
+    z = triangles[..., 2]
+    positive = np.any(z > 1e-6, axis=1)
+    if max_depth_m is not None:
+        positive &= np.any(z < float(max_depth_m), axis=1)
+    if not np.any(positive):
+        return faces[:0].copy()
+
+    z_safe = np.clip(z, 1e-6, None)
+    u = intrinsics[0, 0] * triangles[..., 0] / z_safe + intrinsics[0, 2] - 0.5
+    v = intrinsics[1, 1] * triangles[..., 1] / z_safe + intrinsics[1, 2] - 0.5
+    u_min = np.min(u, axis=1)
+    u_max = np.max(u, axis=1)
+    v_min = np.min(v, axis=1)
+    v_max = np.max(v, axis=1)
+
+    overlaps = (
+        positive
+        & (u_max >= -float(border_px))
+        & (u_min <= float(width - 1) + float(border_px))
+        & (v_max >= -float(border_px))
+        & (v_min <= float(height - 1) + float(border_px))
+    )
+    return faces[overlaps].astype(np.int64)
+
+
+def compact_mesh(
+    verts: np.ndarray,
+    faces: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    if faces.shape[0] == 0:
+        return np.zeros(
+            (0, 3), dtype=np.float32), np.zeros(
+            (0, 3), dtype=np.int64)
+    unique_vids, inverse = np.unique(faces.reshape(-1), return_inverse=True)
+    compact_verts = verts[unique_vids].astype(np.float32)
+    compact_faces = inverse.reshape(-1, 3).astype(np.int64)
+    return compact_verts, compact_faces
+
+
+def build_visible_subset(
+    sampled_points: np.ndarray,
+    mesh_verts: np.ndarray,
+    mesh_faces: np.ndarray,
+    camera_ctx: IdentityCameraContext,
+    device: torch.device,
+    visible_tol_m: float,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    mesh_depth, _, _ = rasterize_depth_and_mask(
+        mesh_verts, mesh_faces, camera_ctx, device)
+    uv = project_points_np(sampled_points, camera_ctx.intrinsics)
+    z = sampled_points[:, 2]
+    ui = np.round(uv[:, 0]).astype(np.int64)
+    vi = np.round(uv[:, 1]).astype(np.int64)
+    in_frame = (
+        (z > 1e-6)
+        & (ui >= 0)
+        & (ui < camera_ctx.width)
+        & (vi >= 0)
+        & (vi < camera_ctx.height)
+    )
+
+    visible = np.zeros(sampled_points.shape[0], dtype=bool)
+    if np.any(in_frame):
+        idx = np.nonzero(in_frame)[0]
+        depth_at_pixel = mesh_depth[vi[idx], ui[idx]]
+        visible[idx] = (depth_at_pixel > 0.0) & (
+            np.abs(z[idx] - depth_at_pixel) <= float(visible_tol_m))
+
+    if np.count_nonzero(visible) >= 64:
+        mode = "strict_visible"
+        keep = visible
+    elif np.count_nonzero(in_frame) >= 64:
+        mode = "fallback_in_frame"
+        keep = in_frame
+    else:
+        mode = "fallback_all"
+        keep = z > 1e-6
+
+    return sampled_points[keep].astype(np.float32), {
+        "mode": mode,
+        "num_total_points": int(sampled_points.shape[0]),
+        "num_in_frame_points": int(np.count_nonzero(in_frame)),
+        "num_visible_points": int(np.count_nonzero(visible)),
+        "num_kept_points": int(np.count_nonzero(keep)),
+        "visible_tol_m": float(visible_tol_m),
+    }
+
+
+def sample_mask_pixels(
+    mask: np.ndarray,
+    max_points: int,
+    seed: int,
+) -> np.ndarray:
+    ys, xs = np.nonzero(mask)
+    if xs.size == 0:
+        return np.zeros((0, 2), dtype=np.float32)
+    coords = np.stack([xs.astype(np.float32), ys.astype(np.float32)], axis=1)
+    if max_points > 0 and coords.shape[0] > max_points:
+        rng = np.random.default_rng(seed)
+        chosen = rng.choice(coords.shape[0], size=int(
+            max_points), replace=False)
+        coords = coords[chosen]
+    return coords.astype(np.float32)
+
+
+def pairwise_squared_l2(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+    a2 = (a * a).sum(dim=1, keepdim=True)
+    b2 = (b * b).sum(dim=1).unsqueeze(0)
+    return torch.clamp(a2 + b2 - 2.0 * (a @ b.transpose(0, 1)), min=0.0)
+
+
+def min_distances_chunked(
+    obs: torch.Tensor,
+    model: torch.Tensor,
+    chunk_size: int = 2048,
+) -> torch.Tensor:
+    if obs.shape[0] == 0 or model.shape[0] == 0:
+        return torch.zeros((0,), device=obs.device, dtype=obs.dtype)
+
+    best_chunks: list[torch.Tensor] = []
+    for start in range(0, obs.shape[0], chunk_size):
+        obs_chunk = obs[start:start + chunk_size]
+        best_d2 = None
+        for model_start in range(0, model.shape[0], chunk_size):
+            model_chunk = model[model_start:model_start + chunk_size]
+            d2 = pairwise_squared_l2(obs_chunk, model_chunk)
+            cur_best, _ = torch.min(d2, dim=1)
+            best_d2 = cur_best if best_d2 is None else torch.minimum(
+                best_d2, cur_best)
+        assert best_d2 is not None
+        best_chunks.append(best_d2)
+    return torch.cat(best_chunks, dim=0)
+
+
+def sample_image_bilinear(
+    image_hw: torch.Tensor,
+    uv_pixels: torch.Tensor,
+    width: int,
+    height: int,
+) -> torch.Tensor:
+    if uv_pixels.shape[0] == 0:
+        return torch.zeros((0,), device=image_hw.device, dtype=image_hw.dtype)
+    x_norm = (2.0 * uv_pixels[:, 0] / max(width - 1, 1)) - 1.0
+    y_norm = (2.0 * uv_pixels[:, 1] / max(height - 1, 1)) - 1.0
+    grid = torch.stack([x_norm, y_norm], dim=1).view(1, -1, 1, 2)
+    sampled = F.grid_sample(
+        image_hw[None, None],
+        grid,
+        mode="bilinear",
+        padding_mode="zeros",
+        align_corners=True,
+    )
+    return sampled.view(-1)
+
+
+def project_points_torch(points: torch.Tensor,
+                         intrinsics: torch.Tensor) -> torch.Tensor:
+    z = torch.clamp(points[:, 2], min=1e-6)
+    u = intrinsics[0, 0] * points[:, 0] / z + intrinsics[0, 2] - 0.5
+    v = intrinsics[1, 1] * points[:, 1] / z + intrinsics[1, 2] - 0.5
+    return torch.stack([u, v], dim=1)
+
+
+def write_ascii_ply(
+        path: Path,
+        vertices: np.ndarray,
+        faces: np.ndarray) -> None:
+    with path.open("w", encoding="utf-8") as f:
+        f.write("ply\n")
+        f.write("format ascii 1.0\n")
+        f.write(f"element vertex {len(vertices)}\n")
+        f.write("property float x\n")
+        f.write("property float y\n")
+        f.write("property float z\n")
+        f.write(f"element face {len(faces)}\n")
+        f.write("property list uchar int vertex_indices\n")
+        f.write("end_header\n")
+        for vertex in vertices:
+            f.write(f"{vertex[0]} {vertex[1]} {vertex[2]}\n")
+        for face in faces:
+            f.write(f"3 {int(face[0])} {int(face[1])} {int(face[2])}\n")
+
+
+def write_point_cloud_ply(path: Path, points: np.ndarray) -> None:
+    with path.open("w", encoding="utf-8") as f:
+        f.write("ply\n")
+        f.write("format ascii 1.0\n")
+        f.write(f"element vertex {points.shape[0]}\n")
+        f.write("property float x\n")
+        f.write("property float y\n")
+        f.write("property float z\n")
+        f.write("end_header\n")
+        for point in points:
+            f.write(f"{point[0]} {point[1]} {point[2]}\n")
+
+
+def discover_human_tracks(segment_root: Path,
+                          human_motion_root: Path) -> list[HumanTrack]:
+    humans_dir = segment_root / "humans"
+    if not humans_dir.is_dir():
+        raise FileNotFoundError(
+            f"Human segmentation directory not found: {humans_dir}")
+
+    tracks: list[HumanTrack] = []
+    for mask_track_dir in sorted(humans_dir.iterdir()):
+        if not mask_track_dir.is_dir():
+            continue
+        mask_dir = mask_track_dir / "masks"
+        result_dir = human_motion_root / mask_track_dir.name
+        source_camera_mesh_dir = result_dir / "meshes" / "camera"
+        if (
+            mask_dir.is_dir()
+            and result_dir.is_dir()
+            and source_camera_mesh_dir.is_dir()
+        ):
+            tracks.append(
+                HumanTrack(
+                    name=mask_track_dir.name,
+                    mask_dir=mask_dir,
+                    result_dir=result_dir,
+                    source_camera_mesh_dir=source_camera_mesh_dir,
+                )
+            )
+    if not tracks:
+        raise FileNotFoundError(
+            "No matching human tracks with meshes/camera exports found between "
+            f"{humans_dir} and {human_motion_root}"
+        )
+    return tracks
+
+
+@dataclass
 class DynamicContactEdge:
-    node_a: base.InteractionNode
-    node_b: base.InteractionNode
-    moving_node: base.InteractionNode
-    fixed_node: base.InteractionNode
+    node_a: InteractionNode
+    node_b: InteractionNode
+    moving_node: InteractionNode
+    fixed_node: InteractionNode
     moving_part_name: str
+    moving_segment_id: str
     moving_segment_name: str
     moving_vertex_ids: np.ndarray
     fixed_points: np.ndarray
-    is_continuous: bool
     reduction: str
 
 
@@ -249,7 +1333,7 @@ class SelfIntersectionHelper:
 
 
 def build_default_paths(video_name: str) -> dict[str, Path]:
-    defaults = base.build_default_paths(video_name)
+    defaults = build_shared_default_paths(video_name)
     defaults["output_root"] = SCRIPT_DIR / "output_full_body" / video_name
     defaults["smpl_folder"] = (
         SCRIPT_DIR.parent.parent / "GVHMR" / "inputs" / "checkpoints" / "body_models"
@@ -331,37 +1415,37 @@ def get_loss_weights(
         "pose_gvhmr": float(args.pose_gvhmr_weight),
         "betas_gvhmr": float(args.betas_gvhmr_weight),
         "scale_prior": float(args.scale_prior_weight),
-        "intersect": base.linear_weight(
+        "intersect": linear_weight(
             args.intersect_weight_start,
             args.intersect_weight_end,
             iteration,
             total_iters,
         ),
-        "floor_intersect": base.linear_weight(
+        "floor_intersect": linear_weight(
             args.floor_intersect_weight_start,
             args.floor_intersect_weight_end,
             iteration,
             total_iters,
         ),
-        "nocontact": base.linear_weight(
+        "nocontact": linear_weight(
             args.nocontact_weight_start,
             args.nocontact_weight_end,
             iteration,
             total_iters,
         ),
-        "floor_nocontact": base.linear_weight(
+        "floor_nocontact": linear_weight(
             args.floor_nocontact_weight_start,
             args.floor_nocontact_weight_end,
             iteration,
             total_iters,
         ),
-        "angle": base.linear_weight(
+        "angle": linear_weight(
             args.angle_weight_start,
             args.angle_weight_end,
             iteration,
             total_iters,
         ),
-        "self_intersect": base.linear_weight(
+        "self_intersect": linear_weight(
             args.self_intersect_weight_start,
             args.self_intersect_weight_end,
             iteration,
@@ -432,19 +1516,18 @@ def build_final_loss_summary_row(
 
 
 def resolve_track_pag_name(track_name: str) -> str:
-    return base.normalize_label(track_name)
+    return normalize_label(track_name)
 
 
 def build_dynamic_contact_edges(
     pag_payload: dict[str, Any],
     track_name: str,
     target_object_name: str,
-    body_segments: dict[str, np.ndarray],
-    contact_segments: dict[str, np.ndarray],
+    segment_catalog: SmplxSegmentCatalog,
     target_points_visible: np.ndarray,
 ) -> list[DynamicContactEdge]:
-    pag_edges = base.parse_pag_interaction_edges(pag_payload)
-    target_object_norm = base.normalize_label(target_object_name)
+    pag_edges = parse_pag_interaction_edges(pag_payload)
+    target_object_norm = normalize_label(target_object_name)
     track_name_norm = resolve_track_pag_name(track_name)
     contact_edges: list[DynamicContactEdge] = []
     seen: set[tuple[str, str]] = set()
@@ -456,31 +1539,33 @@ def build_dynamic_contact_edges(
 
         moving_node = nodes[0] if nodes[0].is_human else nodes[1]
         fixed_node = nodes[1] if nodes[0].is_human else nodes[0]
-        if base.normalize_label(moving_node.entity_name) != track_name_norm:
+        if normalize_label(moving_node.entity_name) != track_name_norm:
             continue
-        if base.normalize_label(fixed_node.entity_name) != target_object_norm:
+        if normalize_label(fixed_node.entity_name) != target_object_norm:
             continue
 
-        moving_part_name = base.normalize_label(moving_node.part_name)
-        part_vert_ids = contact_segments.get(
-            moving_part_name,
-            body_segments.get(moving_part_name),
+        moving_part_name = normalize_label(moving_node.part_name)
+        moving_segment_id = segment_catalog.get_contact_segment_id(
+            moving_part_name
         )
-        moving_segment_name = (
-            f"{moving_part_name} contact"
-            if moving_part_name in contact_segments
-            else moving_part_name
-        )
-        if part_vert_ids is None:
+        if moving_segment_id is None:
+            moving_segment_id = segment_catalog.get_body_segment_id(
+                moving_part_name
+            )
+        if moving_segment_id is None:
             raise KeyError(
                 "Unsupported human contact part "
                 f"'{moving_node.part_name}' for {track_name}. Missing "
                 "SMPL-X segmentation mapping."
             )
+        part_vert_ids = segment_catalog.get_indices(moving_segment_id)
+        moving_segment_name = segment_catalog.get_display_name(
+            moving_segment_id
+        )
 
         dedup_key = (
-            base.normalize_label(edge.node_a.raw_node),
-            base.normalize_label(edge.node_b.raw_node),
+            normalize_label(edge.node_a.raw_node),
+            normalize_label(edge.node_b.raw_node),
         )
         if dedup_key in seen:
             continue
@@ -493,11 +1578,13 @@ def build_dynamic_contact_edges(
                 moving_node=moving_node,
                 fixed_node=fixed_node,
                 moving_part_name=moving_part_name,
+                moving_segment_id=moving_segment_id,
                 moving_segment_name=moving_segment_name,
-                moving_vertex_ids=np.unique(np.asarray(part_vert_ids, dtype=np.int64)),
+                moving_vertex_ids=np.unique(
+                    np.asarray(part_vert_ids, dtype=np.int64)
+                ),
                 fixed_points=target_points_visible.astype(np.float32),
-                is_continuous=bool(edge.is_continuous),
-                reduction=base.resolve_contact_reduction(moving_part_name),
+                reduction=_get_reduction((edge.node_a, edge.node_b)),
             )
         )
 
@@ -511,12 +1598,12 @@ def build_dynamic_contact_edges(
 
 def build_dynamic_floor_edges(
     track_name: str,
-    body_segments: dict[str, np.ndarray],
+    segment_catalog: SmplxSegmentCatalog,
     floor_points_visible: np.ndarray,
 ) -> list[DynamicContactEdge]:
     if floor_points_visible.shape[0] == 0:
         return []
-    floor_node = base.InteractionNode(
+    floor_node = InteractionNode(
         raw_node="floor",
         entity_name="floor",
         part_name="floor",
@@ -524,10 +1611,13 @@ def build_dynamic_floor_edges(
     )
     contact_edges: list[DynamicContactEdge] = []
     for part_name in ("left foot", "right foot"):
-        part_vert_ids = body_segments.get(part_name)
-        if part_vert_ids is None:
+        moving_segment_id = segment_catalog.get_contact_segment_id(part_name)
+        if moving_segment_id is None:
+            moving_segment_id = segment_catalog.get_body_segment_id(part_name)
+        if moving_segment_id is None:
             continue
-        moving_node = base.InteractionNode(
+        part_vert_ids = segment_catalog.get_indices(moving_segment_id)
+        moving_node = InteractionNode(
             raw_node=f"{track_name}.{part_name.replace(' ', '_')}",
             entity_name=track_name,
             part_name=part_name,
@@ -540,11 +1630,15 @@ def build_dynamic_floor_edges(
                 moving_node=moving_node,
                 fixed_node=floor_node,
                 moving_part_name=part_name,
-                moving_segment_name=part_name,
-                moving_vertex_ids=np.unique(np.asarray(part_vert_ids, dtype=np.int64)),
+                moving_segment_id=moving_segment_id,
+                moving_segment_name=segment_catalog.get_display_name(
+                    moving_segment_id
+                ),
+                moving_vertex_ids=np.unique(
+                    np.asarray(part_vert_ids, dtype=np.int64)
+                ),
                 fixed_points=floor_points_visible.astype(np.float32),
-                is_continuous=False,
-                reduction="min",
+                reduction=_get_reduction((moving_node, floor_node)),
             )
         )
     return contact_edges
@@ -614,14 +1708,14 @@ def compute_contact_distance_loss(
         if fixed_points.shape[0] == 0:
             continue
         fixed_points_seq = fixed_points.unsqueeze(0)
-        pdists = base.pcd_distance(
+        pdists = pcd_distance(
             moving_points_seq,
             fixed_points_seq,
             reduction=edge.reduction,
         )
         if pdists is None:
             continue
-        values.append(pdists.mean() if edge.is_continuous else pdists.min())
+        values.append(pdists.mean())
     if not values:
         return current_vertices.new_tensor(0.0)
     return torch.stack(values, dim=0).mean()
@@ -630,14 +1724,14 @@ def compute_contact_distance_loss(
 def compute_segment_penetration_loss(
     current_vertices: torch.Tensor,
     edges: list[DynamicContactEdge],
-    sdf_grid: base.SDFGrid | None,
+    sdf_grid: SDFGrid | None,
 ) -> torch.Tensor:
     if sdf_grid is None or not edges:
         return current_vertices.new_tensor(0.0)
     values: list[torch.Tensor] = []
     for edge in edges:
         moving_points = current_vertices[edge.moving_vertex_ids]
-        intersect = base.compute_penetration_loss(sdf_grid, moving_points)
+        intersect = compute_penetration_loss(sdf_grid, moving_points)
         if intersect.item() > 0.0:
             values.append(intersect)
     if not values:
@@ -655,8 +1749,8 @@ def compute_loss_dict(
     scene_depth_t: torch.Tensor,
     contact_edges: list[DynamicContactEdge],
     floor_edges: list[DynamicContactEdge],
-    target_sdf_grid: base.SDFGrid | None,
-    floor_sdf_grid: base.SDFGrid | None,
+    target_sdf_grid: SDFGrid | None,
+    floor_sdf_grid: SDFGrid | None,
     intrinsics_t: torch.Tensor,
     width: int,
     height: int,
@@ -669,7 +1763,7 @@ def compute_loss_dict(
     current = params_module(smplx_layer)
     verts_camera = current["verts"]
     sampled_vertices = verts_camera[mask_vertex_ids_t]
-    uv_pixels = base.project_points_torch(sampled_vertices, intrinsics_t)
+    uv_pixels = project_points_torch(sampled_vertices, intrinsics_t)
     model_pixels_norm = torch.stack(
         [
             uv_pixels[:, 0] / max(float(width - 1), 1.0),
@@ -681,20 +1775,20 @@ def compute_loss_dict(
     zero = torch.zeros((), device=verts_camera.device, dtype=verts_camera.dtype)
 
     if obs_mask_pixels_norm_t.shape[0] > 0 and model_pixels_norm.shape[0] > 0:
-        d2_obs_to_model = base.min_distances_chunked(
+        d2_obs_to_model = min_distances_chunked(
             obs_mask_pixels_norm_t, model_pixels_norm
         )
-        d2_model_to_obs = base.min_distances_chunked(
+        d2_model_to_obs = min_distances_chunked(
             model_pixels_norm, obs_mask_pixels_norm_t
         )
         mask_loss = 0.5 * (d2_obs_to_model.mean() + d2_model_to_obs.mean())
     else:
         mask_loss = zero
 
-    depth_at_uv = base.sample_image_bilinear(
+    depth_at_uv = sample_image_bilinear(
         scene_depth_t, uv_pixels, width=width, height=height
     )
-    mask_at_uv = base.sample_image_bilinear(
+    mask_at_uv = sample_image_bilinear(
         human_mask_t, uv_pixels, width=width, height=height
     )
     in_frame = (
@@ -796,27 +1890,25 @@ def compute_contact_metrics(
             continue
         moving_points_t = current_vertices_t[edge.moving_vertex_ids].unsqueeze(0)
         fixed_points_seq = fixed_points_t.unsqueeze(0)
-        pdists = base.pcd_distance(
+        pdists = pcd_distance(
             moving_points_t,
             fixed_points_seq,
             reduction=edge.reduction,
         )
         if pdists is None:
             continue
-        nocontact_raw = (
-            pdists.mean() if edge.is_continuous else pdists.min()
-        ).detach().cpu().item()
+        nocontact_raw = pdists.mean().detach().cpu().item()
         metrics.append(
             {
                 "node_a": edge.node_a.raw_node,
                 "node_b": edge.node_b.raw_node,
                 "moving_entity_name": edge.moving_node.entity_name,
                 "moving_part_name": edge.moving_node.part_name,
+                "moving_segment_id": edge.moving_segment_id,
                 "moving_segment_name": edge.moving_segment_name,
                 "fixed_entity_name": edge.fixed_node.entity_name,
                 "fixed_part_name": edge.fixed_node.part_name,
                 "reduction": edge.reduction,
-                "is_continuous": bool(edge.is_continuous),
                 "nocontact_raw": float(nocontact_raw),
                 "nocontact_distance_m": float(math.sqrt(max(nocontact_raw, 0.0))),
             }
@@ -835,7 +1927,7 @@ def compute_visible_behind_fraction(
     front_margin_m: float,
 ) -> dict[str, float]:
     sampled = verts_camera[mask_vertex_ids]
-    uv = base.project_points_np(sampled, intrinsics)
+    uv = project_points_np(sampled, intrinsics)
     z = sampled[:, 2]
     ui = np.round(uv[:, 0]).astype(np.int64)
     vi = np.round(uv[:, 1]).astype(np.int64)
@@ -870,8 +1962,8 @@ def optimize_track(
     scene_depth: np.ndarray,
     contact_edges: list[DynamicContactEdge],
     floor_edges: list[DynamicContactEdge],
-    target_sdf_grid: base.SDFGrid | None,
-    floor_sdf_grid: base.SDFGrid | None,
+    target_sdf_grid: SDFGrid | None,
+    floor_sdf_grid: SDFGrid | None,
     intrinsics: np.ndarray,
     width: int,
     height: int,
@@ -1010,26 +2102,26 @@ def optimize_track(
 def main() -> None:
     args = parse_args()
     defaults = build_default_paths(args.video_name)
-    generated_root = base.resolve_path(args.generated_root, defaults["generated_root"])
-    selection_json_path = base.resolve_path(args.selection_json, defaults["selection_json"])
-    input_pag_json_path = base.resolve_path(args.input_pag_json, defaults["input_pag_json"])
-    segment_root = base.resolve_path(args.segment_root, defaults["segment_root"])
-    human_motion_root = base.resolve_path(args.human_motion_root, defaults["human_motion_root"])
+    generated_root = resolve_path(args.generated_root, defaults["generated_root"])
+    selection_json_path = resolve_path(args.selection_json, defaults["selection_json"])
+    input_pag_json_path = resolve_path(args.input_pag_json, defaults["input_pag_json"])
+    segment_root = resolve_path(args.segment_root, defaults["segment_root"])
+    human_motion_root = resolve_path(args.human_motion_root, defaults["human_motion_root"])
     pag_json_path = (
         Path(args.pag_json).resolve()
         if args.pag_json is not None
-        else base.find_pag_json(defaults["pag_root"])
+        else find_pag_json(defaults["pag_root"])
     )
-    smpl_seg_json_path = base.resolve_path(args.smpl_seg_json, defaults["smpl_seg_json"])
-    smpl_folder = base.resolve_path(args.smpl_folder, defaults["smpl_folder"])
-    output_root = base.ensure_dir(base.resolve_path(args.output_root, defaults["output_root"]))
-    scene_root = base.ensure_dir(output_root / "scene")
-    scene_depth_dir = base.ensure_dir(scene_root / "depth")
-    scene_target_dir = base.ensure_dir(scene_root / "target")
-    debug_root = base.ensure_dir(output_root / "debug")
+    smpl_seg_json_path = resolve_path(args.smpl_seg_json, defaults["smpl_seg_json"])
+    smpl_folder = resolve_path(args.smpl_folder, defaults["smpl_folder"])
+    output_root = ensure_dir(resolve_path(args.output_root, defaults["output_root"]))
+    scene_root = ensure_dir(output_root / "scene")
+    scene_depth_dir = ensure_dir(scene_root / "depth")
+    scene_target_dir = ensure_dir(scene_root / "target")
+    debug_root = ensure_dir(output_root / "debug")
     summary_json_path = output_root / "alignment_summary.json"
-    scannet_root = base.resolve_scannet_root(SCRIPT_DIR, args.scannet_root)
-    device = base.parse_device(args.device)
+    scannet_root = resolve_scannet_root(SCRIPT_DIR, args.scannet_root)
+    device = parse_device(args.device)
 
     (
         camera_payload,
@@ -1038,32 +2130,32 @@ def main() -> None:
         translation_world_to_camera,
         width,
         height,
-    ) = base.load_camera_payload(generated_root / "resized_camera.json")
+    ) = load_camera_payload(generated_root / "resized_camera.json")
     first_frame_path = generated_root / "first_frames_resized" / "frame_00.png"
     if not first_frame_path.exists():
         raise FileNotFoundError(f"Generated first frame not found: {first_frame_path}")
-    camera_ctx = base.build_identity_camera(
+    camera_ctx = build_identity_camera(
         intrinsics=intrinsics,
         width=width,
         height=height,
         device=device,
     )
 
-    input_payload = base.load_json(input_pag_json_path)
-    selection_payload = base.load_json(selection_json_path)
-    pag_payload = base.load_json(pag_json_path)
-    body_segments, contact_segments = base.load_smpl_segments(smpl_seg_json_path)
+    input_payload = load_json(input_pag_json_path)
+    selection_payload = load_json(selection_json_path)
+    pag_payload = load_json(pag_json_path)
+    segment_catalog = load_smpl_segment_catalog(smpl_seg_json_path)
     scene_id = input_payload["scene_context"]["scene_id"]
-    scene_paths = base.resolve_scene_paths(scannet_root, scene_id)
+    scene_paths = resolve_scene_paths(scannet_root, scene_id)
 
     print(f"Loading ScanNet scene mesh from: {scene_paths['mesh_path']}")
-    scene_verts_world, scene_faces = base.load_mesh(scene_paths["mesh_path"])
-    scene_verts_camera = base.transform_world_to_camera(
+    scene_verts_world, scene_faces = load_mesh(scene_paths["mesh_path"])
+    scene_verts_camera = transform_world_to_camera(
         scene_verts_world,
         rotation_world_to_camera=rotation_world_to_camera,
         translation_world_to_camera=translation_world_to_camera,
     )
-    scene_faces_in_view = base.filter_faces_to_camera_view(
+    scene_faces_in_view = filter_faces_to_camera_view(
         verts_camera=scene_verts_camera,
         faces=scene_faces,
         intrinsics=intrinsics,
@@ -1072,25 +2164,25 @@ def main() -> None:
         max_depth_m=20.0,
         border_px=96.0,
     )
-    scene_verts_camera_render, scene_faces_render = base.compact_mesh(
+    scene_verts_camera_render, scene_faces_render = compact_mesh(
         scene_verts_camera, scene_faces_in_view
     )
     if scene_faces_render.shape[0] == 0:
         raise RuntimeError("No scene faces remained after view-frustum filtering.")
 
-    scene_depth, _, _ = base.rasterize_depth_and_mask(
+    scene_depth, _, _ = rasterize_depth_and_mask(
         scene_verts_camera_render,
         scene_faces_render,
         camera_ctx=camera_ctx,
         device=device,
     )
     np.save(scene_depth_dir / "scene_depth.npy", scene_depth.astype(np.float32))
-    base.save_depth_visualization(scene_depth_dir / "scene_depth_vis.png", scene_depth)
+    save_depth_visualization(scene_depth_dir / "scene_depth_vis.png", scene_depth)
 
-    segments_payload = base.load_json(scene_paths["segments_path"])
-    anno_payload = base.load_json(scene_paths["segments_anno_path"])
+    segments_payload = load_json(scene_paths["segments_path"])
+    anno_payload = load_json(scene_paths["segments_anno_path"])
     seg_indices = np.asarray(segments_payload["segIndices"], dtype=np.int64)
-    candidate_faces, face_instance_ids, instance_meta = base.build_candidate_instances(
+    candidate_faces, face_instance_ids, instance_meta = build_candidate_instances(
         mesh_faces=scene_faces,
         seg_indices=seg_indices,
         seg_groups=anno_payload["segGroups"],
@@ -1106,22 +2198,22 @@ def main() -> None:
     target_faces = candidate_faces[face_instance_ids == target_instance_id]
     if target_faces.shape[0] == 0:
         raise RuntimeError(f"No faces found for target instance {target_instance_id}.")
-    target_verts_camera, target_faces_compact = base.compact_mesh(
+    target_verts_camera, target_faces_compact = compact_mesh(
         scene_verts_camera, target_faces
     )
-    target_sdf_grid = base.build_sdf_grid(
+    target_sdf_grid = build_sdf_grid(
         target_verts_camera,
         target_faces_compact,
         resolution=int(args.sdf_resolution),
         device=device,
     )
-    target_surface_samples = base.sample_mesh_surface_points(
+    target_surface_samples = sample_mesh_surface_points(
         verts=target_verts_camera,
         faces=target_faces_compact,
         num_samples=int(args.target_surface_samples),
         seed=int(args.seed),
     )
-    target_points_visible, target_visible_stats = base.build_visible_subset(
+    target_points_visible, target_visible_stats = build_visible_subset(
         sampled_points=target_surface_samples,
         mesh_verts=target_verts_camera,
         mesh_faces=target_faces_compact,
@@ -1130,35 +2222,35 @@ def main() -> None:
         visible_tol_m=float(args.visible_tol_m),
     )
     np.save(scene_target_dir / "target_surface_visible_samples.npy", target_points_visible)
-    base.write_point_cloud_ply(
+    write_point_cloud_ply(
         scene_target_dir / "target_surface_visible_samples.ply",
         target_points_visible.astype(np.float32),
     )
 
-    floor_faces = base.build_faces_for_labels(
+    floor_faces = build_faces_for_labels(
         mesh_faces=scene_faces,
         seg_indices=seg_indices,
         seg_groups=anno_payload["segGroups"],
         labels={"floor"},
     )
-    floor_sdf_grid: base.SDFGrid | None = None
+    floor_sdf_grid: SDFGrid | None = None
     floor_points_visible = np.zeros((0, 3), dtype=np.float32)
     if floor_faces.shape[0] > 0:
-        floor_verts_camera, floor_faces_compact = base.compact_mesh(scene_verts_camera, floor_faces)
+        floor_verts_camera, floor_faces_compact = compact_mesh(scene_verts_camera, floor_faces)
         if floor_faces_compact.shape[0] > 0:
-            floor_sdf_grid = base.build_sdf_grid(
+            floor_sdf_grid = build_sdf_grid(
                 floor_verts_camera,
                 floor_faces_compact,
                 resolution=int(args.sdf_resolution),
                 device=device,
             )
-            floor_surface_samples = base.sample_mesh_surface_points(
+            floor_surface_samples = sample_mesh_surface_points(
                 verts=floor_verts_camera,
                 faces=floor_faces_compact,
                 num_samples=int(args.target_surface_samples),
                 seed=int(args.seed),
             )
-            floor_points_visible, _ = base.build_visible_subset(
+            floor_points_visible, _ = build_visible_subset(
                 sampled_points=floor_surface_samples,
                 mesh_verts=floor_verts_camera,
                 mesh_faces=floor_faces_compact,
@@ -1167,32 +2259,7 @@ def main() -> None:
                 visible_tol_m=float(args.visible_tol_m),
             )
 
-    target_depth, target_mask_rendered, _ = base.rasterize_depth_and_mask(
-        target_verts_camera,
-        target_faces_compact,
-        camera_ctx=camera_ctx,
-        device=device,
-    )
-    stored_target_mask = base.build_observed_projected_target_mask(
-        selection_json_path=selection_json_path,
-        width=width,
-        height=height,
-    )
-    target_mask_overlap = base.compute_binary_overlap(
-        stored_target_mask, target_mask_rendered
-    )
-    target_overlay = base.render_target_overlay(
-        background_bgr=base.read_bgr(first_frame_path),
-        mask=target_mask_rendered,
-        lines=[
-            f"Target instance {target_instance_id}: {target_meta['label']}",
-            f"Rendered vs stored IoU: {target_mask_overlap['iou']:.3f}",
-            f"Rendered vs stored Dice: {target_mask_overlap['dice']:.3f}",
-        ],
-    )
-    cv2.imwrite(str(scene_target_dir / "target_projection_overlay.png"), target_overlay)
-
-    tracks = base.discover_human_tracks(
+    tracks = discover_human_tracks(
         segment_root=segment_root,
         human_motion_root=human_motion_root,
     )
@@ -1204,21 +2271,21 @@ def main() -> None:
 
     for track in tracks:
         print(f"\nProcessing human track: {track.name}")
-        track_output_root = base.ensure_dir(output_root / track.name)
-        meshes_root = base.ensure_dir(track_output_root / "meshes")
-        debug_track_root = base.ensure_dir(debug_root / track.name)
-        overlay_dir = base.ensure_dir(debug_track_root / "overlays")
-        csv_dir = base.ensure_dir(debug_track_root / "csv")
-        plot_dir = base.ensure_dir(debug_track_root / "plots" / "iter")
-        params_dir = base.ensure_dir(debug_track_root / "params")
+        track_output_root = ensure_dir(output_root / track.name)
+        meshes_root = ensure_dir(track_output_root / "meshes")
+        debug_track_root = ensure_dir(debug_root / track.name)
+        overlay_dir = ensure_dir(debug_track_root / "overlays")
+        csv_dir = ensure_dir(debug_track_root / "csv")
+        plot_dir = ensure_dir(debug_track_root / "plots" / "iter")
+        params_dir = ensure_dir(debug_track_root / "params")
 
-        human_mask = base.load_mask(track.mask_dir / "frame_0000.png")
+        human_mask = load_mask(track.mask_dir / "frame_0000.png")
         if human_mask.shape != (height, width):
             raise ValueError(
                 f"Human mask shape mismatch for {track.name}: "
                 f"got {human_mask.shape[::-1]}, expected {(width, height)}"
             )
-        obs_mask_pixels = base.sample_mask_pixels(
+        obs_mask_pixels = sample_mask_pixels(
             mask=human_mask,
             max_points=int(args.mask_points),
             seed=int(args.seed),
@@ -1241,13 +2308,12 @@ def main() -> None:
             pag_payload=pag_payload,
             track_name=track.name,
             target_object_name=selection_payload["target_selection"]["object"],
-            body_segments=body_segments,
-            contact_segments=contact_segments,
+            segment_catalog=segment_catalog,
             target_points_visible=target_points_visible,
         )
         floor_edges = build_dynamic_floor_edges(
             track_name=track.name,
-            body_segments=body_segments,
+            segment_catalog=segment_catalog,
             floor_points_visible=floor_points_visible,
         )
         init_params_np = {
@@ -1255,15 +2321,15 @@ def main() -> None:
             for key, value in init_params_torch.items()
         }
 
-        init_depth, init_mask_rendered, _ = base.rasterize_depth_and_mask(
+        init_depth, init_mask_rendered, _ = rasterize_depth_and_mask(
             init_verts_camera,
             faces_np,
             camera_ctx=camera_ctx,
             device=device,
         )
-        init_mask_overlap = base.compute_binary_overlap(human_mask, init_mask_rendered)
-        init_overlay = base.render_mask_overlay(
-            background_bgr=base.read_bgr(first_frame_path),
+        init_mask_overlap = compute_binary_overlap(human_mask, init_mask_rendered)
+        init_overlay = render_mask_overlay(
+            background_bgr=read_bgr(first_frame_path),
             observed_mask=human_mask,
             rendered_mask=init_mask_rendered,
             title_lines=[
@@ -1273,7 +2339,7 @@ def main() -> None:
             ],
         )
         cv2.imwrite(str(overlay_dir / "frame_0000_init_mask_overlay.png"), init_overlay)
-        base.save_depth_visualization(overlay_dir / "frame_0000_init_depth_vis.png", init_depth)
+        save_depth_visualization(overlay_dir / "frame_0000_init_depth_vis.png", init_depth)
         init_contact_metrics = compute_contact_metrics(init_verts_camera, contact_edges + floor_edges)
         init_behind = compute_visible_behind_fraction(
             verts_camera=init_verts_camera,
@@ -1306,15 +2372,15 @@ def main() -> None:
         )
 
         final_verts_camera = optimization["verts_camera"]
-        final_depth, final_mask_rendered, _ = base.rasterize_depth_and_mask(
+        final_depth, final_mask_rendered, _ = rasterize_depth_and_mask(
             final_verts_camera,
             faces_np,
             camera_ctx=camera_ctx,
             device=device,
         )
-        final_mask_overlap = base.compute_binary_overlap(human_mask, final_mask_rendered)
-        final_overlay = base.render_mask_overlay(
-            background_bgr=base.read_bgr(first_frame_path),
+        final_mask_overlap = compute_binary_overlap(human_mask, final_mask_rendered)
+        final_overlay = render_mask_overlay(
+            background_bgr=read_bgr(first_frame_path),
             observed_mask=human_mask,
             rendered_mask=final_mask_rendered,
             title_lines=[
@@ -1324,15 +2390,15 @@ def main() -> None:
             ],
         )
         cv2.imwrite(str(overlay_dir / "frame_0000_final_mask_overlay.png"), final_overlay)
-        base.save_depth_visualization(overlay_dir / "frame_0000_final_depth_vis.png", final_depth)
+        save_depth_visualization(overlay_dir / "frame_0000_final_depth_vis.png", final_depth)
 
-        final_verts_world = base.transform_camera_to_world(
+        final_verts_world = transform_camera_to_world(
             final_verts_camera,
             rotation_world_to_camera=rotation_world_to_camera,
             translation_world_to_camera=translation_world_to_camera,
         )
-        base.write_ascii_ply(meshes_root / "frame_0000_camera.ply", final_verts_camera, faces_np)
-        base.write_ascii_ply(meshes_root / "frame_0000_world.ply", final_verts_world, faces_np)
+        write_ascii_ply(meshes_root / "frame_0000_camera.ply", final_verts_camera, faces_np)
+        write_ascii_ply(meshes_root / "frame_0000_world.ply", final_verts_world, faces_np)
 
         optimized_params_payload = {
             "transl": optimization["transl"].tolist(),
@@ -1346,12 +2412,12 @@ def main() -> None:
 
         iter_metrics_csv = csv_dir / "iter_metrics.csv"
         final_loss_summary_csv = csv_dir / "final_loss_summary.csv"
-        base.save_csv_rows(iter_metrics_csv, optimization["iter_rows"])
-        base.save_csv_rows(
+        save_csv_rows(iter_metrics_csv, optimization["iter_rows"])
+        save_csv_rows(
             final_loss_summary_csv,
             [build_final_loss_summary_row(optimization["final_iter"], optimization["final_losses"])],
         )
-        base.save_loss_plot_tree(
+        save_loss_plot_tree(
             plot_dir,
             optimization["iter_rows"],
             x_key="iter",
@@ -1404,7 +2470,7 @@ def main() -> None:
             }
         )
 
-    base.save_json(
+    save_json(
         summary_json_path,
         {
             "video_name": args.video_name,
@@ -1455,7 +2521,6 @@ def main() -> None:
             "scene": {
                 "target_instance_id": target_instance_id,
                 "target_label": target_meta["label"],
-                "target_mask_overlap": target_mask_overlap,
                 "target_visible_surface": target_visible_stats,
                 "num_floor_visible_points": int(floor_points_visible.shape[0]),
             },
