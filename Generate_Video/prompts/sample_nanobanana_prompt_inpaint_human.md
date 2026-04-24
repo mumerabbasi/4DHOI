@@ -14,4 +14,4 @@
 
 "interaction": "A person is lifting a brown small wooden table with both hands at an extremely slow pace. Their hands grip the tabletop firmly as they raise the object upwards. The arms extend steadily while the head and hips rise slowly. The person has short black hair and a neutral facial expression. They wear a gray shirt, blue jeans, and white sneakers. The scene takes place in a clean, spacious indoor area with white walls and a wooden floor."
 
-Scene Image + Target Mask
+Attachments: Scene Image + Target Mask
