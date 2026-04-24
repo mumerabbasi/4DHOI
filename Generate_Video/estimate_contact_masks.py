@@ -233,7 +233,7 @@ def main() -> None:
         "prompt": prompt,
     }
 
-    json_path = output_root / "contact_mask_prompt_payload.json"
+    json_path = output_root / "contact_mask.json"
     prompt_path = output_root / "contact_mask_prompt.md"
     save_json(json_path, payload)
     save_text(prompt_path, prompt)
