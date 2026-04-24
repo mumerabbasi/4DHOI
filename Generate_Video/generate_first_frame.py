@@ -111,7 +111,9 @@ def floor_to_multiple(value: int, divisor: int) -> int:
 
 def main() -> None:
     script_dir = Path(__file__).resolve().parent
-    default_system_prompt_path = (script_dir / "prompts" / "system_prompt_first_frame_generation.md").resolve()
+    default_system_prompt_path = (
+        script_dir / "prompts" / "system_prompt_first_frame_generation.md"
+    ).resolve()
 
     parser = argparse.ArgumentParser(
         description=(
