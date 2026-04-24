@@ -7,7 +7,7 @@
     "object": "small table"
   },
   "optimizer": {
-    "adam_iters": 1,
+    "adam_iters": 2000,
     "adam_lr": 0.001,
     "loss_weights": {
       "mask": 500.0,
@@ -21,7 +21,7 @@
         "start": 0.0,
         "end": 15.0
       },
-      "floor_intersect": {
+      "scene_intersect": {
         "start": 0.0,
         "end": 20.0
       },
@@ -65,8 +65,8 @@
     {
       "name": "person_1",
       "optimization": {
-        "final_iter": 1,
-        "final_total_loss": 13.549742698669434
+        "final_iter": 2000,
+        "final_total_loss": 6.17615270614624
       },
       "init_frame_0": {
         "mask_overlap": {
@@ -139,17 +139,17 @@
       },
       "final_frame_0": {
         "mask_overlap": {
-          "intersection_px": 17688,
-          "union_px": 22579,
+          "intersection_px": 14131,
+          "union_px": 23282,
           "area_a_px": 20896,
-          "area_b_px": 19371,
-          "iou": 0.7833827893175074,
-          "dice": 0.8785357737104825
+          "area_b_px": 16517,
+          "iou": 0.6069495747787991,
+          "dice": 0.7554058749632481
         },
         "behind_fraction": {
-          "num_visible_points": 2276,
-          "num_behind_points": 1,
-          "behind_fraction": 0.0004393673110720562
+          "num_visible_points": 2432,
+          "num_behind_points": 54,
+          "behind_fraction": 0.022203947368421052
         },
         "contact_edges": [
           {
@@ -162,8 +162,8 @@
             "fixed_entity_name": "small table",
             "fixed_part_name": "tabletop",
             "reduction": "mean",
-            "nocontact_raw": 0.0271307360380888,
-            "nocontact_distance_m": 0.16471410394404237
+            "nocontact_raw": 0.0007193991332314909,
+            "nocontact_distance_m": 0.026821616901885146
           },
           {
             "node_a": "small table, tabletop",
@@ -175,8 +175,8 @@
             "fixed_entity_name": "small table",
             "fixed_part_name": "tabletop",
             "reduction": "mean",
-            "nocontact_raw": 0.021333729848265648,
-            "nocontact_distance_m": 0.1460607060378172
+            "nocontact_raw": 0.0010073826415464282,
+            "nocontact_distance_m": 0.03173929176189078
           },
           {
             "node_a": "person_1.left_foot",
@@ -188,8 +188,8 @@
             "fixed_entity_name": "floor",
             "fixed_part_name": "floor",
             "reduction": "mean",
-            "nocontact_raw": 0.004271494224667549,
-            "nocontact_distance_m": 0.06535666932048748
+            "nocontact_raw": 0.0006833801744505763,
+            "nocontact_distance_m": 0.026141541164410646
           },
           {
             "node_a": "person_1.right_foot",
@@ -201,8 +201,8 @@
             "fixed_entity_name": "floor",
             "fixed_part_name": "floor",
             "reduction": "mean",
-            "nocontact_raw": 0.006684362422674894,
-            "nocontact_distance_m": 0.08175795021081983
+            "nocontact_raw": 0.0005722342757508159,
+            "nocontact_distance_m": 0.02392141876542476
           }
         ]
       },

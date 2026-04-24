@@ -43,7 +43,7 @@ LOSS_TERM_KEYS = (
     # "betas_gvhmr",
     # "scale_prior",
     "intersect",
-    # "floor_intersect",
+    "scene_intersect",
     "nocontact",
     "floor_nocontact",
     # "angle",
@@ -272,6 +272,17 @@ def build_faces_for_labels(
     if not face_batches:
         return np.zeros((0, 3), dtype=np.int64)
     return np.concatenate(face_batches, axis=0)
+
+
+def remove_faces(
+    faces: np.ndarray,
+    faces_to_remove: np.ndarray,
+) -> np.ndarray:
+    if faces_to_remove.shape[0] == 0:
+        return faces.copy()
+    remove_set = {tuple(face.tolist()) for face in faces_to_remove}
+    keep = [tuple(face.tolist()) not in remove_set for face in faces]
+    return faces[np.asarray(keep, dtype=bool)]
 
 
 def load_camera_payload(
@@ -1381,8 +1392,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--scale_prior_weight", type=float, default=25.0)
     parser.add_argument("--intersect_weight_start", type=float, default=0.0)
     parser.add_argument("--intersect_weight_end", type=float, default=15.0)
-    parser.add_argument("--floor_intersect_weight_start", type=float, default=0.0)
-    parser.add_argument("--floor_intersect_weight_end", type=float, default=20.0)
+    parser.add_argument(
+        "--scene_intersect_weight_start",
+        type=float,
+        default=0.0,
+    )
+    parser.add_argument(
+        "--scene_intersect_weight_end",
+        type=float,
+        default=20.0,
+    )
     parser.add_argument("--nocontact_weight_start", type=float, default=500.0)
     parser.add_argument("--nocontact_weight_end", type=float, default=500.0)
     parser.add_argument("--floor_nocontact_weight_start", type=float, default=200.0)
@@ -1421,9 +1440,9 @@ def get_loss_weights(
             iteration,
             total_iters,
         ),
-        "floor_intersect": linear_weight(
-            args.floor_intersect_weight_start,
-            args.floor_intersect_weight_end,
+        "scene_intersect": linear_weight(
+            args.scene_intersect_weight_start,
+            args.scene_intersect_weight_end,
             iteration,
             total_iters,
         ),
@@ -1739,6 +1758,15 @@ def compute_segment_penetration_loss(
     return torch.stack(values, dim=0).mean()
 
 
+def compute_body_penetration_loss(
+    current_vertices: torch.Tensor,
+    sdf_grid: SDFGrid | None,
+) -> torch.Tensor:
+    if sdf_grid is None:
+        return current_vertices.new_tensor(0.0)
+    return compute_penetration_loss(sdf_grid, current_vertices)
+
+
 def compute_loss_dict(
     params_module: FullBodySMPLXParams,
     smplx_layer: Any,
@@ -1750,7 +1778,7 @@ def compute_loss_dict(
     contact_edges: list[DynamicContactEdge],
     floor_edges: list[DynamicContactEdge],
     target_sdf_grid: SDFGrid | None,
-    floor_sdf_grid: SDFGrid | None,
+    scene_sdf_grid: SDFGrid | None,
     intrinsics_t: torch.Tensor,
     width: int,
     height: int,
@@ -1822,10 +1850,9 @@ def compute_loss_dict(
         edges=contact_edges,
         sdf_grid=target_sdf_grid,
     )
-    floor_intersect = compute_segment_penetration_loss(
+    scene_intersect = compute_body_penetration_loss(
         current_vertices=verts_camera,
-        edges=floor_edges,
-        sdf_grid=floor_sdf_grid,
+        sdf_grid=scene_sdf_grid,
     )
     nocontact = compute_contact_distance_loss(
         current_vertices=verts_camera,
@@ -1851,7 +1878,7 @@ def compute_loss_dict(
         + betas_gvhmr * float(weights["betas_gvhmr"])
         + scale_prior * float(weights["scale_prior"])
         + intersect * float(weights["intersect"])
-        + floor_intersect * float(weights["floor_intersect"])
+        + scene_intersect * float(weights["scene_intersect"])
         + nocontact * float(weights["nocontact"])
         + floor_nocontact * float(weights["floor_nocontact"])
         + angle * float(weights["angle"])
@@ -1867,7 +1894,7 @@ def compute_loss_dict(
         "betas_gvhmr": betas_gvhmr,
         "scale_prior": scale_prior,
         "intersect": intersect,
-        "floor_intersect": floor_intersect,
+        "scene_intersect": scene_intersect,
         "nocontact": nocontact,
         "floor_nocontact": floor_nocontact,
         "angle": angle,
@@ -1963,7 +1990,7 @@ def optimize_track(
     contact_edges: list[DynamicContactEdge],
     floor_edges: list[DynamicContactEdge],
     target_sdf_grid: SDFGrid | None,
-    floor_sdf_grid: SDFGrid | None,
+    scene_sdf_grid: SDFGrid | None,
     intrinsics: np.ndarray,
     width: int,
     height: int,
@@ -2033,7 +2060,7 @@ def optimize_track(
             contact_edges=contact_edges,
             floor_edges=floor_edges,
             target_sdf_grid=target_sdf_grid,
-            floor_sdf_grid=floor_sdf_grid,
+            scene_sdf_grid=scene_sdf_grid,
             intrinsics_t=intrinsics_t,
             width=width,
             height=height,
@@ -2072,7 +2099,7 @@ def optimize_track(
             contact_edges=contact_edges,
             floor_edges=floor_edges,
             target_sdf_grid=target_sdf_grid,
-            floor_sdf_grid=floor_sdf_grid,
+            scene_sdf_grid=scene_sdf_grid,
             intrinsics_t=intrinsics_t,
             width=width,
             height=height,
@@ -2207,6 +2234,19 @@ def main() -> None:
         resolution=int(args.sdf_resolution),
         device=device,
     )
+    scene_faces_without_target = remove_faces(scene_faces_in_view, target_faces)
+    scene_no_target_verts_camera, scene_no_target_faces_compact = compact_mesh(
+        scene_verts_camera,
+        scene_faces_without_target,
+    )
+    if scene_no_target_faces_compact.shape[0] == 0:
+        raise RuntimeError("No non-target scene faces remained for scene SDF.")
+    scene_sdf_grid = build_sdf_grid(
+        scene_no_target_verts_camera,
+        scene_no_target_faces_compact,
+        resolution=int(args.sdf_resolution),
+        device=device,
+    )
     target_surface_samples = sample_mesh_surface_points(
         verts=target_verts_camera,
         faces=target_faces_compact,
@@ -2233,17 +2273,10 @@ def main() -> None:
         seg_groups=anno_payload["segGroups"],
         labels={"floor"},
     )
-    floor_sdf_grid: SDFGrid | None = None
     floor_points_visible = np.zeros((0, 3), dtype=np.float32)
     if floor_faces.shape[0] > 0:
         floor_verts_camera, floor_faces_compact = compact_mesh(scene_verts_camera, floor_faces)
         if floor_faces_compact.shape[0] > 0:
-            floor_sdf_grid = build_sdf_grid(
-                floor_verts_camera,
-                floor_faces_compact,
-                resolution=int(args.sdf_resolution),
-                device=device,
-            )
             floor_surface_samples = sample_mesh_surface_points(
                 verts=floor_verts_camera,
                 faces=floor_faces_compact,
@@ -2362,7 +2395,7 @@ def main() -> None:
             contact_edges=contact_edges,
             floor_edges=floor_edges,
             target_sdf_grid=target_sdf_grid,
-            floor_sdf_grid=floor_sdf_grid,
+            scene_sdf_grid=scene_sdf_grid,
             intrinsics=intrinsics,
             width=width,
             height=height,
@@ -2491,9 +2524,9 @@ def main() -> None:
                         "start": float(args.intersect_weight_start),
                         "end": float(args.intersect_weight_end),
                     },
-                    "floor_intersect": {
-                        "start": float(args.floor_intersect_weight_start),
-                        "end": float(args.floor_intersect_weight_end),
+                    "scene_intersect": {
+                        "start": float(args.scene_intersect_weight_start),
+                        "end": float(args.scene_intersect_weight_end),
                     },
                     "nocontact": {
                         "start": float(args.nocontact_weight_start),

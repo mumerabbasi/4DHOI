@@ -21,7 +21,7 @@
         "start": 0.0,
         "end": 15.0
       },
-      "floor_intersect": {
+      "scene_intersect": {
         "start": 0.0,
         "end": 20.0
       },
@@ -66,7 +66,7 @@
       "name": "person_1",
       "optimization": {
         "final_iter": 2000,
-        "final_total_loss": 1.266957402229309
+        "final_total_loss": 6.488041400909424
       },
       "init_frame_0": {
         "mask_overlap": {
@@ -139,17 +139,17 @@
       },
       "final_frame_0": {
         "mask_overlap": {
-          "intersection_px": 14268,
-          "union_px": 24851,
+          "intersection_px": 15294,
+          "union_px": 25171,
           "area_a_px": 20729,
-          "area_b_px": 18390,
-          "iou": 0.5741418856384048,
-          "dice": 0.7294664996548992
+          "area_b_px": 19736,
+          "iou": 0.6076039887171746,
+          "dice": 0.7559125169899914
         },
         "behind_fraction": {
-          "num_visible_points": 1664,
-          "num_behind_points": 310,
-          "behind_fraction": 0.18629807692307693
+          "num_visible_points": 1600,
+          "num_behind_points": 285,
+          "behind_fraction": 0.178125
         },
         "contact_edges": [
           {
@@ -162,8 +162,8 @@
             "fixed_entity_name": "white trash bin",
             "fixed_part_name": "main container",
             "reduction": "mean",
-            "nocontact_raw": 0.0006424564053304493,
-            "nocontact_distance_m": 0.025346723759303674
+            "nocontact_raw": 0.0003754895005840808,
+            "nocontact_distance_m": 0.019377551459977622
           },
           {
             "node_a": "white trash bin, main container",
@@ -175,8 +175,8 @@
             "fixed_entity_name": "white trash bin",
             "fixed_part_name": "main container",
             "reduction": "mean",
-            "nocontact_raw": 0.0012889424106106162,
-            "nocontact_distance_m": 0.035901844111558064
+            "nocontact_raw": 0.001361408969387412,
+            "nocontact_distance_m": 0.03689727590740829
           },
           {
             "node_a": "person_1.left_foot",
@@ -188,8 +188,8 @@
             "fixed_entity_name": "floor",
             "fixed_part_name": "floor",
             "reduction": "mean",
-            "nocontact_raw": 0.000667310378048569,
-            "nocontact_distance_m": 0.025832351384428187
+            "nocontact_raw": 0.0004552189784590155,
+            "nocontact_distance_m": 0.021335861324516887
           },
           {
             "node_a": "person_1.right_foot",
@@ -201,8 +201,8 @@
             "fixed_entity_name": "floor",
             "fixed_part_name": "floor",
             "reduction": "mean",
-            "nocontact_raw": 0.0007117624045349658,
-            "nocontact_distance_m": 0.02667887562351468
+            "nocontact_raw": 0.0005630085943266749,
+            "nocontact_distance_m": 0.02372780213856047
           }
         ]
       },
