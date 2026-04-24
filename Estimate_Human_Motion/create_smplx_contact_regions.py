@@ -32,20 +32,6 @@ CONTACT_SEGMENT_ORDER = [
     "right_foot_bottom",
 ]
 VISUALIZATION_SEGMENT_ORDER = PROJECT_BODY_PART_ORDER + CONTACT_SEGMENT_ORDER
-PROJECT_BODY_PART_NODES = [
-    "left hand",
-    "right hand",
-    "left arm",
-    "right arm",
-    "left shoulder",
-    "right shoulder",
-    "left leg",
-    "right leg",
-    "left foot",
-    "right foot",
-    "head",
-    "hips",
-]
 PROJECT_SEGMENT_SOURCES = {
     "left_hand": ("leftHand", "leftHandIndex1"),
     "right_hand": ("rightHand", "rightHandIndex1"),
@@ -322,23 +308,9 @@ def build_payload(
         "mesh_type": "smplx",
         "vertex_count": int(rest_vertices.shape[0]),
         "face_count": int(len(model.faces)),
-        "source_segmentation_asset": str(DEFAULT_SMPLX_SEG_JSON.resolve()),
-        "project_body_part_order": PROJECT_BODY_PART_ORDER,
-        "project_body_part_nodes": PROJECT_BODY_PART_NODES,
-        "contact_segment_names": CONTACT_SEGMENT_ORDER,
-        "segments": {**source_segments, **project_segments},
-        "generation": {
-            "method": (
-                "project body parts are unions of the GVHMR SMPL-X coarse segmentation; "
-                "inner hands are the palm-facing subset of the full hand after trimming vertices "
-                "behind the wrist plane on the neutral SMPL-X template; foot bottoms are the "
-                "downward-facing subset of the full foot on the neutral SMPL-X template."
-            ),
-            "wrist_forward_cutoff": float(wrist_forward_cutoff),
-            "inner_normal_threshold": float(inner_normal_threshold),
-            "foot_bottom_normal_threshold": float(foot_bottom_normal_threshold),
-            "up_axis": [0.0, 1.0, 0.0],
-        },
+        "body_segment_ids": PROJECT_BODY_PART_ORDER,
+        "contact_segment_ids": CONTACT_SEGMENT_ORDER,
+        "segments": project_segments,
     }
     validate_payload(payload)
     return payload, rest_vertices
@@ -358,12 +330,12 @@ def validate_index_list(indices: list[int], vertex_count: int, name: str) -> Non
 def validate_payload(payload: dict) -> None:
     vertex_count = int(payload["vertex_count"])
     segments = payload["segments"]
-    for segment_name, indices in segments.items():
-        validate_index_list(indices, vertex_count, segment_name)
+    for segment_id, indices in segments.items():
+        validate_index_list(indices, vertex_count, segment_id)
 
-    for segment_name in PROJECT_BODY_PART_ORDER + CONTACT_SEGMENT_ORDER:
-        if segment_name not in segments:
-            raise RuntimeError(f"Missing project segment '{segment_name}'.")
+    for segment_id in PROJECT_BODY_PART_ORDER + CONTACT_SEGMENT_ORDER:
+        if segment_id not in segments:
+            raise RuntimeError(f"Missing project segment '{segment_id}'.")
 
     for side in ("left", "right"):
         full_set = set(segments[f"{side}_hand"])
