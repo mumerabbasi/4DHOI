@@ -36,18 +36,17 @@ except ImportError:
 
 LOSS_TERM_KEYS = (
     "mask",
-    # "front",
-    # "root_trans_gvhmr",
-    # "root_orient_gvhmr",
-    # "pose_gvhmr",
-    # "betas_gvhmr",
-    # "scale_prior",
+    "root_trans_gvhmr",
+    "root_orient_gvhmr",
+    "pose_gvhmr",
+    "betas_gvhmr",
+    "scale_prior",
     "intersect",
     "scene_intersect",
     "nocontact",
     "floor_nocontact",
-    # "angle",
-    # "self_intersect",
+    "angle",
+    "self_intersect",
 )
 CONTACT_SEGMENT_BY_BODY_SEGMENT = {
     "left_hand": "left_hand_inner",
@@ -1043,27 +1042,6 @@ def min_distances_chunked(
     return torch.cat(best_chunks, dim=0)
 
 
-def sample_image_bilinear(
-    image_hw: torch.Tensor,
-    uv_pixels: torch.Tensor,
-    width: int,
-    height: int,
-) -> torch.Tensor:
-    if uv_pixels.shape[0] == 0:
-        return torch.zeros((0,), device=image_hw.device, dtype=image_hw.dtype)
-    x_norm = (2.0 * uv_pixels[:, 0] / max(width - 1, 1)) - 1.0
-    y_norm = (2.0 * uv_pixels[:, 1] / max(height - 1, 1)) - 1.0
-    grid = torch.stack([x_norm, y_norm], dim=1).view(1, -1, 1, 2)
-    sampled = F.grid_sample(
-        image_hw[None, None],
-        grid,
-        mode="bilinear",
-        padding_mode="zeros",
-        align_corners=True,
-    )
-    return sampled.view(-1)
-
-
 def project_points_torch(points: torch.Tensor,
                          intrinsics: torch.Tensor) -> torch.Tensor:
     z = torch.clamp(points[:, 2], min=1e-6)
@@ -1146,6 +1124,8 @@ CONTACT_PART_PALETTE_INDEX: dict[str, int] = {
     "left_foot": 3,
 }
 BILATERAL_SWAP_MIN_IMPROVEMENT_M = 0.02
+CONTACT_SURFACE_SAMPLES_PER_EDGE = 2048
+CONTACT_SURFACE_SAMPLE_SEED = 17017
 
 
 def palette_color_for_edge(index: int) -> tuple[int, int, int]:
@@ -1367,6 +1347,57 @@ def face_set_to_unique_vertex_ids(
         return np.zeros((0,), dtype=np.int64)
     selected_faces = target_faces_compact[face_indices.astype(np.int64)]
     return np.unique(selected_faces.reshape(-1)).astype(np.int64)
+
+
+def sample_face_set_surface_points(
+    face_indices: np.ndarray,
+    verts: np.ndarray,
+    faces: np.ndarray,
+    num_samples: int,
+    seed: int,
+) -> np.ndarray:
+    if face_indices.size == 0:
+        return np.zeros((0, 3), dtype=np.float32)
+    if int(num_samples) <= 0:
+        raise ValueError("num_samples must be > 0")
+
+    selected_faces = faces[face_indices.astype(np.int64)]
+    triangles = verts[selected_faces]
+    v0 = triangles[:, 0, :]
+    v1 = triangles[:, 1, :]
+    v2 = triangles[:, 2, :]
+    areas = 0.5 * np.linalg.norm(np.cross(v1 - v0, v2 - v0), axis=1)
+    positive = np.isfinite(areas) & (areas > 1e-8)
+    rng = np.random.default_rng(int(seed))
+
+    if not np.any(positive):
+        vertex_ids = np.unique(selected_faces.reshape(-1)).astype(np.int64)
+        chosen = rng.choice(vertex_ids, size=int(num_samples), replace=True)
+        return verts[chosen].astype(np.float32)
+
+    valid_triangles = triangles[positive]
+    weights = areas[positive]
+    weights = weights / float(weights.sum())
+    face_ids = rng.choice(
+        valid_triangles.shape[0],
+        size=int(num_samples),
+        replace=True,
+        p=weights,
+    )
+    tri = valid_triangles[face_ids]
+
+    r1 = rng.random(int(num_samples), dtype=np.float32)
+    r2 = rng.random(int(num_samples), dtype=np.float32)
+    sr1 = np.sqrt(r1)
+    w0 = 1.0 - sr1
+    w1 = sr1 * (1.0 - r2)
+    w2 = sr1 * r2
+    samples = (
+        w0[:, None] * tri[:, 0, :]
+        + w1[:, None] * tri[:, 1, :]
+        + w2[:, None] * tri[:, 2, :]
+    )
+    return samples.astype(np.float32)
 
 
 def save_static_snapshot_references(
@@ -1724,9 +1755,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mask_vertex_samples", type=int, default=3000)
     parser.add_argument("--adam_iters", type=int, default=2000)
     parser.add_argument("--adam_lr", type=float, default=1e-3)
-    parser.add_argument("--front_margin_m", type=float, default=0.03)
-    parser.add_argument("--mask_weight", type=float, default=10.0)  # Was 500 in original
-    parser.add_argument("--front_weight", type=float, default=1500.0)
+    parser.add_argument("--behind_margin_m", type=float, default=0.03)
+    parser.add_argument("--mask_weight", type=float, default=1)  # Was 500 in original
     parser.add_argument("--root_trans_gvhmr_weight", type=float, default=20.0)
     parser.add_argument("--root_orient_gvhmr_weight", type=float, default=20.0)
     parser.add_argument("--pose_gvhmr_weight", type=float, default=10.0)
@@ -1744,7 +1774,7 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=20.0,
     )
-    parser.add_argument("--nocontact_weight_start", type=float, default=500.0)
+    parser.add_argument("--nocontact_weight_start", type=float, default=500.0)  # original was 500
     parser.add_argument("--nocontact_weight_end", type=float, default=500.0)
     parser.add_argument("--floor_nocontact_weight_start", type=float, default=200.0)
     parser.add_argument("--floor_nocontact_weight_end", type=float, default=200.0)
@@ -1773,7 +1803,6 @@ def get_loss_weights(
 ) -> dict[str, float]:
     return {
         "mask": float(args.mask_weight),
-        "front": float(args.front_weight),
         "root_trans_gvhmr": float(args.root_trans_gvhmr_weight),
         "root_orient_gvhmr": float(args.root_orient_gvhmr_weight),
         "pose_gvhmr": float(args.pose_gvhmr_weight),
@@ -1894,6 +1923,7 @@ def build_dynamic_contact_edges(
     camera_ctx: IdentityCameraContext,
     device: torch.device,
     expand_rings: int,
+    surface_sample_seed: int,
     init_verts_camera: np.ndarray | None = None,
 ) -> list[DynamicContactEdge]:
     pag_edges = parse_pag_interaction_edges(pag_payload)
@@ -1975,14 +2005,23 @@ def build_dynamic_contact_edges(
                 f"Empty target vertex set for '{moving_part_name}' after "
                 f"expansion ({expand_rings} rings)."
             )
-        fixed_points_part = target_verts_camera[target_vertex_ids].astype(
-            np.float32
+        fixed_points_part = sample_face_set_surface_points(
+            expanded_face_ids,
+            verts=target_verts_camera,
+            faces=target_faces_compact,
+            num_samples=CONTACT_SURFACE_SAMPLES_PER_EDGE,
+            seed=(
+                CONTACT_SURFACE_SAMPLE_SEED
+                + int(surface_sample_seed)
+                + 97 * len(contact_edges)
+            ),
         )
         print(
             f"  contact edge '{moving_part_name}': "
             f"seed_faces={seed_face_ids.size} -> "
             f"expanded_faces={expanded_face_ids.size} "
-            f"target_vertices={target_vertex_ids.size}"
+            f"target_vertices={target_vertex_ids.size} "
+            f"target_surface_points={fixed_points_part.shape[0]}"
         )
 
         contact_edges.append(
@@ -2024,6 +2063,7 @@ def build_dynamic_contact_edges(
             f"'{edge.fixed_node.raw_node}': "
             f"human_vertices={edge.moving_vertex_ids.size} "
             f"target_vertices={target_vertex_count} "
+            f"target_surface_points={edge.fixed_points.shape[0]} "
             f"color_rgb={rgb}"
         )
     return contact_edges
@@ -2187,8 +2227,6 @@ def compute_loss_dict(
     faces_t: torch.Tensor,
     mask_vertex_ids_t: torch.Tensor,
     obs_mask_pixels_norm_t: torch.Tensor,
-    human_mask_t: torch.Tensor,
-    scene_depth_t: torch.Tensor,
     contact_edges: list[DynamicContactEdge],
     floor_edges: list[DynamicContactEdge],
     target_sdf_grid: SDFGrid | None,
@@ -2199,7 +2237,6 @@ def compute_loss_dict(
     init_params: dict[str, torch.Tensor],
     angle_prior: SMPLXAnglePrior,
     self_intersection_helper: SelfIntersectionHelper | None,
-    front_margin_m: float,
     weights: dict[str, float],
 ) -> dict[str, torch.Tensor]:
     current = params_module(smplx_layer)
@@ -2226,29 +2263,6 @@ def compute_loss_dict(
         mask_loss = 0.5 * (d2_obs_to_model.mean() + d2_model_to_obs.mean())
     else:
         mask_loss = zero
-
-    depth_at_uv = sample_image_bilinear(
-        scene_depth_t, uv_pixels, width=width, height=height
-    )
-    mask_at_uv = sample_image_bilinear(
-        human_mask_t, uv_pixels, width=width, height=height
-    )
-    in_frame = (
-        (uv_pixels[:, 0] >= 0.0)
-        & (uv_pixels[:, 0] <= float(width - 1))
-        & (uv_pixels[:, 1] >= 0.0)
-        & (uv_pixels[:, 1] <= float(height - 1))
-        & (sampled_vertices[:, 2] > 1e-6)
-        & (depth_at_uv > 0.0)
-        & (mask_at_uv > 0.1)
-    )
-    if torch.any(in_frame):
-        penetration = sampled_vertices[in_frame, 2] - (
-            depth_at_uv[in_frame] - float(front_margin_m)
-        )
-        front_loss = torch.relu(penetration).pow(2).mean()
-    else:
-        front_loss = zero
 
     root_trans_gvhmr = torch.mean((current["transl"] - init_params["transl"]) ** 2)
     root_orient_gvhmr = compute_root_orient_loss(
@@ -2285,7 +2299,6 @@ def compute_loss_dict(
 
     total = (
         mask_loss * float(weights["mask"])
-        + front_loss * float(weights["front"])
         + root_trans_gvhmr * float(weights["root_trans_gvhmr"])
         + root_orient_gvhmr * float(weights["root_orient_gvhmr"])
         + pose_gvhmr * float(weights["pose_gvhmr"])
@@ -2301,7 +2314,6 @@ def compute_loss_dict(
     return {
         "total": total,
         "mask": mask_loss,
-        "front": front_loss,
         "root_trans_gvhmr": root_trans_gvhmr,
         "root_orient_gvhmr": root_orient_gvhmr,
         "pose_gvhmr": pose_gvhmr,
@@ -2367,26 +2379,24 @@ def compute_visible_behind_fraction(
     scene_depth: np.ndarray,
     human_mask: np.ndarray,
     mask_vertex_ids: np.ndarray,
-    front_margin_m: float,
+    depth_margin_m: float,
 ) -> dict[str, float]:
     sampled = verts_camera[mask_vertex_ids]
     uv = project_points_np(sampled, intrinsics)
     z = sampled[:, 2]
     ui = np.round(uv[:, 0]).astype(np.int64)
     vi = np.round(uv[:, 1]).astype(np.int64)
-    valid = (
-        (ui >= 0)
-        & (ui < width)
-        & (vi >= 0)
-        & (vi < height)
-        & (z > 1e-6)
-        & (scene_depth[vi, ui] > 0.0)
-        & human_mask[vi, ui]
-    )
+    in_bounds = (ui >= 0) & (ui < width) & (vi >= 0) & (vi < height)
+    depth_values = np.zeros(sampled.shape[0], dtype=scene_depth.dtype)
+    mask_values = np.zeros(sampled.shape[0], dtype=bool)
+    if np.any(in_bounds):
+        depth_values[in_bounds] = scene_depth[vi[in_bounds], ui[in_bounds]]
+        mask_values[in_bounds] = human_mask[vi[in_bounds], ui[in_bounds]] > 0
+    valid = in_bounds & (z > 1e-6) & (depth_values > 0.0) & mask_values
     behind = np.zeros(sampled.shape[0], dtype=bool)
     if np.any(valid):
         idx = np.nonzero(valid)[0]
-        behind[idx] = z[idx] > (scene_depth[vi[idx], ui[idx]] - float(front_margin_m))
+        behind[idx] = z[idx] > (scene_depth[vi[idx], ui[idx]] - float(depth_margin_m))
     num_valid = int(np.count_nonzero(valid))
     num_behind = int(np.count_nonzero(behind))
     return {
@@ -2401,8 +2411,6 @@ def optimize_track(
     faces_t: torch.Tensor,
     init_params_np: dict[str, np.ndarray],
     obs_mask_pixels: np.ndarray,
-    human_mask: np.ndarray,
-    scene_depth: np.ndarray,
     contact_edges: list[DynamicContactEdge],
     floor_edges: list[DynamicContactEdge],
     target_sdf_grid: SDFGrid | None,
@@ -2463,8 +2471,6 @@ def optimize_track(
     if obs_mask_pixels_norm_t.numel() > 0:
         obs_mask_pixels_norm_t[:, 0] /= max(float(width - 1), 1.0)
         obs_mask_pixels_norm_t[:, 1] /= max(float(height - 1), 1.0)
-    human_mask_t = torch.from_numpy(human_mask.astype(np.float32)).to(device)
-    scene_depth_t = torch.from_numpy(scene_depth.astype(np.float32)).to(device)
     intrinsics_t = torch.from_numpy(intrinsics.astype(np.float32)).to(device)
     mask_vertex_ids_t = torch.from_numpy(mask_vertex_ids.astype(np.int64)).to(device)
 
@@ -2483,8 +2489,6 @@ def optimize_track(
             faces_t=faces_t,
             mask_vertex_ids_t=mask_vertex_ids_t,
             obs_mask_pixels_norm_t=obs_mask_pixels_norm_t,
-            human_mask_t=human_mask_t,
-            scene_depth_t=scene_depth_t,
             contact_edges=contact_edges,
             floor_edges=floor_edges,
             target_sdf_grid=target_sdf_grid,
@@ -2495,7 +2499,6 @@ def optimize_track(
             init_params=init_params_t,
             angle_prior=angle_prior,
             self_intersection_helper=self_intersection_helper,
-            front_margin_m=float(args.front_margin_m),
             weights=weights,
         )
         losses["total"].backward()
@@ -2538,8 +2541,6 @@ def optimize_track(
             faces_t=faces_t,
             mask_vertex_ids_t=mask_vertex_ids_t,
             obs_mask_pixels_norm_t=obs_mask_pixels_norm_t,
-            human_mask_t=human_mask_t,
-            scene_depth_t=scene_depth_t,
             contact_edges=contact_edges,
             floor_edges=floor_edges,
             target_sdf_grid=target_sdf_grid,
@@ -2550,7 +2551,6 @@ def optimize_track(
             init_params=init_params_t,
             angle_prior=angle_prior,
             self_intersection_helper=self_intersection_helper,
-            front_margin_m=float(args.front_margin_m),
             weights=final_weights,
         )
         current = final_losses["current"]
@@ -2793,6 +2793,7 @@ def main() -> None:
             camera_ctx=camera_ctx,
             device=device,
             expand_rings=int(args.contact_region_expand_rings),
+            surface_sample_seed=int(args.seed),
             init_verts_camera=init_verts_camera,
         )
         save_static_snapshot_references(
@@ -2843,7 +2844,7 @@ def main() -> None:
             scene_depth=scene_depth,
             human_mask=human_mask,
             mask_vertex_ids=mask_vertex_ids,
-            front_margin_m=float(args.front_margin_m),
+            depth_margin_m=float(args.behind_margin_m),
         )
 
         optimization = optimize_track(
@@ -2851,8 +2852,6 @@ def main() -> None:
             faces_t=faces_t,
             init_params_np=init_params_np,
             obs_mask_pixels=obs_mask_pixels,
-            human_mask=human_mask,
-            scene_depth=scene_depth,
             contact_edges=contact_edges,
             floor_edges=floor_edges,
             target_sdf_grid=target_sdf_grid,
@@ -2935,7 +2934,7 @@ def main() -> None:
             scene_depth=scene_depth,
             human_mask=human_mask,
             mask_vertex_ids=mask_vertex_ids,
-            front_margin_m=float(args.front_margin_m),
+            depth_margin_m=float(args.behind_margin_m),
         )
 
         summary_tracks.append(
@@ -2980,7 +2979,6 @@ def main() -> None:
                 "adam_lr": float(args.adam_lr),
                 "loss_weights": {
                     "mask": float(args.mask_weight),
-                    "front": float(args.front_weight),
                     "root_trans_gvhmr": float(args.root_trans_gvhmr_weight),
                     "root_orient_gvhmr": float(args.root_orient_gvhmr_weight),
                     "pose_gvhmr": float(args.pose_gvhmr_weight),

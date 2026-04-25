@@ -112,6 +112,11 @@ Optimize for frame 0:
 - `betas`
 - `global_scale`
 
+## Current Findings
+
+- Disabling the global `scene_intersect` loss solved the head/neck rotation artifact. The current scene-global SDF is not reliable enough for the full room mesh, so this loss needs a better formulation before it should be used again.
+- The optimizer should prioritize moving the whole human toward the object before allowing large articulation changes. A staged root-first phase would likely make the interaction more natural because the hands can reach the contact region through body translation first, instead of overextending one arm.
+
 Do **not** optimize:
 
 - `left_hand_pose`
@@ -168,14 +173,14 @@ Optimize only:
 
 Keep:
 
-- strong mask / front anchoring
+- strong mask/root anchoring
 - strong root regularization to `GVHMR`
-- scene penetration losses on
 - semantic contact losses on but not too aggressive
 
 Purpose:
 
 - place the human near the correct scene support/object region before changing articulation
+- prefer whole-body translation toward the object before spending arm, neck, or spine degrees of freedom
 
 ### Phase 2: full-body scene fitting
 
@@ -216,11 +221,6 @@ These are weak anchors, not the main objective.
 
 - silhouette consistency with the generated first-frame human mask
 - keeps the optimized human from drifting too far from the visible person
-
-#### `L_front`
-
-- front-of-scene / depth consistency against the first-frame depth rendering
-- should be stronger than it is now because it prevents the body from moving behind visible surfaces
 
 #### Optional `L_joints2d`
 
@@ -425,7 +425,17 @@ Intuition:
 
 - weak penalty for penetration of the body with any non-target scene geometry
 
-This should be weaker than the semantic object/floor terms, but still present so the body does not solve one contact by crashing into a wall or table edge elsewhere.
+Current finding:
+
+- the existing full-scene SDF version should stay disabled for now
+- it incorrectly treats much of the human, including the head/neck, as inside the scene
+- this is likely because the ScanNet room mesh is not a clean watertight collision object
+
+Replacement direction:
+
+- restrict scene collision to meaningful surfaces and body parts
+- use floor/object/wall-specific losses rather than one global signed SDF
+- consider unsigned distance or local closest-surface constraints for non-watertight scene geometry
 
 ## Suggested Weighting Philosophy
 
@@ -437,7 +447,6 @@ High:
 - `L_pose_gvhmr`
 - `L_scale_prior`
 - `L_mask`
-- `L_front`
 
 Medium:
 
@@ -467,7 +476,6 @@ Increase:
 Lower but do not remove:
 
 - `L_mask`
-- `L_front`
 
 ## Concrete Repo Plan
 
