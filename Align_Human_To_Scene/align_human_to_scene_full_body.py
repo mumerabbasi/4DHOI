@@ -121,20 +121,12 @@ class SmplxSegmentCatalog:
             return segment_id
         return None
 
-    def get_body_indices(self, pag_part_name: str) -> np.ndarray | None:
-        segment_id = self.get_body_segment_id(pag_part_name)
-        return None if segment_id is None else self.get_indices(segment_id)
-
     def get_contact_segment_id(self, pag_part_name: str) -> str | None:
         body_segment_id = slugify_segment_name(pag_part_name)
         segment_id = CONTACT_SEGMENT_BY_BODY_SEGMENT.get(body_segment_id)
         if segment_id in self.contact_segment_ids:
             return segment_id
         return None
-
-    def get_contact_indices(self, pag_part_name: str) -> np.ndarray | None:
-        segment_id = self.get_contact_segment_id(pag_part_name)
-        return None if segment_id is None else self.get_indices(segment_id)
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -287,7 +279,7 @@ def remove_faces(
 
 def load_camera_payload(
     camera_path: Path,
-) -> tuple[dict[str, Any], np.ndarray, np.ndarray, np.ndarray, int, int]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, int, int]:
     payload = load_json(camera_path)
     intrinsics = np.asarray(payload["intrinsics"], dtype=np.float32)
     world_to_camera = np.asarray(
@@ -311,7 +303,6 @@ def load_camera_payload(
     rotation_world_to_camera = world_to_camera[:3, :3].astype(np.float32)
     translation_world_to_camera = world_to_camera[:3, 3].astype(np.float32)
     return (
-        payload,
         intrinsics,
         rotation_world_to_camera,
         translation_world_to_camera,
@@ -365,6 +356,11 @@ def build_shared_default_paths(video_name: str) -> dict[str, Path]:
         "output_root": SCRIPT_DIR /
         "output" /
         video_name,
+        "contact_masks_dir": PROJECT_DIR /
+        "Estimate_Contact_Region" /
+        "output" /
+        video_name /
+        "contact_masks",
     }
 
 
@@ -1096,17 +1092,361 @@ def write_ascii_ply(
             f.write(f"3 {int(face[0])} {int(face[1])} {int(face[2])}\n")
 
 
-def write_point_cloud_ply(path: Path, points: np.ndarray) -> None:
+def write_colored_ascii_ply(
+    path: Path,
+    vertices: np.ndarray,
+    faces: np.ndarray,
+    vertex_colors_uint8: np.ndarray,
+) -> None:
+    if vertex_colors_uint8.shape != (vertices.shape[0], 3):
+        raise ValueError(
+            "vertex_colors_uint8 must have shape (V, 3); got "
+            f"{vertex_colors_uint8.shape} for {vertices.shape[0]} vertices."
+        )
+    colors = vertex_colors_uint8.astype(np.uint8)
     with path.open("w", encoding="utf-8") as f:
         f.write("ply\n")
         f.write("format ascii 1.0\n")
-        f.write(f"element vertex {points.shape[0]}\n")
+        f.write(f"element vertex {len(vertices)}\n")
         f.write("property float x\n")
         f.write("property float y\n")
         f.write("property float z\n")
+        f.write("property uchar red\n")
+        f.write("property uchar green\n")
+        f.write("property uchar blue\n")
+        f.write(f"element face {len(faces)}\n")
+        f.write("property list uchar int vertex_indices\n")
         f.write("end_header\n")
-        for point in points:
-            f.write(f"{point[0]} {point[1]} {point[2]}\n")
+        for vertex, color in zip(vertices, colors):
+            f.write(
+                f"{vertex[0]} {vertex[1]} {vertex[2]} "
+                f"{int(color[0])} {int(color[1])} {int(color[2])}\n"
+            )
+        for face in faces:
+            f.write(f"3 {int(face[0])} {int(face[1])} {int(face[2])}\n")
+
+
+CONTACT_PALETTE_RGB: tuple[tuple[int, int, int], ...] = (
+    (220, 30, 30),    # red
+    (30, 180, 30),    # green
+    (30, 90, 230),    # blue
+    (220, 30, 220),   # magenta
+    (30, 200, 220),   # cyan
+    (240, 200, 30),   # yellow
+    (240, 130, 30),   # orange
+    (140, 60, 220),   # purple
+    (160, 220, 30),   # lime
+    (30, 200, 160),   # teal
+)
+
+CONTACT_PART_PALETTE_INDEX: dict[str, int] = {
+    "right_hand": 0,
+    "left_hand": 1,
+    "right_foot": 2,
+    "left_foot": 3,
+}
+BILATERAL_SWAP_MIN_IMPROVEMENT_M = 0.02
+
+
+def palette_color_for_edge(index: int) -> tuple[int, int, int]:
+    return CONTACT_PALETTE_RGB[index % len(CONTACT_PALETTE_RGB)]
+
+
+def assign_contact_palette_indices(contact_edges: list[DynamicContactEdge]) -> None:
+    used_indices: set[int] = set()
+    fallback_index = 0
+    for edge in contact_edges:
+        part_key = slugify_segment_name(edge.moving_part_name)
+        palette_index = CONTACT_PART_PALETTE_INDEX.get(part_key)
+        if palette_index is None:
+            while fallback_index in used_indices:
+                fallback_index += 1
+            palette_index = fallback_index
+        edge.palette_index = int(palette_index)
+        used_indices.add(int(palette_index))
+
+
+def _edge_centroid(points: np.ndarray) -> np.ndarray:
+    if points.size == 0:
+        return np.zeros((3,), dtype=np.float32)
+    return points.astype(np.float32).mean(axis=0)
+
+
+def _swap_target_region_assignment(
+    edge_a: DynamicContactEdge,
+    edge_b: DynamicContactEdge,
+) -> None:
+    (
+        edge_a.fixed_points,
+        edge_b.fixed_points,
+    ) = (
+        edge_b.fixed_points,
+        edge_a.fixed_points,
+    )
+    (
+        edge_a.target_face_ids,
+        edge_b.target_face_ids,
+    ) = (
+        edge_b.target_face_ids,
+        edge_a.target_face_ids,
+    )
+    (
+        edge_a.target_vertex_ids,
+        edge_b.target_vertex_ids,
+    ) = (
+        edge_b.target_vertex_ids,
+        edge_a.target_vertex_ids,
+    )
+
+
+def spatially_disambiguate_bilateral_contact_edges(
+    contact_edges: list[DynamicContactEdge],
+    init_verts_camera: np.ndarray | None,
+) -> None:
+    if init_verts_camera is None or len(contact_edges) < 2:
+        return
+
+    edge_by_key: dict[tuple[str, str, str], DynamicContactEdge] = {}
+    for edge in contact_edges:
+        part_tokens = normalize_label(edge.moving_part_name).split()
+        if len(part_tokens) < 2 or part_tokens[0] not in {"left", "right"}:
+            continue
+        side = part_tokens[0]
+        base_part = " ".join(part_tokens[1:])
+        group_key = (
+            normalize_label(edge.fixed_node.raw_node),
+            base_part,
+            side,
+        )
+        edge_by_key[group_key] = edge
+
+    checked_pairs: set[tuple[str, str]] = set()
+    for fixed_node_key, base_part, side in list(edge_by_key):
+        if side != "left":
+            continue
+        pair_key = (fixed_node_key, base_part)
+        if pair_key in checked_pairs:
+            continue
+        checked_pairs.add(pair_key)
+
+        left_edge = edge_by_key.get((fixed_node_key, base_part, "left"))
+        right_edge = edge_by_key.get((fixed_node_key, base_part, "right"))
+        if left_edge is None or right_edge is None:
+            continue
+
+        left_moving = _edge_centroid(
+            init_verts_camera[left_edge.moving_vertex_ids]
+        )
+        right_moving = _edge_centroid(
+            init_verts_camera[right_edge.moving_vertex_ids]
+        )
+        left_fixed = _edge_centroid(left_edge.fixed_points)
+        right_fixed = _edge_centroid(right_edge.fixed_points)
+
+        current_cost = float(
+            np.linalg.norm(left_moving - left_fixed)
+            + np.linalg.norm(right_moving - right_fixed)
+        )
+        swapped_cost = float(
+            np.linalg.norm(left_moving - right_fixed)
+            + np.linalg.norm(right_moving - left_fixed)
+        )
+        if swapped_cost + BILATERAL_SWAP_MIN_IMPROVEMENT_M >= current_cost:
+            continue
+
+        _swap_target_region_assignment(left_edge, right_edge)
+        print(
+            "  spatially swapped bilateral contact regions for "
+            f"{base_part}: current_cost={current_cost:.4f}, "
+            f"swapped_cost={swapped_cost:.4f}"
+        )
+
+
+def load_contact_mask_for_part(
+    contact_masks_dir: Path,
+    human_part: str,
+    expected_hw: tuple[int, int],
+) -> np.ndarray:
+    slug = slugify_segment_name(human_part)
+    path = (contact_masks_dir / f"{slug}.png").resolve()
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Missing contact mask for human part '{human_part}': "
+            f"expected file '{path}'."
+        )
+    mask = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+    if mask is None:
+        raise IOError(f"Failed to read contact mask: {path}")
+    if mask.shape != expected_hw:
+        raise ValueError(
+            f"Contact mask shape mismatch for '{human_part}' at {path}: "
+            f"got {mask.shape[::-1]}, expected {expected_hw[::-1]}"
+        )
+    return mask > 127
+
+
+def project_mask_to_target_faces(
+    mask_bool: np.ndarray,
+    target_verts_camera: np.ndarray,
+    target_faces_compact: np.ndarray,
+    camera_ctx: IdentityCameraContext,
+    device: torch.device,
+) -> np.ndarray:
+    _, _, pix_to_face = rasterize_depth_and_mask(
+        target_verts_camera,
+        target_faces_compact,
+        camera_ctx=camera_ctx,
+        device=device,
+    )
+    if pix_to_face.shape != mask_bool.shape:
+        raise ValueError(
+            "Rasterized pix_to_face and contact mask shapes disagree: "
+            f"pix_to_face={pix_to_face.shape}, mask={mask_bool.shape}"
+        )
+    selected = pix_to_face[mask_bool & (pix_to_face >= 0)]
+    if selected.size == 0:
+        return np.zeros((0,), dtype=np.int64)
+    return np.unique(selected.astype(np.int64))
+
+
+def expand_face_set_along_surface(
+    face_indices: np.ndarray,
+    target_verts_camera: np.ndarray,
+    target_faces_compact: np.ndarray,
+    num_rings: int,
+) -> np.ndarray:
+    if face_indices.size == 0 or num_rings <= 0:
+        return np.unique(face_indices.astype(np.int64))
+
+    mesh = trimesh.Trimesh(
+        vertices=target_verts_camera,
+        faces=target_faces_compact,
+        process=False,
+    )
+    adjacency = np.asarray(mesh.face_adjacency, dtype=np.int64)
+    if adjacency.size == 0:
+        return np.unique(face_indices.astype(np.int64))
+
+    num_faces = int(target_faces_compact.shape[0])
+    neighbor_offsets = np.zeros(num_faces + 1, dtype=np.int64)
+    pairs = np.concatenate([adjacency, adjacency[:, ::-1]], axis=0)
+    order = np.argsort(pairs[:, 0], kind="stable")
+    pairs_sorted = pairs[order]
+    np.add.at(neighbor_offsets, pairs_sorted[:, 0] + 1, 1)
+    np.cumsum(neighbor_offsets, out=neighbor_offsets)
+    neighbor_flat = pairs_sorted[:, 1]
+
+    in_set = np.zeros(num_faces, dtype=bool)
+    in_set[face_indices.astype(np.int64)] = True
+    frontier = face_indices.astype(np.int64)
+    for _ in range(int(num_rings)):
+        if frontier.size == 0:
+            break
+        starts = neighbor_offsets[frontier]
+        ends = neighbor_offsets[frontier + 1]
+        candidate = np.concatenate(
+            [neighbor_flat[s:e] for s, e in zip(starts, ends)]
+        ) if frontier.size > 0 else np.zeros((0,), dtype=np.int64)
+        if candidate.size == 0:
+            break
+        new_mask = ~in_set[candidate]
+        new_faces = np.unique(candidate[new_mask])
+        if new_faces.size == 0:
+            break
+        in_set[new_faces] = True
+        frontier = new_faces
+
+    return np.flatnonzero(in_set).astype(np.int64)
+
+
+def face_set_to_unique_vertex_ids(
+    face_indices: np.ndarray,
+    target_faces_compact: np.ndarray,
+) -> np.ndarray:
+    if face_indices.size == 0:
+        return np.zeros((0,), dtype=np.int64)
+    selected_faces = target_faces_compact[face_indices.astype(np.int64)]
+    return np.unique(selected_faces.reshape(-1)).astype(np.int64)
+
+
+def save_static_snapshot_references(
+    snapshots_dir: Path,
+    contact_edges: list[DynamicContactEdge],
+    target_verts_camera: np.ndarray,
+    target_faces_compact: np.ndarray,
+    scene_no_target_verts_camera: np.ndarray,
+    scene_no_target_faces_compact: np.ndarray,
+    rotation_world_to_camera: np.ndarray,
+    translation_world_to_camera: np.ndarray,
+) -> None:
+    target_verts_world = transform_camera_to_world(
+        target_verts_camera,
+        rotation_world_to_camera=rotation_world_to_camera,
+        translation_world_to_camera=translation_world_to_camera,
+    )
+    target_colors = np.tile(
+        np.array([160, 160, 160], dtype=np.uint8),
+        (target_verts_world.shape[0], 1),
+    )
+    for edge in contact_edges:
+        if edge.target_vertex_ids is None or edge.target_vertex_ids.size == 0:
+            continue
+        rgb = palette_color_for_edge(int(edge.palette_index))
+        target_colors[edge.target_vertex_ids] = np.array(rgb, dtype=np.uint8)
+    write_colored_ascii_ply(
+        snapshots_dir / "target.ply",
+        target_verts_world.astype(np.float32),
+        target_faces_compact,
+        target_colors,
+    )
+
+    if scene_no_target_faces_compact.shape[0] > 0:
+        scene_verts_world = transform_camera_to_world(
+            scene_no_target_verts_camera,
+            rotation_world_to_camera=rotation_world_to_camera,
+            translation_world_to_camera=translation_world_to_camera,
+        )
+        scene_colors = np.tile(
+            np.array([200, 200, 200], dtype=np.uint8),
+            (scene_verts_world.shape[0], 1),
+        )
+        write_colored_ascii_ply(
+            snapshots_dir / "scene.ply",
+            scene_verts_world.astype(np.float32),
+            scene_no_target_faces_compact,
+            scene_colors,
+        )
+
+
+def save_human_iteration_snapshot(
+    snapshots_dir: Path,
+    iter_idx: int,
+    verts_camera: torch.Tensor,
+    faces_np: np.ndarray,
+    contact_edges: list[DynamicContactEdge],
+    rotation_world_to_camera: np.ndarray,
+    translation_world_to_camera: np.ndarray,
+) -> None:
+    verts_np = verts_camera.detach().cpu().numpy().astype(np.float32)
+    verts_world = transform_camera_to_world(
+        verts_np,
+        rotation_world_to_camera=rotation_world_to_camera,
+        translation_world_to_camera=translation_world_to_camera,
+    )
+    colors = np.tile(
+        np.array([230, 230, 230], dtype=np.uint8),
+        (verts_world.shape[0], 1),
+    )
+    for edge in contact_edges:
+        rgb = palette_color_for_edge(int(edge.palette_index))
+        colors[edge.moving_vertex_ids] = np.array(rgb, dtype=np.uint8)
+
+    write_colored_ascii_ply(
+        snapshots_dir / f"human_iter_{iter_idx:04d}.ply",
+        verts_world,
+        faces_np,
+        colors,
+    )
 
 
 def discover_human_tracks(segment_root: Path,
@@ -1156,6 +1496,9 @@ class DynamicContactEdge:
     moving_vertex_ids: np.ndarray
     fixed_points: np.ndarray
     reduction: str
+    target_face_ids: np.ndarray | None = None
+    target_vertex_ids: np.ndarray | None = None
+    palette_index: int = -1
 
 
 class SMPLXAnglePrior(nn.Module):
@@ -1345,7 +1688,7 @@ class SelfIntersectionHelper:
 
 def build_default_paths(video_name: str) -> dict[str, Path]:
     defaults = build_shared_default_paths(video_name)
-    defaults["output_root"] = SCRIPT_DIR / "output_full_body" / video_name
+    defaults["output_root"] = SCRIPT_DIR / "output" / video_name
     defaults["smpl_folder"] = (
         SCRIPT_DIR.parent.parent / "GVHMR" / "inputs" / "checkpoints" / "body_models"
     )
@@ -1376,14 +1719,13 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default="cuda:0" if torch.cuda.is_available() else "cpu",
     )
-    parser.add_argument("--surface_samples", type=int, default=6000)
     parser.add_argument("--target_surface_samples", type=int, default=6000)
     parser.add_argument("--mask_points", type=int, default=2500)
     parser.add_argument("--mask_vertex_samples", type=int, default=3000)
     parser.add_argument("--adam_iters", type=int, default=2000)
     parser.add_argument("--adam_lr", type=float, default=1e-3)
     parser.add_argument("--front_margin_m", type=float, default=0.03)
-    parser.add_argument("--mask_weight", type=float, default=500.0)
+    parser.add_argument("--mask_weight", type=float, default=10.0)  # Was 500 in original
     parser.add_argument("--front_weight", type=float, default=1500.0)
     parser.add_argument("--root_trans_gvhmr_weight", type=float, default=20.0)
     parser.add_argument("--root_orient_gvhmr_weight", type=float, default=20.0)
@@ -1409,7 +1751,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--angle_weight_start", type=float, default=0.0)
     parser.add_argument("--angle_weight_end", type=float, default=1.0)
     parser.add_argument("--self_intersect_weight_start", type=float, default=0.0)
-    parser.add_argument("--self_intersect_weight_end", type=float, default=0)  # original was 1e-5
+    parser.add_argument("--self_intersect_weight_end", type=float, default=1e-5)  # original was 1e-5
     parser.add_argument("--self_intersect_sample_vertices", type=int, default=768)
     parser.add_argument("--self_intersect_local_dist_thresh_m", type=float, default=0.04)
     parser.add_argument("--self_intersect_margin_m", type=float, default=0.01)
@@ -1418,6 +1760,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--log_every", type=int, default=50)
     parser.add_argument("--sdf_resolution", type=int, default=128)
     parser.add_argument("--max_log_scale_delta", type=float, default=0.22)
+    parser.add_argument("--contact_masks_dir", type=str, default=None)
+    parser.add_argument("--contact_region_expand_rings", type=int, default=1)
+    parser.add_argument("--snapshot_every_iters", type=int, default=50)
     return parser.parse_args()
 
 
@@ -1543,11 +1888,18 @@ def build_dynamic_contact_edges(
     track_name: str,
     target_object_name: str,
     segment_catalog: SmplxSegmentCatalog,
-    target_points_visible: np.ndarray,
+    contact_masks_dir: Path,
+    target_verts_camera: np.ndarray,
+    target_faces_compact: np.ndarray,
+    camera_ctx: IdentityCameraContext,
+    device: torch.device,
+    expand_rings: int,
+    init_verts_camera: np.ndarray | None = None,
 ) -> list[DynamicContactEdge]:
     pag_edges = parse_pag_interaction_edges(pag_payload)
     target_object_norm = normalize_label(target_object_name)
     track_name_norm = resolve_track_pag_name(track_name)
+    image_hw = (camera_ctx.height, camera_ctx.width)
     contact_edges: list[DynamicContactEdge] = []
     seen: set[tuple[str, str]] = set()
 
@@ -1590,6 +1942,49 @@ def build_dynamic_contact_edges(
             continue
         seen.add(dedup_key)
 
+        contact_mask = load_contact_mask_for_part(
+            contact_masks_dir,
+            moving_part_name,
+            expected_hw=image_hw,
+        )
+        seed_face_ids = project_mask_to_target_faces(
+            contact_mask,
+            target_verts_camera,
+            target_faces_compact,
+            camera_ctx=camera_ctx,
+            device=device,
+        )
+        if seed_face_ids.size == 0:
+            raise RuntimeError(
+                f"Contact mask for '{moving_part_name}' projects to no "
+                f"target-mesh faces (mask path under {contact_masks_dir}). "
+                "Check camera/mesh alignment or mask coverage."
+            )
+        expanded_face_ids = expand_face_set_along_surface(
+            seed_face_ids,
+            target_verts_camera,
+            target_faces_compact,
+            num_rings=int(expand_rings),
+        )
+        target_vertex_ids = face_set_to_unique_vertex_ids(
+            expanded_face_ids,
+            target_faces_compact,
+        )
+        if target_vertex_ids.size == 0:
+            raise RuntimeError(
+                f"Empty target vertex set for '{moving_part_name}' after "
+                f"expansion ({expand_rings} rings)."
+            )
+        fixed_points_part = target_verts_camera[target_vertex_ids].astype(
+            np.float32
+        )
+        print(
+            f"  contact edge '{moving_part_name}': "
+            f"seed_faces={seed_face_ids.size} -> "
+            f"expanded_faces={expanded_face_ids.size} "
+            f"target_vertices={target_vertex_ids.size}"
+        )
+
         contact_edges.append(
             DynamicContactEdge(
                 node_a=edge.node_a,
@@ -1602,8 +1997,10 @@ def build_dynamic_contact_edges(
                 moving_vertex_ids=np.unique(
                     np.asarray(part_vert_ids, dtype=np.int64)
                 ),
-                fixed_points=target_points_visible.astype(np.float32),
+                fixed_points=fixed_points_part,
                 reduction=_get_reduction((edge.node_a, edge.node_b)),
+                target_face_ids=expanded_face_ids,
+                target_vertex_ids=target_vertex_ids,
             )
         )
 
@@ -1611,6 +2008,23 @@ def build_dynamic_contact_edges(
         raise RuntimeError(
             f"No PAG human-object contact edges found for {track_name} and "
             f"target object '{target_object_name}'."
+        )
+    spatially_disambiguate_bilateral_contact_edges(
+        contact_edges,
+        init_verts_camera=init_verts_camera,
+    )
+    assign_contact_palette_indices(contact_edges)
+    for edge in contact_edges:
+        rgb = palette_color_for_edge(int(edge.palette_index))
+        target_vertex_count = (
+            0 if edge.target_vertex_ids is None else int(edge.target_vertex_ids.size)
+        )
+        print(
+            f"  final correspondence '{edge.moving_part_name}' -> "
+            f"'{edge.fixed_node.raw_node}': "
+            f"human_vertices={edge.moving_vertex_ids.size} "
+            f"target_vertices={target_vertex_count} "
+            f"color_rgb={rgb}"
         )
     return contact_edges
 
@@ -1933,8 +2347,10 @@ def compute_contact_metrics(
                 "moving_part_name": edge.moving_node.part_name,
                 "moving_segment_id": edge.moving_segment_id,
                 "moving_segment_name": edge.moving_segment_name,
+                "moving_vertex_count": int(edge.moving_vertex_ids.size),
                 "fixed_entity_name": edge.fixed_node.entity_name,
                 "fixed_part_name": edge.fixed_node.part_name,
+                "fixed_point_count": int(edge.fixed_points.shape[0]),
                 "reduction": edge.reduction,
                 "nocontact_raw": float(nocontact_raw),
                 "nocontact_distance_m": float(math.sqrt(max(nocontact_raw, 0.0))),
@@ -1997,7 +2413,19 @@ def optimize_track(
     mask_vertex_ids: np.ndarray,
     args: argparse.Namespace,
     device: torch.device,
+    snapshots_dir: Path | None = None,
+    snapshot_every_iters: int = 0,
+    faces_np: np.ndarray | None = None,
+    rotation_world_to_camera: np.ndarray | None = None,
+    translation_world_to_camera: np.ndarray | None = None,
 ) -> dict[str, Any]:
+    snapshot_active = (
+        snapshots_dir is not None
+        and faces_np is not None
+        and rotation_world_to_camera is not None
+        and translation_world_to_camera is not None
+        and int(snapshot_every_iters) > 0
+    )
     init_params_t = {
         "transl": torch.from_numpy(init_params_np["transl"]).to(device=device, dtype=torch.float32),
         "global_orient": torch.from_numpy(init_params_np["global_orient"]).to(device=device, dtype=torch.float32),
@@ -2082,6 +2510,22 @@ def optimize_track(
             for line in format_loss_log(iter_idx, int(args.adam_iters), losses):
                 print(line)
 
+        if snapshot_active and (
+            iter_idx == 1
+            or iter_idx % max(int(snapshot_every_iters), 1) == 0
+            or iter_idx == int(args.adam_iters)
+        ):
+            save_human_iteration_snapshot(
+                snapshots_dir=snapshots_dir,  # type: ignore[arg-type]
+                iter_idx=iter_idx,
+                verts_camera=losses["current"]["verts"],
+                faces_np=faces_np,  # type: ignore[arg-type]
+                contact_edges=contact_edges,
+                rotation_world_to_camera=rotation_world_to_camera,  # type: ignore[arg-type]
+                translation_world_to_camera=translation_world_to_camera,  # type: ignore[arg-type]
+            )
+            print(f"  snapshot iter={iter_idx}")
+
     final_weights = get_loss_weights(
         args,
         int(args.adam_iters) - 1,
@@ -2141,17 +2585,22 @@ def main() -> None:
     )
     smpl_seg_json_path = resolve_path(args.smpl_seg_json, defaults["smpl_seg_json"])
     smpl_folder = resolve_path(args.smpl_folder, defaults["smpl_folder"])
+    contact_masks_dir = resolve_path(
+        args.contact_masks_dir, defaults["contact_masks_dir"]
+    )
+    if not contact_masks_dir.is_dir():
+        raise FileNotFoundError(
+            f"Contact masks directory not found: {contact_masks_dir}"
+        )
     output_root = ensure_dir(resolve_path(args.output_root, defaults["output_root"]))
     scene_root = ensure_dir(output_root / "scene")
     scene_depth_dir = ensure_dir(scene_root / "depth")
-    scene_target_dir = ensure_dir(scene_root / "target")
     debug_root = ensure_dir(output_root / "debug")
     summary_json_path = output_root / "alignment_summary.json"
     scannet_root = resolve_scannet_root(SCRIPT_DIR, args.scannet_root)
     device = parse_device(args.device)
 
     (
-        camera_payload,
         intrinsics,
         rotation_world_to_camera,
         translation_world_to_camera,
@@ -2253,18 +2702,13 @@ def main() -> None:
         num_samples=int(args.target_surface_samples),
         seed=int(args.seed),
     )
-    target_points_visible, target_visible_stats = build_visible_subset(
+    _, target_visible_stats = build_visible_subset(
         sampled_points=target_surface_samples,
         mesh_verts=target_verts_camera,
         mesh_faces=target_faces_compact,
         camera_ctx=camera_ctx,
         device=device,
         visible_tol_m=float(args.visible_tol_m),
-    )
-    np.save(scene_target_dir / "target_surface_visible_samples.npy", target_points_visible)
-    write_point_cloud_ply(
-        scene_target_dir / "target_surface_visible_samples.ply",
-        target_points_visible.astype(np.float32),
     )
 
     floor_faces = build_faces_for_labels(
@@ -2311,6 +2755,7 @@ def main() -> None:
         csv_dir = ensure_dir(debug_track_root / "csv")
         plot_dir = ensure_dir(debug_track_root / "plots" / "iter")
         params_dir = ensure_dir(debug_track_root / "params")
+        snapshots_dir = ensure_dir(debug_track_root / "snapshots")
 
         human_mask = load_mask(track.mask_dir / "frame_0000.png")
         if human_mask.shape != (height, width):
@@ -2342,7 +2787,23 @@ def main() -> None:
             track_name=track.name,
             target_object_name=selection_payload["target_selection"]["object"],
             segment_catalog=segment_catalog,
-            target_points_visible=target_points_visible,
+            contact_masks_dir=contact_masks_dir,
+            target_verts_camera=target_verts_camera,
+            target_faces_compact=target_faces_compact,
+            camera_ctx=camera_ctx,
+            device=device,
+            expand_rings=int(args.contact_region_expand_rings),
+            init_verts_camera=init_verts_camera,
+        )
+        save_static_snapshot_references(
+            snapshots_dir=snapshots_dir,
+            contact_edges=contact_edges,
+            target_verts_camera=target_verts_camera,
+            target_faces_compact=target_faces_compact,
+            scene_no_target_verts_camera=scene_no_target_verts_camera,
+            scene_no_target_faces_compact=scene_no_target_faces_compact,
+            rotation_world_to_camera=rotation_world_to_camera,
+            translation_world_to_camera=translation_world_to_camera,
         )
         floor_edges = build_dynamic_floor_edges(
             track_name=track.name,
@@ -2402,6 +2863,11 @@ def main() -> None:
             mask_vertex_ids=mask_vertex_ids,
             args=args,
             device=device,
+            snapshots_dir=snapshots_dir,
+            snapshot_every_iters=int(args.snapshot_every_iters),
+            faces_np=faces_np,
+            rotation_world_to_camera=rotation_world_to_camera,
+            translation_world_to_camera=translation_world_to_camera,
         )
 
         final_verts_camera = optimization["verts_camera"]
