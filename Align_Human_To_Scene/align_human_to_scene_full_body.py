@@ -1610,7 +1610,7 @@ class FullBodySMPLXParams(nn.Module):
         self.transl = nn.Parameter(transl_init.clone())
         self.global_orient_6d = nn.Parameter(orient_6d.clone())
         self.body_pose = nn.Parameter(body_pose_init.clone())
-        self.betas = nn.Parameter(betas_init.clone())
+        self.register_buffer("betas", betas_init.clone())
         self.log_scale = nn.Parameter(
             torch.zeros((), dtype=transl_init.dtype, device=transl_init.device)
         )

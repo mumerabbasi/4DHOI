@@ -19,7 +19,6 @@ Do **not** optimize mesh vertices directly. Optimize a **GenZI-inspired but stro
 - `transl`
 - `global_orient`
 - `body_pose`
-- `betas`
 - `global_scale`
 
 For now, do **not** optimize:
@@ -109,13 +108,13 @@ Optimize for frame 0:
 - `transl`
 - `global_orient`
 - `body_pose`
-- `betas`
 - `global_scale`
 
 ## Current Findings
 
 - Disabling the global `scene_intersect` loss solved the head/neck rotation artifact. The current scene-global SDF is not reliable enough for the full room mesh, so this loss needs a better formulation before it should be used again.
 - The optimizer should prioritize moving the whole human toward the object before allowing large articulation changes. A staged root-first phase would likely make the interaction more natural because the hands can reach the contact region through body translation first, instead of overextending one arm.
+- `betas` are now frozen to the `GVHMR` estimate. First-frame grounding should adjust placement and pose, not person identity/body shape.
 
 Do **not** optimize:
 
@@ -136,7 +135,7 @@ Recommended implementation:
 
 1. optimize `global_orient` in a continuous 6D rotation representation
 2. optimize `body_pose` directly
-3. optimize `betas` directly
+3. keep `betas` fixed to the `GVHMR` estimate
 4. optimize a single scalar `global_scale`
 5. convert optimized pose parameters to the SMPL-X forward representation each iteration
 
@@ -187,7 +186,6 @@ Purpose:
 Unlock:
 
 - `body_pose`
-- `betas`
 
 Keep strong:
 
@@ -308,8 +306,8 @@ A practical hybrid is:
 
 #### `L_shape_gvhmr`
 
-- if `betas` are optimized, keep them very close to the original `GVHMR` betas
-- otherwise simply freeze `betas`
+- `betas` are currently frozen to the original `GVHMR` betas
+- keep this as the default unless there is a clear identity/scale mismatch that cannot be solved by root pose or global scale
 
 #### `L_scale_prior`
 
@@ -528,6 +526,8 @@ These become both:
 - initialization
 - regularization targets
 
+For `betas`, the cached value is the fixed shape used by the optimizer.
+
 ### E. Reuse GenZI regularization selectively
 
 Wire in:
@@ -603,23 +603,21 @@ The first implementation should be intentionally narrow:
    - `transl`
    - `global_orient`
    - `body_pose`
-   - `betas`
    - `global_scale`
 2. keep these components frozen:
    - `left_hand_pose`
    - `right_hand_pose`
+   - `betas`
    - face / jaw / expression remain frozen
    - no per-vertex offsets
 3. use losses:
    - `mask`
-   - `front`
    - `obj_intersect`
    - `obj_nocontact`
    - `floor_intersect`
    - `floor_nocontact`
    - `pose_gvhmr`
    - `root_gvhmr`
-   - `betas`
    - `scale_prior`
    - `angle`
    - `self_intersect`
