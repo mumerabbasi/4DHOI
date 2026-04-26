@@ -63,7 +63,7 @@
       "name": "person_1",
       "optimization": {
         "final_iter": 2000,
-        "final_total_loss": 0.5366443395614624
+        "final_total_loss": 0.5406793355941772
       },
       "init_frame_0": {
         "mask_overlap": {
@@ -144,17 +144,17 @@
       },
       "final_frame_0": {
         "mask_overlap": {
-          "intersection_px": 12457,
-          "union_px": 25597,
+          "intersection_px": 12548,
+          "union_px": 25201,
           "area_a_px": 20729,
-          "area_b_px": 17325,
-          "iou": 0.4866585928038442,
-          "dice": 0.6547012140642245
+          "area_b_px": 17020,
+          "iou": 0.49791674933534386,
+          "dice": 0.6648123129089513
         },
         "behind_fraction": {
-          "num_visible_points": 1087,
-          "num_behind_points": 81,
-          "behind_fraction": 0.07451701931922723
+          "num_visible_points": 1109,
+          "num_behind_points": 90,
+          "behind_fraction": 0.0811541929666366
         },
         "contact_edges": [
           {
@@ -169,8 +169,8 @@
             "fixed_part_name": "main container",
             "fixed_point_count": 2048,
             "reduction": "mean",
-            "nocontact_raw": 0.00040816693217493594,
-            "nocontact_distance_m": 0.020203141641213524
+            "nocontact_raw": 0.0004218941321596503,
+            "nocontact_distance_m": 0.02054006163962636
           },
           {
             "node_a": "white trash bin, main container",
@@ -184,8 +184,8 @@
             "fixed_part_name": "main container",
             "fixed_point_count": 2048,
             "reduction": "mean",
-            "nocontact_raw": 0.0006006969488225877,
-            "nocontact_distance_m": 0.02450911970721486
+            "nocontact_raw": 0.0006233498570509255,
+            "nocontact_distance_m": 0.02496697532843988
           },
           {
             "node_a": "person_1.left_foot",
@@ -199,8 +199,8 @@
             "fixed_part_name": "floor",
             "fixed_point_count": 3303,
             "reduction": "mean",
-            "nocontact_raw": 0.0004339255392551422,
-            "nocontact_distance_m": 0.02083087946427472
+            "nocontact_raw": 0.00043151562567800283,
+            "nocontact_distance_m": 0.020772954187548837
           },
           {
             "node_a": "person_1.right_foot",
@@ -214,8 +214,8 @@
             "fixed_part_name": "floor",
             "fixed_point_count": 3303,
             "reduction": "mean",
-            "nocontact_raw": 0.0006744172424077988,
-            "nocontact_distance_m": 0.025969544516756524
+            "nocontact_raw": 0.0006758543313480914,
+            "nocontact_distance_m": 0.025997198528843284
           }
         ]
       },

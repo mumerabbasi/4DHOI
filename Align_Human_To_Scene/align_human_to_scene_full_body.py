@@ -26,12 +26,8 @@ from pytorch3d.transforms import (
     rotation_6d_to_matrix,
 )
 
-try:
-    from mesh_intersection.bvh_search_tree import BVH
-    from mesh_intersection.loss import DistanceFieldPenetrationLoss
-except ImportError:
-    BVH = None
-    DistanceFieldPenetrationLoss = None
+from mesh_intersection.bvh_search_tree import BVH
+from mesh_intersection.loss import DistanceFieldPenetrationLoss
 
 
 LOSS_TERM_KEYS = (
@@ -974,22 +970,21 @@ def build_visible_subset(
         visible[idx] = (depth_at_pixel > 0.0) & (
             np.abs(z[idx] - depth_at_pixel) <= float(visible_tol_m))
 
-    if np.count_nonzero(visible) >= 64:
-        mode = "strict_visible"
-        keep = visible
-    elif np.count_nonzero(in_frame) >= 64:
-        mode = "fallback_in_frame"
-        keep = in_frame
-    else:
-        mode = "fallback_all"
-        keep = z > 1e-6
+    num_visible = int(np.count_nonzero(visible))
+    if num_visible < MIN_VISIBLE_SUBSET_POINTS:
+        raise RuntimeError(
+            "Too few visible mesh surface points after projection/depth filtering: "
+            f"{num_visible} visible points, need at least "
+            f"{MIN_VISIBLE_SUBSET_POINTS}. "
+            "Check the mesh, camera, or visible_tol_m."
+        )
 
-    return sampled_points[keep].astype(np.float32), {
-        "mode": mode,
+    return sampled_points[visible].astype(np.float32), {
+        "mode": "visible",
         "num_total_points": int(sampled_points.shape[0]),
         "num_in_frame_points": int(np.count_nonzero(in_frame)),
-        "num_visible_points": int(np.count_nonzero(visible)),
-        "num_kept_points": int(np.count_nonzero(keep)),
+        "num_visible_points": num_visible,
+        "num_kept_points": num_visible,
         "visible_tol_m": float(visible_tol_m),
     }
 
@@ -1124,6 +1119,7 @@ CONTACT_PART_PALETTE_INDEX: dict[str, int] = {
 BILATERAL_SWAP_MIN_IMPROVEMENT_M = 0.02
 CONTACT_SURFACE_SAMPLES_PER_EDGE = 2048
 CONTACT_SURFACE_SAMPLE_SEED = 17017
+MIN_VISIBLE_SUBSET_POINTS = 64
 
 
 def palette_color_for_edge(index: int) -> tuple[int, int, int]:
@@ -1649,70 +1645,22 @@ class FullBodySMPLXParams(nn.Module):
 
 
 class SelfIntersectionHelper:
-    def __init__(
-        self,
-        init_vertices: torch.Tensor,
-        sample_vertex_count: int,
-        local_distance_thresh_m: float,
-        collision_margin_m: float,
-        seed: int,
-    ) -> None:
-        self.use_exact = BVH is not None and DistanceFieldPenetrationLoss is not None
-        if self.use_exact:
-            self.bvh = BVH(max_collisions=8)
-            self.dfp_loss = DistanceFieldPenetrationLoss(
-                sigma=0.001,
-                point2plane=False,
-                vectorized=True,
-                penalize_outside=True,
-            )
-            self.sample_vertex_ids = None
-            self.pair_mask = None
-            self.collision_margin_m = float(collision_margin_m)
-            return
-
-        num_vertices = int(init_vertices.shape[0])
-        sample_vertex_count = max(2, min(int(sample_vertex_count), num_vertices))
-        rng = np.random.default_rng(int(seed))
-        sample_vertex_ids_np = np.sort(
-            rng.choice(num_vertices, size=sample_vertex_count, replace=False)
-        ).astype(np.int64)
-        sample_vertex_ids = torch.from_numpy(sample_vertex_ids_np).to(
-            device=init_vertices.device
+    def __init__(self) -> None:
+        self.bvh = BVH(max_collisions=8)
+        self.dfp_loss = DistanceFieldPenetrationLoss(
+            sigma=0.001,
+            point2plane=False,
+            vectorized=True,
+            penalize_outside=True,
         )
-        sampled_init = init_vertices[sample_vertex_ids]
-        init_dists = torch.cdist(sampled_init.unsqueeze(0), sampled_init.unsqueeze(0))[0]
-        pair_mask = torch.triu(
-            init_dists > float(local_distance_thresh_m),
-            diagonal=1,
-        )
-        self.sample_vertex_ids = sample_vertex_ids
-        self.pair_mask = pair_mask
-        self.collision_margin_m = float(collision_margin_m)
 
     def __call__(self, vertices: torch.Tensor, faces: torch.Tensor) -> torch.Tensor:
-        if self.use_exact:
-            triangles = vertices[faces]
-            triangles = triangles.unsqueeze(0)
-            with torch.no_grad():
-                collision_idxs = self.bvh(triangles)
-            if collision_idxs.ge(0).sum().item() == 0:
-                return vertices.new_tensor(0.0)
-            return torch.mean(self.dfp_loss(triangles, collision_idxs))
-
-        assert self.sample_vertex_ids is not None
-        assert self.pair_mask is not None
-        sampled_vertices = vertices[self.sample_vertex_ids]
-        pair_dists = torch.cdist(
-            sampled_vertices.unsqueeze(0), sampled_vertices.unsqueeze(0)
-        )[0]
-        close_distances = pair_dists[self.pair_mask]
-        if close_distances.numel() == 0:
+        triangles = vertices[faces].unsqueeze(0)
+        with torch.no_grad():
+            collision_idxs = self.bvh(triangles)
+        if collision_idxs.ge(0).sum().item() == 0:
             return vertices.new_tensor(0.0)
-        penetration = F.relu(float(self.collision_margin_m) - close_distances)
-        if penetration.numel() == 0:
-            return vertices.new_tensor(0.0)
-        return penetration.pow(2).mean()
+        return torch.mean(self.dfp_loss(triangles, collision_idxs))
 
 
 def build_default_paths(video_name: str) -> dict[str, Path]:
@@ -1778,9 +1726,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--angle_weight_end", type=float, default=1.0)
     parser.add_argument("--self_intersect_weight_start", type=float, default=0.0)
     parser.add_argument("--self_intersect_weight_end", type=float, default=1e-5)  # original was 1e-5
-    parser.add_argument("--self_intersect_sample_vertices", type=int, default=768)
-    parser.add_argument("--self_intersect_local_dist_thresh_m", type=float, default=0.04)
-    parser.add_argument("--self_intersect_margin_m", type=float, default=0.01)
     parser.add_argument("--visible_tol_m", type=float, default=0.02)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--log_every", type=int, default=50)
@@ -2440,20 +2385,7 @@ def optimize_track(
         max_log_scale_delta=float(args.max_log_scale_delta),
     ).to(device)
     angle_prior = SMPLXAnglePrior().to(device)
-    with torch.no_grad():
-        init_out = smplx_layer(
-            transl=init_params_t["transl"].view(1, 3),
-            global_orient=init_params_t["global_orient"].view(1, 3),
-            body_pose=init_params_t["body_pose"].view(1, -1),
-            betas=init_params_t["betas"].view(1, -1),
-        )
-    self_intersection_helper = SelfIntersectionHelper(
-        init_vertices=init_out.vertices[0].detach(),
-        sample_vertex_count=int(args.self_intersect_sample_vertices),
-        local_distance_thresh_m=float(args.self_intersect_local_dist_thresh_m),
-        collision_margin_m=float(args.self_intersect_margin_m),
-        seed=int(args.seed),
-    )
+    self_intersection_helper = SelfIntersectionHelper()
 
     obs_mask_pixels_norm_t = torch.from_numpy(obs_mask_pixels.astype(np.float32)).to(device)
     if obs_mask_pixels_norm_t.numel() > 0:
@@ -2993,11 +2925,6 @@ def main() -> None:
                     "self_intersect": {
                         "start": float(args.self_intersect_weight_start),
                         "end": float(args.self_intersect_weight_end),
-                    },
-                    "self_intersect_surrogate": {
-                        "sample_vertices": int(args.self_intersect_sample_vertices),
-                        "local_distance_thresh_m": float(args.self_intersect_local_dist_thresh_m),
-                        "margin_m": float(args.self_intersect_margin_m),
                     },
                 },
             },
