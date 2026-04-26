@@ -634,10 +634,10 @@ def query_sdf(
 
 
 def compute_penetration_loss(
-    sdf_grid: SDFGrid | None,
+    sdf_grid: SDFGrid,
     points: torch.Tensor,
 ) -> torch.Tensor:
-    if sdf_grid is None or points.numel() == 0:
+    if points.numel() == 0:
         return points.new_tensor(0.0)
     sdf_vals = query_sdf(sdf_grid, points)
     intersects = F.relu(-sdf_vals)
@@ -655,12 +655,12 @@ def _get_reduction(nodes: tuple[InteractionNode, InteractionNode]) -> str:
 
 
 def pcd_distance(
-    p1: torch.Tensor | None,
-    p2: torch.Tensor | None,
+    p1: torch.Tensor,
+    p2: torch.Tensor,
     reduction: str = "min",
-) -> torch.Tensor | None:
+) -> torch.Tensor:
     if p1 is None or p2 is None:
-        return None
+        raise ValueError("pcd_distance received None instead of point tensors.")
     if p1.ndim != 3 or p2.ndim != 3:
         raise ValueError("pcd_distance expects tensors with shape [F, N, 3].")
     nnres = knn_points(p1=p1, p2=p2, norm=2, K=1)
@@ -2012,8 +2012,14 @@ def build_dynamic_floor_edges(
     track_name: str,
     segment_catalog: SmplxSegmentCatalog,
     floor_points_visible: np.ndarray,
+    required: bool,
 ) -> list[DynamicContactEdge]:
     if floor_points_visible.shape[0] == 0:
+        if required:
+            raise RuntimeError(
+                "floor_nocontact is enabled, but no visible floor points were "
+                "available for the floor contact term."
+            )
         return []
     floor_node = InteractionNode(
         raw_node="floor",
@@ -2027,6 +2033,11 @@ def build_dynamic_floor_edges(
         if moving_segment_id is None:
             moving_segment_id = segment_catalog.get_body_segment_id(part_name)
         if moving_segment_id is None:
+            if required:
+                raise KeyError(
+                    f"floor_nocontact is enabled, but SMPL-X segment mapping "
+                    f"for '{part_name}' was not found."
+                )
             continue
         part_vert_ids = segment_catalog.get_indices(moving_segment_id)
         moving_node = InteractionNode(
@@ -2052,6 +2063,11 @@ def build_dynamic_floor_edges(
                 fixed_points=floor_points_visible.astype(np.float32),
                 reduction=_get_reduction((moving_node, floor_node)),
             )
+        )
+    if required and len(contact_edges) != 2:
+        raise RuntimeError(
+            "floor_nocontact is enabled, but floor contact edges were not "
+            f"built for both feet ({len(contact_edges)} edges)."
         )
     return contact_edges
 
@@ -2107,8 +2123,12 @@ def compute_root_orient_loss(
 def compute_contact_distance_loss(
     current_vertices: torch.Tensor,
     edges: list[DynamicContactEdge],
+    loss_name: str,
+    required: bool,
 ) -> torch.Tensor:
     if not edges:
+        if required:
+            raise RuntimeError(f"{loss_name} is enabled, but no contact edges exist.")
         return current_vertices.new_tensor(0.0)
     values: list[torch.Tensor] = []
     for edge in edges:
@@ -2118,6 +2138,12 @@ def compute_contact_distance_loss(
             dtype=current_vertices.dtype,
         )
         if fixed_points.shape[0] == 0:
+            if required:
+                raise RuntimeError(
+                    f"{loss_name} is enabled, but contact edge "
+                    f"'{edge.moving_part_name}' -> '{edge.fixed_node.raw_node}' "
+                    "has no fixed target points."
+                )
             continue
         fixed_points_seq = fixed_points.unsqueeze(0)
         pdists = pcd_distance(
@@ -2125,10 +2151,13 @@ def compute_contact_distance_loss(
             fixed_points_seq,
             reduction=edge.reduction,
         )
-        if pdists is None:
-            continue
         values.append(pdists.mean())
     if not values:
+        if required:
+            raise RuntimeError(
+                f"{loss_name} is enabled, but no valid contact distances were "
+                "computed."
+            )
         return current_vertices.new_tensor(0.0)
     return torch.stack(values, dim=0).mean()
 
@@ -2137,8 +2166,18 @@ def compute_segment_penetration_loss(
     current_vertices: torch.Tensor,
     edges: list[DynamicContactEdge],
     sdf_grid: SDFGrid | None,
+    loss_name: str,
+    required: bool,
 ) -> torch.Tensor:
-    if sdf_grid is None or not edges:
+    if sdf_grid is None:
+        if required:
+            raise RuntimeError(f"{loss_name} is enabled, but its SDF grid is missing.")
+        return current_vertices.new_tensor(0.0)
+    if not edges:
+        if required:
+            raise RuntimeError(
+                f"{loss_name} is enabled, but no contact edges exist."
+            )
         return current_vertices.new_tensor(0.0)
     values: list[torch.Tensor] = []
     for edge in edges:
@@ -2154,8 +2193,12 @@ def compute_segment_penetration_loss(
 def compute_body_penetration_loss(
     current_vertices: torch.Tensor,
     sdf_grid: SDFGrid | None,
+    loss_name: str,
+    required: bool,
 ) -> torch.Tensor:
     if sdf_grid is None:
+        if required:
+            raise RuntimeError(f"{loss_name} is enabled, but its SDF grid is missing.")
         return current_vertices.new_tensor(0.0)
     return compute_penetration_loss(sdf_grid, current_vertices)
 
@@ -2214,18 +2257,26 @@ def compute_loss_dict(
         current_vertices=verts_camera,
         edges=contact_edges,
         sdf_grid=target_sdf_grid,
+        loss_name="intersect",
+        required=float(weights["intersect"]) > 0.0,
     )
     scene_intersect = compute_body_penetration_loss(
         current_vertices=verts_camera,
         sdf_grid=scene_sdf_grid,
+        loss_name="scene_intersect",
+        required=float(weights["scene_intersect"]) > 0.0,
     )
     nocontact = compute_contact_distance_loss(
         current_vertices=verts_camera,
         edges=contact_edges,
+        loss_name="nocontact",
+        required=float(weights["nocontact"]) > 0.0,
     )
     floor_nocontact = compute_contact_distance_loss(
         current_vertices=verts_camera,
         edges=floor_edges,
+        loss_name="floor_nocontact",
+        required=float(weights["floor_nocontact"]) > 0.0,
     )
 
     angle = angle_prior(current["body_pose"].view(1, -1), with_pelvis=False)
@@ -2273,7 +2324,11 @@ def compute_contact_metrics(
     for edge in edges:
         fixed_points_t = torch.from_numpy(edge.fixed_points.astype(np.float32)).to(device)
         if fixed_points_t.shape[0] == 0:
-            continue
+            raise RuntimeError(
+                f"Cannot compute contact metrics for "
+                f"'{edge.moving_part_name}' -> '{edge.fixed_node.raw_node}': "
+                "edge has no fixed target points."
+            )
         moving_points_t = current_vertices_t[edge.moving_vertex_ids].unsqueeze(0)
         fixed_points_seq = fixed_points_t.unsqueeze(0)
         pdists = pcd_distance(
@@ -2281,8 +2336,6 @@ def compute_contact_metrics(
             fixed_points_seq,
             reduction=edge.reduction,
         )
-        if pdists is None:
-            continue
         nocontact_raw = pdists.mean().detach().cpu().item()
         metrics.append(
             {
@@ -2730,6 +2783,10 @@ def main() -> None:
             track_name=track.name,
             segment_catalog=segment_catalog,
             floor_points_visible=floor_points_visible,
+            required=(
+                float(args.floor_nocontact_weight_start) > 0.0
+                or float(args.floor_nocontact_weight_end) > 0.0
+            ),
         )
         init_params_np = {
             key: value.detach().cpu().numpy().astype(np.float32)
