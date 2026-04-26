@@ -354,7 +354,7 @@ def build_shared_default_paths(video_name: str) -> dict[str, Path]:
         "output" /
         video_name,
         "contact_masks_dir": PROJECT_DIR /
-        "Estimate_Contact_Region" /
+        "Estimate_Contact_Masks" /
         "output" /
         video_name /
         "contact_masks",
