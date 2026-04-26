@@ -39,7 +39,6 @@ LOSS_TERM_KEYS = (
     "root_trans_gvhmr",
     "root_orient_gvhmr",
     "pose_gvhmr",
-    "betas_gvhmr",
     "scale_prior",
     "intersect",
     "scene_intersect",
@@ -1754,13 +1753,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mask_points", type=int, default=2500)
     parser.add_argument("--mask_vertex_samples", type=int, default=3000)
     parser.add_argument("--adam_iters", type=int, default=2000)
-    parser.add_argument("--adam_lr", type=float, default=1e-3)
+    parser.add_argument("--adam_lr", type=float, default=1)
     parser.add_argument("--behind_margin_m", type=float, default=0.03)
     parser.add_argument("--mask_weight", type=float, default=1)  # Was 500 in original
     parser.add_argument("--root_trans_gvhmr_weight", type=float, default=20.0)
     parser.add_argument("--root_orient_gvhmr_weight", type=float, default=20.0)
     parser.add_argument("--pose_gvhmr_weight", type=float, default=10.0)
-    parser.add_argument("--betas_gvhmr_weight", type=float, default=10.0)
     parser.add_argument("--scale_prior_weight", type=float, default=25.0)
     parser.add_argument("--intersect_weight_start", type=float, default=0.0)
     parser.add_argument("--intersect_weight_end", type=float, default=15.0)
@@ -1806,7 +1804,6 @@ def get_loss_weights(
         "root_trans_gvhmr": float(args.root_trans_gvhmr_weight),
         "root_orient_gvhmr": float(args.root_orient_gvhmr_weight),
         "pose_gvhmr": float(args.pose_gvhmr_weight),
-        "betas_gvhmr": float(args.betas_gvhmr_weight),
         "scale_prior": float(args.scale_prior_weight),
         "intersect": linear_weight(
             args.intersect_weight_start,
@@ -2270,7 +2267,6 @@ def compute_loss_dict(
         init_params["global_orient_matrix"],
     )
     pose_gvhmr = torch.mean((current["body_pose"] - init_params["body_pose"]) ** 2)
-    betas_gvhmr = torch.mean((current["betas"] - init_params["betas"]) ** 2)
     scale_prior = current["log_scale"].pow(2)
 
     intersect = compute_segment_penetration_loss(
@@ -2302,7 +2298,6 @@ def compute_loss_dict(
         + root_trans_gvhmr * float(weights["root_trans_gvhmr"])
         + root_orient_gvhmr * float(weights["root_orient_gvhmr"])
         + pose_gvhmr * float(weights["pose_gvhmr"])
-        + betas_gvhmr * float(weights["betas_gvhmr"])
         + scale_prior * float(weights["scale_prior"])
         + intersect * float(weights["intersect"])
         + scene_intersect * float(weights["scene_intersect"])
@@ -2317,7 +2312,6 @@ def compute_loss_dict(
         "root_trans_gvhmr": root_trans_gvhmr,
         "root_orient_gvhmr": root_orient_gvhmr,
         "pose_gvhmr": pose_gvhmr,
-        "betas_gvhmr": betas_gvhmr,
         "scale_prior": scale_prior,
         "intersect": intersect,
         "scene_intersect": scene_intersect,
@@ -2982,7 +2976,6 @@ def main() -> None:
                     "root_trans_gvhmr": float(args.root_trans_gvhmr_weight),
                     "root_orient_gvhmr": float(args.root_orient_gvhmr_weight),
                     "pose_gvhmr": float(args.pose_gvhmr_weight),
-                    "betas_gvhmr": float(args.betas_gvhmr_weight),
                     "scale_prior": float(args.scale_prior_weight),
                     "intersect": {
                         "start": float(args.intersect_weight_start),
