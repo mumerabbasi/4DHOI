@@ -34,7 +34,7 @@ LOSS_TERM_KEYS = (
     "mask",
     "root_orient_gvhmr",
     "pose_gvhmr",
-    "scale_prior",
+    "height_prior",
     "intersect",
     "scene_intersect",
     "nocontact",
@@ -51,6 +51,10 @@ CONTACT_SEGMENT_BY_BODY_SEGMENT = {
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
+INCH_TO_M = 0.0254
+DEFAULT_HEIGHT_PRIOR_TARGET_M = 72.0 * INCH_TO_M
+DEFAULT_HEIGHT_PRIOR_MIN_M = 70.0 * INCH_TO_M
+DEFAULT_HEIGHT_PRIOR_MAX_M = 74.0 * INCH_TO_M
 
 
 @dataclass
@@ -1596,29 +1600,81 @@ class FullBodySMPLXParams(nn.Module):
         global_orient_init: torch.Tensor,
         body_pose_init: torch.Tensor,
         betas_init: torch.Tensor,
-        max_log_scale_delta: float,
+        canonical_height_m: float,
+        height_prior_target_m: float,
+        height_prior_min_m: float,
+        height_prior_max_m: float,
+        height_prior_sigma_m: float,
     ) -> None:
         super().__init__()
+        if not height_prior_min_m < height_prior_target_m < height_prior_max_m:
+            raise ValueError(
+                "Expected height prior bounds to satisfy "
+                "min < target < max, got "
+                f"{height_prior_min_m}, {height_prior_target_m}, "
+                f"{height_prior_max_m}."
+            )
+        if canonical_height_m <= 0.0:
+            raise ValueError(f"Canonical SMPL-X height must be positive, got {canonical_height_m}.")
+        if height_prior_sigma_m <= 0.0:
+            raise ValueError(f"height_prior_sigma_m must be positive, got {height_prior_sigma_m}.")
+
         orient_matrix = axis_angle_to_matrix(global_orient_init.view(1, 3))[0]
         orient_6d = matrix_to_rotation_6d(orient_matrix.view(1, 3, 3))[0]
         self.transl = nn.Parameter(transl_init.clone())
         self.global_orient_6d = nn.Parameter(orient_6d.clone())
         self.body_pose = nn.Parameter(body_pose_init.clone())
         self.register_buffer("betas", betas_init.clone())
-        self.log_scale = nn.Parameter(
-            torch.zeros((), dtype=transl_init.dtype, device=transl_init.device)
+        dtype = transl_init.dtype
+        device = transl_init.device
+        log_scale_min = math.log(float(height_prior_min_m) / float(canonical_height_m))
+        log_scale_max = math.log(float(height_prior_max_m) / float(canonical_height_m))
+        log_scale_target = math.log(
+            float(height_prior_target_m) / float(canonical_height_m)
         )
-        self.max_log_scale_delta = float(max_log_scale_delta)
+        ratio = (log_scale_target - log_scale_min) / (log_scale_max - log_scale_min)
+        ratio = min(max(float(ratio), 1e-6), 1.0 - 1e-6)
+        raw_init = math.log(ratio / (1.0 - ratio))
+        self.log_scale_raw = nn.Parameter(
+            torch.tensor(raw_init, dtype=dtype, device=device)
+        )
+        self.register_buffer(
+            "canonical_height_m",
+            torch.tensor(float(canonical_height_m), dtype=dtype, device=device),
+        )
+        self.register_buffer(
+            "height_prior_target_m",
+            torch.tensor(float(height_prior_target_m), dtype=dtype, device=device),
+        )
+        self.register_buffer(
+            "height_prior_min_m",
+            torch.tensor(float(height_prior_min_m), dtype=dtype, device=device),
+        )
+        self.register_buffer(
+            "height_prior_max_m",
+            torch.tensor(float(height_prior_max_m), dtype=dtype, device=device),
+        )
+        self.register_buffer(
+            "height_prior_sigma_m",
+            torch.tensor(float(height_prior_sigma_m), dtype=dtype, device=device),
+        )
+        self.register_buffer(
+            "log_scale_min",
+            torch.tensor(float(log_scale_min), dtype=dtype, device=device),
+        )
+        self.register_buffer(
+            "log_scale_max",
+            torch.tensor(float(log_scale_max), dtype=dtype, device=device),
+        )
 
     def forward(self, smplx_layer: Any) -> dict[str, torch.Tensor]:
         orient_matrix = rotation_6d_to_matrix(self.global_orient_6d.view(1, 6))[0]
         global_orient = matrix_to_axis_angle(orient_matrix.view(1, 3, 3))[0]
-        log_scale = torch.clamp(
-            self.log_scale,
-            min=-float(self.max_log_scale_delta),
-            max=float(self.max_log_scale_delta),
-        )
+        log_scale = self.log_scale_min + (
+            self.log_scale_max - self.log_scale_min
+        ) * torch.sigmoid(self.log_scale_raw)
         scale = torch.exp(log_scale)
+        height_m = scale * self.canonical_height_m
         smplx_out = smplx_layer(
             transl=self.transl.view(1, 3),
             global_orient=global_orient.view(1, 3),
@@ -1641,6 +1697,7 @@ class FullBodySMPLXParams(nn.Module):
             "betas": self.betas,
             "log_scale": log_scale,
             "scale": scale,
+            "height_m": height_m,
         }
 
 
@@ -1705,7 +1762,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mask_weight", type=float, default=1)  # Was 500 in original
     parser.add_argument("--root_orient_gvhmr_weight", type=float, default=20.0)
     parser.add_argument("--pose_gvhmr_weight", type=float, default=10.0)
-    parser.add_argument("--scale_prior_weight", type=float, default=25.0)
+    parser.add_argument("--height_prior_weight", type=float, default=1.0)
+    parser.add_argument(
+        "--height_prior_target_m",
+        type=float,
+        default=DEFAULT_HEIGHT_PRIOR_TARGET_M,
+    )
+    parser.add_argument(
+        "--height_prior_min_m",
+        type=float,
+        default=DEFAULT_HEIGHT_PRIOR_MIN_M,
+    )
+    parser.add_argument(
+        "--height_prior_max_m",
+        type=float,
+        default=DEFAULT_HEIGHT_PRIOR_MAX_M,
+    )
+    parser.add_argument("--height_prior_sigma_m", type=float, default=0.0508)
     parser.add_argument("--intersect_weight_start", type=float, default=0.0)
     parser.add_argument("--intersect_weight_end", type=float, default=15.0)
     parser.add_argument(
@@ -1725,12 +1798,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--angle_weight_start", type=float, default=0.0)
     parser.add_argument("--angle_weight_end", type=float, default=1.0)
     parser.add_argument("--self_intersect_weight_start", type=float, default=0.0)
-    parser.add_argument("--self_intersect_weight_end", type=float, default=1e-5)  # original was 1e-5
+    parser.add_argument("--self_intersect_weight_end", type=float, default=1e-3)  # original was 1e-5
     parser.add_argument("--visible_tol_m", type=float, default=0.02)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--log_every", type=int, default=50)
     parser.add_argument("--sdf_resolution", type=int, default=128)
-    parser.add_argument("--max_log_scale_delta", type=float, default=0.22)
     parser.add_argument("--contact_masks_dir", type=str, default=None)
     parser.add_argument("--contact_region_expand_rings", type=int, default=1)
     parser.add_argument("--snapshot_every_iters", type=int, default=50)
@@ -1746,7 +1818,7 @@ def get_loss_weights(
         "mask": float(args.mask_weight),
         "root_orient_gvhmr": float(args.root_orient_gvhmr_weight),
         "pose_gvhmr": float(args.pose_gvhmr_weight),
-        "scale_prior": float(args.scale_prior_weight),
+        "height_prior": float(args.height_prior_weight),
         "intersect": linear_weight(
             args.intersect_weight_start,
             args.intersect_weight_end,
@@ -2111,6 +2183,24 @@ def build_smplx_layer(smpl_folder: Path, device: torch.device) -> Any:
     return layer
 
 
+def compute_canonical_smplx_height_m(
+    smplx_layer: Any,
+    betas: torch.Tensor,
+) -> float:
+    device = betas.device
+    dtype = betas.dtype
+    with torch.no_grad():
+        out = smplx_layer(
+            transl=torch.zeros((1, 3), device=device, dtype=dtype),
+            global_orient=torch.zeros((1, 3), device=device, dtype=dtype),
+            body_pose=torch.zeros((1, 63), device=device, dtype=dtype),
+            betas=betas.view(1, -1),
+        )
+        verts = out.vertices[0]
+        height = verts[:, 1].max() - verts[:, 1].min()
+    return float(height.detach().cpu().item())
+
+
 def compute_root_orient_loss(
     current_orient_matrix: torch.Tensor,
     init_orient_matrix: torch.Tensor,
@@ -2251,7 +2341,10 @@ def compute_loss_dict(
         init_params["global_orient_matrix"],
     )
     pose_gvhmr = torch.mean((current["body_pose"] - init_params["body_pose"]) ** 2)
-    scale_prior = current["log_scale"].pow(2)
+    height_prior = (
+        (current["height_m"] - params_module.height_prior_target_m)
+        / params_module.height_prior_sigma_m
+    ).pow(2)
 
     intersect = compute_segment_penetration_loss(
         current_vertices=verts_camera,
@@ -2289,7 +2382,7 @@ def compute_loss_dict(
         mask_loss * float(weights["mask"])
         + root_orient_gvhmr * float(weights["root_orient_gvhmr"])
         + pose_gvhmr * float(weights["pose_gvhmr"])
-        + scale_prior * float(weights["scale_prior"])
+        + height_prior * float(weights["height_prior"])
         + intersect * float(weights["intersect"])
         + scene_intersect * float(weights["scene_intersect"])
         + nocontact * float(weights["nocontact"])
@@ -2302,7 +2395,7 @@ def compute_loss_dict(
         "mask": mask_loss,
         "root_orient_gvhmr": root_orient_gvhmr,
         "pose_gvhmr": pose_gvhmr,
-        "scale_prior": scale_prior,
+        "height_prior": height_prior,
         "intersect": intersect,
         "scene_intersect": scene_intersect,
         "nocontact": nocontact,
@@ -2429,14 +2522,29 @@ def optimize_track(
     init_params_t["global_orient_matrix"] = axis_angle_to_matrix(
         init_params_t["global_orient"].view(1, 3)
     )[0]
+    canonical_height_m = compute_canonical_smplx_height_m(
+        smplx_layer=smplx_layer,
+        betas=init_params_t["betas"],
+    )
 
     params_module = FullBodySMPLXParams(
         transl_init=init_params_t["transl"],
         global_orient_init=init_params_t["global_orient"],
         body_pose_init=init_params_t["body_pose"],
         betas_init=init_params_t["betas"],
-        max_log_scale_delta=float(args.max_log_scale_delta),
+        canonical_height_m=canonical_height_m,
+        height_prior_target_m=float(args.height_prior_target_m),
+        height_prior_min_m=float(args.height_prior_min_m),
+        height_prior_max_m=float(args.height_prior_max_m),
+        height_prior_sigma_m=float(args.height_prior_sigma_m),
     ).to(device)
+    print(
+        "  height prior: "
+        f"canonical_unscaled={canonical_height_m:.4f}m "
+        f"target={float(args.height_prior_target_m):.4f}m "
+        f"range=[{float(args.height_prior_min_m):.4f}, "
+        f"{float(args.height_prior_max_m):.4f}]m"
+    )
     angle_prior = SMPLXAnglePrior().to(device)
     self_intersection_helper = SelfIntersectionHelper()
 
@@ -2540,6 +2648,10 @@ def optimize_track(
         "betas": current["betas"].detach().cpu().numpy().astype(np.float32),
         "scale": float(current["scale"].detach().cpu().item()),
         "log_scale": float(current["log_scale"].detach().cpu().item()),
+        "height_m": float(current["height_m"].detach().cpu().item()),
+        "canonical_height_unscaled_m": float(
+            params_module.canonical_height_m.detach().cpu().item()
+        ),
     }
 
 
@@ -2882,6 +2994,10 @@ def main() -> None:
             "betas": optimization["betas"].tolist(),
             "scale": float(optimization["scale"]),
             "log_scale": float(optimization["log_scale"]),
+            "height_m": float(optimization["height_m"]),
+            "canonical_height_unscaled_m": float(
+                optimization["canonical_height_unscaled_m"]
+            ),
         }
         torch.save(optimized_params_payload, params_dir / "optimized_frame_0000.pt")
 
@@ -2958,7 +3074,7 @@ def main() -> None:
                     "mask": float(args.mask_weight),
                     "root_orient_gvhmr": float(args.root_orient_gvhmr_weight),
                     "pose_gvhmr": float(args.pose_gvhmr_weight),
-                    "scale_prior": float(args.scale_prior_weight),
+                    "height_prior": float(args.height_prior_weight),
                     "intersect": {
                         "start": float(args.intersect_weight_start),
                         "end": float(args.intersect_weight_end),
@@ -2983,6 +3099,15 @@ def main() -> None:
                         "start": float(args.self_intersect_weight_start),
                         "end": float(args.self_intersect_weight_end),
                     },
+                },
+                "height_prior": {
+                    "target_m": float(args.height_prior_target_m),
+                    "min_m": float(args.height_prior_min_m),
+                    "max_m": float(args.height_prior_max_m),
+                    "sigma_m": float(args.height_prior_sigma_m),
+                    "target_ft_in": "6 ft 0 in",
+                    "min_ft_in": "5 ft 10 in",
+                    "max_ft_in": "6 ft 2 in",
                 },
             },
             "scene": {

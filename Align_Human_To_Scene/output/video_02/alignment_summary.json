@@ -13,7 +13,7 @@
       "mask": 1.0,
       "root_orient_gvhmr": 20.0,
       "pose_gvhmr": 10.0,
-      "scale_prior": 25.0,
+      "height_prior": 1.0,
       "intersect": {
         "start": 0.0,
         "end": 15.0
@@ -36,8 +36,17 @@
       },
       "self_intersect": {
         "start": 0.0,
-        "end": 1e-05
+        "end": 0.001
       }
+    },
+    "height_prior": {
+      "target_m": 1.8288,
+      "min_m": 1.778,
+      "max_m": 1.8796,
+      "sigma_m": 0.0508,
+      "target_ft_in": "6 ft 0 in",
+      "min_ft_in": "5 ft 10 in",
+      "max_ft_in": "6 ft 2 in"
     }
   },
   "scene": {
@@ -58,7 +67,7 @@
       "name": "person_1",
       "optimization": {
         "final_iter": 2000,
-        "final_total_loss": 0.7007129192352295
+        "final_total_loss": 0.7266494631767273
       },
       "init_frame_0": {
         "mask_overlap": {
@@ -139,17 +148,17 @@
       },
       "final_frame_0": {
         "mask_overlap": {
-          "intersection_px": 13039,
-          "union_px": 24499,
+          "intersection_px": 13858,
+          "union_px": 28781,
           "area_a_px": 20729,
-          "area_b_px": 16809,
-          "iou": 0.5322258051349035,
-          "dice": 0.6947093611806703
+          "area_b_px": 21910,
+          "iou": 0.48149821062506515,
+          "dice": 0.6500152442599498
         },
         "behind_fraction": {
-          "num_visible_points": 1206,
-          "num_behind_points": 99,
-          "behind_fraction": 0.08208955223880597
+          "num_visible_points": 898,
+          "num_behind_points": 53,
+          "behind_fraction": 0.05902004454342984
         },
         "contact_edges": [
           {
@@ -164,8 +173,8 @@
             "fixed_part_name": "main container",
             "fixed_point_count": 2048,
             "reduction": "mean",
-            "nocontact_raw": 0.0010005079675465822,
-            "nocontact_distance_m": 0.03163080725410881
+            "nocontact_raw": 0.0006170959677547216,
+            "nocontact_distance_m": 0.024841416379802535
           },
           {
             "node_a": "white trash bin, main container",
@@ -179,8 +188,8 @@
             "fixed_part_name": "main container",
             "fixed_point_count": 2048,
             "reduction": "mean",
-            "nocontact_raw": 0.0006549418321810663,
-            "nocontact_distance_m": 0.025591831356529884
+            "nocontact_raw": 0.0007209717878140509,
+            "nocontact_distance_m": 0.02685091782070123
           },
           {
             "node_a": "person_1.left_foot",
@@ -194,8 +203,8 @@
             "fixed_part_name": "floor",
             "fixed_point_count": 3303,
             "reduction": "mean",
-            "nocontact_raw": 0.0004138503863941878,
-            "nocontact_distance_m": 0.020343313063367723
+            "nocontact_raw": 0.000720857351552695,
+            "nocontact_distance_m": 0.026848786779903017
           },
           {
             "node_a": "person_1.right_foot",
@@ -209,8 +218,8 @@
             "fixed_part_name": "floor",
             "fixed_point_count": 3303,
             "reduction": "mean",
-            "nocontact_raw": 0.0006762956618331373,
-            "nocontact_distance_m": 0.026005685182919853
+            "nocontact_raw": 0.0006691659218631685,
+            "nocontact_distance_m": 0.0258682415688266
           }
         ]
       },

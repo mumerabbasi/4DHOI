@@ -96,7 +96,7 @@ After the second ablation stage, the selected regularization terms are:
 
 - `root_orient_gvhmr`
 - `pose_gvhmr`
-- `scale_prior`
+- `height_prior`
 - `angle`
 
 These terms keep the optimized human plausible while still allowing the root position to move enough for natural contact.
@@ -113,11 +113,13 @@ This keeps the articulated SMPL-X `body_pose` close to the GVHMR initialization.
 
 It is useful because the generated/GVHMR body pose is already a strong estimate of the interaction. The contact losses should refine that pose, not invent a new body configuration from scratch.
 
-### `scale_prior`
+### `height_prior`
 
-This keeps the extra global scale close to `1.0`.
+This keeps the canonical SMPL-X body height close to a physically plausible adult height.
 
-Scale is optimized because small scene/camera/mesh scale mismatches can exist, but the prior prevents scale from becoming an easy way to fake contact or mask alignment.
+The target height is 6 ft, exactly `1.8288 m`. The allowed scale range corresponds to 5 ft 10 in through 6 ft 2 in, exactly `1.7780 m` to `1.8796 m`.
+
+This replaces the old initial-scale prior. The old prior trusted GVHMR's metric scale; the height prior instead anchors the optimized body to a real-world human-height range while still allowing small scale adjustment.
 
 ### `angle`
 
@@ -129,7 +131,7 @@ It is kept because contact objectives can otherwise solve the problem by using u
 
 The interaction often looks better when the whole human moves toward the object before the arms deform heavily. If the root is held too tightly to the initial GVHMR placement, the optimizer may stretch an arm to satisfy hand-object contact instead of translating the body closer.
 
-The selected configuration therefore emphasizes contact, object penetration handling, floor support, mask alignment, body-pose anchoring, scale sanity, and anatomical plausibility while leaving enough freedom for the global body placement to adapt to the scene.
+The selected configuration therefore emphasizes contact, object penetration handling, floor support, mask alignment, body-pose anchoring, physical height, and anatomical plausibility while leaving enough freedom for the global body placement to adapt to the scene.
 
 ## Current Selected Objective
 
@@ -145,7 +147,7 @@ data:
 regularization:
   root_orient_gvhmr
   pose_gvhmr
-  scale_prior
+  height_prior
   angle
 ```
 
@@ -161,7 +163,11 @@ For reproducing the current selected runs, the corresponding weights are:
 --floor_nocontact_weight_end 200
 --root_orient_gvhmr_weight 20
 --pose_gvhmr_weight 10
---scale_prior_weight 25
+--height_prior_weight 1
+--height_prior_target_m 1.8288
+--height_prior_min_m 1.778
+--height_prior_max_m 1.8796
+--height_prior_sigma_m 0.0508
 --angle_weight_start 0
 --angle_weight_end 1
 
