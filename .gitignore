@@ -77,6 +77,7 @@ wandb/
 !**/first_frames/**
 !**/first_frames_resized/
 !**/first_frames_resized/**
+!**/contact_overlay/**
 
 # --- Model Weights (Large Files) ---
 *.safetensors
