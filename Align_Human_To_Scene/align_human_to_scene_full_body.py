@@ -36,7 +36,6 @@ except ImportError:
 
 LOSS_TERM_KEYS = (
     "mask",
-    "root_trans_gvhmr",
     "root_orient_gvhmr",
     "pose_gvhmr",
     "scale_prior",
@@ -1753,10 +1752,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mask_points", type=int, default=2500)
     parser.add_argument("--mask_vertex_samples", type=int, default=3000)
     parser.add_argument("--adam_iters", type=int, default=2000)
-    parser.add_argument("--adam_lr", type=float, default=1)
+    parser.add_argument("--adam_lr", type=float, default=1e-3)
     parser.add_argument("--behind_margin_m", type=float, default=0.03)
     parser.add_argument("--mask_weight", type=float, default=1)  # Was 500 in original
-    parser.add_argument("--root_trans_gvhmr_weight", type=float, default=20.0)
     parser.add_argument("--root_orient_gvhmr_weight", type=float, default=20.0)
     parser.add_argument("--pose_gvhmr_weight", type=float, default=10.0)
     parser.add_argument("--scale_prior_weight", type=float, default=25.0)
@@ -1770,7 +1768,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--scene_intersect_weight_end",
         type=float,
-        default=20.0,
+        default=0.0,
     )
     parser.add_argument("--nocontact_weight_start", type=float, default=500.0)  # original was 500
     parser.add_argument("--nocontact_weight_end", type=float, default=500.0)
@@ -1801,7 +1799,6 @@ def get_loss_weights(
 ) -> dict[str, float]:
     return {
         "mask": float(args.mask_weight),
-        "root_trans_gvhmr": float(args.root_trans_gvhmr_weight),
         "root_orient_gvhmr": float(args.root_orient_gvhmr_weight),
         "pose_gvhmr": float(args.pose_gvhmr_weight),
         "scale_prior": float(args.scale_prior_weight),
@@ -2261,7 +2258,6 @@ def compute_loss_dict(
     else:
         mask_loss = zero
 
-    root_trans_gvhmr = torch.mean((current["transl"] - init_params["transl"]) ** 2)
     root_orient_gvhmr = compute_root_orient_loss(
         current["global_orient_matrix"],
         init_params["global_orient_matrix"],
@@ -2295,7 +2291,6 @@ def compute_loss_dict(
 
     total = (
         mask_loss * float(weights["mask"])
-        + root_trans_gvhmr * float(weights["root_trans_gvhmr"])
         + root_orient_gvhmr * float(weights["root_orient_gvhmr"])
         + pose_gvhmr * float(weights["pose_gvhmr"])
         + scale_prior * float(weights["scale_prior"])
@@ -2309,7 +2304,6 @@ def compute_loss_dict(
     return {
         "total": total,
         "mask": mask_loss,
-        "root_trans_gvhmr": root_trans_gvhmr,
         "root_orient_gvhmr": root_orient_gvhmr,
         "pose_gvhmr": pose_gvhmr,
         "scale_prior": scale_prior,
@@ -2973,7 +2967,6 @@ def main() -> None:
                 "adam_lr": float(args.adam_lr),
                 "loss_weights": {
                     "mask": float(args.mask_weight),
-                    "root_trans_gvhmr": float(args.root_trans_gvhmr_weight),
                     "root_orient_gvhmr": float(args.root_orient_gvhmr_weight),
                     "pose_gvhmr": float(args.pose_gvhmr_weight),
                     "scale_prior": float(args.scale_prior_weight),
