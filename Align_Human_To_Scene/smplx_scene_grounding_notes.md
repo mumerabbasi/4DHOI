@@ -43,7 +43,7 @@ Detailed hand pose is also fixed for now. The current contact regions are hand/b
 After the first ablation stage, the selected data terms are:
 
 - `nocontact`
-- `intersect`
+- `scene_intersect`
 - `floor_nocontact`
 - `mask`
 
@@ -55,11 +55,11 @@ Even though the name is `nocontact`, in this script it is the term that encourag
 
 This is the most important term for the core research question: whether the correct human part moves to the correct object region.
 
-### `intersect`
+### `scene_intersect`
 
-This penalizes penetration between the selected human contact parts and the target object SDF.
+This penalizes scene surface points that lie inside the SMPL-X human SDF, or inside a small clearance margin around the human.
 
-It complements `nocontact`: `nocontact` brings the hand/body part to the object, while `intersect` discourages solving contact by pushing that part through the target mesh.
+Instead of building an SDF from the scanned target mesh, it uses the human body as the signed volume and checks visible nearby scene/target surface points against that body volume. This is cleaner for ScanNet++ because the human is much closer to watertight than the raw scene/object mesh.
 
 ### `floor_nocontact`
 
@@ -77,18 +77,15 @@ The mask term is a 2D observation anchor, not the main source of contact correct
 
 ## Scene Intersection Status
 
-A scene-level intersection term is still needed, but the current global scene SDF formulation is not reliable enough.
+The old global scene SDF formulation was not reliable enough.
 
 The full-room ScanNet mesh is not a clean watertight collision object. In practice, the global scene SDF marked large parts of the human, including the head and neck, as inside the scene even when the visual mesh did not show meaningful collision there. That made the optimizer rotate or distort upper-body pose to satisfy a bad collision signal.
 
-The next version should find a better scene-intersection formulation, for example:
+The current `scene_intersect` term instead follows the open-vocabulary/VolumetricSMPL-style direction: sample visible scene surface points near the body, query those points against the current SMPL-X body SDF, and penalize only scene points that are inside the body or within a small clearance margin.
 
-- restrict scene collision to meaningful local surfaces near the body,
-- treat floor, target object, walls, and clutter separately,
-- use local closest-surface distances instead of one global signed SDF for the whole room,
-- evaluate collision only for relevant body parts and nearby scene geometry.
+This keeps the sign source on the human, which is much closer to a clean closed volume than a raw ScanNet++ scene mesh.
 
-For the current selected objective, scene collision is handled only through the target-object `intersect` term and floor contact.
+The default is intentionally moderate: it ramps from `0` to `10`, like the original GenZI-style intersection schedule, and the loss averages only over active collision/clearance-violation points so the raw value is not diluted by safe scene points.
 
 ## Current Regularization Terms
 
@@ -131,7 +128,7 @@ It is kept because contact objectives can otherwise solve the problem by using u
 
 The interaction often looks better when the whole human moves toward the object before the arms deform heavily. If the root is held too tightly to the initial GVHMR placement, the optimizer may stretch an arm to satisfy hand-object contact instead of translating the body closer.
 
-The selected configuration therefore emphasizes contact, object penetration handling, floor support, mask alignment, body-pose anchoring, physical height, and anatomical plausibility while leaving enough freedom for the global body placement to adapt to the scene.
+The selected configuration therefore emphasizes contact, scene/body collision handling, floor support, mask alignment, body-pose anchoring, physical height, and anatomical plausibility while leaving enough freedom for the global body placement to adapt to the scene.
 
 ## Current Selected Objective
 
@@ -140,7 +137,7 @@ The current preferred objective is:
 ```text
 data:
   nocontact
-  intersect
+  scene_intersect
   floor_nocontact
   mask, weight = 1
 
@@ -155,8 +152,6 @@ For reproducing the current selected runs, the corresponding weights are:
 
 ```text
 --mask_weight 1
---intersect_weight_start 0
---intersect_weight_end 15
 --nocontact_weight_start 500
 --nocontact_weight_end 500
 --floor_nocontact_weight_start 200
@@ -170,10 +165,8 @@ For reproducing the current selected runs, the corresponding weights are:
 --height_prior_sigma_m 0.0508
 --angle_weight_start 0
 --angle_weight_end 1
-
-# scene intersection remains under redesign
 --scene_intersect_weight_start 0
---scene_intersect_weight_end 0
+--scene_intersect_weight_end 10
 --self_intersect_weight_start 0
 --self_intersect_weight_end 0
 ```
@@ -183,7 +176,7 @@ For reproducing the current selected runs, the corresponding weights are:
 The first ablation stage tested which data terms should be used. The best configuration kept:
 
 - `nocontact`
-- `intersect`
+- `scene_intersect`
 - `floor_nocontact`
 - `mask` with weight `1`
 
@@ -200,9 +193,7 @@ The main qualitative checks for these ablations were:
 
 ## Next Work
 
-The highest-priority next step is a better scene-intersection loss. The current target-object and floor terms handle the main interaction, but the method still needs a reliable way to prevent body-scene collision with non-target scene geometry.
-
-A second useful direction is a staged optimization schedule:
+A useful direction is a staged optimization schedule:
 
 1. first optimize root placement and scale so the whole body moves toward the object,
 2. then unlock full `body_pose` refinement for local contact and posture correction.

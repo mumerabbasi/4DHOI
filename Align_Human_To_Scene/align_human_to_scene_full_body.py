@@ -15,6 +15,7 @@ import trimesh
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from VolumetricSMPL import attach_volume
 from pytorch3d.ops import knn_points
 from pytorch3d.renderer import MeshRasterizer, RasterizationSettings
 from pytorch3d.structures import Meshes
@@ -35,7 +36,6 @@ LOSS_TERM_KEYS = (
     "root_orient_gvhmr",
     "pose_gvhmr",
     "height_prior",
-    "intersect",
     "scene_intersect",
     "nocontact",
     "floor_nocontact",
@@ -55,6 +55,9 @@ INCH_TO_M = 0.0254
 DEFAULT_HEIGHT_PRIOR_TARGET_M = 72.0 * INCH_TO_M
 DEFAULT_HEIGHT_PRIOR_MIN_M = 70.0 * INCH_TO_M
 DEFAULT_HEIGHT_PRIOR_MAX_M = 74.0 * INCH_TO_M
+SMPLX_SDF_DEBUG_GRID_RESOLUTION = 64
+SMPLX_SDF_DEBUG_CLAMP_M = 0.05
+SCENE_INTERSECT_DEBUG_MAX_POINTS = 20000
 
 
 @dataclass
@@ -85,13 +88,6 @@ class InteractionNode:
 class InteractionEdge:
     node_a: InteractionNode
     node_b: InteractionNode
-
-
-@dataclass
-class SDFGrid:
-    sdf_volume: torch.Tensor
-    bbox_min: torch.Tensor
-    bbox_max: torch.Tensor
 
 
 @dataclass
@@ -585,72 +581,6 @@ def load_smpl_segment_catalog(seg_path: Path) -> SmplxSegmentCatalog:
     )
 
 
-def build_sdf_grid(
-    vertices: np.ndarray,
-    faces: np.ndarray,
-    resolution: int,
-    device: torch.device,
-    padding: float = 0.05,
-) -> SDFGrid:
-    try:
-        from pysdf import SDF as PySDF
-    except ImportError as exc:
-        raise RuntimeError(
-            "The penetration losses require the 'pysdf' package, but it is not "
-            "installed in the current environment."
-        ) from exc
-
-    sdf_func = PySDF(vertices.astype(np.float32), faces.astype(np.uint32))
-    vmin = vertices.min(axis=0) - float(padding)
-    vmax = vertices.max(axis=0) + float(padding)
-    lin = [np.linspace(vmin[i], vmax[i], int(resolution)) for i in range(3)]
-    gx, gy, gz = np.meshgrid(lin[0], lin[1], lin[2], indexing="ij")
-    query_pts = np.stack([gx.ravel(), gy.ravel(), gz.ravel()], axis=1).astype(np.float32)
-    sdf_vals = -sdf_func(query_pts)
-    sdf_vol = sdf_vals.reshape(1, 1, int(resolution), int(resolution), int(resolution))
-    return SDFGrid(
-        sdf_volume=torch.from_numpy(sdf_vol.astype(np.float32)).to(device),
-        bbox_min=torch.tensor(vmin.reshape(1, 1, 3), dtype=torch.float32, device=device),
-        bbox_max=torch.tensor(vmax.reshape(1, 1, 3), dtype=torch.float32, device=device),
-    )
-
-
-def query_sdf(
-    sdf_grid: SDFGrid,
-    points: torch.Tensor,
-) -> torch.Tensor:
-    shape = points.shape[:-1]
-    pts = points.reshape(1, -1, 3)
-    normalized = (
-        (pts - sdf_grid.bbox_min)
-        / (sdf_grid.bbox_max - sdf_grid.bbox_min)
-        * 2.0
-        - 1.0
-    )
-    grid = normalized[:, :, [2, 1, 0]].view(1, -1, 1, 1, 3)
-    sampled = F.grid_sample(
-        sdf_grid.sdf_volume,
-        grid,
-        padding_mode="border",
-        align_corners=True,
-    )
-    return sampled.reshape(*shape)
-
-
-def compute_penetration_loss(
-    sdf_grid: SDFGrid,
-    points: torch.Tensor,
-) -> torch.Tensor:
-    if points.numel() == 0:
-        return points.new_tensor(0.0)
-    sdf_vals = query_sdf(sdf_grid, points)
-    intersects = F.relu(-sdf_vals)
-    icount = (intersects > 0).sum()
-    if icount.item() == 0:
-        return points.new_tensor(0.0)
-    return intersects.sum() / icount.to(intersects.dtype)
-
-
 def _get_reduction(nodes: tuple[InteractionNode, InteractionNode]) -> str:
     for node in nodes:
         if node.is_human and node.part_name.split(" ")[-1] in ("hand", "foot"):
@@ -1099,6 +1029,35 @@ def write_colored_ascii_ply(
             )
         for face in faces:
             f.write(f"3 {int(face[0])} {int(face[1])} {int(face[2])}\n")
+
+
+def write_colored_point_cloud_ply(
+    path: Path,
+    points: np.ndarray,
+    colors_uint8: np.ndarray,
+) -> None:
+    if colors_uint8.shape != (points.shape[0], 3):
+        raise ValueError(
+            "colors_uint8 must have shape (N, 3); got "
+            f"{colors_uint8.shape} for {points.shape[0]} points."
+        )
+    colors = colors_uint8.astype(np.uint8)
+    with path.open("w", encoding="utf-8") as f:
+        f.write("ply\n")
+        f.write("format ascii 1.0\n")
+        f.write(f"element vertex {len(points)}\n")
+        f.write("property float x\n")
+        f.write("property float y\n")
+        f.write("property float z\n")
+        f.write("property uchar red\n")
+        f.write("property uchar green\n")
+        f.write("property uchar blue\n")
+        f.write("end_header\n")
+        for point, color in zip(points, colors):
+            f.write(
+                f"{point[0]} {point[1]} {point[2]} "
+                f"{int(color[0])} {int(color[1])} {int(color[2])}\n"
+            )
 
 
 CONTACT_PALETTE_RGB: tuple[tuple[int, int, int], ...] = (
@@ -1680,6 +1639,7 @@ class FullBodySMPLXParams(nn.Module):
             global_orient=global_orient.view(1, 3),
             body_pose=self.body_pose.view(1, -1),
             betas=self.betas.view(1, -1),
+            return_full_pose=True,
         )
         verts_unscaled = smplx_out.vertices[0]
         joints_unscaled = smplx_out.joints[0]
@@ -1690,6 +1650,7 @@ class FullBodySMPLXParams(nn.Module):
             "verts_unscaled": verts_unscaled,
             "joints": joints,
             "joints_unscaled": joints_unscaled,
+            "smplx_output": smplx_out,
             "transl": self.transl,
             "global_orient_matrix": orient_matrix,
             "global_orient": global_orient,
@@ -1779,8 +1740,6 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_HEIGHT_PRIOR_MAX_M,
     )
     parser.add_argument("--height_prior_sigma_m", type=float, default=0.0508)
-    parser.add_argument("--intersect_weight_start", type=float, default=0.0)
-    parser.add_argument("--intersect_weight_end", type=float, default=15.0)
     parser.add_argument(
         "--scene_intersect_weight_start",
         type=float,
@@ -1789,7 +1748,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--scene_intersect_weight_end",
         type=float,
-        default=0.0,
+        default=10.0,
+    )
+    parser.add_argument("--scene_intersect_bbox_margin_m", type=float, default=0.20)
+    parser.add_argument("--scene_intersect_margin_m", type=float, default=0.01)
+    parser.add_argument("--scene_intersect_surface_samples", type=int, default=12000)
+    parser.add_argument(
+        "--scene_intersect_debug",
+        action=argparse.BooleanOptionalAction,
+        default=True,
     )
     parser.add_argument("--nocontact_weight_start", type=float, default=500.0)  # original was 500
     parser.add_argument("--nocontact_weight_end", type=float, default=500.0)
@@ -1802,7 +1769,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--visible_tol_m", type=float, default=0.02)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--log_every", type=int, default=50)
-    parser.add_argument("--sdf_resolution", type=int, default=128)
     parser.add_argument("--contact_masks_dir", type=str, default=None)
     parser.add_argument("--contact_region_expand_rings", type=int, default=1)
     parser.add_argument("--snapshot_every_iters", type=int, default=50)
@@ -1819,12 +1785,6 @@ def get_loss_weights(
         "root_orient_gvhmr": float(args.root_orient_gvhmr_weight),
         "pose_gvhmr": float(args.pose_gvhmr_weight),
         "height_prior": float(args.height_prior_weight),
-        "intersect": linear_weight(
-            args.intersect_weight_start,
-            args.intersect_weight_end,
-            iteration,
-            total_iters,
-        ),
         "scene_intersect": linear_weight(
             args.scene_intersect_weight_start,
             args.scene_intersect_weight_end,
@@ -1860,7 +1820,7 @@ def get_loss_weights(
 
 def build_loss_row(
     iteration: int,
-    losses: dict[str, torch.Tensor | dict[str, float]],
+    losses: dict[str, Any],
 ) -> dict[str, Any]:
     weights = losses["weights"]
     assert isinstance(weights, dict)
@@ -1873,13 +1833,17 @@ def build_loss_row(
         row[f"{key}_weight"] = float(weights[key])
         row[f"{key}_raw"] = raw_value
         row[f"{key}_scaled"] = float(weights[key]) * raw_value
+    scene_stats = losses.get("scene_intersect_stats", {})
+    if isinstance(scene_stats, dict):
+        for key, value in scene_stats.items():
+            row[f"scene_intersect_{key}"] = int(value)
     return row
 
 
 def format_loss_log(
     iteration: int,
     total_iterations: int,
-    losses: dict[str, torch.Tensor | dict[str, float]],
+    losses: dict[str, Any],
 ) -> list[str]:
     weights = losses["weights"]
     assert isinstance(weights, dict)
@@ -1902,7 +1866,7 @@ def format_loss_log(
 
 def build_final_loss_summary_row(
     final_iter: int,
-    losses: dict[str, torch.Tensor | dict[str, float]],
+    losses: dict[str, Any],
 ) -> dict[str, Any]:
     weights = losses["weights"]
     assert isinstance(weights, dict)
@@ -1916,6 +1880,10 @@ def build_final_loss_summary_row(
         row[f"{key}_weight"] = float(weights[key])
         row[f"{key}_raw"] = raw_value
         row[f"{key}_scaled"] = float(weights[key]) * raw_value
+    scene_stats = losses.get("scene_intersect_stats", {})
+    if isinstance(scene_stats, dict):
+        for key, value in scene_stats.items():
+            row[f"scene_intersect_{key}"] = int(value)
     return row
 
 
@@ -2177,7 +2145,9 @@ def build_smplx_layer(smpl_folder: Path, device: torch.device) -> Any:
         create_betas=False,
         create_global_orient=False,
         create_transl=False,
+        return_full_pose=True,
     )
+    layer = attach_volume(layer, pretrained=True, device=device)
     layer = layer.to(device)
     layer.requires_grad_(False)
     return layer
@@ -2195,6 +2165,7 @@ def compute_canonical_smplx_height_m(
             global_orient=torch.zeros((1, 3), device=device, dtype=dtype),
             body_pose=torch.zeros((1, 63), device=device, dtype=dtype),
             betas=betas.view(1, -1),
+            return_full_pose=True,
         )
         verts = out.vertices[0]
         height = verts[:, 1].max() - verts[:, 1].min()
@@ -2252,45 +2223,269 @@ def compute_contact_distance_loss(
     return torch.stack(values, dim=0).mean()
 
 
-def compute_segment_penetration_loss(
-    current_vertices: torch.Tensor,
-    edges: list[DynamicContactEdge],
-    sdf_grid: SDFGrid | None,
-    loss_name: str,
+def query_human_sdf_for_scene_points(
+    current: dict[str, torch.Tensor],
+    smplx_layer: Any,
+    scene_collision_points: torch.Tensor,
+    bbox_margin_m: float,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    verts = current["verts"]
+    with torch.no_grad():
+        margin = float(bbox_margin_m)
+        human_min = verts.detach().min(dim=0).values - margin
+        human_max = verts.detach().max(dim=0).values + margin
+        near_mask = (
+            (scene_collision_points >= human_min)
+            & (scene_collision_points <= human_max)
+        ).all(dim=1)
+    near_points = scene_collision_points[near_mask]
+    if near_points.shape[0] == 0:
+        return near_points, verts.new_zeros((0,))
+
+    scale = current["scale"].reshape(())
+    transl = current["transl"].reshape(1, 3)
+    near_points_unscaled = transl + (near_points - transl) / scale
+    sdf_unscaled = smplx_layer.volume.query_fast(
+        near_points_unscaled.unsqueeze(0),
+        current["smplx_output"],
+    )[0]
+    return near_points, sdf_unscaled * scale
+
+
+def compute_scene_inside_human_loss(
+    current: dict[str, torch.Tensor],
+    smplx_layer: Any,
+    scene_collision_points: torch.Tensor,
+    bbox_margin_m: float,
+    clearance_margin_m: float,
     required: bool,
-) -> torch.Tensor:
-    if sdf_grid is None:
-        if required:
-            raise RuntimeError(f"{loss_name} is enabled, but its SDF grid is missing.")
-        return current_vertices.new_tensor(0.0)
-    if not edges:
+) -> tuple[torch.Tensor, dict[str, int]]:
+    verts = current["verts"]
+    zero = verts.new_tensor(0.0)
+    stats = {
+        "num_scene_collision_points": int(scene_collision_points.shape[0]),
+        "num_near_scene_collision_points": 0,
+        "num_inside_or_margin_points": 0,
+    }
+    if scene_collision_points.shape[0] == 0:
         if required:
             raise RuntimeError(
-                f"{loss_name} is enabled, but no contact edges exist."
+                "scene_intersect is enabled, but no scene collision points exist."
             )
-        return current_vertices.new_tensor(0.0)
-    values: list[torch.Tensor] = []
-    for edge in edges:
-        moving_points = current_vertices[edge.moving_vertex_ids]
-        intersect = compute_penetration_loss(sdf_grid, moving_points)
-        if intersect.item() > 0.0:
-            values.append(intersect)
-    if not values:
-        return current_vertices.new_tensor(0.0)
-    return torch.stack(values, dim=0).mean()
+        return zero, stats
+
+    near_points, sdf = query_human_sdf_for_scene_points(
+        current=current,
+        smplx_layer=smplx_layer,
+        scene_collision_points=scene_collision_points,
+        bbox_margin_m=bbox_margin_m,
+    )
+    stats["num_near_scene_collision_points"] = int(near_points.shape[0])
+    if near_points.shape[0] == 0:
+        return zero, stats
+
+    violations = F.relu(float(clearance_margin_m) - sdf)
+    stats["num_inside_or_margin_points"] = int((violations > 0).sum().detach().cpu().item())
+    active = violations > 0
+    if not torch.any(active):
+        return zero, stats
+    return violations[active].mean(), stats
 
 
-def compute_body_penetration_loss(
-    current_vertices: torch.Tensor,
-    sdf_grid: SDFGrid | None,
-    loss_name: str,
-    required: bool,
+def color_scene_intersect_sdf(
+    sdf: np.ndarray,
+    clearance_margin_m: float,
+) -> np.ndarray:
+    colors = np.tile(np.array([150, 170, 210], dtype=np.uint8), (sdf.shape[0], 1))
+    inside = sdf < 0.0
+    in_margin = (sdf >= 0.0) & (sdf < float(clearance_margin_m))
+    colors[inside] = np.array([255, 0, 0], dtype=np.uint8)
+    colors[in_margin] = np.array([255, 170, 0], dtype=np.uint8)
+    return colors
+
+
+def color_sdf_grid_values(
+    sdf: np.ndarray,
+    clamp_m: float = SMPLX_SDF_DEBUG_CLAMP_M,
+) -> np.ndarray:
+    clamp = max(float(clamp_m), 1e-6)
+    colors = np.zeros((sdf.shape[0], 3), dtype=np.float32)
+    negative = sdf < 0.0
+    positive = ~negative
+
+    neg_t = np.clip(1.0 + sdf[negative] / clamp, 0.0, 1.0)[:, None]
+    colors[negative] = (
+        (1.0 - neg_t) * np.array([255, 0, 0], dtype=np.float32)
+        + neg_t * np.array([255, 255, 255], dtype=np.float32)
+    )
+
+    pos_t = np.clip(sdf[positive] / clamp, 0.0, 1.0)[:, None]
+    colors[positive] = (
+        (1.0 - pos_t) * np.array([255, 255, 255], dtype=np.float32)
+        + pos_t * np.array([40, 110, 255], dtype=np.float32)
+    )
+    return np.clip(np.round(colors), 0, 255).astype(np.uint8)
+
+
+def build_sdf_grid_query_points(
+    verts_camera: torch.Tensor,
+    resolution: int = SMPLX_SDF_DEBUG_GRID_RESOLUTION,
+    padding_m: float = 0.15,
+) -> tuple[torch.Tensor, tuple[int, int, int], torch.Tensor, torch.Tensor]:
+    verts = verts_camera.detach()
+    vmin = verts.min(dim=0).values - float(padding_m)
+    vmax = verts.max(dim=0).values + float(padding_m)
+    res = int(resolution)
+    xs = torch.linspace(vmin[0], vmax[0], res, device=verts.device, dtype=verts.dtype)
+    ys = torch.linspace(vmin[1], vmax[1], res, device=verts.device, dtype=verts.dtype)
+    zs = torch.linspace(vmin[2], vmax[2], res, device=verts.device, dtype=verts.dtype)
+
+    gx, gy, gz = torch.meshgrid(xs, ys, zs, indexing="ij")
+    points = torch.stack(
+        [gx.reshape(-1), gy.reshape(-1), gz.reshape(-1)],
+        dim=1,
+    )
+    return points, (res, res, res), vmin, vmax
+
+
+def query_human_sdf_at_points(
+    current: dict[str, torch.Tensor],
+    smplx_layer: Any,
+    query_points: torch.Tensor,
+    chunk_size: int = 65536,
 ) -> torch.Tensor:
-    if sdf_grid is None:
-        if required:
-            raise RuntimeError(f"{loss_name} is enabled, but its SDF grid is missing.")
-        return current_vertices.new_tensor(0.0)
-    return compute_penetration_loss(sdf_grid, current_vertices)
+    scale = current["scale"].reshape(())
+    transl = current["transl"].reshape(1, 3)
+    sdf_chunks: list[torch.Tensor] = []
+    for start in range(0, query_points.shape[0], int(chunk_size)):
+        query_chunk = query_points[start:start + int(chunk_size)]
+        query_unscaled = transl + (query_chunk - transl) / scale
+        sdf_unscaled = smplx_layer.volume.query_fast(
+            query_unscaled.unsqueeze(0),
+            current["smplx_output"],
+        )[0]
+        sdf_chunks.append(sdf_unscaled * scale)
+    if not sdf_chunks:
+        return query_points.new_zeros((0,))
+    return torch.cat(sdf_chunks, dim=0)
+
+
+def save_scene_intersect_debug_artifacts(
+    debug_dir: Path,
+    stage_name: str,
+    current: dict[str, torch.Tensor],
+    smplx_layer: Any,
+    scene_collision_points_t: torch.Tensor,
+    bbox_margin_m: float,
+    clearance_margin_m: float,
+    rotation_world_to_camera: np.ndarray,
+    translation_world_to_camera: np.ndarray,
+) -> dict[str, Any]:
+    ensure_dir(debug_dir)
+    with torch.no_grad():
+        near_points, sdf = query_human_sdf_for_scene_points(
+            current=current,
+            smplx_layer=smplx_layer,
+            scene_collision_points=scene_collision_points_t,
+            bbox_margin_m=bbox_margin_m,
+        )
+        grid_points, grid_shape, grid_min, grid_max = build_sdf_grid_query_points(
+            current["verts"]
+        )
+        grid_sdf = query_human_sdf_at_points(
+            current=current,
+            smplx_layer=smplx_layer,
+            query_points=grid_points,
+        )
+
+    near_points_np = near_points.detach().cpu().numpy().astype(np.float32)
+    sdf_np = sdf.detach().cpu().numpy().astype(np.float32)
+    if near_points_np.shape[0] > SCENE_INTERSECT_DEBUG_MAX_POINTS:
+        rng = np.random.default_rng(17017)
+        keep = rng.choice(
+            near_points_np.shape[0],
+            size=SCENE_INTERSECT_DEBUG_MAX_POINTS,
+            replace=False,
+        )
+        near_points_np = near_points_np[keep]
+        sdf_np = sdf_np[keep]
+
+    near_world = transform_camera_to_world(
+        near_points_np,
+        rotation_world_to_camera=rotation_world_to_camera,
+        translation_world_to_camera=translation_world_to_camera,
+    )
+    scene_colors = color_scene_intersect_sdf(sdf_np, clearance_margin_m)
+    write_colored_point_cloud_ply(
+        debug_dir / f"{stage_name}_scene_points_smplx_sdf.ply",
+        near_world.astype(np.float32),
+        scene_colors,
+    )
+
+    grid_points_np = grid_points.detach().cpu().numpy().astype(np.float32)
+    grid_sdf_np = grid_sdf.detach().cpu().numpy().astype(np.float32)
+    grid_world = transform_camera_to_world(
+        grid_points_np,
+        rotation_world_to_camera=rotation_world_to_camera,
+        translation_world_to_camera=translation_world_to_camera,
+    )
+    write_colored_point_cloud_ply(
+        debug_dir / f"{stage_name}_smplx_sdf_grid.ply",
+        grid_world.astype(np.float32),
+        color_sdf_grid_values(grid_sdf_np),
+    )
+    np.savez_compressed(
+        debug_dir / f"{stage_name}_smplx_sdf_grid.npz",
+        points_camera=grid_points_np,
+        points_world=grid_world.astype(np.float32),
+        sdf_m=grid_sdf_np,
+        sdf_grid_m=grid_sdf_np.reshape(grid_shape),
+        grid_shape=np.asarray(grid_shape, dtype=np.int32),
+        bbox_min_camera=grid_min.detach().cpu().numpy().astype(np.float32),
+        bbox_max_camera=grid_max.detach().cpu().numpy().astype(np.float32),
+        color_clamp_m=np.asarray([SMPLX_SDF_DEBUG_CLAMP_M], dtype=np.float32),
+    )
+
+    scene_stats = {
+        "num_scene_collision_points": int(scene_collision_points_t.shape[0]),
+        "num_near_scene_collision_points": int(near_points.shape[0]),
+        "num_inside_points": int(np.count_nonzero(sdf_np < 0.0)),
+        "num_margin_points": int(
+            np.count_nonzero((sdf_np >= 0.0) & (sdf_np < float(clearance_margin_m)))
+        ),
+        "min_sdf_m": float(sdf_np.min()) if sdf_np.size > 0 else None,
+        "max_sdf_m": float(sdf_np.max()) if sdf_np.size > 0 else None,
+    }
+    grid_stats = {
+        "num_grid_points": int(grid_points.shape[0]),
+        "grid_shape": list(grid_shape),
+        "min_sdf_m": float(grid_sdf_np.min()) if grid_sdf_np.size > 0 else None,
+        "max_sdf_m": float(grid_sdf_np.max()) if grid_sdf_np.size > 0 else None,
+        "num_inside_grid_points": int(np.count_nonzero(grid_sdf_np < 0.0)),
+        "num_near_surface_grid_points": int(
+            np.count_nonzero(np.abs(grid_sdf_np) < float(clearance_margin_m))
+        ),
+        "color_clamp_m": float(SMPLX_SDF_DEBUG_CLAMP_M),
+    }
+    payload = {
+        "stage": stage_name,
+        "scene_point_colors": {
+            "red": "inside SMPL-X human SDF; contributes to scene_intersect",
+            "orange": "outside but within scene_intersect clearance margin",
+            "blue_gray": "outside clearance margin",
+        },
+        "sdf_grid_colors": {
+            "red_intensity": "inside SMPL-X; stronger red means more negative SDF",
+            "white": "near zero SDF surface",
+            "blue_intensity": "outside SMPL-X; stronger blue means larger positive SDF",
+        },
+        "bbox_margin_m": float(bbox_margin_m),
+        "clearance_margin_m": float(clearance_margin_m),
+        "scene_points": scene_stats,
+        "sdf_grid": grid_stats,
+    }
+    save_json(debug_dir / f"{stage_name}_scene_intersect_debug.json", payload)
+    return payload
 
 
 def compute_loss_dict(
@@ -2301,8 +2496,9 @@ def compute_loss_dict(
     obs_mask_pixels_norm_t: torch.Tensor,
     contact_edges: list[DynamicContactEdge],
     floor_edges: list[DynamicContactEdge],
-    target_sdf_grid: SDFGrid | None,
-    scene_sdf_grid: SDFGrid | None,
+    scene_collision_points_t: torch.Tensor,
+    scene_intersect_bbox_margin_m: float,
+    scene_intersect_margin_m: float,
     intrinsics_t: torch.Tensor,
     width: int,
     height: int,
@@ -2346,17 +2542,12 @@ def compute_loss_dict(
         / params_module.height_prior_sigma_m
     ).pow(2)
 
-    intersect = compute_segment_penetration_loss(
-        current_vertices=verts_camera,
-        edges=contact_edges,
-        sdf_grid=target_sdf_grid,
-        loss_name="intersect",
-        required=float(weights["intersect"]) > 0.0,
-    )
-    scene_intersect = compute_body_penetration_loss(
-        current_vertices=verts_camera,
-        sdf_grid=scene_sdf_grid,
-        loss_name="scene_intersect",
+    scene_intersect, scene_intersect_stats = compute_scene_inside_human_loss(
+        current=current,
+        smplx_layer=smplx_layer,
+        scene_collision_points=scene_collision_points_t,
+        bbox_margin_m=scene_intersect_bbox_margin_m,
+        clearance_margin_m=scene_intersect_margin_m,
         required=float(weights["scene_intersect"]) > 0.0,
     )
     nocontact = compute_contact_distance_loss(
@@ -2383,7 +2574,6 @@ def compute_loss_dict(
         + root_orient_gvhmr * float(weights["root_orient_gvhmr"])
         + pose_gvhmr * float(weights["pose_gvhmr"])
         + height_prior * float(weights["height_prior"])
-        + intersect * float(weights["intersect"])
         + scene_intersect * float(weights["scene_intersect"])
         + nocontact * float(weights["nocontact"])
         + floor_nocontact * float(weights["floor_nocontact"])
@@ -2396,7 +2586,6 @@ def compute_loss_dict(
         "root_orient_gvhmr": root_orient_gvhmr,
         "pose_gvhmr": pose_gvhmr,
         "height_prior": height_prior,
-        "intersect": intersect,
         "scene_intersect": scene_intersect,
         "nocontact": nocontact,
         "floor_nocontact": floor_nocontact,
@@ -2404,6 +2593,7 @@ def compute_loss_dict(
         "self_intersect": self_intersect,
         "weights": weights,
         "current": current,
+        "scene_intersect_stats": scene_intersect_stats,
     }
 
 
@@ -2492,8 +2682,7 @@ def optimize_track(
     obs_mask_pixels: np.ndarray,
     contact_edges: list[DynamicContactEdge],
     floor_edges: list[DynamicContactEdge],
-    target_sdf_grid: SDFGrid | None,
-    scene_sdf_grid: SDFGrid | None,
+    scene_collision_points: np.ndarray,
     intrinsics: np.ndarray,
     width: int,
     height: int,
@@ -2501,6 +2690,7 @@ def optimize_track(
     args: argparse.Namespace,
     device: torch.device,
     snapshots_dir: Path | None = None,
+    scene_intersect_debug_dir: Path | None = None,
     snapshot_every_iters: int = 0,
     faces_np: np.ndarray | None = None,
     rotation_world_to_camera: np.ndarray | None = None,
@@ -2512,6 +2702,12 @@ def optimize_track(
         and rotation_world_to_camera is not None
         and translation_world_to_camera is not None
         and int(snapshot_every_iters) > 0
+    )
+    scene_intersect_debug_active = (
+        bool(args.scene_intersect_debug)
+        and scene_intersect_debug_dir is not None
+        and rotation_world_to_camera is not None
+        and translation_world_to_camera is not None
     )
     init_params_t = {
         "transl": torch.from_numpy(init_params_np["transl"]).to(device=device, dtype=torch.float32),
@@ -2554,12 +2750,31 @@ def optimize_track(
         obs_mask_pixels_norm_t[:, 1] /= max(float(height - 1), 1.0)
     intrinsics_t = torch.from_numpy(intrinsics.astype(np.float32)).to(device)
     mask_vertex_ids_t = torch.from_numpy(mask_vertex_ids.astype(np.int64)).to(device)
+    scene_collision_points_t = torch.from_numpy(
+        scene_collision_points.astype(np.float32)
+    ).to(device)
 
     optimizer = torch.optim.Adam(params_module.parameters(), lr=float(args.adam_lr))
     iter_rows: list[dict[str, Any]] = []
 
     if int(args.adam_iters) <= 0:
         raise RuntimeError("adam_iters must be > 0.")
+
+    scene_intersect_debug_payloads: dict[str, Any] = {}
+    if scene_intersect_debug_active:
+        with torch.no_grad():
+            init_current = params_module(smplx_layer)
+        scene_intersect_debug_payloads["init"] = save_scene_intersect_debug_artifacts(
+            debug_dir=scene_intersect_debug_dir,  # type: ignore[arg-type]
+            stage_name="init",
+            current=init_current,
+            smplx_layer=smplx_layer,
+            scene_collision_points_t=scene_collision_points_t,
+            bbox_margin_m=float(args.scene_intersect_bbox_margin_m),
+            clearance_margin_m=float(args.scene_intersect_margin_m),
+            rotation_world_to_camera=rotation_world_to_camera,  # type: ignore[arg-type]
+            translation_world_to_camera=translation_world_to_camera,  # type: ignore[arg-type]
+        )
 
     for iter_idx in range(1, int(args.adam_iters) + 1):
         weights = get_loss_weights(args, iter_idx - 1, int(args.adam_iters) - 1)
@@ -2572,8 +2787,9 @@ def optimize_track(
             obs_mask_pixels_norm_t=obs_mask_pixels_norm_t,
             contact_edges=contact_edges,
             floor_edges=floor_edges,
-            target_sdf_grid=target_sdf_grid,
-            scene_sdf_grid=scene_sdf_grid,
+            scene_collision_points_t=scene_collision_points_t,
+            scene_intersect_bbox_margin_m=float(args.scene_intersect_bbox_margin_m),
+            scene_intersect_margin_m=float(args.scene_intersect_margin_m),
             intrinsics_t=intrinsics_t,
             width=width,
             height=height,
@@ -2624,8 +2840,9 @@ def optimize_track(
             obs_mask_pixels_norm_t=obs_mask_pixels_norm_t,
             contact_edges=contact_edges,
             floor_edges=floor_edges,
-            target_sdf_grid=target_sdf_grid,
-            scene_sdf_grid=scene_sdf_grid,
+            scene_collision_points_t=scene_collision_points_t,
+            scene_intersect_bbox_margin_m=float(args.scene_intersect_bbox_margin_m),
+            scene_intersect_margin_m=float(args.scene_intersect_margin_m),
             intrinsics_t=intrinsics_t,
             width=width,
             height=height,
@@ -2635,6 +2852,18 @@ def optimize_track(
             weights=final_weights,
         )
         current = final_losses["current"]
+        if scene_intersect_debug_active:
+            scene_intersect_debug_payloads["final"] = save_scene_intersect_debug_artifacts(
+                debug_dir=scene_intersect_debug_dir,  # type: ignore[arg-type]
+                stage_name="final",
+                current=current,
+                smplx_layer=smplx_layer,
+                scene_collision_points_t=scene_collision_points_t,
+                bbox_margin_m=float(args.scene_intersect_bbox_margin_m),
+                clearance_margin_m=float(args.scene_intersect_margin_m),
+                rotation_world_to_camera=rotation_world_to_camera,  # type: ignore[arg-type]
+                translation_world_to_camera=translation_world_to_camera,  # type: ignore[arg-type]
+            )
     return {
         "iter_rows": iter_rows,
         "final_iter": int(args.adam_iters),
@@ -2652,6 +2881,8 @@ def optimize_track(
         "canonical_height_unscaled_m": float(
             params_module.canonical_height_m.detach().cpu().item()
         ),
+        "scene_intersect_stats": final_losses.get("scene_intersect_stats", {}),
+        "scene_intersect_debug": scene_intersect_debug_payloads,
     }
 
 
@@ -2739,6 +2970,20 @@ def main() -> None:
     )
     np.save(scene_depth_dir / "scene_depth.npy", scene_depth.astype(np.float32))
     save_depth_visualization(scene_depth_dir / "scene_depth_vis.png", scene_depth)
+    scene_collision_surface_samples = sample_mesh_surface_points(
+        verts=scene_verts_camera_render,
+        faces=scene_faces_render,
+        num_samples=int(args.scene_intersect_surface_samples),
+        seed=int(args.seed) + 4242,
+    )
+    scene_collision_points_visible, scene_collision_visible_stats = build_visible_subset(
+        sampled_points=scene_collision_surface_samples,
+        mesh_verts=scene_verts_camera_render,
+        mesh_faces=scene_faces_render,
+        camera_ctx=camera_ctx,
+        device=device,
+        visible_tol_m=float(args.visible_tol_m),
+    )
 
     segments_payload = load_json(scene_paths["segments_path"])
     anno_payload = load_json(scene_paths["segments_anno_path"])
@@ -2762,25 +3007,13 @@ def main() -> None:
     target_verts_camera, target_faces_compact = compact_mesh(
         scene_verts_camera, target_faces
     )
-    target_sdf_grid = build_sdf_grid(
-        target_verts_camera,
-        target_faces_compact,
-        resolution=int(args.sdf_resolution),
-        device=device,
-    )
     scene_faces_without_target = remove_faces(scene_faces_in_view, target_faces)
     scene_no_target_verts_camera, scene_no_target_faces_compact = compact_mesh(
         scene_verts_camera,
         scene_faces_without_target,
     )
     if scene_no_target_faces_compact.shape[0] == 0:
-        raise RuntimeError("No non-target scene faces remained for scene SDF.")
-    scene_sdf_grid = build_sdf_grid(
-        scene_no_target_verts_camera,
-        scene_no_target_faces_compact,
-        resolution=int(args.sdf_resolution),
-        device=device,
-    )
+        raise RuntimeError("No non-target scene faces remained for snapshots.")
     target_surface_samples = sample_mesh_surface_points(
         verts=target_verts_camera,
         faces=target_faces_compact,
@@ -2841,6 +3074,7 @@ def main() -> None:
         plot_dir = ensure_dir(debug_track_root / "plots" / "iter")
         params_dir = ensure_dir(debug_track_root / "params")
         snapshots_dir = ensure_dir(debug_track_root / "snapshots")
+        scene_intersect_debug_dir = ensure_dir(debug_track_root / "scene_intersect")
 
         human_mask = load_mask(track.mask_dir / "frame_0000.png")
         if human_mask.shape != (height, width):
@@ -2860,6 +3094,7 @@ def main() -> None:
                 global_orient=init_params_torch["global_orient"].view(1, 3).to(device),
                 body_pose=init_params_torch["body_pose"].view(1, -1).to(device),
                 betas=init_params_torch["betas"].view(1, -1).to(device),
+                return_full_pose=True,
             )
             init_verts_camera = init_out.vertices[0].detach().cpu().numpy().astype(np.float32)
 
@@ -2943,8 +3178,7 @@ def main() -> None:
             obs_mask_pixels=obs_mask_pixels,
             contact_edges=contact_edges,
             floor_edges=floor_edges,
-            target_sdf_grid=target_sdf_grid,
-            scene_sdf_grid=scene_sdf_grid,
+            scene_collision_points=scene_collision_points_visible,
             intrinsics=intrinsics,
             width=width,
             height=height,
@@ -2952,6 +3186,7 @@ def main() -> None:
             args=args,
             device=device,
             snapshots_dir=snapshots_dir,
+            scene_intersect_debug_dir=scene_intersect_debug_dir,
             snapshot_every_iters=int(args.snapshot_every_iters),
             faces_np=faces_np,
             rotation_world_to_camera=rotation_world_to_camera,
@@ -3036,6 +3271,8 @@ def main() -> None:
                 "optimization": {
                     "final_iter": int(optimization["final_iter"]),
                     "final_total_loss": float(optimization["final_total_loss"]),
+                    "scene_intersect_stats": optimization["scene_intersect_stats"],
+                    "scene_intersect_debug": optimization["scene_intersect_debug"],
                 },
                 "init_frame_0": {
                     "mask_overlap": init_mask_overlap,
@@ -3053,6 +3290,7 @@ def main() -> None:
                     "init_overlay": str(overlay_dir / "frame_0000_init_mask_overlay.png"),
                     "final_overlay": str(overlay_dir / "frame_0000_final_mask_overlay.png"),
                     "optimized_params": str(params_dir / "optimized_frame_0000.pt"),
+                    "scene_intersect_debug": str(scene_intersect_debug_dir),
                     "csv": {
                         "iter_metrics": str(iter_metrics_csv),
                         "final_loss_summary": str(final_loss_summary_csv),
@@ -3075,13 +3313,13 @@ def main() -> None:
                     "root_orient_gvhmr": float(args.root_orient_gvhmr_weight),
                     "pose_gvhmr": float(args.pose_gvhmr_weight),
                     "height_prior": float(args.height_prior_weight),
-                    "intersect": {
-                        "start": float(args.intersect_weight_start),
-                        "end": float(args.intersect_weight_end),
-                    },
                     "scene_intersect": {
                         "start": float(args.scene_intersect_weight_start),
                         "end": float(args.scene_intersect_weight_end),
+                        "bbox_margin_m": float(args.scene_intersect_bbox_margin_m),
+                        "clearance_margin_m": float(args.scene_intersect_margin_m),
+                        "surface_samples": int(args.scene_intersect_surface_samples),
+                        "debug": bool(args.scene_intersect_debug),
                     },
                     "nocontact": {
                         "start": float(args.nocontact_weight_start),
@@ -3114,6 +3352,7 @@ def main() -> None:
                 "target_instance_id": target_instance_id,
                 "target_label": target_meta["label"],
                 "target_visible_surface": target_visible_stats,
+                "scene_collision_visible_surface": scene_collision_visible_stats,
                 "num_floor_visible_points": int(floor_points_visible.shape[0]),
             },
             "tracks": summary_tracks,

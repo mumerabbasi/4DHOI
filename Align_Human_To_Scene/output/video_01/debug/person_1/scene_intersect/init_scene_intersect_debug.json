@@ -1,0 +1,34 @@
+{
+  "stage": "init",
+  "scene_point_colors": {
+    "red": "inside SMPL-X human SDF; contributes to scene_intersect",
+    "orange": "outside but within scene_intersect clearance margin",
+    "blue_gray": "outside clearance margin"
+  },
+  "sdf_slice_colors": {
+    "red_to_white": "inside to zero SDF",
+    "white": "near zero SDF surface",
+    "white_to_blue": "outside SDF"
+  },
+  "bbox_margin_m": 0.2,
+  "clearance_margin_m": 0.01,
+  "scene_points": {
+    "num_scene_collision_points": 8664,
+    "num_near_scene_collision_points": 1128,
+    "num_inside_points": 1,
+    "num_margin_points": 1,
+    "min_sdf_m": -0.013148125261068344,
+    "max_sdf_m": 0.6197233200073242
+  },
+  "sdf_slices": {
+    "num_slice_points": 19200,
+    "slice_labels": [
+      "xy_at_center_z",
+      "xz_at_center_y",
+      "yz_at_center_x"
+    ],
+    "min_sdf_m": -0.0809226706624031,
+    "max_sdf_m": 0.5316997766494751,
+    "color_clamp_m": 0.05
+  }
+}
