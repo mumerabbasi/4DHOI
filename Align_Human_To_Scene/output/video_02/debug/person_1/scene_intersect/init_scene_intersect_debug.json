@@ -5,30 +5,32 @@
     "orange": "outside but within scene_intersect clearance margin",
     "blue_gray": "outside clearance margin"
   },
-  "sdf_slice_colors": {
-    "red_to_white": "inside to zero SDF",
+  "sdf_grid_colors": {
+    "red_intensity": "inside SMPL-X; stronger red means more negative SDF",
     "white": "near zero SDF surface",
-    "white_to_blue": "outside SDF"
+    "blue_intensity": "outside SMPL-X; stronger blue means larger positive SDF"
   },
   "bbox_margin_m": 0.2,
   "clearance_margin_m": 0.01,
   "scene_points": {
-    "num_scene_collision_points": 7518,
-    "num_near_scene_collision_points": 190,
-    "num_inside_points": 2,
-    "num_margin_points": 1,
-    "min_sdf_m": -0.04129708930850029,
-    "max_sdf_m": 0.4998215138912201
+    "num_scene_collision_points": 12000,
+    "num_near_scene_collision_points": 11999,
+    "num_inside_points": 169,
+    "num_margin_points": 62,
+    "min_sdf_m": -0.0766172707080841,
+    "max_sdf_m": 0.5504335761070251
   },
-  "sdf_slices": {
-    "num_slice_points": 19200,
-    "slice_labels": [
-      "xy_at_center_z",
-      "xz_at_center_y",
-      "yz_at_center_x"
+  "sdf_grid": {
+    "num_grid_points": 262144,
+    "grid_shape": [
+      64,
+      64,
+      64
     ],
-    "min_sdf_m": -0.08574303984642029,
-    "max_sdf_m": 0.5150152444839478,
+    "min_sdf_m": -0.09589272737503052,
+    "max_sdf_m": 0.6708568930625916,
+    "num_inside_grid_points": 10597,
+    "num_near_surface_grid_points": 5459,
     "color_clamp_m": 0.05
   }
 }

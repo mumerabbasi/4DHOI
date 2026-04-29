@@ -60,14 +60,6 @@
       "num_kept_points": 3673,
       "visible_tol_m": 0.02
     },
-    "scene_collision_visible_surface": {
-      "mode": "visible",
-      "num_total_points": 12000,
-      "num_in_frame_points": 9733,
-      "num_visible_points": 8664,
-      "num_kept_points": 8664,
-      "visible_tol_m": 0.02
-    },
     "num_floor_visible_points": 1035
   },
   "tracks": [
@@ -75,11 +67,28 @@
       "name": "person_1",
       "optimization": {
         "final_iter": 2000,
-        "final_total_loss": 0.7173683047294617,
+        "final_total_loss": 0.7152501344680786,
+        "scene_intersect_sampling": {
+          "mode": "initial_human_bbox_scene_surface",
+          "num_scene_faces_total": 4566731,
+          "num_scene_faces_in_human_bbox": 46285,
+          "num_sampled_points": 12000,
+          "bbox_margin_m": 0.2,
+          "bbox_min_camera": [
+            0.1335296481847763,
+            -0.3732990622520447,
+            1.1860220432281494
+          ],
+          "bbox_max_camera": [
+            1.2787806987762451,
+            1.3207483291625977,
+            2.2027995586395264
+          ]
+        },
         "scene_intersect_stats": {
-          "num_scene_collision_points": 8664,
-          "num_near_scene_collision_points": 1337,
-          "num_inside_or_margin_points": 27
+          "num_scene_collision_points": 12000,
+          "num_near_scene_collision_points": 10440,
+          "num_inside_or_margin_points": 242
         },
         "scene_intersect_debug": {
           "init": {
@@ -89,30 +98,32 @@
               "orange": "outside but within scene_intersect clearance margin",
               "blue_gray": "outside clearance margin"
             },
-            "sdf_slice_colors": {
-              "red_to_white": "inside to zero SDF",
+            "sdf_grid_colors": {
+              "red_intensity": "inside SMPL-X; stronger red means more negative SDF",
               "white": "near zero SDF surface",
-              "white_to_blue": "outside SDF"
+              "blue_intensity": "outside SMPL-X; stronger blue means larger positive SDF"
             },
             "bbox_margin_m": 0.2,
             "clearance_margin_m": 0.01,
             "scene_points": {
-              "num_scene_collision_points": 8664,
-              "num_near_scene_collision_points": 1128,
-              "num_inside_points": 1,
-              "num_margin_points": 1,
-              "min_sdf_m": -0.013148125261068344,
-              "max_sdf_m": 0.6197233200073242
+              "num_scene_collision_points": 12000,
+              "num_near_scene_collision_points": 12000,
+              "num_inside_points": 47,
+              "num_margin_points": 45,
+              "min_sdf_m": -0.030138302594423294,
+              "max_sdf_m": 0.6368988156318665
             },
-            "sdf_slices": {
-              "num_slice_points": 19200,
-              "slice_labels": [
-                "xy_at_center_z",
-                "xz_at_center_y",
-                "yz_at_center_x"
+            "sdf_grid": {
+              "num_grid_points": 262144,
+              "grid_shape": [
+                64,
+                64,
+                64
               ],
-              "min_sdf_m": -0.0809226706624031,
-              "max_sdf_m": 0.5316997766494751,
+              "min_sdf_m": -0.09450109302997589,
+              "max_sdf_m": 0.6868552565574646,
+              "num_inside_grid_points": 10815,
+              "num_near_surface_grid_points": 5451,
               "color_clamp_m": 0.05
             }
           },
@@ -123,30 +134,32 @@
               "orange": "outside but within scene_intersect clearance margin",
               "blue_gray": "outside clearance margin"
             },
-            "sdf_slice_colors": {
-              "red_to_white": "inside to zero SDF",
+            "sdf_grid_colors": {
+              "red_intensity": "inside SMPL-X; stronger red means more negative SDF",
               "white": "near zero SDF surface",
-              "white_to_blue": "outside SDF"
+              "blue_intensity": "outside SMPL-X; stronger blue means larger positive SDF"
             },
             "bbox_margin_m": 0.2,
             "clearance_margin_m": 0.01,
             "scene_points": {
-              "num_scene_collision_points": 8664,
-              "num_near_scene_collision_points": 1337,
-              "num_inside_points": 7,
-              "num_margin_points": 20,
-              "min_sdf_m": -0.008681577630341053,
-              "max_sdf_m": 0.5993345975875854
+              "num_scene_collision_points": 12000,
+              "num_near_scene_collision_points": 10440,
+              "num_inside_points": 39,
+              "num_margin_points": 203,
+              "min_sdf_m": -0.007889301516115665,
+              "max_sdf_m": 0.5767788290977478
             },
-            "sdf_slices": {
-              "num_slice_points": 19200,
-              "slice_labels": [
-                "xy_at_center_z",
-                "xz_at_center_y",
-                "yz_at_center_x"
+            "sdf_grid": {
+              "num_grid_points": 262144,
+              "grid_shape": [
+                64,
+                64,
+                64
               ],
-              "min_sdf_m": -0.08241097629070282,
-              "max_sdf_m": 0.49346640706062317,
+              "min_sdf_m": -0.09513469785451889,
+              "max_sdf_m": 0.7284452319145203,
+              "num_inside_grid_points": 10051,
+              "num_near_surface_grid_points": 4897,
               "color_clamp_m": 0.05
             }
           }
@@ -231,17 +244,17 @@
       },
       "final_frame_0": {
         "mask_overlap": {
-          "intersection_px": 14965,
-          "union_px": 25130,
+          "intersection_px": 14559,
+          "union_px": 24945,
           "area_a_px": 20896,
-          "area_b_px": 19199,
-          "iou": 0.5955033824114604,
-          "dice": 0.7464771168474872
+          "area_b_px": 18608,
+          "iou": 0.5836440168370415,
+          "dice": 0.737089914945322
         },
         "behind_fraction": {
-          "num_visible_points": 1396,
-          "num_behind_points": 84,
-          "behind_fraction": 0.06017191977077364
+          "num_visible_points": 1510,
+          "num_behind_points": 113,
+          "behind_fraction": 0.07483443708609272
         },
         "contact_edges": [
           {
@@ -256,8 +269,8 @@
             "fixed_part_name": "tabletop",
             "fixed_point_count": 2048,
             "reduction": "mean",
-            "nocontact_raw": 0.00044625604641623795,
-            "nocontact_distance_m": 0.02112477328674175
+            "nocontact_raw": 0.0004117937642149627,
+            "nocontact_distance_m": 0.020292702240336614
           },
           {
             "node_a": "small table, tabletop",
@@ -271,8 +284,8 @@
             "fixed_part_name": "tabletop",
             "fixed_point_count": 2048,
             "reduction": "mean",
-            "nocontact_raw": 0.000498303328640759,
-            "nocontact_distance_m": 0.022322708810553413
+            "nocontact_raw": 0.000489063560962677,
+            "nocontact_distance_m": 0.022114781503842107
           },
           {
             "node_a": "person_1.left_foot",
@@ -286,8 +299,8 @@
             "fixed_part_name": "floor",
             "fixed_point_count": 1035,
             "reduction": "mean",
-            "nocontact_raw": 0.000900360057130456,
-            "nocontact_distance_m": 0.030006000352103844
+            "nocontact_raw": 0.0009527601068839431,
+            "nocontact_distance_m": 0.03086681238618499
           },
           {
             "node_a": "person_1.right_foot",
@@ -301,8 +314,8 @@
             "fixed_part_name": "floor",
             "fixed_point_count": 1035,
             "reduction": "mean",
-            "nocontact_raw": 0.0005228645750321448,
-            "nocontact_distance_m": 0.022866232200171168
+            "nocontact_raw": 0.00044822541531175375,
+            "nocontact_distance_m": 0.021171334755082254
           }
         ]
       },

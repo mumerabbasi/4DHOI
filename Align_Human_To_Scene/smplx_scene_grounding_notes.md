@@ -81,7 +81,7 @@ The old global scene SDF formulation was not reliable enough.
 
 The full-room ScanNet mesh is not a clean watertight collision object. In practice, the global scene SDF marked large parts of the human, including the head and neck, as inside the scene even when the visual mesh did not show meaningful collision there. That made the optimizer rotate or distort upper-body pose to satisfy a bad collision signal.
 
-The current `scene_intersect` term instead follows the open-vocabulary/VolumetricSMPL-style direction: sample visible scene surface points near the body, query those points against the current SMPL-X body SDF, and penalize only scene points that are inside the body or within a small clearance margin.
+The current `scene_intersect` term instead follows the open-vocabulary/VolumetricSMPL-style direction: crop the scene mesh to the initial human bounding box plus margin, uniformly sample surface points on those scene triangles, query those points against the current SMPL-X body SDF, and penalize only scene points that are inside the body or within a small clearance margin. This collision sampling is not visibility filtered, because hidden scene surfaces can still physically intersect the body.
 
 This keeps the sign source on the human, which is much closer to a clean closed volume than a raw ScanNet++ scene mesh.
 
