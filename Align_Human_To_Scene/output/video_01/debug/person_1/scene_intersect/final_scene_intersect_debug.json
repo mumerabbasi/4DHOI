@@ -10,15 +10,15 @@
     "white": "near zero SDF surface",
     "blue_intensity": "outside SMPL-X; stronger blue means larger positive SDF"
   },
-  "bbox_margin_m": 0.2,
-  "clearance_margin_m": 0.01,
+  "clearance_margin_m": 0.02,
   "scene_points": {
-    "num_scene_collision_points": 12000,
-    "num_near_scene_collision_points": 10440,
-    "num_inside_points": 39,
-    "num_margin_points": 203,
-    "min_sdf_m": -0.007889301516115665,
-    "max_sdf_m": 0.5767788290977478
+    "num_scene_collision_points": 700000,
+    "num_sdf_query_points": 700000,
+    "num_visualized_points": 700000,
+    "num_inside_points": 255,
+    "num_margin_points": 2714,
+    "min_sdf_m": -0.010176301933825016,
+    "max_sdf_m": 2.946537494659424
   },
   "sdf_grid": {
     "num_grid_points": 262144,
@@ -27,10 +27,10 @@
       64,
       64
     ],
-    "min_sdf_m": -0.09513469785451889,
-    "max_sdf_m": 0.7284452319145203,
-    "num_inside_grid_points": 10051,
-    "num_near_surface_grid_points": 4897,
+    "min_sdf_m": -0.09437033534049988,
+    "max_sdf_m": 0.7083470225334167,
+    "num_inside_grid_points": 10211,
+    "num_near_surface_grid_points": 13055,
     "color_clamp_m": 0.05
   }
 }

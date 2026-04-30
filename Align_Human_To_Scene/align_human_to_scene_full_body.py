@@ -57,7 +57,6 @@ DEFAULT_HEIGHT_PRIOR_MIN_M = 70.0 * INCH_TO_M
 DEFAULT_HEIGHT_PRIOR_MAX_M = 74.0 * INCH_TO_M
 SMPLX_SDF_DEBUG_GRID_RESOLUTION = 64
 SMPLX_SDF_DEBUG_CLAMP_M = 0.05
-SCENE_INTERSECT_DEBUG_MAX_POINTS = 20000
 
 
 @dataclass
@@ -861,24 +860,6 @@ def filter_faces_to_camera_view(
     return faces[overlaps].astype(np.int64)
 
 
-def filter_faces_to_bbox(
-    verts: np.ndarray,
-    faces: np.ndarray,
-    bbox_min: np.ndarray,
-    bbox_max: np.ndarray,
-) -> np.ndarray:
-    if faces.shape[0] == 0:
-        return faces[:0].copy()
-    triangles = verts[faces]
-    tri_min = triangles.min(axis=1)
-    tri_max = triangles.max(axis=1)
-    overlaps = np.all(tri_max >= bbox_min[None], axis=1) & np.all(
-        tri_min <= bbox_max[None],
-        axis=1,
-    )
-    return faces[overlaps].astype(np.int64)
-
-
 def compact_mesh(
     verts: np.ndarray,
     faces: np.ndarray,
@@ -1364,42 +1345,22 @@ def sample_face_set_surface_points(
     return samples.astype(np.float32)
 
 
-def sample_scene_points_in_human_bbox(
+def sample_visible_scene_surface_points(
     scene_verts_camera: np.ndarray,
     scene_faces: np.ndarray,
-    human_verts_camera: np.ndarray,
-    bbox_margin_m: float,
     num_samples: int,
     seed: int,
 ) -> tuple[np.ndarray, dict[str, Any]]:
-    human_min = human_verts_camera.min(axis=0) - float(bbox_margin_m)
-    human_max = human_verts_camera.max(axis=0) + float(bbox_margin_m)
-    local_faces = filter_faces_to_bbox(
+    sampled_points = sample_mesh_surface_points(
         verts=scene_verts_camera,
         faces=scene_faces,
-        bbox_min=human_min,
-        bbox_max=human_max,
-    )
-    if local_faces.shape[0] == 0:
-        raise RuntimeError(
-            "No scene faces overlap the initial human bounding box for "
-            "scene_intersect sampling. Increase scene_intersect_bbox_margin_m "
-            "or check the human/scene alignment."
-        )
-    local_points = sample_mesh_surface_points(
-        verts=scene_verts_camera,
-        faces=local_faces,
         num_samples=int(num_samples),
         seed=int(seed),
     )
-    return local_points.astype(np.float32), {
-        "mode": "initial_human_bbox_scene_surface",
+    return sampled_points.astype(np.float32), {
+        "mode": "visible_scene_surface",
         "num_scene_faces_total": int(scene_faces.shape[0]),
-        "num_scene_faces_in_human_bbox": int(local_faces.shape[0]),
-        "num_sampled_points": int(local_points.shape[0]),
-        "bbox_margin_m": float(bbox_margin_m),
-        "bbox_min_camera": human_min.astype(float).tolist(),
-        "bbox_max_camera": human_max.astype(float).tolist(),
+        "num_sampled_points": int(sampled_points.shape[0]),
     }
 
 
@@ -1766,7 +1727,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mask_vertex_samples", type=int, default=3000)
     parser.add_argument("--adam_iters", type=int, default=2000)
     parser.add_argument("--adam_lr", type=float, default=1e-3)
-    parser.add_argument("--behind_margin_m", type=float, default=0.03)
     parser.add_argument("--mask_weight", type=float, default=1)
     parser.add_argument("--root_orient_gvhmr_weight", type=float, default=20.0)
     parser.add_argument("--pose_gvhmr_weight", type=float, default=10.0)
@@ -1797,9 +1757,8 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=10.0,
     )
-    parser.add_argument("--scene_intersect_bbox_margin_m", type=float, default=0.20)
-    parser.add_argument("--scene_intersect_margin_m", type=float, default=0.01)
-    parser.add_argument("--scene_intersect_surface_samples", type=int, default=12000)
+    parser.add_argument("--scene_intersect_margin_m", type=float, default=0.02)
+    parser.add_argument("--scene_intersect_surface_samples", type=int, default=700000)
     parser.add_argument(
         "--scene_intersect_debug",
         action=argparse.BooleanOptionalAction,
@@ -1817,8 +1776,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--log_every", type=int, default=50)
     parser.add_argument("--contact_masks_dir", type=str, default=None)
-    parser.add_argument("--contact_region_expand_rings", type=int, default=1)
-    parser.add_argument("--snapshot_every_iters", type=int, default=50)
+    parser.add_argument("--contact_region_expand_rings", type=int, default=0)
+    parser.add_argument("--snapshot_every_iters", type=int, default=100)
     return parser.parse_args()
 
 
@@ -2231,55 +2190,38 @@ def query_human_sdf_for_scene_points(
     current: dict[str, torch.Tensor],
     smplx_layer: Any,
     scene_collision_points: torch.Tensor,
-    bbox_margin_m: float,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    verts = current["verts"]
-    with torch.no_grad():
-        margin = float(bbox_margin_m)
-        human_min = verts.detach().min(dim=0).values - margin
-        human_max = verts.detach().max(dim=0).values + margin
-        near_mask = (
-            (scene_collision_points >= human_min)
-            & (scene_collision_points <= human_max)
-        ).all(dim=1)
-    near_points = scene_collision_points[near_mask]
-    if near_points.shape[0] == 0:
-        raise RuntimeError("No scene collision samples are near the current human bbox.")
-
-    scale = current["scale"].reshape(())
-    transl = current["transl"].reshape(1, 3)
-    near_points_unscaled = transl + (near_points - transl) / scale
-    sdf_unscaled = smplx_layer.volume.query_fast(
-        near_points_unscaled.unsqueeze(0),
-        current["smplx_output"],
-    )[0]
-    return near_points, sdf_unscaled * scale
+    if scene_collision_points.shape[0] == 0:
+        raise RuntimeError("scene_intersect requires scene collision samples.")
+    sdf = query_human_sdf_at_points(
+        current=current,
+        smplx_layer=smplx_layer,
+        query_points=scene_collision_points,
+    )
+    return scene_collision_points, sdf
 
 
 def compute_scene_inside_human_loss(
     current: dict[str, torch.Tensor],
     smplx_layer: Any,
     scene_collision_points: torch.Tensor,
-    bbox_margin_m: float,
     clearance_margin_m: float,
 ) -> tuple[torch.Tensor, dict[str, int]]:
     verts = current["verts"]
     zero = verts.new_tensor(0.0)
     stats = {
         "num_scene_collision_points": int(scene_collision_points.shape[0]),
-        "num_near_scene_collision_points": 0,
+        "num_sdf_query_points": int(scene_collision_points.shape[0]),
         "num_inside_or_margin_points": 0,
     }
     if scene_collision_points.shape[0] == 0:
         raise RuntimeError("scene_intersect requires scene collision samples.")
 
-    near_points, sdf = query_human_sdf_for_scene_points(
+    _, sdf = query_human_sdf_for_scene_points(
         current=current,
         smplx_layer=smplx_layer,
         scene_collision_points=scene_collision_points,
-        bbox_margin_m=bbox_margin_m,
     )
-    stats["num_near_scene_collision_points"] = int(near_points.shape[0])
 
     violations = F.relu(float(clearance_margin_m) - sdf)
     stats["num_inside_or_margin_points"] = int((violations > 0).sum().detach().cpu().item())
@@ -2373,18 +2315,16 @@ def save_scene_intersect_debug_artifacts(
     current: dict[str, torch.Tensor],
     smplx_layer: Any,
     scene_collision_points_t: torch.Tensor,
-    bbox_margin_m: float,
     clearance_margin_m: float,
     rotation_world_to_camera: np.ndarray,
     translation_world_to_camera: np.ndarray,
 ) -> dict[str, Any]:
     ensure_dir(debug_dir)
     with torch.no_grad():
-        near_points, sdf = query_human_sdf_for_scene_points(
+        scene_points, sdf = query_human_sdf_for_scene_points(
             current=current,
             smplx_layer=smplx_layer,
             scene_collision_points=scene_collision_points_t,
-            bbox_margin_m=bbox_margin_m,
         )
         grid_points, grid_shape, grid_min, grid_max = build_sdf_grid_query_points(
             current["verts"]
@@ -2395,27 +2335,17 @@ def save_scene_intersect_debug_artifacts(
             query_points=grid_points,
         )
 
-    near_points_np = near_points.detach().cpu().numpy().astype(np.float32)
-    sdf_np = sdf.detach().cpu().numpy().astype(np.float32)
-    if near_points_np.shape[0] > SCENE_INTERSECT_DEBUG_MAX_POINTS:
-        rng = np.random.default_rng(17017)
-        keep = rng.choice(
-            near_points_np.shape[0],
-            size=SCENE_INTERSECT_DEBUG_MAX_POINTS,
-            replace=False,
-        )
-        near_points_np = near_points_np[keep]
-        sdf_np = sdf_np[keep]
-
-    near_world = transform_camera_to_world(
-        near_points_np,
+    scene_points_np = scene_points.detach().cpu().numpy().astype(np.float32)
+    scene_sdf_np = sdf.detach().cpu().numpy().astype(np.float32)
+    scene_world = transform_camera_to_world(
+        scene_points_np,
         rotation_world_to_camera=rotation_world_to_camera,
         translation_world_to_camera=translation_world_to_camera,
     )
-    scene_colors = color_scene_intersect_sdf(sdf_np, clearance_margin_m)
+    scene_colors = color_scene_intersect_sdf(scene_sdf_np, clearance_margin_m)
     write_colored_point_cloud_ply(
         debug_dir / f"{stage_name}_scene_points_smplx_sdf.ply",
-        near_world.astype(np.float32),
+        scene_world.astype(np.float32),
         scene_colors,
     )
 
@@ -2445,13 +2375,17 @@ def save_scene_intersect_debug_artifacts(
 
     scene_stats = {
         "num_scene_collision_points": int(scene_collision_points_t.shape[0]),
-        "num_near_scene_collision_points": int(near_points.shape[0]),
-        "num_inside_points": int(np.count_nonzero(sdf_np < 0.0)),
+        "num_sdf_query_points": int(scene_points.shape[0]),
+        "num_visualized_points": int(scene_points_np.shape[0]),
+        "num_inside_points": int(np.count_nonzero(scene_sdf_np < 0.0)),
         "num_margin_points": int(
-            np.count_nonzero((sdf_np >= 0.0) & (sdf_np < float(clearance_margin_m)))
+            np.count_nonzero(
+                (scene_sdf_np >= 0.0)
+                & (scene_sdf_np < float(clearance_margin_m))
+            )
         ),
-        "min_sdf_m": float(sdf_np.min()),
-        "max_sdf_m": float(sdf_np.max()),
+        "min_sdf_m": float(scene_sdf_np.min()),
+        "max_sdf_m": float(scene_sdf_np.max()),
     }
     grid_stats = {
         "num_grid_points": int(grid_points.shape[0]),
@@ -2476,7 +2410,6 @@ def save_scene_intersect_debug_artifacts(
             "white": "near zero SDF surface",
             "blue_intensity": "outside SMPL-X; stronger blue means larger positive SDF",
         },
-        "bbox_margin_m": float(bbox_margin_m),
         "clearance_margin_m": float(clearance_margin_m),
         "scene_points": scene_stats,
         "sdf_grid": grid_stats,
@@ -2494,7 +2427,6 @@ def compute_loss_dict(
     contact_edges: list[DynamicContactEdge],
     floor_edges: list[DynamicContactEdge],
     scene_collision_points_t: torch.Tensor,
-    scene_intersect_bbox_margin_m: float,
     scene_intersect_margin_m: float,
     intrinsics_t: torch.Tensor,
     width: int,
@@ -2540,7 +2472,6 @@ def compute_loss_dict(
         current=current,
         smplx_layer=smplx_layer,
         scene_collision_points=scene_collision_points_t,
-        bbox_margin_m=scene_intersect_bbox_margin_m,
         clearance_margin_m=scene_intersect_margin_m,
     )
     nocontact = compute_contact_distance_loss(
@@ -2629,41 +2560,6 @@ def compute_contact_metrics(
     return metrics
 
 
-def compute_visible_behind_fraction(
-    verts_camera: np.ndarray,
-    intrinsics: np.ndarray,
-    width: int,
-    height: int,
-    scene_depth: np.ndarray,
-    human_mask: np.ndarray,
-    mask_vertex_ids: np.ndarray,
-    depth_margin_m: float,
-) -> dict[str, float]:
-    sampled = verts_camera[mask_vertex_ids]
-    uv = project_points_np(sampled, intrinsics)
-    z = sampled[:, 2]
-    ui = np.round(uv[:, 0]).astype(np.int64)
-    vi = np.round(uv[:, 1]).astype(np.int64)
-    in_bounds = (ui >= 0) & (ui < width) & (vi >= 0) & (vi < height)
-    depth_values = np.zeros(sampled.shape[0], dtype=scene_depth.dtype)
-    mask_values = np.zeros(sampled.shape[0], dtype=bool)
-    if np.any(in_bounds):
-        depth_values[in_bounds] = scene_depth[vi[in_bounds], ui[in_bounds]]
-        mask_values[in_bounds] = human_mask[vi[in_bounds], ui[in_bounds]] > 0
-    valid = in_bounds & (z > 1e-6) & (depth_values > 0.0) & mask_values
-    behind = np.zeros(sampled.shape[0], dtype=bool)
-    if np.any(valid):
-        idx = np.nonzero(valid)[0]
-        behind[idx] = z[idx] > (scene_depth[vi[idx], ui[idx]] - float(depth_margin_m))
-    num_valid = int(np.count_nonzero(valid))
-    num_behind = int(np.count_nonzero(behind))
-    return {
-        "num_visible_points": num_valid,
-        "num_behind_points": num_behind,
-        "behind_fraction": float(num_behind / num_valid) if num_valid > 0 else 0.0,
-    }
-
-
 def optimize_track(
     smplx_layer: Any,
     faces_t: torch.Tensor,
@@ -2747,7 +2643,6 @@ def optimize_track(
             current=init_current,
             smplx_layer=smplx_layer,
             scene_collision_points_t=scene_collision_points_t,
-            bbox_margin_m=float(args.scene_intersect_bbox_margin_m),
             clearance_margin_m=float(args.scene_intersect_margin_m),
             rotation_world_to_camera=rotation_world_to_camera,
             translation_world_to_camera=translation_world_to_camera,
@@ -2765,7 +2660,6 @@ def optimize_track(
             contact_edges=contact_edges,
             floor_edges=floor_edges,
             scene_collision_points_t=scene_collision_points_t,
-            scene_intersect_bbox_margin_m=float(args.scene_intersect_bbox_margin_m),
             scene_intersect_margin_m=float(args.scene_intersect_margin_m),
             intrinsics_t=intrinsics_t,
             width=width,
@@ -2818,7 +2712,6 @@ def optimize_track(
             contact_edges=contact_edges,
             floor_edges=floor_edges,
             scene_collision_points_t=scene_collision_points_t,
-            scene_intersect_bbox_margin_m=float(args.scene_intersect_bbox_margin_m),
             scene_intersect_margin_m=float(args.scene_intersect_margin_m),
             intrinsics_t=intrinsics_t,
             width=width,
@@ -2836,7 +2729,6 @@ def optimize_track(
                 current=current,
                 smplx_layer=smplx_layer,
                 scene_collision_points_t=scene_collision_points_t,
-                bbox_margin_m=float(args.scene_intersect_bbox_margin_m),
                 clearance_margin_m=float(args.scene_intersect_margin_m),
                 rotation_world_to_camera=rotation_world_to_camera,
                 translation_world_to_camera=translation_world_to_camera,
@@ -3059,11 +2951,9 @@ def main() -> None:
             init_verts_camera = init_out.vertices[0].detach().cpu().numpy().astype(np.float32)
 
         scene_collision_points, scene_collision_sampling_stats = (
-            sample_scene_points_in_human_bbox(
+            sample_visible_scene_surface_points(
                 scene_verts_camera=scene_verts_camera,
-                scene_faces=scene_faces,
-                human_verts_camera=init_verts_camera,
-                bbox_margin_m=float(args.scene_intersect_bbox_margin_m),
+                scene_faces=scene_faces_in_view,
                 num_samples=int(args.scene_intersect_surface_samples),
                 seed=int(args.seed) + 4242,
             )
@@ -3127,16 +3017,6 @@ def main() -> None:
         cv2.imwrite(str(overlay_dir / "frame_0000_init_mask_overlay.png"), init_overlay)
         save_depth_visualization(overlay_dir / "frame_0000_init_depth_vis.png", init_depth)
         init_contact_metrics = compute_contact_metrics(init_verts_camera, contact_edges + floor_edges)
-        init_behind = compute_visible_behind_fraction(
-            verts_camera=init_verts_camera,
-            intrinsics=intrinsics,
-            width=width,
-            height=height,
-            scene_depth=scene_depth,
-            human_mask=human_mask,
-            mask_vertex_ids=mask_vertex_ids,
-            depth_margin_m=float(args.behind_margin_m),
-        )
 
         optimization = optimize_track(
             smplx_layer=smplx_layer,
@@ -3221,16 +3101,6 @@ def main() -> None:
         )
 
         final_contact_metrics = compute_contact_metrics(final_verts_camera, contact_edges + floor_edges)
-        final_behind = compute_visible_behind_fraction(
-            verts_camera=final_verts_camera,
-            intrinsics=intrinsics,
-            width=width,
-            height=height,
-            scene_depth=scene_depth,
-            human_mask=human_mask,
-            mask_vertex_ids=mask_vertex_ids,
-            depth_margin_m=float(args.behind_margin_m),
-        )
 
         summary_tracks.append(
             {
@@ -3244,12 +3114,10 @@ def main() -> None:
                 },
                 "init_frame_0": {
                     "mask_overlap": init_mask_overlap,
-                    "behind_fraction": init_behind,
                     "contact_edges": init_contact_metrics,
                 },
                 "final_frame_0": {
                     "mask_overlap": final_mask_overlap,
-                    "behind_fraction": final_behind,
                     "contact_edges": final_contact_metrics,
                 },
                 "artifacts": {
@@ -3284,7 +3152,6 @@ def main() -> None:
                     "scene_intersect": {
                         "start": float(args.scene_intersect_weight_start),
                         "end": float(args.scene_intersect_weight_end),
-                        "bbox_margin_m": float(args.scene_intersect_bbox_margin_m),
                         "clearance_margin_m": float(args.scene_intersect_margin_m),
                         "surface_samples": int(args.scene_intersect_surface_samples),
                         "debug": bool(args.scene_intersect_debug),
