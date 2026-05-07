@@ -1,0 +1,16 @@
+{
+  "overlay": "/my_workspace/4DHHOI/4DHSI/04_Estimate_Contact/output/video_01/contact_overlay_target.png",
+  "target_render": "/my_workspace/4DHHOI/4DHSI/04_Estimate_Contact/output/video_01/target_render.png",
+  "human_parts": [
+    "left hand",
+    "right hand"
+  ],
+  "mask_shape_hw": [
+    1168,
+    1752
+  ],
+  "color_max_distance": 120.0,
+  "min_component_area": 50,
+  "keep_components": 1,
+  "erode_pixels": 1
+}

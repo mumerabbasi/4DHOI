@@ -10,7 +10,7 @@ In simple terms:
 - output: a posed SMPL-X human that appears to interact naturally with the scene
 - main challenge: the human should make contact at the right places, avoid obvious penetration, and keep a plausible body pose
 
-This note ignores our 3D target-selection details and only compares the interaction-generation/refinement idea.
+This note compares the interaction-generation/refinement idea.
 
 ## Open-Vocabulary HSI Method
 
@@ -40,9 +40,9 @@ The current refinement focuses on:
 
 - matching the human mask
 - pulling selected body parts toward estimated contact regions
-- preventing contact parts from penetrating the target object
-- keeping feet close to the floor
+- using the same contact loss for target-object and floor interaction edges
 - keeping pose and height plausible
+- discouraging visible scene surface points from intersecting the human body
 - preventing SMPL-X self-intersection
 
 The current method is more direct and practical: estimate the contact regions, then optimize the first-frame SMPL-X human so the mesh agrees with those regions.
@@ -76,13 +76,13 @@ Open-vocabulary HSI uses a human-body SDF and asks:
 are scene points inside the human?
 ```
 
-Our current script mostly asks:
+Our current script now mostly asks:
 
 ```text
-are human vertices inside the target object SDF?
+are visible scene surface points inside the human?
 ```
 
-This difference matters because scanned scene/target meshes are often not watertight. A target-object SDF can give unreliable inside/outside signs when the object mesh has holes or inconsistent normals.
+This is useful because scanned scene meshes are often not watertight. A scene SDF can give unreliable inside/outside signs when the mesh has holes or inconsistent normals.
 
 Using a human-body SDF is cleaner for scanned scenes because SMPL-X is a much more reliable closed body than the ScanNet++ scene geometry.
 
@@ -99,7 +99,7 @@ Our current losses are easier to implement and debug.
 The open-vocabulary approach is more principled, but depends on stronger components:
 
 - reliable functional scene understanding
-- good contact graph prediction
+- good interaction graph prediction
 - differentiable human-body SDF
 - stronger pose priors
 
@@ -108,7 +108,7 @@ The open-vocabulary approach is more principled, but depends on stronger compone
 The most useful idea to borrow is the collision direction:
 
 ```text
-query scene/target surface points against the current SMPL-X human body
+query scene surface points against the current SMPL-X human body
 ```
 
 instead of relying only on:
@@ -120,10 +120,10 @@ query SMPL-X vertices against a scanned target/scene SDF
 For our case, a good next loss would be:
 
 ```text
-target surface points should not be inside the human body
+visible scene surface points should not be inside the human body
 ```
 
-Later, this can be extended to selected scene surfaces, but it should stay local and semantic. We should avoid applying a noisy full-room collision loss blindly.
+This should stay local and semantic. We should avoid applying a noisy full-room collision loss blindly.
 
 ## Simple Takeaway
 
@@ -131,4 +131,4 @@ Our method is a practical first-frame grounding pipeline.
 
 The open-vocabulary HSI method is a more general interaction synthesis framework.
 
-The biggest technical lesson for us is collision handling: for scanned, non-watertight scenes, it is usually better to use the SMPL-X body as the signed volume and test nearby scene/object points against it.
+The biggest technical lesson for us is collision handling: for scanned, non-watertight scenes, it is usually better to use the SMPL-X body as the signed volume and test nearby scene points against it.

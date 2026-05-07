@@ -10,6 +10,7 @@ __pycache__/
 
 # --- Environment & Variables ---
 .env
+.secrets/
 .venv
 .venv/
 env/
@@ -40,9 +41,6 @@ dmypy.json
 
 # --- Generated Media (Images & Videos) ---
 # Prevent accidental commit of thousands of generated frames
-*.png
-*.jpg
-*.jpeg
 *.gif
 *.avi
 *.mov
@@ -71,13 +69,6 @@ logs/
 outputs/
 runs/
 wandb/
-
-# --- Keep Generated First Frames Tracked ---
-!**/first_frames/
-!**/first_frames/**
-!**/first_frames_resized/
-!**/first_frames_resized/**
-!**/contact_overlay/**
 
 # --- Model Weights (Large Files) ---
 *.safetensors
