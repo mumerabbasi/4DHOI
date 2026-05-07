@@ -1,0 +1,33 @@
+{
+  "target_object": {
+    "label": "green chair",
+    "sam3_prompt": "green office chair"
+  },
+  "human_part_nodes": [
+    "person 1, left foot",
+    "person 1, right foot",
+    "person 1, hips"
+  ],
+  "scene_nodes": [
+    "target_object",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "hips",
+      "scene_element": "target_object",
+      "notes": "the hips rest on the seat of the green chair"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "floor",
+      "notes": "the left foot is planted on the carpeted floor"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "floor",
+      "notes": "the right foot is planted on the carpeted floor"
+    }
+  ],
+  "interaction": "A person sits on the green office chair positioned near the whiteboard wall. Their hips rest firmly on the seat cushion, supporting their upright posture. Both feet are planted flat on the patterned carpet floor, providing stability. The person has short black hair, a calm neutral facial expression, and is wearing a gray shirt, blue jeans, and white sneakers. The green chair is distinct from the blue chairs arranged around the conference table. The room features concrete walls, a large window with blinds, and a whiteboard."
+}

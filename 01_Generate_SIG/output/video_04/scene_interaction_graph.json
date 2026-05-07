@@ -1,0 +1,39 @@
+{
+  "target_object": {
+    "label": "wooden chair",
+    "sam3_prompt": "wooden chair"
+  },
+  "human_part_nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "left hand",
+      "scene_element": "target_object",
+      "notes": "the left hand grips the top of the chair backrest"
+    },
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object",
+      "notes": "the right hand grips the top of the chair backrest"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "floor",
+      "notes": "the left foot supports the standing pose on the floor"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "floor",
+      "notes": "the right foot supports the standing pose on the floor"
+    }
+  ],
+  "interaction": "A person stands beside a wooden chair at the round table, in the process of pulling it back to sit down. Both hands firmly grip the top edge of the chair's backrest, applying force to move it away from the table. The person is in a standing posture with both feet planted on the dark grey floor. They have short black hair, a neutral focused expression, and are wearing a gray shirt, blue jeans, and white sneakers. The room is a bright indoor space with white walls, a whiteboard on the right, and a round table surrounded by matching chairs."
+}

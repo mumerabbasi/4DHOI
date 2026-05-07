@@ -1,0 +1,33 @@
+{
+  "target_object": {
+    "label": "round white table",
+    "sam3_prompt": "round white table"
+  },
+  "human_part_nodes": [
+    "person 1, right hand",
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object",
+      "notes": "the right hand rests on the table surface while leaning"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "floor",
+      "notes": "the left foot supports the standing pose"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "floor",
+      "notes": "the right foot supports the standing pose"
+    }
+  ],
+  "interaction": "A person stands beside the round white table, leaning slightly forward with their right hand resting flat on the table surface. The left arm hangs naturally by their side. Both feet are planted on the dark grey floor in a stable, relaxed stance. The person has short dark hair, a neutral facial expression, a light-colored shirt, and dark pants. The room is a clean, bright indoor space with white walls, a large whiteboard on the right wall, and a wooden door in the background."
+}

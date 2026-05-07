@@ -1,0 +1,26 @@
+{
+  "target_object": {
+    "label": "blue chair",
+    "sam3_prompt": "blue office chair"
+  },
+  "human_part_nodes": [
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "left foot",
+      "scene_element": "target_object",
+      "notes": "the left foot stands on the seat of the chair"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "target_object",
+      "notes": "the right foot stands on the seat of the chair"
+    }
+  ],
+  "interaction": "A person stands elevated on the blue office chair positioned directly in front of the wall-mounted TV. Both feet are planted firmly on the chair's seat to support the standing pose, lifting the person off the floor. The person faces forward towards the television screen with an upright posture. They have short black hair, a neutral facial expression, and are wearing a gray shirt, blue jeans, and white sneakers. The room remains a clean indoor space with white walls, a concrete wall on the left, and a patterned carpet floor."
+}
