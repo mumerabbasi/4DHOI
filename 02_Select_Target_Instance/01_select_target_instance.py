@@ -26,10 +26,6 @@ def load_json(path: Path) -> dict[str, Any]:
         return json.load(f)
 
 
-def normalize_label(text: str) -> str:
-    return " ".join(text.strip().lower().replace("_", " ").replace("-", " ").split())
-
-
 def resolve_input_path(script_dir: Path, video_name: str, raw_input_dir: str | None) -> Path:
     if raw_input_dir:
         return Path(raw_input_dir).resolve()
@@ -69,23 +65,14 @@ def resolve_scene_paths(scannet_root: Path, scene_context: dict[str, Any]) -> di
     }
 
 
-def build_sam3_prompt_list(sig_payload: dict[str, Any]) -> list[str]:
+def resolve_sam3_prompt(sig_payload: dict[str, Any], sig_json_path: Path) -> str:
     target = sig_payload.get("target_object", {})
-    candidates = [
-        str(target.get("sam3_prompt", "")).strip(),
-        str(target.get("label", "")).strip(),
-    ]
-    candidates.extend(str(item).strip() for item in target.get("fallback_prompts", []))
-
-    prompts: list[str] = []
-    seen: set[str] = set()
-    for candidate in candidates:
-        norm = normalize_label(candidate)
-        if not norm or norm in seen:
-            continue
-        seen.add(norm)
-        prompts.append(candidate)
-    return prompts
+    prompt = str(target.get("sam3_prompt", "")).strip()
+    if not prompt:
+        raise ValueError(
+            f"SIG target_object.sam3_prompt is empty or missing: {sig_json_path}"
+        )
+    return prompt
 
 
 def build_sam3_processor(
@@ -222,9 +209,7 @@ def main() -> None:
         raise FileNotFoundError(f"Failed to read image: {scene_paths['image_path']}")
     image_rgb = Image.fromarray(cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB))
 
-    sam3_prompts = build_sam3_prompt_list(sig_payload)
-    if not sam3_prompts:
-        raise ValueError(f"No SAM3 prompts found in SIG: {sig_json_path}")
+    sam3_prompt = resolve_sam3_prompt(sig_payload, sig_json_path)
 
     sam3_processor = build_sam3_processor(
         checkpoint_path=Path(args.sam3_checkpoint).resolve() if args.sam3_checkpoint else None,
@@ -236,7 +221,7 @@ def main() -> None:
     sam3_predictions = run_sam3_text_prompts(
         processor=sam3_processor,
         image_rgb=image_rgb,
-        prompts=sam3_prompts,
+        prompts=[sam3_prompt],
     )
     selected = select_highest_confidence_mask(sam3_predictions)
     selected_mask = selected["mask"]
@@ -271,7 +256,7 @@ def main() -> None:
     print(f"Input scene: {input_dir / 'input_scene.json'}")
     print(f"SIG: {sig_json_path}")
     print(f"Scene image: {scene_paths['image_path']}")
-    print(f"SAM3 prompts tried: {sam3_prompts}")
+    print(f"SAM3 prompt: {sam3_prompt}")
     print(f"Saved target mask: {target_mask_path}")
     print(f"Saved selection JSON: {selection_json_path}")
     print(
