@@ -19,7 +19,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Estimate cropped scene contact masks with Gemini.",
     )
-    parser.add_argument("--video_name", default="video_01")
+    parser.add_argument("--interaction_name", default="interaction_01")
     parser.add_argument("--prompt", default=None)
     parser.add_argument("--reference-image", default=None)
     parser.add_argument("--canvas-image", default=None)
@@ -48,7 +48,7 @@ def main(argv: list[str] | None = None) -> Path:
     output_root = (
         Path(args.outdir).resolve()
         if args.outdir
-        else script_dir / "output" / args.video_name
+        else script_dir / "output" / args.interaction_name
     )
     prompt_dir = output_root / "prompt"
     prompt_path = (
@@ -77,7 +77,7 @@ def main(argv: list[str] | None = None) -> Path:
         else project_dir
         / "01_Generate_SIG"
         / "output"
-        / args.video_name
+        / args.interaction_name
         / "scene_interaction_graph.json"
     )
 

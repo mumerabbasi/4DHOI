@@ -287,7 +287,7 @@ def main() -> None:
     script_dir = Path(__file__).resolve().parent
 
     parser = argparse.ArgumentParser(description="Generate a Scene Interaction Graph for a static scene.")
-    parser.add_argument("--video_name", default="video_01")
+    parser.add_argument("--interaction_name", default="interaction_01")
     parser.add_argument("--host", default="http://localhost:11434/v1")
     parser.add_argument("--model", default="qwen3.6:27b")
     parser.add_argument("--system-prompt", default=None)
@@ -310,9 +310,9 @@ def main() -> None:
     input_dir = (
         Path(args.input_dir).resolve()
         if args.input_dir
-        else script_dir / "input_prompts" / args.video_name
+        else script_dir / "input_prompts" / args.interaction_name
     )
-    output_root = Path(args.outdir).resolve() if args.outdir else script_dir / "output" / args.video_name
+    output_root = Path(args.outdir).resolve() if args.outdir else script_dir / "output" / args.interaction_name
     system_prompt_path = (
         Path(args.system_prompt).resolve()
         if args.system_prompt

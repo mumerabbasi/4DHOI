@@ -22,7 +22,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run Gemini human inpaint from a saved prompt.",
     )
-    parser.add_argument("--video_name", default="video_01")
+    parser.add_argument("--interaction_name", default="interaction_01")
     parser.add_argument("--input-dir", default=None)
     parser.add_argument("--outdir", default=None)
     parser.add_argument("--selection-json", default=None)
@@ -46,12 +46,12 @@ def main(argv: list[str] | None = None) -> Path:
     input_dir = (
         Path(args.input_dir).resolve()
         if args.input_dir
-        else project_dir / "01_Generate_SIG" / "input_prompts" / args.video_name
+        else project_dir / "01_Generate_SIG" / "input_prompts" / args.interaction_name
     )
     output_root = (
         Path(args.outdir).resolve()
         if args.outdir
-        else script_dir / "output" / args.video_name
+        else script_dir / "output" / args.interaction_name
     )
     selection_json_path = (
         Path(args.selection_json).resolve()
@@ -59,7 +59,7 @@ def main(argv: list[str] | None = None) -> Path:
         else project_dir
         / "02_Select_Target_Instance"
         / "output"
-        / args.video_name
+        / args.interaction_name
         / "target_selection.json"
     )
     scannet_root = (

@@ -370,25 +370,25 @@ def resolve_path(raw_path: str | None, default_path: Path) -> Path:
     return default_path if raw_path is None else Path(raw_path).resolve()
 
 
-def build_shared_default_paths(video_name: str) -> dict[str, Path]:
+def build_shared_default_paths(interaction_name: str) -> dict[str, Path]:
     return {
         "generated_root": PROJECT_DIR /
         "03_Generate_Human_Frame" /
         "output" /
-        video_name,
+        interaction_name,
         "input_scene_json": PROJECT_DIR /
         "01_Generate_SIG" /
         "input_prompts" /
-        video_name /
+        interaction_name /
         "input_scene.json",
         "human_pose_root": PROJECT_DIR /
         "05_Estimate_Human_Pose" /
         "output" /
-        video_name,
+        interaction_name,
         "sig_json": PROJECT_DIR /
         "01_Generate_SIG" /
         "output" /
-        video_name /
+        interaction_name /
         "scene_interaction_graph.json",
         "smpl_seg_json": PROJECT_DIR /
         "05_Estimate_Human_Pose" /
@@ -396,21 +396,21 @@ def build_shared_default_paths(video_name: str) -> dict[str, Path]:
         "smplx_vert_segmentation.json",
         "output_root": SCRIPT_DIR /
         "output" /
-        video_name,
+        interaction_name,
         "contact_masks_dir": PROJECT_DIR /
         "04_Estimate_Contact" /
         "output" /
-        video_name /
+        interaction_name /
         "contact_masks",
         "target_render_path": PROJECT_DIR /
         "04_Estimate_Contact" /
         "output" /
-        video_name /
+        interaction_name /
         "target_render.png",
         "target_render_camera_json": PROJECT_DIR /
         "04_Estimate_Contact" /
         "output" /
-        video_name /
+        interaction_name /
         "target_render_camera.json",
     }
 
@@ -1643,9 +1643,9 @@ class SelfIntersectionHelper:
         return torch.mean(self.dfp_loss(triangles, collision_idxs))
 
 
-def build_default_paths(video_name: str) -> dict[str, Path]:
-    defaults = build_shared_default_paths(video_name)
-    defaults["output_root"] = SCRIPT_DIR / "output_2stage" / video_name
+def build_default_paths(interaction_name: str) -> dict[str, Path]:
+    defaults = build_shared_default_paths(interaction_name)
+    defaults["output_root"] = SCRIPT_DIR / "output_2stage" / interaction_name
     defaults["smpl_folder"] = (
         SCRIPT_DIR.parent.parent / "GVHMR" / "inputs" / "checkpoints" / "body_models"
     )
@@ -1659,7 +1659,7 @@ def parse_args() -> argparse.Namespace:
             "metric ScanNet scene using static SIG interaction semantics."
         )
     )
-    parser.add_argument("--video_name", type=str, default="video_01")
+    parser.add_argument("--interaction_name", type=str, default="interaction_01")
     parser.add_argument("--generated_root", type=str, default=None)
     parser.add_argument("--input_scene_json", type=str, default=None)
     parser.add_argument("--human_pose_root", type=str, default=None)
@@ -2674,7 +2674,7 @@ def optimize_track(
 
 def main() -> None:
     args = parse_args()
-    defaults = build_default_paths(args.video_name)
+    defaults = build_default_paths(args.interaction_name)
     generated_root = resolve_path(args.generated_root, defaults["generated_root"])
     input_scene_json_path = resolve_path(args.input_scene_json, defaults["input_scene_json"])
     human_pose_root = resolve_path(args.human_pose_root, defaults["human_pose_root"])
@@ -3009,7 +3009,7 @@ def main() -> None:
     save_json(
         summary_json_path,
         {
-            "video_name": args.video_name,
+            "interaction_name": args.interaction_name,
             "scene_id": scene_context["scene_id"],
             "target_object": {
                 "label": target_object_name,

@@ -1,5 +1,5 @@
 {
-  "video_name": "video_01",
+  "interaction_name": "interaction_01",
   "scene_id": "442b144761",
   "target_object": {
     "label": "brown small wooden table"
@@ -258,15 +258,15 @@
       ]
     },
     "artifacts": {
-      "camera_mesh": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/video_01/meshes/frame_0000_camera.ply",
-      "world_mesh": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/video_01/meshes/frame_0000_world.ply",
-      "init_depth_vis": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/video_01/debug/overlays/frame_0000_init_depth_vis.png",
-      "final_depth_vis": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/video_01/debug/overlays/frame_0000_final_depth_vis.png",
-      "optimized_params": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/video_01/debug/params/optimized_frame_0000.pt",
-      "scene_intersect_debug": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/video_01/debug/scene_intersect",
+      "camera_mesh": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_01/meshes/frame_0000_camera.ply",
+      "world_mesh": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_01/meshes/frame_0000_world.ply",
+      "init_depth_vis": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_01/debug/overlays/frame_0000_init_depth_vis.png",
+      "final_depth_vis": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_01/debug/overlays/frame_0000_final_depth_vis.png",
+      "optimized_params": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_01/debug/params/optimized_frame_0000.pt",
+      "scene_intersect_debug": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_01/debug/scene_intersect",
       "csv": {
-        "iter_metrics": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/video_01/debug/csv/iter_metrics.csv",
-        "final_loss_summary": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/video_01/debug/csv/final_loss_summary.csv"
+        "iter_metrics": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_01/debug/csv/iter_metrics.csv",
+        "final_loss_summary": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_01/debug/csv/final_loss_summary.csv"
       }
     }
   }

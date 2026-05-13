@@ -26,16 +26,16 @@ def load_json(path: Path) -> dict[str, Any]:
         return json.load(f)
 
 
-def resolve_input_path(script_dir: Path, video_name: str, raw_input_dir: str | None) -> Path:
+def resolve_input_path(script_dir: Path, interaction_name: str, raw_input_dir: str | None) -> Path:
     if raw_input_dir:
         return Path(raw_input_dir).resolve()
-    return script_dir.parent / "01_Generate_SIG" / "input_prompts" / video_name
+    return script_dir.parent / "01_Generate_SIG" / "input_prompts" / interaction_name
 
 
-def resolve_output_dir(script_dir: Path, video_name: str, raw_outdir: str | None) -> Path:
+def resolve_output_dir(script_dir: Path, interaction_name: str, raw_outdir: str | None) -> Path:
     if raw_outdir:
         return Path(raw_outdir).resolve()
-    return script_dir / "output" / video_name
+    return script_dir / "output" / interaction_name
 
 
 def resolve_scannet_root(script_dir: Path, raw_scannet_root: str | None) -> Path:
@@ -180,7 +180,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run SAM3 on the SIG target object and save the single best target mask."
     )
-    parser.add_argument("--video_name", default="video_01")
+    parser.add_argument("--interaction_name", default="interaction_01")
     parser.add_argument("--input-dir", default=None)
     parser.add_argument("--outdir", default=None)
     parser.add_argument("--sig-json", default=None)
@@ -192,13 +192,13 @@ def main() -> None:
     parser.add_argument("--no-sam3-hf-download", action="store_true")
     args = parser.parse_args()
 
-    input_dir = resolve_input_path(script_dir, args.video_name, args.input_dir)
-    output_root = resolve_output_dir(script_dir, args.video_name, args.outdir)
+    input_dir = resolve_input_path(script_dir, args.interaction_name, args.input_dir)
+    output_root = resolve_output_dir(script_dir, args.interaction_name, args.outdir)
     scannet_root = resolve_scannet_root(script_dir, args.scannet_root)
     sig_json_path = (
         Path(args.sig_json).resolve()
         if args.sig_json
-        else project_dir / "01_Generate_SIG" / "output" / args.video_name / "scene_interaction_graph.json"
+        else project_dir / "01_Generate_SIG" / "output" / args.interaction_name / "scene_interaction_graph.json"
     )
 
     input_payload = load_json(input_dir / "input_scene.json")

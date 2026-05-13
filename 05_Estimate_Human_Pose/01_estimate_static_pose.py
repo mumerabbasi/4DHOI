@@ -340,7 +340,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Estimate a static one-frame human pose with GVHMR."
     )
-    parser.add_argument("--video_name", default="video_01")
+    parser.add_argument("--interaction_name", default="interaction_01")
     parser.add_argument("--human-frame-root", default=None)
     parser.add_argument("--input-dir", default=None)
     parser.add_argument("--scannet-root", default=None)
@@ -354,17 +354,17 @@ def main() -> None:
     human_frame_root = (
         Path(args.human_frame_root).resolve()
         if args.human_frame_root
-        else project_dir / "03_Generate_Human_Frame" / "output" / args.video_name
+        else project_dir / "03_Generate_Human_Frame" / "output" / args.interaction_name
     )
     input_dir = (
         Path(args.input_dir).resolve()
         if args.input_dir
-        else project_dir / "01_Generate_SIG" / "input_prompts" / args.video_name
+        else project_dir / "01_Generate_SIG" / "input_prompts" / args.interaction_name
     )
     output_root = (
         Path(args.outdir).resolve()
         if args.outdir
-        else script_dir / "output" / args.video_name
+        else script_dir / "output" / args.interaction_name
     )
     gvhmr_path = Path(args.gvhmr_path).resolve()
     inpainted_frame = human_frame_root / "inpainted_frame.png"
