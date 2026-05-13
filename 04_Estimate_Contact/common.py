@@ -129,9 +129,13 @@ def build_contact_prompt(system_prompt: str, human_parts: list[str]) -> str:
     color_lines = []
     for part in human_parts:
         _hex_color, color_name = color_for_part(part)
+        part_label = normalize_label(part)
         color_lines.append(
-            f"{title_label(part)}: Mark this contact region on the visible "
-            f"target object surface using a precise {color_name} overlay."
+            f"{title_label(part)}: If the target object is touched by the "
+            f"{part_label} in the Reference Image, copy the visible "
+            f"{part_label} mask shape from the Reference Image onto the "
+            f"matching location in the Canvas Image using a precise "
+            f"{color_name} overlay."
         )
     return (
         f"{system_prompt.strip()}\n\n"
