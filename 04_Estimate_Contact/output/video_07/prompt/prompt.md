@@ -14,3 +14,7 @@ Base Image: Use the Canvas Image, structurally unchanged, as the base output.
 Marker Style: Apply small, precise, dense colored segmentation masks directly on the visible target object surface where contact occurs.
 Preservation: Preserve the Canvas Image exactly except for the colored contact masks. Do not change object geometry, object pose, background, lighting, camera framing, texture, or any scene content.
 Constraints: Do not place colored marks on the human, floor, wall, or non-target objects. Do not add text labels, arrows, legends, boxes, keypoints, outlines, or other annotations. Show only the contact region markers on the target object surface.
+
+Color Mapping for Segmentation Overlays:
+Right Hand: Mark this contact region on the visible target object surface using a precise pure lime green overlay.
+Left Hand: Mark this contact region on the visible target object surface using a precise pure magenta overlay.
