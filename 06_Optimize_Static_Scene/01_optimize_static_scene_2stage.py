@@ -44,6 +44,7 @@ CONTACT_SEGMENT_BY_BODY_SEGMENT = {
     "right_hand": "right_hand_inner",
     "left_foot": "left_foot_bottom",
     "right_foot": "right_foot_bottom",
+    "hips": "hips_contact",
 }
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -336,16 +337,16 @@ def load_scannet_camera(
     )
 
 
-def load_target_render_camera(
+def load_contact_camera(
     camera_path: Path,
-    target_render_path: Path,
+    contact_image_path: Path,
 ) -> tuple[np.ndarray, int, int]:
     if not camera_path.exists():
         raise FileNotFoundError(
-            f"Target-render camera JSON not found: {camera_path}"
+            f"Contact camera JSON not found: {camera_path}"
         )
-    if not target_render_path.exists():
-        raise FileNotFoundError(f"Target render not found: {target_render_path}")
+    if not contact_image_path.exists():
+        raise FileNotFoundError(f"Contact canvas image not found: {contact_image_path}")
 
     payload = load_json(camera_path)
     intrinsics = np.asarray(payload["intrinsics_3x3"], dtype=np.float32)
@@ -354,9 +355,9 @@ def load_target_render_camera(
             f"Expected 3x3 intrinsics in {camera_path}, got {intrinsics.shape}"
         )
 
-    image = cv2.imread(str(target_render_path), cv2.IMREAD_COLOR)
+    image = cv2.imread(str(contact_image_path), cv2.IMREAD_COLOR)
     if image is None:
-        raise IOError(f"Failed to read target render: {target_render_path}")
+        raise IOError(f"Failed to read contact canvas image: {contact_image_path}")
     height, width = image.shape[:2]
     return intrinsics, int(width), int(height)
 
@@ -402,16 +403,17 @@ def build_shared_default_paths(interaction_name: str) -> dict[str, Path]:
         "output" /
         interaction_name /
         "contact_masks",
-        "target_render_path": PROJECT_DIR /
+        "contact_canvas_path": PROJECT_DIR /
         "04_Estimate_Contact" /
         "output" /
         interaction_name /
-        "target_render.png",
-        "target_render_camera_json": PROJECT_DIR /
+        "prompt" /
+        "target_scene_crop.png",
+        "contact_camera_json": PROJECT_DIR /
         "04_Estimate_Contact" /
         "output" /
         interaction_name /
-        "target_render_camera.json",
+        "contact_camera.json",
     }
 
 
@@ -602,7 +604,11 @@ def load_smpl_segment_catalog(seg_path: Path) -> SmplxSegmentCatalog:
 
 def _get_reduction(nodes: tuple[InteractionNode, InteractionNode]) -> str:
     for node in nodes:
-        if node.is_human and node.part_name.split(" ")[-1] in ("hand", "foot"):
+        if node.is_human and node.part_name.split(" ")[-1] in (
+            "hand",
+            "foot",
+            "hips",
+        ):
             return "mean"
     return "min"
 
@@ -1675,7 +1681,7 @@ def parse_args() -> argparse.Namespace:
         default="cuda:0",
     )
     parser.add_argument("--floor_surface_samples", type=int, default=6000)
-    parser.add_argument("--adam_iters", type=int, default=2000)
+    parser.add_argument("--adam_iters", type=int, default=1000)
     parser.add_argument("--adam_lr", type=float, default=1e-3)
     parser.add_argument(
         "--rigid_stage_iters",
@@ -1922,13 +1928,6 @@ def build_dynamic_interaction_edges(
                     "Check camera/mesh alignment or mask coverage."
                 )
             projected_face_count = int(seed_face_ids.size)
-            anchor_point = _edge_centroid(init_verts_camera[part_vert_ids])
-            seed_face_ids, component_stats = select_contact_component_near_anchor(
-                seed_face_ids,
-                scene_verts_camera,
-                scene_faces_compact,
-                anchor_point=anchor_point,
-            )
             expanded_face_ids = expand_face_set_along_surface(
                 seed_face_ids,
                 scene_verts_camera,
@@ -1959,11 +1958,9 @@ def build_dynamic_interaction_edges(
             )
             print(
                 f"  interaction edge '{moving_part_name}' -> target_object: "
-                f"components={component_stats['num_components']} "
-                f"kept_faces={component_stats['kept_faces']} "
-                f"dropped_faces={component_stats['dropped_faces']} "
                 f"projected_faces={projected_face_count} -> "
-                f"seed_faces={seed_face_ids.size} -> "
+                f"kept_faces={seed_face_ids.size} "
+                "dropped_faces=0 -> "
                 f"expanded_faces={expanded_face_ids.size} "
                 f"scene_vertices={fixed_vertex_ids.size} "
                 f"scene_surface_points={fixed_points_part.shape[0]}"
@@ -2681,8 +2678,8 @@ def main() -> None:
     sig_json_path = resolve_path(args.sig_json, defaults["sig_json"])
     smpl_seg_json_path = resolve_path(args.smpl_seg_json, defaults["smpl_seg_json"])
     smpl_folder = resolve_path(args.smpl_folder, defaults["smpl_folder"])
-    target_render_path = defaults["target_render_path"]
-    target_render_camera_json = defaults["target_render_camera_json"]
+    contact_canvas_path = defaults["contact_canvas_path"]
+    contact_camera_json = defaults["contact_camera_json"]
     contact_masks_dir = resolve_path(
         args.contact_masks_dir, defaults["contact_masks_dir"]
     )
@@ -2732,9 +2729,9 @@ def main() -> None:
         target_intrinsics,
         target_width,
         target_height,
-    ) = load_target_render_camera(
-        target_render_camera_json,
-        target_render_path,
+    ) = load_contact_camera(
+        contact_camera_json,
+        contact_canvas_path,
     )
     contact_camera_ctx = build_identity_camera(
         intrinsics=target_intrinsics,
@@ -2790,7 +2787,7 @@ def main() -> None:
     )
     if contact_scene_faces_render.shape[0] == 0:
         raise RuntimeError(
-            "No scene faces remained after target-render camera filtering."
+            "No scene faces remained after contact crop camera filtering."
         )
 
     scene_depth, _, _ = rasterize_depth_and_mask(

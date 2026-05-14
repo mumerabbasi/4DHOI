@@ -14,9 +14,9 @@
   ],
   "interaction_edges": [
     {
-      "human_part": "right hand",
+      "human_part": "left hand",
       "scene_element": "target_object",
-      "notes": "the right hand grasps the door handle to open it"
+      "notes": "the left hand grasps the door handle to open it"
     },
     {
       "human_part": "left foot",
@@ -29,5 +29,5 @@
       "notes": "the right foot supports the standing pose on the floor"
     }
   ],
-  "interaction": "A person stands facing the wooden door, reaching out with their right hand to grasp the silver handle. The hand is positioned to turn the handle or push the door open. The left arm hangs naturally by the side. Both feet are planted on the dark floor in a balanced stance. The person has short dark hair, a neutral focused expression, and wears a light shirt, dark pants, and dark shoes. The room is a clean indoor space with white walls, a whiteboard, and a table."
+  "interaction": "A person stands facing the wooden door, reaching out with their left hand to grasp the silver handle. The hand is positioned to turn the handle or push the door open. The left arm hangs naturally by the side. Both feet are planted on the dark floor in a balanced stance. The person has short dark hair, a neutral focused expression, and wears a light shirt, dark pants, and dark shoes. The room is a clean indoor space with white walls, a whiteboard, and a table."
 }
