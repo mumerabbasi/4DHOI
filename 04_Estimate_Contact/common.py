@@ -532,9 +532,9 @@ def save_contact_masks_from_overlay(
     contact_masks_dir: Path,
     human_parts: list[str],
     color_max_distance: float = 90.0,
-    min_component_area: int = 50,
-    keep_components: int = 1,
-    erode_pixels: int = 1,
+    min_component_area: int = 10,
+    keep_components: int = 3,
+    target_mask_erode_pixels: int = 2,
 ) -> list[Path]:
     overlay_rgb, canvas_hw = normalize_overlay_to_canvas(
         overlay_path=overlay_path,
@@ -542,6 +542,7 @@ def save_contact_masks_from_overlay(
         resized_overlay_path=resized_overlay_path,
     )
     target_mask = load_binary_mask(target_mask_crop_path, expected_hw=canvas_hw)
+    target_mask = erode_binary_mask(target_mask, target_mask_erode_pixels)
 
     target_colors = [
         hex_to_rgb(color_for_part(part)[0])
@@ -566,7 +567,6 @@ def save_contact_masks_from_overlay(
             min_area=min_component_area,
             keep_components=keep_components,
         )
-        mask = erode_binary_mask(mask, erode_pixels=erode_pixels)
         mask_path = contact_masks_dir / f"{slugify(part)}.png"
         save_binary_mask(mask_path, mask)
         written_paths.append(mask_path)

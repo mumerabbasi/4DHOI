@@ -16,4 +16,4 @@ Preservation: Preserve the Canvas Image exactly except for the colored contact m
 Constraints: Do not add a human or any scene content. Do not add text labels, arrows, legends, boxes, keypoints, outlines, or other annotations. Show only the colored body-part masks for the specified contacting parts.
 
 Color Mapping for Segmentation Overlays:
-Right Hand: If the target object is touched by the right hand in the Reference Image, copy the visible right hand mask shape from the Reference Image onto the matching location in the Canvas Image using a precise pure lime green overlay.
+Left Hand: If the target object is touched by the left hand in the Reference Image, copy the visible left hand mask shape from the Reference Image onto the matching location in the Canvas Image using a precise pure magenta overlay.

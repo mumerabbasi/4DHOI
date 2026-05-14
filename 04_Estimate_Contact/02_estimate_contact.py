@@ -33,9 +33,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--model", default="gemini-2.5-flash-image")
     parser.add_argument("--overwrite-overlay", action="store_true")
     parser.add_argument("--color-max-distance", type=float, default=175.0)
-    parser.add_argument("--min-component-area", type=int, default=50)
-    parser.add_argument("--keep-components", type=int, default=1)
-    parser.add_argument("--erode-pixels", type=int, default=1)
+    parser.add_argument("--min-component-area", type=int, default=10)
+    parser.add_argument("--keep-components", type=int, default=3)
+    parser.add_argument("--target-mask-erode-pixels", type=int, default=2)
     parser.set_defaults(script_dir=script_dir, project_dir=project_dir)
     return parser.parse_args(argv)
 
@@ -127,7 +127,7 @@ def main(argv: list[str] | None = None) -> Path:
         color_max_distance=args.color_max_distance,
         min_component_area=args.min_component_area,
         keep_components=args.keep_components,
-        erode_pixels=args.erode_pixels,
+        target_mask_erode_pixels=args.target_mask_erode_pixels,
     )
 
     print(f"Read contact overlay: {contact_overlay_path}")
