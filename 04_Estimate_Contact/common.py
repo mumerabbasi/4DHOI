@@ -101,16 +101,27 @@ def read_api_key(path: Path) -> str:
     return key
 
 
-def target_object_human_parts(sig_payload: dict[str, Any]) -> list[str]:
+def contact_human_parts(
+    sig_payload: dict[str, Any],
+    scene_element: str | None = None,
+) -> list[str]:
     parts: list[str] = []
     seen: set[str] = set()
+    requested_scene_element = (
+        normalize_scene_element(scene_element)
+        if scene_element is not None
+        else None
+    )
     for edge in sig_payload.get("interaction_edges", []):
         if not isinstance(edge, dict):
             continue
-        scene_element = normalize_scene_element(
+        edge_scene_element = normalize_scene_element(
             str(edge.get("scene_element", ""))
         )
-        if scene_element != "target_object":
+        if (
+            requested_scene_element is not None
+            and edge_scene_element != requested_scene_element
+        ):
             continue
         part = normalize_label(str(edge.get("human_part", "")))
         if not part or part in seen:
@@ -118,11 +129,24 @@ def target_object_human_parts(sig_payload: dict[str, Any]) -> list[str]:
         color_for_part(part)
         seen.add(part)
         parts.append(part)
+    return parts
+
+
+def target_object_human_parts(sig_payload: dict[str, Any]) -> list[str]:
+    parts = contact_human_parts(sig_payload, scene_element="target_object")
     if not parts:
         raise ValueError(
             "No target_object contact edges found in interaction_edges."
         )
     return parts
+
+
+def floor_contact_human_parts(sig_payload: dict[str, Any]) -> list[str]:
+    return contact_human_parts(sig_payload, scene_element="floor")
+
+
+def all_contact_human_parts(sig_payload: dict[str, Any]) -> list[str]:
+    return contact_human_parts(sig_payload, scene_element=None)
 
 
 def build_contact_prompt(system_prompt: str, human_parts: list[str]) -> str:

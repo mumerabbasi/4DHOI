@@ -42,12 +42,13 @@
     }
   },
   "scene": {
-    "num_floor_visible_points": 1189
+    "num_contact_crop_faces": 151228,
+    "num_contact_crop_vertices": 75275
   },
   "human": {
     "optimization": {
       "final_iter": 1000,
-      "final_total_loss": 0.9506949186325073,
+      "final_total_loss": 0.8211272954940796,
       "stage_iters": {
         "rigid": 400,
         "pose": 600
@@ -60,7 +61,7 @@
       "scene_intersect_stats": {
         "num_scene_collision_points": 700000,
         "num_sdf_query_points": 700000,
-        "num_inside_or_margin_points": 4162
+        "num_inside_or_margin_points": 4603
       },
       "scene_intersect_debug": {
         "init": {
@@ -80,9 +81,9 @@
             "num_scene_collision_points": 700000,
             "num_sdf_query_points": 700000,
             "num_visualized_points": 700000,
-            "num_inside_points": 18,
-            "num_margin_points": 118,
-            "min_sdf_m": -0.007017363794147968,
+            "num_inside_points": 17,
+            "num_margin_points": 105,
+            "min_sdf_m": -0.005468409508466721,
             "max_sdf_m": 2.9425160884857178
           },
           "sdf_grid": {
@@ -92,10 +93,10 @@
               64,
               64
             ],
-            "min_sdf_m": -0.10029926896095276,
+            "min_sdf_m": -0.10131056606769562,
             "max_sdf_m": 0.7508828043937683,
-            "num_inside_grid_points": 10967,
-            "num_near_surface_grid_points": 5244,
+            "num_inside_grid_points": 10961,
+            "num_near_surface_grid_points": 5266,
             "color_clamp_m": 0.05
           }
         },
@@ -116,10 +117,10 @@
             "num_scene_collision_points": 700000,
             "num_sdf_query_points": 700000,
             "num_visualized_points": 700000,
-            "num_inside_points": 2411,
-            "num_margin_points": 1751,
-            "min_sdf_m": -0.048992421478033066,
-            "max_sdf_m": 2.935039758682251
+            "num_inside_points": 2744,
+            "num_margin_points": 1859,
+            "min_sdf_m": -0.04842124879360199,
+            "max_sdf_m": 2.9238646030426025
           },
           "sdf_grid": {
             "num_grid_points": 262144,
@@ -128,10 +129,10 @@
               64,
               64
             ],
-            "min_sdf_m": -0.10421942174434662,
-            "max_sdf_m": 0.8144248127937317,
-            "num_inside_grid_points": 10265,
-            "num_near_surface_grid_points": 4978,
+            "min_sdf_m": -0.09700562059879303,
+            "max_sdf_m": 0.7650573253631592,
+            "num_inside_grid_points": 10818,
+            "num_near_surface_grid_points": 5313,
             "color_clamp_m": 0.05
           }
         }
@@ -194,10 +195,10 @@
           "moving_vertex_count": 120,
           "fixed_entity_name": "floor",
           "fixed_part_name": "floor",
-          "fixed_point_count": 1189,
+          "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.00966815184801817,
-          "nocontact_distance_m": 0.09832676058946603
+          "nocontact_raw": 0.008670379407703876,
+          "nocontact_distance_m": 0.09311487210807882
         },
         {
           "node_a": "human.right_foot",
@@ -209,10 +210,10 @@
           "moving_vertex_count": 120,
           "fixed_entity_name": "floor",
           "fixed_part_name": "floor",
-          "fixed_point_count": 1189,
+          "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.012296025641262531,
-          "nocontact_distance_m": 0.11088744582351301
+          "nocontact_raw": 0.01141099538654089,
+          "nocontact_distance_m": 0.10682226072566003
         }
       ]
     },
@@ -230,8 +231,8 @@
           "fixed_part_name": "brown small wooden table",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0024325624108314514,
-          "nocontact_distance_m": 0.04932101388689664
+          "nocontact_raw": 0.002241566777229309,
+          "nocontact_distance_m": 0.04734518747696865
         },
         {
           "node_a": "human.left_hand",
@@ -245,8 +246,8 @@
           "fixed_part_name": "brown small wooden table",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.001203790190629661,
-          "nocontact_distance_m": 0.03469567971130788
+          "nocontact_raw": 0.0011830846779048443,
+          "nocontact_distance_m": 0.03439599799256949
         },
         {
           "node_a": "human.right_hand",
@@ -260,8 +261,8 @@
           "fixed_part_name": "brown small wooden table",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0013159587979316711,
-          "nocontact_distance_m": 0.03627614640409964
+          "nocontact_raw": 0.001286010374315083,
+          "nocontact_distance_m": 0.035860986800631725
         },
         {
           "node_a": "human.left_foot",
@@ -273,10 +274,10 @@
           "moving_vertex_count": 120,
           "fixed_entity_name": "floor",
           "fixed_part_name": "floor",
-          "fixed_point_count": 1189,
+          "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0007044262019917369,
-          "nocontact_distance_m": 0.02654102865360981
+          "nocontact_raw": 0.0002212682884419337,
+          "nocontact_distance_m": 0.01487508952719054
         },
         {
           "node_a": "human.right_foot",
@@ -288,10 +289,10 @@
           "moving_vertex_count": 120,
           "fixed_entity_name": "floor",
           "fixed_part_name": "floor",
-          "fixed_point_count": 1189,
+          "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0006500753806903958,
-          "nocontact_distance_m": 0.025496575862072064
+          "nocontact_raw": 0.0001753094547893852,
+          "nocontact_distance_m": 0.01324044768085223
         }
       ]
     },

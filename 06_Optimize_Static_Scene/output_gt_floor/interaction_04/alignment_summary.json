@@ -1,0 +1,281 @@
+{
+  "interaction_name": "interaction_04",
+  "scene_id": "6126572846",
+  "target_object": {
+    "label": "wooden chair"
+  },
+  "optimizer": {
+    "adam_iters": 1000,
+    "adam_lr": 0.001,
+    "stage_iters": {
+      "rigid": 400,
+      "pose": 600
+    },
+    "loss_weights": {
+      "root_orient_gvhmr": 20.0,
+      "pose_gvhmr": 10.0,
+      "height_prior": 1.0,
+      "scene_intersect": {
+        "start": 0.0,
+        "end": 10.0,
+        "clearance_margin_m": 0.01,
+        "surface_samples": 700000,
+        "debug": true
+      },
+      "nocontact": {
+        "start": 500.0,
+        "end": 500.0
+      },
+      "self_intersect": {
+        "start": 0.0,
+        "end": 0.001
+      }
+    },
+    "height_prior": {
+      "target_m": 1.8288,
+      "min_m": 1.778,
+      "max_m": 1.8796,
+      "sigma_m": 0.0508,
+      "target_ft_in": "6 ft 0 in",
+      "min_ft_in": "5 ft 10 in",
+      "max_ft_in": "6 ft 2 in"
+    }
+  },
+  "scene": {
+    "num_floor_visible_points": 3453
+  },
+  "human": {
+    "optimization": {
+      "final_iter": 1000,
+      "final_total_loss": 0.4437958896160126,
+      "stage_iters": {
+        "rigid": 400,
+        "pose": 600
+      },
+      "scene_intersect_sampling": {
+        "mode": "visible_scene_surface",
+        "num_scene_faces_total": 972018,
+        "num_sampled_points": 700000
+      },
+      "scene_intersect_stats": {
+        "num_scene_collision_points": 700000,
+        "num_sdf_query_points": 700000,
+        "num_inside_or_margin_points": 1327
+      },
+      "scene_intersect_debug": {
+        "init": {
+          "stage": "init",
+          "scene_point_colors": {
+            "red": "inside SMPL-X human SDF; contributes to scene_intersect",
+            "orange": "outside but within scene_intersect clearance margin",
+            "blue_gray": "outside clearance margin"
+          },
+          "sdf_grid_colors": {
+            "red_intensity": "inside SMPL-X; stronger red means more negative SDF",
+            "white": "near zero SDF surface",
+            "blue_intensity": "outside SMPL-X; stronger blue means larger positive SDF"
+          },
+          "clearance_margin_m": 0.01,
+          "scene_points": {
+            "num_scene_collision_points": 700000,
+            "num_sdf_query_points": 700000,
+            "num_visualized_points": 700000,
+            "num_inside_points": 754,
+            "num_margin_points": 672,
+            "min_sdf_m": -0.0747777447104454,
+            "max_sdf_m": 3.1830575466156006
+          },
+          "sdf_grid": {
+            "num_grid_points": 262144,
+            "grid_shape": [
+              64,
+              64,
+              64
+            ],
+            "min_sdf_m": -0.11256272345781326,
+            "max_sdf_m": 0.6687198877334595,
+            "num_inside_grid_points": 10933,
+            "num_near_surface_grid_points": 5715,
+            "color_clamp_m": 0.05
+          }
+        },
+        "final": {
+          "stage": "final",
+          "scene_point_colors": {
+            "red": "inside SMPL-X human SDF; contributes to scene_intersect",
+            "orange": "outside but within scene_intersect clearance margin",
+            "blue_gray": "outside clearance margin"
+          },
+          "sdf_grid_colors": {
+            "red_intensity": "inside SMPL-X; stronger red means more negative SDF",
+            "white": "near zero SDF surface",
+            "blue_intensity": "outside SMPL-X; stronger blue means larger positive SDF"
+          },
+          "clearance_margin_m": 0.01,
+          "scene_points": {
+            "num_scene_collision_points": 700000,
+            "num_sdf_query_points": 700000,
+            "num_visualized_points": 700000,
+            "num_inside_points": 157,
+            "num_margin_points": 1170,
+            "min_sdf_m": -0.010680154897272587,
+            "max_sdf_m": 3.1572489738464355
+          },
+          "sdf_grid": {
+            "num_grid_points": 262144,
+            "grid_shape": [
+              64,
+              64,
+              64
+            ],
+            "min_sdf_m": -0.11470689624547958,
+            "max_sdf_m": 0.7502719759941101,
+            "num_inside_grid_points": 9719,
+            "num_near_surface_grid_points": 5033,
+            "color_clamp_m": 0.05
+          }
+        }
+      }
+    },
+    "init_frame_0": {
+      "interaction_edges": [
+        {
+          "node_a": "human.left_hand",
+          "node_b": "wooden chair",
+          "moving_entity_name": "human",
+          "moving_part_name": "left hand",
+          "moving_segment_id": "left_hand_inner",
+          "moving_segment_name": "left hand inner",
+          "moving_vertex_count": 371,
+          "fixed_entity_name": "wooden chair",
+          "fixed_part_name": "wooden chair",
+          "fixed_point_count": 2048,
+          "reduction": "mean",
+          "nocontact_raw": 0.14650750160217285,
+          "nocontact_distance_m": 0.3827629835840619
+        },
+        {
+          "node_a": "human.right_hand",
+          "node_b": "wooden chair",
+          "moving_entity_name": "human",
+          "moving_part_name": "right hand",
+          "moving_segment_id": "right_hand_inner",
+          "moving_segment_name": "right hand inner",
+          "moving_vertex_count": 373,
+          "fixed_entity_name": "wooden chair",
+          "fixed_part_name": "wooden chair",
+          "fixed_point_count": 2048,
+          "reduction": "mean",
+          "nocontact_raw": 0.08558640629053116,
+          "nocontact_distance_m": 0.2925515446729536
+        },
+        {
+          "node_a": "human.left_foot",
+          "node_b": "floor",
+          "moving_entity_name": "human",
+          "moving_part_name": "left foot",
+          "moving_segment_id": "left_foot_bottom",
+          "moving_segment_name": "left foot bottom",
+          "moving_vertex_count": 120,
+          "fixed_entity_name": "floor",
+          "fixed_part_name": "floor",
+          "fixed_point_count": 3453,
+          "reduction": "mean",
+          "nocontact_raw": 0.007670544553548098,
+          "nocontact_distance_m": 0.08758164507217307
+        },
+        {
+          "node_a": "human.right_foot",
+          "node_b": "floor",
+          "moving_entity_name": "human",
+          "moving_part_name": "right foot",
+          "moving_segment_id": "right_foot_bottom",
+          "moving_segment_name": "right foot bottom",
+          "moving_vertex_count": 120,
+          "fixed_entity_name": "floor",
+          "fixed_part_name": "floor",
+          "fixed_point_count": 3453,
+          "reduction": "mean",
+          "nocontact_raw": 0.003674714593216777,
+          "nocontact_distance_m": 0.06061942422373193
+        }
+      ]
+    },
+    "final_frame_0": {
+      "interaction_edges": [
+        {
+          "node_a": "human.left_hand",
+          "node_b": "wooden chair",
+          "moving_entity_name": "human",
+          "moving_part_name": "left hand",
+          "moving_segment_id": "left_hand_inner",
+          "moving_segment_name": "left hand inner",
+          "moving_vertex_count": 371,
+          "fixed_entity_name": "wooden chair",
+          "fixed_part_name": "wooden chair",
+          "fixed_point_count": 2048,
+          "reduction": "mean",
+          "nocontact_raw": 0.000486403179820627,
+          "nocontact_distance_m": 0.0220545500933623
+        },
+        {
+          "node_a": "human.right_hand",
+          "node_b": "wooden chair",
+          "moving_entity_name": "human",
+          "moving_part_name": "right hand",
+          "moving_segment_id": "right_hand_inner",
+          "moving_segment_name": "right hand inner",
+          "moving_vertex_count": 373,
+          "fixed_entity_name": "wooden chair",
+          "fixed_part_name": "wooden chair",
+          "fixed_point_count": 2048,
+          "reduction": "mean",
+          "nocontact_raw": 0.0006948724039830267,
+          "nocontact_distance_m": 0.026360432545446344
+        },
+        {
+          "node_a": "human.left_foot",
+          "node_b": "floor",
+          "moving_entity_name": "human",
+          "moving_part_name": "left foot",
+          "moving_segment_id": "left_foot_bottom",
+          "moving_segment_name": "left foot bottom",
+          "moving_vertex_count": 120,
+          "fixed_entity_name": "floor",
+          "fixed_part_name": "floor",
+          "fixed_point_count": 3453,
+          "reduction": "mean",
+          "nocontact_raw": 0.00039117905544117093,
+          "nocontact_distance_m": 0.019778247026497848
+        },
+        {
+          "node_a": "human.right_foot",
+          "node_b": "floor",
+          "moving_entity_name": "human",
+          "moving_part_name": "right foot",
+          "moving_segment_id": "right_foot_bottom",
+          "moving_segment_name": "right foot bottom",
+          "moving_vertex_count": 120,
+          "fixed_entity_name": "floor",
+          "fixed_part_name": "floor",
+          "fixed_point_count": 3453,
+          "reduction": "mean",
+          "nocontact_raw": 0.0004584905400406569,
+          "nocontact_distance_m": 0.021412392207333045
+        }
+      ]
+    },
+    "artifacts": {
+      "camera_mesh": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_04/meshes/frame_0000_camera.ply",
+      "world_mesh": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_04/meshes/frame_0000_world.ply",
+      "init_depth_vis": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_04/debug/overlays/frame_0000_init_depth_vis.png",
+      "final_depth_vis": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_04/debug/overlays/frame_0000_final_depth_vis.png",
+      "optimized_params": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_04/debug/params/optimized_frame_0000.pt",
+      "scene_intersect_debug": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_04/debug/scene_intersect",
+      "csv": {
+        "iter_metrics": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_04/debug/csv/iter_metrics.csv",
+        "final_loss_summary": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_04/debug/csv/final_loss_summary.csv"
+      }
+    }
+  }
+}

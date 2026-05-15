@@ -10,6 +10,8 @@ from common import (
     build_pinhole_intrinsics,
     build_sam3_processor,
     crop_array,
+    erode_binary_mask,
+    floor_contact_human_parts,
     get_default_sam3_device,
     load_binary_mask,
     load_json,
@@ -51,6 +53,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--prompt-out", default=None)
     parser.add_argument("--padding-frac", type=float, default=0.25)
     parser.add_argument("--human-sam3-prompt", default="person")
+    parser.add_argument("--floor-sam3-prompt", default="floor")
+    parser.add_argument("--floor-mask-erode-pixels", type=int, default=3)
     parser.add_argument("--sam3-checkpoint", default=None)
     parser.add_argument("--sam3-bpe-path", default=None)
     parser.add_argument("--sam3-device", default=get_default_sam3_device())
@@ -127,6 +131,7 @@ def main(argv: list[str] | None = None) -> Path:
     sig_payload = load_json(sig_json_path)
     system_prompt = system_prompt_path.read_text(encoding="utf-8")
     human_parts = target_object_human_parts(sig_payload)
+    floor_parts = floor_contact_human_parts(sig_payload)
     prompt = build_contact_prompt(system_prompt, human_parts)
     save_text(prompt_path, prompt + "\n")
 
@@ -184,15 +189,42 @@ def main(argv: list[str] | None = None) -> Path:
     reference_crop = crop_array(inpainted_rgb, crop_xyxy)
     canvas_crop = crop_array(scene_rgb, crop_xyxy)
     target_mask_crop = crop_array(target_mask, crop_xyxy)
+    floor_mask_crop = None
+    if floor_parts:
+        floor_predictions = run_sam3_text_prompt(
+            processor=sam3_processor,
+            image_rgb=Image.fromarray(scene_rgb),
+            prompt=args.floor_sam3_prompt,
+        )
+        selected_floor = select_highest_confidence_mask(floor_predictions)
+        floor_mask = selected_floor["mask"]
+        if floor_mask.shape != (image_h, image_w):
+            raise ValueError(
+                "SAM3 floor mask shape does not match image shape: "
+                f"mask={floor_mask.shape[::-1]}, image={image_w}x{image_h}"
+            )
+        floor_mask_crop = crop_array(floor_mask, crop_xyxy)
+        if not floor_mask_crop.any():
+            raise ValueError(
+                f"SAM3 returned an empty floor mask inside the contact crop "
+                f"for prompt '{args.floor_sam3_prompt}'."
+            )
+        floor_mask_crop = erode_binary_mask(
+            floor_mask_crop,
+            int(args.floor_mask_erode_pixels),
+        )
 
     reference_crop_path = prompt_dir / "reference_inpainted_crop.png"
     canvas_crop_path = prompt_dir / "target_scene_crop.png"
     target_mask_crop_path = output_root / "target_mask_crop.png"
+    floor_mask_crop_path = output_root / "floor_mask_crop.png"
     contact_camera_path = output_root / "contact_camera.json"
 
     save_rgb(reference_crop_path, reference_crop)
     save_rgb(canvas_crop_path, canvas_crop)
     save_binary_mask(target_mask_crop_path, target_mask_crop)
+    if floor_mask_crop is not None:
+        save_binary_mask(floor_mask_crop_path, floor_mask_crop)
 
     input_payload = load_json(input_dir / "input_scene.json")
     scannet_root = resolve_scannet_root(project_dir, args.scannet_root)
@@ -224,6 +256,8 @@ def main(argv: list[str] | None = None) -> Path:
     print(f"Wrote reference crop: {reference_crop_path}")
     print(f"Wrote canvas crop: {canvas_crop_path}")
     print(f"Wrote target mask crop: {target_mask_crop_path}")
+    if floor_mask_crop is not None:
+        print(f"Wrote floor mask crop: {floor_mask_crop_path}")
     print(f"Wrote contact camera JSON: {contact_camera_path}")
     return prompt_path
 

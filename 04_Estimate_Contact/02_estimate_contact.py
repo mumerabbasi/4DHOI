@@ -4,10 +4,14 @@ import argparse
 from pathlib import Path
 
 from common import (
+    floor_contact_human_parts,
+    load_binary_mask,
     load_json,
     read_api_key,
     run_gemini_image_edit,
+    save_binary_mask,
     save_contact_masks_from_overlay,
+    slugify,
     target_object_human_parts,
 )
 
@@ -71,6 +75,7 @@ def main(argv: list[str] | None = None) -> Path:
         if args.target_mask_crop
         else output_root / "target_mask_crop.png"
     )
+    floor_mask_crop_path = output_root / "floor_mask_crop.png"
     sig_json_path = (
         Path(args.sig_json).resolve()
         if args.sig_json
@@ -85,6 +90,7 @@ def main(argv: list[str] | None = None) -> Path:
 
     sig_payload = load_json(sig_json_path)
     human_parts = target_object_human_parts(sig_payload)
+    floor_parts = floor_contact_human_parts(sig_payload)
     output_root.mkdir(parents=True, exist_ok=True)
 
     contact_overlay_path = output_root / "contact_overlay.png"
@@ -129,6 +135,21 @@ def main(argv: list[str] | None = None) -> Path:
         keep_components=args.keep_components,
         target_mask_erode_pixels=args.target_mask_erode_pixels,
     )
+    if floor_parts:
+        if not floor_mask_crop_path.exists():
+            raise FileNotFoundError(
+                f"Floor mask crop not found: {floor_mask_crop_path}. "
+                "Run 01_build_prompt.py first so SAM3 can create it."
+            )
+        canvas_w, canvas_h = Image.open(canvas_image_path).size
+        floor_mask = load_binary_mask(
+            floor_mask_crop_path,
+            expected_hw=(canvas_h, canvas_w),
+        )
+        for part in floor_parts:
+            mask_path = contact_masks_dir / f"{slugify(part)}.png"
+            save_binary_mask(mask_path, floor_mask)
+            written_paths.append(mask_path)
 
     print(f"Read contact overlay: {contact_overlay_path}")
     print(f"Wrote resized contact overlay: {resized_overlay_path}")

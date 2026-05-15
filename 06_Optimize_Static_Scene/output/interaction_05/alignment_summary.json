@@ -42,12 +42,13 @@
     }
   },
   "scene": {
-    "num_floor_visible_points": 3453
+    "num_contact_crop_faces": 431884,
+    "num_contact_crop_vertices": 206586
   },
   "human": {
     "optimization": {
       "final_iter": 1000,
-      "final_total_loss": 0.35933899879455566,
+      "final_total_loss": 0.3030661344528198,
       "stage_iters": {
         "rigid": 400,
         "pose": 600
@@ -60,7 +61,7 @@
       "scene_intersect_stats": {
         "num_scene_collision_points": 700000,
         "num_sdf_query_points": 700000,
-        "num_inside_or_margin_points": 1244
+        "num_inside_or_margin_points": 1274
       },
       "scene_intersect_debug": {
         "init": {
@@ -92,10 +93,10 @@
               64,
               64
             ],
-            "min_sdf_m": -0.11384490877389908,
+            "min_sdf_m": -0.11278215795755386,
             "max_sdf_m": 0.723101019859314,
-            "num_inside_grid_points": 10174,
-            "num_near_surface_grid_points": 4821,
+            "num_inside_grid_points": 10177,
+            "num_near_surface_grid_points": 4791,
             "color_clamp_m": 0.05
           }
         },
@@ -116,10 +117,10 @@
             "num_scene_collision_points": 700000,
             "num_sdf_query_points": 700000,
             "num_visualized_points": 700000,
-            "num_inside_points": 241,
-            "num_margin_points": 1003,
-            "min_sdf_m": -0.009495124220848083,
-            "max_sdf_m": 3.501375913619995
+            "num_inside_points": 232,
+            "num_margin_points": 1042,
+            "min_sdf_m": -0.009832126088440418,
+            "max_sdf_m": 3.5327444076538086
           },
           "sdf_grid": {
             "num_grid_points": 262144,
@@ -128,10 +129,10 @@
               64,
               64
             ],
-            "min_sdf_m": -0.10806021094322205,
-            "max_sdf_m": 0.7421111464500427,
-            "num_inside_grid_points": 10325,
-            "num_near_surface_grid_points": 4853,
+            "min_sdf_m": -0.10821937024593353,
+            "max_sdf_m": 0.7437381744384766,
+            "num_inside_grid_points": 10253,
+            "num_near_surface_grid_points": 4759,
             "color_clamp_m": 0.05
           }
         }
@@ -164,10 +165,10 @@
           "moving_vertex_count": 120,
           "fixed_entity_name": "floor",
           "fixed_part_name": "floor",
-          "fixed_point_count": 3453,
+          "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.007962679490447044,
-          "nocontact_distance_m": 0.08923384722428505
+          "nocontact_raw": 0.0075407978147268295,
+          "nocontact_distance_m": 0.08683776721408047
         },
         {
           "node_a": "human.right_foot",
@@ -179,10 +180,10 @@
           "moving_vertex_count": 120,
           "fixed_entity_name": "floor",
           "fixed_part_name": "floor",
-          "fixed_point_count": 3453,
+          "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.005006009247153997,
-          "nocontact_distance_m": 0.07075315715326064
+          "nocontact_raw": 0.0048414128832519054,
+          "nocontact_distance_m": 0.06958026216716853
         }
       ]
     },
@@ -200,8 +201,8 @@
           "fixed_part_name": "wooden door",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0004326520429458469,
-          "nocontact_distance_m": 0.020800289491875994
+          "nocontact_raw": 0.0004352055548224598,
+          "nocontact_distance_m": 0.020861580832296958
         },
         {
           "node_a": "human.left_foot",
@@ -213,10 +214,10 @@
           "moving_vertex_count": 120,
           "fixed_entity_name": "floor",
           "fixed_part_name": "floor",
-          "fixed_point_count": 3453,
+          "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.00046887111966498196,
-          "nocontact_distance_m": 0.021653432052794356
+          "nocontact_raw": 0.00020133778161834925,
+          "nocontact_distance_m": 0.01418935451732563
         },
         {
           "node_a": "human.right_foot",
@@ -228,10 +229,10 @@
           "moving_vertex_count": 120,
           "fixed_entity_name": "floor",
           "fixed_part_name": "floor",
-          "fixed_point_count": 3453,
+          "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0002410171873634681,
-          "nocontact_distance_m": 0.015524728254094115
+          "nocontact_raw": 0.00021373433992266655,
+          "nocontact_distance_m": 0.014619655944059236
         }
       ]
     },

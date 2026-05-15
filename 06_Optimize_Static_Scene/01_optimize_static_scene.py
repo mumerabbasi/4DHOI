@@ -218,38 +218,7 @@ def resolve_scene_paths(
         "transforms_path": scene_root / transforms_rel,
         "colmap_images_path": scene_root / "dslr" / "colmap" / "images.txt",
         "mesh_path": scene_root / "scans" / "mesh_aligned_0.05.ply",
-        "segments_path": scene_root / "scans" / "segments.json",
-        "segments_anno_path": scene_root / "scans" / "segments_anno.json",
     }
-
-
-def build_faces_for_labels(
-    mesh_faces: np.ndarray,
-    seg_indices: np.ndarray,
-    seg_groups: list[dict[str, Any]],
-    labels: set[str],
-) -> np.ndarray:
-    face_batches: list[np.ndarray] = []
-    labels_norm = {normalize_label(label) for label in labels}
-    for group in seg_groups:
-        label = normalize_label(str(group["label"]))
-        if label not in labels_norm:
-            continue
-
-        segments = np.asarray(group["segments"], dtype=np.int64)
-        if segments.size == 0:
-            continue
-
-        vertex_mask = np.isin(seg_indices, segments)
-        face_mask = np.all(vertex_mask[mesh_faces], axis=1)
-        candidate_faces = mesh_faces[face_mask]
-        if candidate_faces.size == 0:
-            continue
-        face_batches.append(candidate_faces.astype(np.int64))
-
-    if not face_batches:
-        raise RuntimeError(f"No scene faces found for labels: {sorted(labels_norm)}")
-    return np.concatenate(face_batches, axis=0)
 
 
 def build_pinhole_intrinsics(
@@ -780,15 +749,6 @@ def sample_mesh_surface_points(
     return samples.astype(np.float32)
 
 
-def project_points_np(
-        points: np.ndarray,
-        intrinsics: np.ndarray) -> np.ndarray:
-    z = np.clip(points[:, 2], 1e-6, None)
-    u = intrinsics[0, 0] * points[:, 0] / z + intrinsics[0, 2] - 0.5
-    v = intrinsics[1, 1] * points[:, 1] / z + intrinsics[1, 2] - 0.5
-    return np.stack([u, v], axis=1).astype(np.float32)
-
-
 def filter_faces_to_camera_view(
     verts_camera: np.ndarray,
     faces: np.ndarray,
@@ -824,18 +784,6 @@ def filter_faces_to_camera_view(
     return faces[overlaps].astype(np.int64)
 
 
-def compact_mesh(
-    verts: np.ndarray,
-    faces: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray]:
-    if faces.shape[0] == 0:
-        raise RuntimeError("Cannot compact an empty mesh.")
-    unique_vids, inverse = np.unique(faces.reshape(-1), return_inverse=True)
-    compact_verts = verts[unique_vids].astype(np.float32)
-    compact_faces = inverse.reshape(-1, 3).astype(np.int64)
-    return compact_verts, compact_faces
-
-
 def compact_mesh_with_vertex_ids(
     verts: np.ndarray,
     faces: np.ndarray,
@@ -846,54 +794,6 @@ def compact_mesh_with_vertex_ids(
     compact_verts = verts[unique_vids].astype(np.float32)
     compact_faces = inverse.reshape(-1, 3).astype(np.int64)
     return compact_verts, compact_faces, unique_vids.astype(np.int64)
-
-
-def build_visible_subset(
-    sampled_points: np.ndarray,
-    mesh_verts: np.ndarray,
-    mesh_faces: np.ndarray,
-    camera_ctx: IdentityCameraContext,
-    device: torch.device,
-    visible_tol_m: float,
-) -> tuple[np.ndarray, dict[str, Any]]:
-    mesh_depth, _, _ = rasterize_depth_and_mask(
-        mesh_verts, mesh_faces, camera_ctx, device)
-    uv = project_points_np(sampled_points, camera_ctx.intrinsics)
-    z = sampled_points[:, 2]
-    ui = np.round(uv[:, 0]).astype(np.int64)
-    vi = np.round(uv[:, 1]).astype(np.int64)
-    in_frame = (
-        (z > 1e-6)
-        & (ui >= 0)
-        & (ui < camera_ctx.width)
-        & (vi >= 0)
-        & (vi < camera_ctx.height)
-    )
-
-    visible = np.zeros(sampled_points.shape[0], dtype=bool)
-    if np.any(in_frame):
-        idx = np.nonzero(in_frame)[0]
-        depth_at_pixel = mesh_depth[vi[idx], ui[idx]]
-        visible[idx] = (depth_at_pixel > 0.0) & (
-            np.abs(z[idx] - depth_at_pixel) <= float(visible_tol_m))
-
-    num_visible = int(np.count_nonzero(visible))
-    if num_visible < MIN_VISIBLE_SUBSET_POINTS:
-        raise RuntimeError(
-            "Too few visible mesh surface points after projection/depth filtering: "
-            f"{num_visible} visible points, need at least "
-            f"{MIN_VISIBLE_SUBSET_POINTS}. "
-            "Check the mesh, camera, or visible_tol_m."
-        )
-
-    return sampled_points[visible].astype(np.float32), {
-        "mode": "visible",
-        "num_total_points": int(sampled_points.shape[0]),
-        "num_in_frame_points": int(np.count_nonzero(in_frame)),
-        "num_visible_points": num_visible,
-        "num_kept_points": num_visible,
-        "visible_tol_m": float(visible_tol_m),
-    }
 
 
 def write_ascii_ply(
@@ -1001,7 +901,6 @@ CONTACT_PART_PALETTE_INDEX: dict[str, int] = {
 BILATERAL_SWAP_MIN_IMPROVEMENT_M = 0.02
 CONTACT_SURFACE_SAMPLES_PER_EDGE = 2048
 CONTACT_SURFACE_SAMPLE_SEED = 17017
-MIN_VISIBLE_SUBSET_POINTS = 64
 
 
 def palette_color_for_edge(index: int) -> tuple[int, int, int]:
@@ -1695,7 +1594,6 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default="cuda:0",
     )
-    parser.add_argument("--floor_surface_samples", type=int, default=6000)
     parser.add_argument("--adam_iters", type=int, default=1000)
     parser.add_argument("--adam_lr", type=float, default=1e-3)
     parser.add_argument(
@@ -1748,7 +1646,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--nocontact_weight_end", type=float, default=500.0)
     parser.add_argument("--self_intersect_weight_start", type=float, default=0.0)
     parser.add_argument("--self_intersect_weight_end", type=float, default=1e-3)
-    parser.add_argument("--visible_tol_m", type=float, default=0.02)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--log_every", type=int, default=50)
     parser.add_argument("--contact_masks_dir", type=str, default=None)
@@ -1882,7 +1779,6 @@ def build_dynamic_interaction_edges(
     scene_verts_camera: np.ndarray,
     scene_faces_compact: np.ndarray,
     scene_vertex_source_ids: np.ndarray,
-    floor_points_visible: np.ndarray,
     camera_ctx: IdentityCameraContext,
     device: torch.device,
     expand_rings: int,
@@ -1933,81 +1829,70 @@ def build_dynamic_interaction_edges(
             moving_segment_id
         )
 
-        fixed_face_ids: np.ndarray | None = None
-        fixed_vertex_ids: np.ndarray | None = None
-        if scene_element == "floor":
-            if floor_points_visible.shape[0] == 0:
-                raise RuntimeError("SIG requested floor contact, but no visible floor points are available.")
-            fixed_points_part = floor_points_visible.astype(np.float32)
-            print(
-                f"  interaction edge '{moving_part_name}' -> floor: "
-                f"floor_surface_points={fixed_points_part.shape[0]}"
-            )
-        else:
-            contact_mask = load_contact_mask_for_part(
-                contact_masks_dir,
-                moving_part_name,
-                expected_hw=image_hw,
-            )
-            seed_face_ids, projection_filter_stats = (
-                project_mask_to_depth_filtered_scene_faces(
-                    contact_mask,
-                    scene_verts_camera,
-                    scene_faces_compact,
-                    camera_ctx=camera_ctx,
-                    device=device,
-                    depth_jump_m=contact_projection_depth_jump_m,
-                    min_component_pixels=contact_projection_min_component_pixels,
-                    nearby_depth_m=contact_projection_nearby_depth_m,
-                    max_component_gap_px=contact_projection_max_component_gap_px,
-                )
-            )
-            if seed_face_ids.size == 0:
-                raise RuntimeError(
-                    f"Contact mask for '{moving_part_name}' projects to no "
-                    f"visible scene faces (mask path under {contact_masks_dir}). "
-                    "Check camera/mesh alignment or mask coverage."
-                )
-            projected_face_count = int(projection_filter_stats["projected_faces"])
-            expanded_face_ids = expand_face_set_along_surface(
-                seed_face_ids,
+        contact_mask = load_contact_mask_for_part(
+            contact_masks_dir,
+            moving_part_name,
+            expected_hw=image_hw,
+        )
+        seed_face_ids, projection_filter_stats = (
+            project_mask_to_depth_filtered_scene_faces(
+                contact_mask,
                 scene_verts_camera,
                 scene_faces_compact,
-                num_rings=int(expand_rings),
+                camera_ctx=camera_ctx,
+                device=device,
+                depth_jump_m=contact_projection_depth_jump_m,
+                min_component_pixels=contact_projection_min_component_pixels,
+                nearby_depth_m=contact_projection_nearby_depth_m,
+                max_component_gap_px=contact_projection_max_component_gap_px,
             )
-            fixed_vertex_ids = face_set_to_unique_vertex_ids(
-                expanded_face_ids,
-                scene_faces_compact,
+        )
+        if seed_face_ids.size == 0:
+            raise RuntimeError(
+                f"Contact mask for '{moving_part_name}' projects to no "
+                f"visible scene faces (mask path under {contact_masks_dir}). "
+                "Check camera/mesh alignment or mask coverage."
             )
-            fixed_vertex_ids = scene_vertex_source_ids[fixed_vertex_ids]
-            if fixed_vertex_ids.size == 0:
-                raise RuntimeError(
-                    f"Empty scene vertex set for '{moving_part_name}' after "
-                    f"expansion ({expand_rings} rings)."
-                )
-            fixed_face_ids = expanded_face_ids
-            fixed_points_part = sample_face_set_surface_points(
-                expanded_face_ids,
-                verts=scene_verts_camera,
-                faces=scene_faces_compact,
-                num_samples=CONTACT_SURFACE_SAMPLES_PER_EDGE,
-                seed=(
-                    CONTACT_SURFACE_SAMPLE_SEED
-                    + int(surface_sample_seed)
-                    + 97 * len(interaction_edges)
-                ),
+        projected_face_count = int(projection_filter_stats["projected_faces"])
+        expanded_face_ids = expand_face_set_along_surface(
+            seed_face_ids,
+            scene_verts_camera,
+            scene_faces_compact,
+            num_rings=int(expand_rings),
+        )
+        fixed_vertex_ids = face_set_to_unique_vertex_ids(
+            expanded_face_ids,
+            scene_faces_compact,
+        )
+        fixed_vertex_ids = scene_vertex_source_ids[fixed_vertex_ids]
+        if fixed_vertex_ids.size == 0:
+            raise RuntimeError(
+                f"Empty scene vertex set for '{moving_part_name}' after "
+                f"expansion ({expand_rings} rings)."
             )
-            print(
-                f"  interaction edge '{moving_part_name}' -> target_object: "
-                f"projected_faces={projected_face_count} -> "
-                f"filtered_faces={projection_filter_stats['filtered_faces']} "
-                f"dropped_faces={projection_filter_stats['dropped_faces']} -> "
-                f"depth_components={projection_filter_stats['num_depth_components']} "
-                f"kept_components={projection_filter_stats['kept_depth_components']} -> "
-                f"expanded_faces={expanded_face_ids.size} "
-                f"scene_vertices={fixed_vertex_ids.size} "
-                f"scene_surface_points={fixed_points_part.shape[0]}"
-            )
+        fixed_face_ids = expanded_face_ids
+        fixed_points_part = sample_face_set_surface_points(
+            expanded_face_ids,
+            verts=scene_verts_camera,
+            faces=scene_faces_compact,
+            num_samples=CONTACT_SURFACE_SAMPLES_PER_EDGE,
+            seed=(
+                CONTACT_SURFACE_SAMPLE_SEED
+                + int(surface_sample_seed)
+                + 97 * len(interaction_edges)
+            ),
+        )
+        print(
+            f"  interaction edge '{moving_part_name}' -> {scene_element}: "
+            f"projected_faces={projected_face_count} -> "
+            f"filtered_faces={projection_filter_stats['filtered_faces']} "
+            f"dropped_faces={projection_filter_stats['dropped_faces']} -> "
+            f"depth_components={projection_filter_stats['num_depth_components']} "
+            f"kept_components={projection_filter_stats['kept_depth_components']} -> "
+            f"expanded_faces={expanded_face_ids.size} "
+            f"scene_vertices={fixed_vertex_ids.size} "
+            f"scene_surface_points={fixed_points_part.shape[0]}"
+        )
 
         interaction_edges.append(
             DynamicInteractionEdge(
@@ -2845,32 +2730,6 @@ def main() -> None:
     np.save(scene_depth_dir / "scene_depth.npy", scene_depth.astype(np.float32))
     save_depth_visualization(scene_depth_dir / "scene_depth_vis.png", scene_depth)
 
-    segments_payload = load_json(scene_paths["segments_path"])
-    anno_payload = load_json(scene_paths["segments_anno_path"])
-    seg_indices = np.asarray(segments_payload["segIndices"], dtype=np.int64)
-
-    floor_faces = build_faces_for_labels(
-        mesh_faces=scene_faces,
-        seg_indices=seg_indices,
-        seg_groups=anno_payload["segGroups"],
-        labels={"floor"},
-    )
-    floor_verts_camera, floor_faces_compact = compact_mesh(scene_verts_camera, floor_faces)
-    floor_surface_samples = sample_mesh_surface_points(
-        verts=floor_verts_camera,
-        faces=floor_faces_compact,
-        num_samples=int(args.floor_surface_samples),
-        seed=int(args.seed),
-    )
-    floor_points_visible, _ = build_visible_subset(
-        sampled_points=floor_surface_samples,
-        mesh_verts=floor_verts_camera,
-        mesh_faces=floor_faces_compact,
-        camera_ctx=camera_ctx,
-        device=device,
-        visible_tol_m=float(args.visible_tol_m),
-    )
-
     human_result_dir = human_pose_root
     if not human_result_dir.is_dir():
         raise FileNotFoundError(
@@ -2924,7 +2783,6 @@ def main() -> None:
             scene_verts_camera=contact_scene_verts_camera,
             scene_faces_compact=contact_scene_faces_render,
             scene_vertex_source_ids=contact_scene_vertex_source_ids,
-            floor_points_visible=floor_points_visible,
             camera_ctx=contact_camera_ctx,
             device=device,
             expand_rings=int(args.contact_region_expand_rings),
@@ -3107,7 +2965,8 @@ def main() -> None:
                 },
             },
             "scene": {
-                "num_floor_visible_points": int(floor_points_visible.shape[0]),
+                "num_contact_crop_faces": int(contact_scene_faces_render.shape[0]),
+                "num_contact_crop_vertices": int(contact_scene_verts_camera.shape[0]),
             },
             "human": human_summary,
         },
