@@ -5,16 +5,20 @@
     "label": "brown small wooden table"
   },
   "optimizer": {
-    "adam_iters": 2000,
+    "adam_iters": 1000,
     "adam_lr": 0.001,
+    "stage_iters": {
+      "rigid": 400,
+      "pose": 600
+    },
     "loss_weights": {
-      "root_orient_gvhmr": 0.0,
+      "root_orient_gvhmr": 20.0,
       "pose_gvhmr": 10.0,
       "height_prior": 1.0,
       "scene_intersect": {
         "start": 0.0,
         "end": 10.0,
-        "clearance_margin_m": 0.02,
+        "clearance_margin_m": 0.01,
         "surface_samples": 700000,
         "debug": true
       },
@@ -42,8 +46,12 @@
   },
   "human": {
     "optimization": {
-      "final_iter": 2000,
-      "final_total_loss": 0.6938221454620361,
+      "final_iter": 1000,
+      "final_total_loss": 0.5359656810760498,
+      "stage_iters": {
+        "rigid": 400,
+        "pose": 600
+      },
       "scene_intersect_sampling": {
         "mode": "visible_scene_surface",
         "num_scene_faces_total": 534302,
@@ -52,7 +60,7 @@
       "scene_intersect_stats": {
         "num_scene_collision_points": 700000,
         "num_sdf_query_points": 700000,
-        "num_inside_or_margin_points": 2823
+        "num_inside_or_margin_points": 1523
       },
       "scene_intersect_debug": {
         "init": {
@@ -67,14 +75,14 @@
             "white": "near zero SDF surface",
             "blue_intensity": "outside SMPL-X; stronger blue means larger positive SDF"
           },
-          "clearance_margin_m": 0.02,
+          "clearance_margin_m": 0.01,
           "scene_points": {
             "num_scene_collision_points": 700000,
             "num_sdf_query_points": 700000,
             "num_visualized_points": 700000,
-            "num_inside_points": 252,
-            "num_margin_points": 2544,
-            "min_sdf_m": -0.017396695911884308,
+            "num_inside_points": 256,
+            "num_margin_points": 544,
+            "min_sdf_m": -0.01767772249877453,
             "max_sdf_m": 3.284149169921875
           },
           "sdf_grid": {
@@ -84,10 +92,10 @@
               64,
               64
             ],
-            "min_sdf_m": -0.10494965314865112,
+            "min_sdf_m": -0.09598303586244583,
             "max_sdf_m": 0.6795005202293396,
-            "num_inside_grid_points": 9606,
-            "num_near_surface_grid_points": 13173,
+            "num_inside_grid_points": 9619,
+            "num_near_surface_grid_points": 5316,
             "color_clamp_m": 0.05
           }
         },
@@ -103,15 +111,15 @@
             "white": "near zero SDF surface",
             "blue_intensity": "outside SMPL-X; stronger blue means larger positive SDF"
           },
-          "clearance_margin_m": 0.02,
+          "clearance_margin_m": 0.01,
           "scene_points": {
             "num_scene_collision_points": 700000,
             "num_sdf_query_points": 700000,
             "num_visualized_points": 700000,
-            "num_inside_points": 449,
-            "num_margin_points": 2374,
-            "min_sdf_m": -0.022490108385682106,
-            "max_sdf_m": 3.1111810207366943
+            "num_inside_points": 280,
+            "num_margin_points": 1243,
+            "min_sdf_m": -0.010004013776779175,
+            "max_sdf_m": 3.2160964012145996
           },
           "sdf_grid": {
             "num_grid_points": 262144,
@@ -120,10 +128,10 @@
               64,
               64
             ],
-            "min_sdf_m": -0.09884155541658401,
-            "max_sdf_m": 0.8381689786911011,
-            "num_inside_grid_points": 7109,
-            "num_near_surface_grid_points": 10028,
+            "min_sdf_m": -0.10853371769189835,
+            "max_sdf_m": 0.6169440150260925,
+            "num_inside_grid_points": 10029,
+            "num_near_surface_grid_points": 5502,
             "color_clamp_m": 0.05
           }
         }
@@ -143,8 +151,8 @@
           "fixed_part_name": "brown small wooden table",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.3603740930557251,
-          "nocontact_distance_m": 0.6003116632681104
+          "nocontact_raw": 0.005197177175432444,
+          "nocontact_distance_m": 0.07209145008551598
         },
         {
           "node_a": "human.right_hand",
@@ -158,8 +166,8 @@
           "fixed_part_name": "brown small wooden table",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.003812243463471532,
-          "nocontact_distance_m": 0.06174336776910968
+          "nocontact_raw": 0.003987189847975969,
+          "nocontact_distance_m": 0.06314419884657631
         },
         {
           "node_a": "human.left_foot",
@@ -207,8 +215,8 @@
           "fixed_part_name": "brown small wooden table",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0007805350469425321,
-          "nocontact_distance_m": 0.02793805732227157
+          "nocontact_raw": 0.0010983831016346812,
+          "nocontact_distance_m": 0.03314186327946395
         },
         {
           "node_a": "human.right_hand",
@@ -222,8 +230,8 @@
           "fixed_part_name": "brown small wooden table",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0008034615311771631,
-          "nocontact_distance_m": 0.028345397001579693
+          "nocontact_raw": 0.0006732199108228087,
+          "nocontact_distance_m": 0.025946481665590205
         },
         {
           "node_a": "human.left_foot",
@@ -237,8 +245,8 @@
           "fixed_part_name": "floor",
           "fixed_point_count": 1189,
           "reduction": "mean",
-          "nocontact_raw": 0.0011092200875282288,
-          "nocontact_distance_m": 0.033304955900409605
+          "nocontact_raw": 0.0006644183304160833,
+          "nocontact_distance_m": 0.025776313359673515
         },
         {
           "node_a": "human.right_foot",
@@ -252,8 +260,8 @@
           "fixed_part_name": "floor",
           "fixed_point_count": 1189,
           "reduction": "mean",
-          "nocontact_raw": 0.0006793770589865744,
-          "nocontact_distance_m": 0.026064862535347743
+          "nocontact_raw": 0.0005916869267821312,
+          "nocontact_distance_m": 0.024324615655383564
         }
       ]
     },

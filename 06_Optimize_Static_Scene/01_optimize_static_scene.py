@@ -1002,8 +1002,6 @@ BILATERAL_SWAP_MIN_IMPROVEMENT_M = 0.02
 CONTACT_SURFACE_SAMPLES_PER_EDGE = 2048
 CONTACT_SURFACE_SAMPLE_SEED = 17017
 MIN_VISIBLE_SUBSET_POINTS = 64
-MIN_CONTACT_COMPONENT_AREA_FRAC = 0.25
-MIN_CONTACT_COMPONENT_FACE_FRAC = 0.25
 
 
 def palette_color_for_edge(index: int) -> tuple[int, int, int]:
@@ -1139,14 +1137,104 @@ def load_contact_mask_for_part(
     return mask > 127
 
 
-def project_mask_to_scene_faces(
+def _component_bbox_gap_px(
+    component_a: dict[str, Any],
+    component_b: dict[str, Any],
+) -> float:
+    dx = max(
+        int(component_a["x_min"]) - int(component_b["x_max"]) - 1,
+        int(component_b["x_min"]) - int(component_a["x_max"]) - 1,
+        0,
+    )
+    dy = max(
+        int(component_a["y_min"]) - int(component_b["y_max"]) - 1,
+        int(component_b["y_min"]) - int(component_a["y_max"]) - 1,
+        0,
+    )
+    return float(math.hypot(dx, dy))
+
+
+def split_depth_continuous_mask_components(
+    candidate_mask: np.ndarray,
+    depth: np.ndarray,
+    depth_jump_m: float,
+) -> tuple[np.ndarray, list[dict[str, Any]]]:
+    if candidate_mask.shape != depth.shape:
+        raise ValueError(
+            "candidate_mask and depth shapes disagree: "
+            f"candidate={candidate_mask.shape}, depth={depth.shape}"
+        )
+    threshold = float(depth_jump_m)
+    if threshold < 0.0:
+        raise ValueError(f"depth_jump_m must be >= 0, got {depth_jump_m}.")
+
+    labels = np.full(candidate_mask.shape, -1, dtype=np.int32)
+    components: list[dict[str, Any]] = []
+    height, width = candidate_mask.shape
+    neighbor_offsets = (
+        (-1, -1), (-1, 0), (-1, 1),
+        (0, -1),           (0, 1),
+        (1, -1),  (1, 0),  (1, 1),
+    )
+
+    seed_ys, seed_xs = np.nonzero(candidate_mask)
+    for seed_y, seed_x in zip(seed_ys.tolist(), seed_xs.tolist()):
+        if labels[seed_y, seed_x] >= 0:
+            continue
+
+        component_id = len(components)
+        labels[seed_y, seed_x] = component_id
+        stack = [(int(seed_y), int(seed_x))]
+        pixels_y: list[int] = []
+        pixels_x: list[int] = []
+        while stack:
+            y, x = stack.pop()
+            pixels_y.append(y)
+            pixels_x.append(x)
+            center_depth = float(depth[y, x])
+            for dy, dx in neighbor_offsets:
+                ny = y + dy
+                nx = x + dx
+                if ny < 0 or ny >= height or nx < 0 or nx >= width:
+                    continue
+                if labels[ny, nx] >= 0 or not bool(candidate_mask[ny, nx]):
+                    continue
+                if abs(float(depth[ny, nx]) - center_depth) > threshold:
+                    continue
+                labels[ny, nx] = component_id
+                stack.append((ny, nx))
+
+        ys = np.asarray(pixels_y, dtype=np.int32)
+        xs = np.asarray(pixels_x, dtype=np.int32)
+        component_depths = depth[ys, xs].astype(np.float32)
+        components.append(
+            {
+                "id": int(component_id),
+                "pixel_count": int(ys.size),
+                "median_depth_m": float(np.median(component_depths)),
+                "mean_depth_m": float(np.mean(component_depths)),
+                "y_min": int(ys.min()),
+                "y_max": int(ys.max()),
+                "x_min": int(xs.min()),
+                "x_max": int(xs.max()),
+            }
+        )
+
+    return labels, components
+
+
+def project_mask_to_depth_filtered_scene_faces(
     mask_bool: np.ndarray,
     scene_verts_camera: np.ndarray,
     scene_faces_compact: np.ndarray,
     camera_ctx: IdentityCameraContext,
     device: torch.device,
-) -> np.ndarray:
-    _, _, pix_to_face = rasterize_depth_and_mask(
+    depth_jump_m: float,
+    min_component_pixels: int,
+    nearby_depth_m: float,
+    max_component_gap_px: float,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    depth, _, pix_to_face = rasterize_depth_and_mask(
         scene_verts_camera,
         scene_faces_compact,
         camera_ctx=camera_ctx,
@@ -1157,150 +1245,77 @@ def project_mask_to_scene_faces(
             "Rasterized pix_to_face and contact mask shapes disagree: "
             f"pix_to_face={pix_to_face.shape}, mask={mask_bool.shape}"
         )
-    selected = pix_to_face[mask_bool & (pix_to_face >= 0)]
+    valid_depth = np.isfinite(depth) & (depth > 0.0)
+    candidate_mask = mask_bool & (pix_to_face >= 0) & valid_depth
+    selected = pix_to_face[candidate_mask]
     if selected.size == 0:
         raise RuntimeError("Contact mask did not project onto any visible scene face.")
-    return np.unique(selected.astype(np.int64))
 
-
-def compute_face_geometry(
-    verts: np.ndarray,
-    faces: np.ndarray,
-    face_indices: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray]:
-    triangles = verts[faces[face_indices.astype(np.int64)]]
-    centroids = triangles.mean(axis=1).astype(np.float32)
-    areas = 0.5 * np.linalg.norm(
-        np.cross(
-            triangles[:, 1, :] - triangles[:, 0, :],
-            triangles[:, 2, :] - triangles[:, 0, :],
-        ),
-        axis=1,
-    )
-    return centroids, areas.astype(np.float32)
-
-
-def split_face_set_connected_components(
-    face_indices: np.ndarray,
-    verts_camera: np.ndarray,
-    faces_compact: np.ndarray,
-) -> list[np.ndarray]:
-    face_indices = np.unique(face_indices.astype(np.int64))
-    if face_indices.size == 0:
-        return []
-
-    mesh = trimesh.Trimesh(
-        vertices=verts_camera,
-        faces=faces_compact,
-        process=False,
-    )
-    adjacency = np.asarray(mesh.face_adjacency, dtype=np.int64)
-    neighbors: dict[int, list[int]] = {
-        int(face_id): [] for face_id in face_indices
-    }
-    if adjacency.size > 0:
-        in_set = np.zeros(int(faces_compact.shape[0]), dtype=bool)
-        in_set[face_indices] = True
-        selected_pairs = adjacency[
-            in_set[adjacency[:, 0]] & in_set[adjacency[:, 1]]
-        ]
-        for face_a, face_b in selected_pairs:
-            neighbors[int(face_a)].append(int(face_b))
-            neighbors[int(face_b)].append(int(face_a))
-
-    components: list[np.ndarray] = []
-    unvisited = set(map(int, face_indices.tolist()))
-    while unvisited:
-        start = unvisited.pop()
-        component = [start]
-        stack = [start]
-        while stack:
-            face_id = stack.pop()
-            for neighbor_id in neighbors[face_id]:
-                if neighbor_id not in unvisited:
-                    continue
-                unvisited.remove(neighbor_id)
-                component.append(neighbor_id)
-                stack.append(neighbor_id)
-        components.append(np.asarray(component, dtype=np.int64))
-    return components
-
-
-def select_contact_component_near_anchor(
-    face_indices: np.ndarray,
-    verts_camera: np.ndarray,
-    faces_compact: np.ndarray,
-    anchor_point: np.ndarray,
-) -> tuple[np.ndarray, dict[str, Any]]:
-    components = split_face_set_connected_components(
-        face_indices,
-        verts_camera,
-        faces_compact,
+    labels, components = split_depth_continuous_mask_components(
+        candidate_mask,
+        depth,
+        depth_jump_m=depth_jump_m,
     )
     if not components:
-        raise RuntimeError("Cannot select contact component from an empty face set.")
-    if len(components) == 1:
-        return components[0], {
-            "num_components": 1,
-            "kept_component_index": 0,
-            "kept_faces": int(components[0].size),
-            "dropped_faces": 0,
-        }
+        raise RuntimeError("Contact mask has no depth-continuous components.")
 
-    component_stats: list[dict[str, Any]] = []
-    for component_index, component in enumerate(components):
-        centroids, areas = compute_face_geometry(
-            verts_camera,
-            faces_compact,
-            component,
+    min_pixels = max(int(min_component_pixels), 1)
+    nearby_depth = max(float(nearby_depth_m), 0.0)
+    max_gap = max(float(max_component_gap_px), 0.0)
+    main_component = max(
+        components,
+        key=lambda component: int(component["pixel_count"]),
+    )
+    kept_component_ids = [int(main_component["id"])]
+    component_summaries: list[dict[str, Any]] = []
+    for component in components:
+        component_id = int(component["id"])
+        depth_delta = abs(
+            float(component["median_depth_m"])
+            - float(main_component["median_depth_m"])
         )
-        area_sum = float(np.sum(areas))
-        if area_sum > 1e-8:
-            centroid = np.sum(centroids * areas[:, None], axis=0) / area_sum
-        else:
-            centroid = centroids.mean(axis=0)
-        distance = float(np.linalg.norm(centroid - anchor_point.astype(np.float32)))
-        component_stats.append(
+        gap_px = _component_bbox_gap_px(component, main_component)
+        keep = component_id == int(main_component["id"]) or (
+            int(component["pixel_count"]) >= min_pixels
+            and depth_delta <= nearby_depth
+            and gap_px <= max_gap
+        )
+        if keep and component_id not in kept_component_ids:
+            kept_component_ids.append(component_id)
+        component_summaries.append(
             {
-                "index": int(component_index),
-                "faces": int(component.size),
-                "area": area_sum,
-                "distance": distance,
-                "component": component,
+                "id": component_id,
+                "pixels": int(component["pixel_count"]),
+                "median_depth_m": float(component["median_depth_m"]),
+                "depth_delta_from_main_m": float(depth_delta),
+                "bbox_gap_from_main_px": float(gap_px),
+                "kept": bool(keep),
             }
         )
 
-    max_faces = max(int(stat["faces"]) for stat in component_stats)
-    max_area = max(float(stat["area"]) for stat in component_stats)
-    eligible = [
-        stat for stat in component_stats
-        if (
-            int(stat["faces"])
-            >= max(1, int(math.ceil(max_faces * MIN_CONTACT_COMPONENT_FACE_FRAC)))
-            and float(stat["area"])
-            >= max_area * MIN_CONTACT_COMPONENT_AREA_FRAC
-        )
-    ]
-    if not eligible:
-        eligible = component_stats
+    kept_mask = np.isin(labels, np.asarray(kept_component_ids, dtype=np.int32))
+    kept_faces = np.unique(pix_to_face[kept_mask].astype(np.int64))
+    projected_faces = np.unique(selected.astype(np.int64))
+    if kept_faces.size == 0:
+        raise RuntimeError("Depth filtering removed all projected contact faces.")
 
-    chosen = min(
-        eligible,
-        key=lambda stat: (
-            float(stat["distance"]),
-            -float(stat["area"]),
-            -int(stat["faces"]),
-        ),
-    )
-    kept = chosen["component"]
-    return kept.astype(np.int64), {
-        "num_components": int(len(components)),
-        "kept_component_index": int(chosen["index"]),
-        "kept_faces": int(kept.size),
-        "dropped_faces": int(face_indices.size - kept.size),
-        "kept_area": float(chosen["area"]),
-        "kept_anchor_distance_m": float(chosen["distance"]),
+    stats = {
+        "projected_faces": int(projected_faces.size),
+        "filtered_faces": int(kept_faces.size),
+        "dropped_faces": int(projected_faces.size - kept_faces.size),
+        "candidate_pixels": int(candidate_mask.sum()),
+        "kept_pixels": int(kept_mask.sum()),
+        "num_depth_components": int(len(components)),
+        "kept_depth_components": int(len(kept_component_ids)),
+        "main_component_pixels": int(main_component["pixel_count"]),
+        "main_component_median_depth_m": float(main_component["median_depth_m"]),
+        "depth_jump_m": float(depth_jump_m),
+        "nearby_depth_m": float(nearby_depth),
+        "min_component_pixels": int(min_pixels),
+        "max_component_gap_px": float(max_gap),
+        "components": component_summaries,
     }
+    return kept_faces, stats
 
 
 def expand_face_set_along_surface(
@@ -1651,6 +1666,7 @@ class SelfIntersectionHelper:
 
 def build_default_paths(interaction_name: str) -> dict[str, Path]:
     defaults = build_shared_default_paths(interaction_name)
+    defaults["output_root"] = SCRIPT_DIR / "output" / interaction_name
     defaults["smpl_folder"] = (
         SCRIPT_DIR.parent.parent / "GVHMR" / "inputs" / "checkpoints" / "body_models"
     )
@@ -1680,8 +1696,18 @@ def parse_args() -> argparse.Namespace:
         default="cuda:0",
     )
     parser.add_argument("--floor_surface_samples", type=int, default=6000)
-    parser.add_argument("--adam_iters", type=int, default=2000)
+    parser.add_argument("--adam_iters", type=int, default=1000)
     parser.add_argument("--adam_lr", type=float, default=1e-3)
+    parser.add_argument(
+        "--rigid_stage_iters",
+        type=int,
+        default=None,
+        help=(
+            "Number of initial iterations with body_pose frozen. "
+            "Defaults to 40 percent of adam_iters, leaving at least one "
+            "pose-enabled iteration when possible."
+        ),
+    )
     parser.add_argument("--root_orient_gvhmr_weight", type=float, default=20.0)
     parser.add_argument("--pose_gvhmr_weight", type=float, default=10.0)
     parser.add_argument("--height_prior_weight", type=float, default=1.0)
@@ -1711,7 +1737,7 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=10.0,
     )
-    parser.add_argument("--scene_intersect_margin_m", type=float, default=0.02)
+    parser.add_argument("--scene_intersect_margin_m", type=float, default=0.01)
     parser.add_argument("--scene_intersect_surface_samples", type=int, default=700000)
     parser.add_argument(
         "--scene_intersect_debug",
@@ -1727,6 +1753,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--log_every", type=int, default=50)
     parser.add_argument("--contact_masks_dir", type=str, default=None)
     parser.add_argument("--contact_region_expand_rings", type=int, default=0)
+    parser.add_argument(
+        "--contact_projection_depth_jump_m",
+        type=float,
+        default=0.05,
+    )
+    parser.add_argument(
+        "--contact_projection_nearby_depth_m",
+        type=float,
+        default=0.05,
+    )
+    parser.add_argument("--contact_projection_min_component_pixels", type=int, default=16)
+    parser.add_argument(
+        "--contact_projection_max_component_gap_px",
+        type=float,
+        default=48.0,
+    )
     parser.add_argument("--snapshot_every_iters", type=int, default=100)
     return parser.parse_args()
 
@@ -1764,11 +1806,13 @@ def get_loss_weights(
 def build_loss_row(
     iteration: int,
     losses: dict[str, Any],
+    stage_name: str,
 ) -> dict[str, Any]:
     weights = losses["weights"]
     assert isinstance(weights, dict)
     row: dict[str, Any] = {
         "iter": int(iteration),
+        "stage": stage_name,
         "total": float(losses["total"].detach().cpu().item()),
     }
     for key in LOSS_TERM_KEYS:
@@ -1844,6 +1888,10 @@ def build_dynamic_interaction_edges(
     expand_rings: int,
     surface_sample_seed: int,
     init_verts_camera: np.ndarray,
+    contact_projection_depth_jump_m: float,
+    contact_projection_nearby_depth_m: float,
+    contact_projection_min_component_pixels: int,
+    contact_projection_max_component_gap_px: float,
 ) -> list[DynamicInteractionEdge]:
     target_object_norm = normalize_label(target_object_name)
     image_hw = (camera_ctx.height, camera_ctx.width)
@@ -1901,12 +1949,18 @@ def build_dynamic_interaction_edges(
                 moving_part_name,
                 expected_hw=image_hw,
             )
-            seed_face_ids = project_mask_to_scene_faces(
-                contact_mask,
-                scene_verts_camera,
-                scene_faces_compact,
-                camera_ctx=camera_ctx,
-                device=device,
+            seed_face_ids, projection_filter_stats = (
+                project_mask_to_depth_filtered_scene_faces(
+                    contact_mask,
+                    scene_verts_camera,
+                    scene_faces_compact,
+                    camera_ctx=camera_ctx,
+                    device=device,
+                    depth_jump_m=contact_projection_depth_jump_m,
+                    min_component_pixels=contact_projection_min_component_pixels,
+                    nearby_depth_m=contact_projection_nearby_depth_m,
+                    max_component_gap_px=contact_projection_max_component_gap_px,
+                )
             )
             if seed_face_ids.size == 0:
                 raise RuntimeError(
@@ -1914,7 +1968,7 @@ def build_dynamic_interaction_edges(
                     f"visible scene faces (mask path under {contact_masks_dir}). "
                     "Check camera/mesh alignment or mask coverage."
                 )
-            projected_face_count = int(seed_face_ids.size)
+            projected_face_count = int(projection_filter_stats["projected_faces"])
             expanded_face_ids = expand_face_set_along_surface(
                 seed_face_ids,
                 scene_verts_camera,
@@ -1946,8 +2000,10 @@ def build_dynamic_interaction_edges(
             print(
                 f"  interaction edge '{moving_part_name}' -> target_object: "
                 f"projected_faces={projected_face_count} -> "
-                f"kept_faces={seed_face_ids.size} "
-                "dropped_faces=0 -> "
+                f"filtered_faces={projection_filter_stats['filtered_faces']} "
+                f"dropped_faces={projection_filter_stats['dropped_faces']} -> "
+                f"depth_components={projection_filter_stats['num_depth_components']} "
+                f"kept_components={projection_filter_stats['kept_depth_components']} -> "
                 f"expanded_faces={expanded_face_ids.size} "
                 f"scene_vertices={fixed_vertex_ids.size} "
                 f"scene_surface_points={fixed_points_part.shape[0]}"
@@ -2430,6 +2486,41 @@ def compute_interaction_metrics(
     return metrics
 
 
+def resolve_optimization_stage_iters(args: argparse.Namespace) -> tuple[int, int]:
+    total_iters = int(args.adam_iters)
+    if total_iters <= 0:
+        raise RuntimeError("adam_iters must be > 0.")
+
+    if args.rigid_stage_iters is None:
+        if total_iters == 1:
+            rigid_iters = 0
+        else:
+            rigid_iters = int(round(total_iters * 0.4))
+            rigid_iters = min(max(rigid_iters, 1), total_iters - 1)
+    else:
+        rigid_iters = int(args.rigid_stage_iters)
+        if rigid_iters < 0:
+            raise RuntimeError("rigid_stage_iters must be >= 0.")
+        if total_iters > 1 and rigid_iters >= total_iters:
+            raise RuntimeError("rigid_stage_iters must be smaller than adam_iters.")
+        if total_iters == 1 and rigid_iters > 0:
+            raise RuntimeError("rigid_stage_iters must be 0 when adam_iters is 1.")
+
+    pose_iters = total_iters - rigid_iters
+    return rigid_iters, pose_iters
+
+
+def set_stage_trainable_params(
+    params_module: FullBodySMPLXParams,
+    optimize_body_pose: bool,
+) -> list[nn.Parameter]:
+    params_module.transl.requires_grad_(True)
+    params_module.global_orient_6d.requires_grad_(True)
+    params_module.log_scale_raw.requires_grad_(True)
+    params_module.body_pose.requires_grad_(bool(optimize_body_pose))
+    return [param for param in params_module.parameters() if param.requires_grad]
+
+
 def optimize_track(
     smplx_layer: Any,
     faces_t: torch.Tensor,
@@ -2485,11 +2576,12 @@ def optimize_track(
         scene_collision_points.astype(np.float32)
     ).to(device)
 
-    optimizer = torch.optim.Adam(params_module.parameters(), lr=float(args.adam_lr))
     iter_rows: list[dict[str, Any]] = []
-
-    if int(args.adam_iters) <= 0:
-        raise RuntimeError("adam_iters must be > 0.")
+    rigid_stage_iters, pose_stage_iters = resolve_optimization_stage_iters(args)
+    print(
+        "  optimization stages: "
+        f"rigid={rigid_stage_iters} iters, pose={pose_stage_iters} iters"
+    )
 
     scene_intersect_debug_payloads: dict[str, Any] = {}
     if scene_intersect_debug_active:
@@ -2506,47 +2598,67 @@ def optimize_track(
             translation_world_to_camera=translation_world_to_camera,
         )
 
-    for iter_idx in range(1, int(args.adam_iters) + 1):
-        weights = get_loss_weights(args, iter_idx - 1, int(args.adam_iters) - 1)
-        optimizer.zero_grad(set_to_none=True)
-        losses = compute_loss_dict(
-            params_module=params_module,
-            smplx_layer=smplx_layer,
-            faces_t=faces_t,
-            interaction_edges=interaction_edges,
-            scene_collision_points_t=scene_collision_points_t,
-            scene_intersect_margin_m=float(args.scene_intersect_margin_m),
-            init_params=init_params_t,
-            self_intersection_helper=self_intersection_helper,
-            weights=weights,
+    stages = [
+        ("rigid", rigid_stage_iters, False),
+        ("pose", pose_stage_iters, True),
+    ]
+    completed_iters = 0
+    for stage_name, stage_iters, optimize_body_pose in stages:
+        if int(stage_iters) <= 0:
+            continue
+        active_params = set_stage_trainable_params(
+            params_module,
+            optimize_body_pose=optimize_body_pose,
         )
-        losses["total"].backward()
-        torch.nn.utils.clip_grad_norm_(params_module.parameters(), max_norm=5.0)
-        optimizer.step()
-        iter_rows.append(build_loss_row(iter_idx, losses))
-        if (
-            iter_idx == 1
-            or iter_idx % max(int(args.log_every), 1) == 0
-            or iter_idx == int(args.adam_iters)
-        ):
-            for line in format_loss_log(iter_idx, int(args.adam_iters), losses):
-                print(line)
-
-        if snapshot_active and (
-            iter_idx == 1
-            or iter_idx % max(int(snapshot_every_iters), 1) == 0
-            or iter_idx == int(args.adam_iters)
-        ):
-            save_human_iteration_snapshot(
-                snapshots_dir=snapshots_dir,
-                iter_idx=iter_idx,
-                verts_camera=losses["current"]["verts"],
-                faces_np=faces_np,
+        optimizer = torch.optim.Adam(active_params, lr=float(args.adam_lr))
+        print(f"  stage {stage_name}: {stage_iters} iterations")
+        for local_iter_idx in range(1, int(stage_iters) + 1):
+            iter_idx = completed_iters + local_iter_idx
+            weights = get_loss_weights(args, iter_idx - 1, int(args.adam_iters) - 1)
+            if not optimize_body_pose:
+                weights = dict(weights)
+                weights["self_intersect"] = 0.0
+            optimizer.zero_grad(set_to_none=True)
+            losses = compute_loss_dict(
+                params_module=params_module,
+                smplx_layer=smplx_layer,
+                faces_t=faces_t,
                 interaction_edges=interaction_edges,
-                rotation_world_to_camera=rotation_world_to_camera,
-                translation_world_to_camera=translation_world_to_camera,
+                scene_collision_points_t=scene_collision_points_t,
+                scene_intersect_margin_m=float(args.scene_intersect_margin_m),
+                init_params=init_params_t,
+                self_intersection_helper=self_intersection_helper,
+                weights=weights,
             )
-            print(f"  snapshot iter={iter_idx}")
+            losses["total"].backward()
+            torch.nn.utils.clip_grad_norm_(active_params, max_norm=5.0)
+            optimizer.step()
+            iter_rows.append(build_loss_row(iter_idx, losses, stage_name))
+            if (
+                iter_idx == 1
+                or iter_idx % max(int(args.log_every), 1) == 0
+                or iter_idx == int(args.adam_iters)
+            ):
+                print(f"  stage={stage_name}")
+                for line in format_loss_log(iter_idx, int(args.adam_iters), losses):
+                    print(line)
+
+            if snapshot_active and (
+                iter_idx == 1
+                or iter_idx % max(int(snapshot_every_iters), 1) == 0
+                or iter_idx == int(args.adam_iters)
+            ):
+                save_human_iteration_snapshot(
+                    snapshots_dir=snapshots_dir,
+                    iter_idx=iter_idx,
+                    verts_camera=losses["current"]["verts"],
+                    faces_np=faces_np,
+                    interaction_edges=interaction_edges,
+                    rotation_world_to_camera=rotation_world_to_camera,
+                    translation_world_to_camera=translation_world_to_camera,
+                )
+                print(f"  snapshot iter={iter_idx}")
+        completed_iters += int(stage_iters)
 
     final_weights = get_loss_weights(
         args,
@@ -2596,6 +2708,10 @@ def optimize_track(
         ),
         "scene_intersect_stats": final_losses.get("scene_intersect_stats", {}),
         "scene_intersect_debug": scene_intersect_debug_payloads,
+        "stage_iters": {
+            "rigid": int(rigid_stage_iters),
+            "pose": int(pose_stage_iters),
+        },
     }
 
 
@@ -2814,6 +2930,18 @@ def main() -> None:
             expand_rings=int(args.contact_region_expand_rings),
             surface_sample_seed=int(args.seed),
             init_verts_camera=init_verts_camera,
+            contact_projection_depth_jump_m=float(
+                args.contact_projection_depth_jump_m
+            ),
+            contact_projection_nearby_depth_m=float(
+                args.contact_projection_nearby_depth_m
+            ),
+            contact_projection_min_component_pixels=int(
+                args.contact_projection_min_component_pixels
+            ),
+            contact_projection_max_component_gap_px=float(
+                args.contact_projection_max_component_gap_px
+            ),
         )
         save_static_snapshot_references(
             snapshots_dir=snapshots_dir,
@@ -2908,6 +3036,7 @@ def main() -> None:
             "optimization": {
                 "final_iter": int(optimization["final_iter"]),
                 "final_total_loss": float(optimization["final_total_loss"]),
+                "stage_iters": optimization["stage_iters"],
                 "scene_intersect_sampling": scene_collision_sampling_stats,
                 "scene_intersect_stats": optimization["scene_intersect_stats"],
                 "scene_intersect_debug": optimization["scene_intersect_debug"],
@@ -2943,6 +3072,10 @@ def main() -> None:
             "optimizer": {
                 "adam_iters": int(args.adam_iters),
                 "adam_lr": float(args.adam_lr),
+                "stage_iters": {
+                    "rigid": int(optimization["stage_iters"]["rigid"]),
+                    "pose": int(optimization["stage_iters"]["pose"]),
+                },
                 "loss_weights": {
                     "root_orient_gvhmr": float(args.root_orient_gvhmr_weight),
                     "pose_gvhmr": float(args.pose_gvhmr_weight),
