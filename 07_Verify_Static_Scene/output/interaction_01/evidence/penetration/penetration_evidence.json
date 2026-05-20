@@ -1,0 +1,38 @@
+{
+  "penetration": {
+    "pass": true,
+    "failure_tags": [],
+    "severe_penetration": false,
+    "severe_by_min_sdf": false,
+    "severe_by_inside_points": false,
+    "thresholds": {
+      "min_sdf_m": -0.03,
+      "inside_points": 1000
+    },
+    "scene_points": {
+      "num_scene_collision_points": 700000,
+      "num_sdf_query_points": 700000,
+      "num_visualized_points": 700000,
+      "num_inside_points": 274,
+      "num_margin_points": 1196,
+      "min_sdf_m": -0.010346637107431889,
+      "max_sdf_m": 3.210315704345703
+    },
+    "sdf_grid": {
+      "num_grid_points": 262144,
+      "grid_shape": [
+        64,
+        64,
+        64
+      ],
+      "min_sdf_m": -0.10382860898971558,
+      "max_sdf_m": 0.6033999919891357,
+      "num_inside_grid_points": 9697,
+      "num_near_surface_grid_points": 5305,
+      "color_clamp_m": 0.05
+    }
+  },
+  "images": {
+    "full_scene": "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_01/evidence/full_scene.png"
+  }
+}
