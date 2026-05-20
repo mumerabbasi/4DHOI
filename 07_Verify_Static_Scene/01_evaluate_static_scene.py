@@ -78,20 +78,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout", type=float, default=180.0)
     parser.add_argument("--retries", type=int, default=1)
     parser.add_argument("--vlm-thinking-effort", default="medium", choices=["low", "medium", "high"])
-    parser.add_argument("--render-image-size", default="720x720")
+    parser.add_argument("--render-image-size", default="480x480")
     parser.add_argument("--render-device", default="cuda:0")
     parser.add_argument("--crop-padding-frac", type=float, default=1.75)
     parser.add_argument("--crop-min-size-px", type=int, default=320)
     parser.add_argument("--context-padding-frac", type=float, default=0.35)
     parser.add_argument("--contact-view-count", type=int, default=4)
-    parser.add_argument("--contact-context-output-size", default="720x720")
-    parser.add_argument("--contact-local-output-size", default="720x720")
+    parser.add_argument("--contact-context-output-size", default="480x480")
+    parser.add_argument("--contact-local-output-size", default="480x480")
     parser.add_argument("--contact-context-fill-frac", type=float, default=0.94)
     parser.add_argument("--contact-local-fill-frac", type=float, default=0.94)
-    parser.add_argument("--view-planner-image-size", default="720x720")
+    parser.add_argument("--view-planner-image-size", default="480x480")
     parser.add_argument("--candidate-yaws-deg", default="-60,-30,0,30,60,120,-120,150,-150")
     parser.add_argument("--candidate-elevations-deg", default="-10,0,10")
-    parser.add_argument("--candidate-radius-scales", default="0.7, 0.6, 0.5")
+    parser.add_argument("--candidate-radius-scales", default="1.0,1.25,1.5")
+    parser.add_argument("--virtual-camera-fov-y-deg", type=float, default=50.0)
+    parser.add_argument("--max-human-frame-fill-ratio", type=float, default=0.92)
     parser.add_argument("--min-human-visible-over-total-ratio", type=float, default=0.50)
     parser.add_argument("--min-target-visible-over-total-ratio", type=float, default=0.75)
     parser.add_argument("--max-target-self-occluded-ratio", type=float, default=0.10)
@@ -140,7 +142,7 @@ def resolve_path(raw_path: str | None, default_path: Path) -> Path:
 def parse_size(text: str) -> tuple[int, int]:
     normalized = str(text).lower().replace(" ", "")
     if "x" not in normalized:
-        raise ValueError(f"Expected size formatted like 720x720, got {text!r}")
+        raise ValueError(f"Expected size formatted like 480x480, got {text!r}")
     width_text, height_text = normalized.split("x", 1)
     width = int(width_text)
     height = int(height_text)
@@ -957,12 +959,6 @@ def project_vertices(points_world: Any, camera: dict[str, Any], render_width: in
     return np.stack([u, v, z], axis=1)
 
 
-def camera_center_from_w2c(w2c: Any, np: Any) -> Any:
-    rotation = w2c[:3, :3]
-    translation = w2c[:3, 3]
-    return -rotation.T @ translation
-
-
 def look_at_w2c(eye: Any, target: Any, np: Any) -> Any:
     up = np.asarray([0.0, 0.0, 1.0], dtype=np.float32)
     forward = np.asarray(target - eye, dtype=np.float32)
@@ -982,48 +978,99 @@ def look_at_w2c(eye: Any, target: Any, np: Any) -> Any:
     return w2c
 
 
-def rotate_xy(vector: Any, yaw_deg: float, np: Any) -> Any:
-    radians = np.deg2rad(float(yaw_deg))
-    cos_v = np.cos(radians)
-    sin_v = np.sin(radians)
-    rotated = np.asarray(vector, dtype=np.float32).copy()
-    x = rotated[0] * cos_v - rotated[1] * sin_v
-    y = rotated[0] * sin_v + rotated[1] * cos_v
-    rotated[0] = x
-    rotated[1] = y
-    return rotated
+def human_bbox_info(human_vertices: Any, np: Any) -> dict[str, Any]:
+    human_min = human_vertices.min(axis=0)
+    human_max = human_vertices.max(axis=0)
+    center = (human_min + human_max) * 0.5
+    extent = human_max - human_min
+    human_height_m = float(extent[2])
+    human_xy_extent_m = float(max(extent[0], extent[1]))
+    base_radius_m = max(1.4 * human_height_m, 2.2 * human_xy_extent_m, 1.2)
+    return {
+        "min": human_min,
+        "max": human_max,
+        "center": center.astype(np.float32),
+        "height_m": human_height_m,
+        "xy_extent_m": human_xy_extent_m,
+        "base_radius_m": float(base_radius_m),
+    }
 
 
-def apply_elevation_offset(offset: Any, elevation_deg: float, np: Any) -> Any:
-    adjusted = np.asarray(offset, dtype=np.float32).copy()
-    horizontal = float(np.linalg.norm(adjusted[:2]))
-    radius = float(np.linalg.norm(adjusted))
-    if horizontal < 1e-6 or radius < 1e-6:
-        return adjusted
-    current = float(np.arctan2(adjusted[2], horizontal))
-    target_elevation = current + float(np.deg2rad(elevation_deg))
-    new_horizontal = radius * float(np.cos(target_elevation))
-    adjusted[:2] = adjusted[:2] / horizontal * new_horizontal
-    adjusted[2] = radius * float(np.sin(target_elevation))
-    return adjusted
-
-
-def orbit_camera(camera: dict[str, Any], target: Any, yaw_deg: float,
-                 radius_scale: float, elevation_deg: float, np: Any) -> dict[str, Any]:
-    base_w2c = np.asarray(camera["w2c"], dtype=np.float32)
-    base_eye = camera_center_from_w2c(base_w2c, np)
-    offset = base_eye - target
-    rotated_offset = rotate_xy(offset, yaw_deg, np)
-    rotated_offset = rotated_offset * float(radius_scale)
-    rotated_offset = apply_elevation_offset(rotated_offset, elevation_deg, np)
-    eye = target + rotated_offset
-    orbit = dict(camera)
-    orbit["w2c"] = look_at_w2c(eye, target, np)
-    orbit["orbit_yaw_deg"] = float(yaw_deg)
-    orbit["orbit_elevation_deg"] = float(elevation_deg)
-    orbit["orbit_radius_scale"] = float(radius_scale)
-    orbit["orbit_pivot_world"] = [float(value) for value in target.tolist()]
+def virtual_orbit_camera(
+    base_camera: dict[str, Any],
+    pivot: Any,
+    yaw_deg: float,
+    radius_scale: float,
+    elevation_deg: float,
+    radius_m: float,
+    fov_y_deg: float,
+    output_size: tuple[int, int],
+    np: Any,
+) -> dict[str, Any]:
+    output_width, output_height = output_size
+    yaw_rad = np.deg2rad(float(yaw_deg))
+    elevation_rad = np.deg2rad(float(elevation_deg))
+    radius = float(radius_m) * float(radius_scale)
+    horizontal = radius * float(np.cos(elevation_rad))
+    eye = np.asarray(
+        [
+            float(pivot[0]) + horizontal * float(np.sin(yaw_rad)),
+            float(pivot[1]) - horizontal * float(np.cos(yaw_rad)),
+            float(pivot[2]) + radius * float(np.sin(elevation_rad)),
+        ],
+        dtype=np.float32,
+    )
+    fov_y_rad = np.deg2rad(float(fov_y_deg))
+    fy = 0.5 * float(output_height) / max(float(np.tan(fov_y_rad * 0.5)), 1e-6)
+    orbit = dict(base_camera)
+    orbit.update(
+        {
+            "w2c": look_at_w2c(eye, np.asarray(pivot, dtype=np.float32), np),
+            "width": int(output_width),
+            "height": int(output_height),
+            "fx": float(fy),
+            "fy": float(fy),
+            "cx": float(output_width) * 0.5,
+            "cy": float(output_height) * 0.5,
+            "virtual_camera_fov_y_deg": float(fov_y_deg),
+            "orbit_yaw_deg": float(yaw_deg),
+            "orbit_elevation_deg": float(elevation_deg),
+            "orbit_radius_scale": float(radius_scale),
+            "orbit_radius_m": float(radius),
+            "orbit_base_radius_m": float(radius_m),
+            "orbit_pivot_world": [float(value) for value in np.asarray(pivot).tolist()],
+            "camera_kind": "virtual_orbit",
+        }
+    )
     return orbit
+
+
+def human_frame_fill_metrics(
+    human_vertices: Any,
+    camera: dict[str, Any],
+    width: int,
+    height: int,
+    np: Any,
+) -> dict[str, Any]:
+    projected = project_vertices(human_vertices, camera, width, height, np)
+    valid = projected[(projected[:, 2] > 0.02) & np.isfinite(projected[:, 0]) & np.isfinite(projected[:, 1])]
+    if len(valid) == 0:
+        return {
+            "human_frame_fill_ratio": 1.0,
+            "human_frame_fill_width_ratio": 1.0,
+            "human_frame_fill_height_ratio": 1.0,
+            "human_frame_bbox_xyxy": None,
+        }
+    x0, y0 = valid[:, :2].min(axis=0)
+    x1, y1 = valid[:, :2].max(axis=0)
+    width_ratio = float((x1 - x0) / max(float(width), 1.0))
+    height_ratio = float((y1 - y0) / max(float(height), 1.0))
+    return {
+        "human_frame_fill_ratio": float(max(width_ratio, height_ratio)),
+        "human_frame_fill_width_ratio": width_ratio,
+        "human_frame_fill_height_ratio": height_ratio,
+        "human_frame_bbox_xyxy": [float(x0), float(y0), float(x1), float(y1)],
+    }
 
 
 def target_faces_for_segment(human_faces: Any, segment_vertex_ids: list[int], np: Any) -> Any:
@@ -1111,7 +1158,10 @@ def add_surface_visibility_ratios(
     human_ratio = float(human_stats["visible_over_projected_surface_ratio"])
     target_ratio = float(target_stats["visible_over_projected_surface_ratio"])
     target_self_visible_ratio = float(target_self_stats["visible_over_projected_surface_ratio"])
-    target_self_occluded_ratio = 1.0 - target_self_visible_ratio if int(target_self_stats["projected_pixel_count"]) else 1.0
+    if int(target_self_stats["projected_pixel_count"]):
+        target_self_occluded_ratio = 1.0 - target_self_visible_ratio
+    else:
+        target_self_occluded_ratio = 1.0
     enriched = dict(metrics)
     enriched["human_visible_over_total_ratio"] = human_ratio
     enriched["target_visible_over_total_ratio"] = target_ratio
@@ -1371,36 +1421,26 @@ def select_contact_view_cameras(
     np: Any,
 ) -> list[dict[str, Any]]:
     base_width, base_height = parse_size(args.view_planner_image_size)
+    human_bbox = human_bbox_info(human_vertices, np)
     segment_vertices_np = human_vertices[np.asarray(segment_vertex_ids, dtype=np.int64)]
-    contact_pivot = segment_vertices_np.mean(axis=0)
-    original_depth = add_surface_visibility_ratios(
-        {},
-        rendered,
-        base_camera,
-        (base_height, base_width),
-        target_faces,
-        float(args.occlusion_depth_eps_m),
-    )
-    original_usable = view_passes_visibility(original_depth, args) and view_passes_self_occlusion(original_depth, args)
+    segment_center = segment_vertices_np.mean(axis=0)
+    contact_pivot = 0.65 * segment_center + 0.35 * human_bbox["center"]
     candidates = []
-    if original_usable:
-        candidates.append(
-            {
-                "camera_kind": "original",
-                "yaw_offset_deg": 0.0,
-                "elevation_deg": 0.0,
-                "camera": base_camera,
-                "pivot_world": [float(value) for value in contact_pivot.tolist()],
-                "orbit_radius_scale": 1.0,
-                "visibility": original_depth,
-                "selection_status": "selected",
-            }
-        )
 
     for yaw in parse_float_list(args.candidate_yaws_deg):
         for elevation in parse_float_list(args.candidate_elevations_deg):
             for radius_scale in parse_float_list(args.candidate_radius_scales):
-                camera = orbit_camera(base_camera, contact_pivot, yaw, radius_scale, elevation, np)
+                camera = virtual_orbit_camera(
+                    base_camera,
+                    contact_pivot,
+                    yaw,
+                    radius_scale,
+                    elevation,
+                    human_bbox["base_radius_m"],
+                    float(args.virtual_camera_fov_y_deg),
+                    (base_width, base_height),
+                    np,
+                )
                 visibility = add_surface_visibility_ratios(
                     {},
                     rendered,
@@ -1409,16 +1449,26 @@ def select_contact_view_cameras(
                     target_faces,
                     float(args.occlusion_depth_eps_m),
                 )
+                fill_metrics = human_frame_fill_metrics(human_vertices, camera, base_width, base_height, np)
+                visibility.update(fill_metrics)
+                if float(fill_metrics["human_frame_fill_ratio"]) > float(args.max_human_frame_fill_ratio):
+                    continue
                 if not view_passes_visibility(visibility, args) or not view_passes_self_occlusion(visibility, args):
                     continue
                 candidates.append(
                     {
-                        "camera_kind": "orbit",
+                        "camera_kind": "virtual_orbit",
                         "yaw_offset_deg": float(yaw),
                         "elevation_deg": float(elevation),
                         "camera": camera,
                         "pivot_world": [float(value) for value in contact_pivot.tolist()],
                         "orbit_radius_scale": float(radius_scale),
+                        "orbit_base_radius_m": float(human_bbox["base_radius_m"]),
+                        "orbit_radius_m": float(human_bbox["base_radius_m"]) * float(radius_scale),
+                        "human_bbox_center_world": [float(value) for value in human_bbox["center"].tolist()],
+                        "segment_center_world": [float(value) for value in segment_center.tolist()],
+                        "human_height_m": float(human_bbox["height_m"]),
+                        "human_xy_extent_m": float(human_bbox["xy_extent_m"]),
                         "visibility": visibility,
                         "selection_status": "selected",
                     }
@@ -1438,13 +1488,10 @@ def select_contact_view_cameras(
             continue
         candidate = dict(candidate)
         candidate["view_index"] = len(views)
-        if candidate["camera_kind"] == "original":
-            candidate["view_name"] = f"view_{len(views):02d}_original"
-        else:
-            candidate["view_name"] = (
-                f"view_{len(views):02d}_orbit_yaw_{int(candidate['yaw_offset_deg']):+d}"
-                f"_elev_{int(candidate['elevation_deg']):+d}_r_{candidate['orbit_radius_scale']:.2f}"
-            )
+        candidate["view_name"] = (
+            f"view_{len(views):02d}_virtual_yaw_{int(candidate['yaw_offset_deg']):+d}"
+            f"_elev_{int(candidate['elevation_deg']):+d}_r_{candidate['orbit_radius_scale']:.2f}"
+        )
         views.append(candidate)
         selected_yaws.append(yaw)
     return views
@@ -1528,11 +1575,22 @@ def build_view_evidence(
         "elevation_deg": float(view.get("elevation_deg", 0.0)),
         "pivot_world": view.get("pivot_world"),
         "orbit_radius_scale": view.get("orbit_radius_scale"),
+        "orbit_base_radius_m": view.get("orbit_base_radius_m"),
+        "orbit_radius_m": view.get("orbit_radius_m"),
+        "human_bbox_center_world": view.get("human_bbox_center_world"),
+        "segment_center_world": view.get("segment_center_world"),
+        "human_height_m": view.get("human_height_m"),
+        "human_xy_extent_m": view.get("human_xy_extent_m"),
+        "virtual_camera_fov_y_deg": float(args.virtual_camera_fov_y_deg),
         "candidate_camera": {
+            "camera_kind": view["camera_kind"],
             "yaw_offset_deg": float(view["yaw_offset_deg"]),
             "elevation_deg": float(view.get("elevation_deg", 0.0)),
             "radius_scale": view.get("orbit_radius_scale"),
+            "base_radius_m": view.get("orbit_base_radius_m"),
+            "radius_m": view.get("orbit_radius_m"),
             "pivot_world": view.get("pivot_world"),
+            "fov_y_deg": float(args.virtual_camera_fov_y_deg),
         },
         "planner_visibility": view["visibility"],
         "selection_status": view.get("selection_status", "selected"),
@@ -1559,36 +1617,25 @@ def select_global_view_cameras(
 ) -> list[dict[str, Any]]:
     base_width, base_height = parse_size(args.view_planner_image_size)
     human_vertices = rendered["human_vertices"]
-    human_min = human_vertices.min(axis=0)
-    human_max = human_vertices.max(axis=0)
-    pivot = (human_min + human_max) * 0.5
+    human_bbox = human_bbox_info(human_vertices, np)
+    pivot = human_bbox["center"]
 
     candidates = []
-    original_visibility = add_human_visibility_metrics(
-        {},
-        rendered,
-        base_camera,
-        (base_height, base_width),
-        float(args.occlusion_depth_eps_m),
-    )
-    if global_view_passes_visibility(original_visibility, args):
-        candidates.append(
-            {
-                "camera_kind": "original",
-                "yaw_offset_deg": 0.0,
-                "elevation_deg": 0.0,
-                "camera": base_camera,
-                "pivot_world": [float(value) for value in pivot.tolist()],
-                "orbit_radius_scale": 1.0,
-                "visibility": original_visibility,
-                "selection_status": "selected",
-            }
-        )
 
     for yaw in parse_float_list(args.candidate_yaws_deg):
         for elevation in parse_float_list(args.candidate_elevations_deg):
             for radius_scale in parse_float_list(args.candidate_radius_scales):
-                camera = orbit_camera(base_camera, pivot, yaw, radius_scale, elevation, np)
+                camera = virtual_orbit_camera(
+                    base_camera,
+                    pivot,
+                    yaw,
+                    radius_scale,
+                    elevation,
+                    human_bbox["base_radius_m"],
+                    float(args.virtual_camera_fov_y_deg),
+                    (base_width, base_height),
+                    np,
+                )
                 visibility = add_human_visibility_metrics(
                     {},
                     rendered,
@@ -1596,16 +1643,25 @@ def select_global_view_cameras(
                     (base_height, base_width),
                     float(args.occlusion_depth_eps_m),
                 )
+                fill_metrics = human_frame_fill_metrics(human_vertices, camera, base_width, base_height, np)
+                visibility.update(fill_metrics)
+                if float(fill_metrics["human_frame_fill_ratio"]) > float(args.max_human_frame_fill_ratio):
+                    continue
                 if not global_view_passes_visibility(visibility, args):
                     continue
                 candidates.append(
                     {
-                        "camera_kind": "orbit",
+                        "camera_kind": "virtual_orbit",
                         "yaw_offset_deg": float(yaw),
                         "elevation_deg": float(elevation),
                         "camera": camera,
                         "pivot_world": [float(value) for value in pivot.tolist()],
                         "orbit_radius_scale": float(radius_scale),
+                        "orbit_base_radius_m": float(human_bbox["base_radius_m"]),
+                        "orbit_radius_m": float(human_bbox["base_radius_m"]) * float(radius_scale),
+                        "human_bbox_center_world": [float(value) for value in human_bbox["center"].tolist()],
+                        "human_height_m": float(human_bbox["height_m"]),
+                        "human_xy_extent_m": float(human_bbox["xy_extent_m"]),
                         "visibility": visibility,
                         "selection_status": "selected",
                     }
@@ -1625,13 +1681,10 @@ def select_global_view_cameras(
             continue
         candidate = dict(candidate)
         candidate["view_index"] = len(views)
-        if candidate["camera_kind"] == "original":
-            candidate["view_name"] = f"view_{len(views):02d}_original"
-        else:
-            candidate["view_name"] = (
-                f"view_{len(views):02d}_orbit_yaw_{int(candidate['yaw_offset_deg']):+d}"
-                f"_elev_{int(candidate['elevation_deg']):+d}_r_{candidate['orbit_radius_scale']:.2f}"
-            )
+        candidate["view_name"] = (
+            f"view_{len(views):02d}_virtual_yaw_{int(candidate['yaw_offset_deg']):+d}"
+            f"_elev_{int(candidate['elevation_deg']):+d}_r_{candidate['orbit_radius_scale']:.2f}"
+        )
         views.append(candidate)
         selected_yaws.append(yaw)
     return views
@@ -1688,11 +1741,21 @@ def build_global_view_evidence(
         "elevation_deg": float(view.get("elevation_deg", 0.0)),
         "pivot_world": view.get("pivot_world"),
         "orbit_radius_scale": view.get("orbit_radius_scale"),
+        "orbit_base_radius_m": view.get("orbit_base_radius_m"),
+        "orbit_radius_m": view.get("orbit_radius_m"),
+        "human_bbox_center_world": view.get("human_bbox_center_world"),
+        "human_height_m": view.get("human_height_m"),
+        "human_xy_extent_m": view.get("human_xy_extent_m"),
+        "virtual_camera_fov_y_deg": float(args.virtual_camera_fov_y_deg),
         "candidate_camera": {
+            "camera_kind": view["camera_kind"],
             "yaw_offset_deg": float(view["yaw_offset_deg"]),
             "elevation_deg": float(view.get("elevation_deg", 0.0)),
             "radius_scale": view.get("orbit_radius_scale"),
+            "base_radius_m": view.get("orbit_base_radius_m"),
+            "radius_m": view.get("orbit_radius_m"),
             "pivot_world": view.get("pivot_world"),
+            "fov_y_deg": float(args.virtual_camera_fov_y_deg),
         },
         "planner_visibility": view["visibility"],
         "selection_status": view.get("selection_status", "selected"),
