@@ -78,25 +78,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout", type=float, default=180.0)
     parser.add_argument("--retries", type=int, default=1)
     parser.add_argument("--vlm-thinking-effort", default="medium", choices=["low", "medium", "high"])
-    parser.add_argument("--contact-avg-score-pass-threshold", type=float, default=3.0)
-    parser.add_argument("--render-image-size", default="480x480")
+    parser.add_argument("--render-image-size", default="720x720")
     parser.add_argument("--render-device", default="cuda:0")
     parser.add_argument("--crop-padding-frac", type=float, default=1.75)
     parser.add_argument("--crop-min-size-px", type=int, default=320)
     parser.add_argument("--context-padding-frac", type=float, default=0.35)
     parser.add_argument("--contact-view-count", type=int, default=4)
-    parser.add_argument("--contact-context-output-size", default="480x480")
-    parser.add_argument("--contact-local-output-size", default="480x480")
+    parser.add_argument("--contact-context-output-size", default="720x720")
+    parser.add_argument("--contact-local-output-size", default="720x720")
     parser.add_argument("--contact-context-fill-frac", type=float, default=0.94)
     parser.add_argument("--contact-local-fill-frac", type=float, default=0.94)
-    parser.add_argument("--view-planner-image-size", default="480x480")
+    parser.add_argument("--view-planner-image-size", default="720x720")
     parser.add_argument("--candidate-yaws-deg", default="-60,-30,0,30,60,120,-120,150,-150")
     parser.add_argument("--candidate-elevations-deg", default="-10,0,10")
-    parser.add_argument("--candidate-radius-scales", default="0.65,0.8,1.0")
+    parser.add_argument("--candidate-radius-scales", default="0.7, 0.6, 0.5")
     parser.add_argument("--min-human-visible-over-total-ratio", type=float, default=0.50)
     parser.add_argument("--min-target-visible-over-total-ratio", type=float, default=0.75)
     parser.add_argument("--max-target-self-occluded-ratio", type=float, default=0.10)
-    parser.add_argument("--min-view-angular-separation-deg", type=float, default=20.0)
+    parser.add_argument("--min-view-angular-separation-deg", type=float, default=15.0)
     parser.add_argument("--occlusion-depth-eps-m", type=float, default=0.01)
     return parser.parse_args()
 
@@ -141,7 +140,7 @@ def resolve_path(raw_path: str | None, default_path: Path) -> Path:
 def parse_size(text: str) -> tuple[int, int]:
     normalized = str(text).lower().replace(" ", "")
     if "x" not in normalized:
-        raise ValueError(f"Expected size formatted like 480x480, got {text!r}")
+        raise ValueError(f"Expected size formatted like 720x720, got {text!r}")
     width_text, height_text = normalized.split("x", 1)
     width = int(width_text)
     height = int(height_text)
@@ -390,18 +389,28 @@ def build_verification_summary(metrics: dict[str, Any], vlm_judgments: dict[str,
     vlm_missing = False
 
     if vlm_enabled and vlm_judgments:
-        all_judgments: list[dict[str, Any]] = []
-        all_judgments.extend(vlm_judgments.get("contact_edges", []))
-        pose = vlm_judgments.get("pose")
-        penetration = vlm_judgments.get("penetration")
-        if isinstance(pose, dict):
-            all_judgments.append(pose)
-        if isinstance(penetration, dict):
-            all_judgments.append(penetration)
-        for judgment in all_judgments:
+        for judgment in vlm_judgments.get("contact_edges", []):
             verdict = judgment.get("pass")
             if verdict is False:
-                failure_tags.extend(judgment.get("failure_tags", []))
+                failure_tags.append("missing_contact")
+            elif verdict is None:
+                vlm_missing = True
+                failure_tags.append("needs_review")
+
+        pose = vlm_judgments.get("pose")
+        if isinstance(pose, dict):
+            verdict = pose.get("pass")
+            if verdict is False:
+                failure_tags.append("implausible_pose")
+            elif verdict is None:
+                vlm_missing = True
+                failure_tags.append("needs_review")
+
+        penetration = vlm_judgments.get("penetration")
+        if isinstance(penetration, dict):
+            verdict = penetration.get("pass")
+            if verdict is False:
+                failure_tags.append("severe_penetration")
             elif verdict is None:
                 vlm_missing = True
                 failure_tags.append("needs_review")
@@ -1123,12 +1132,65 @@ def add_surface_visibility_ratios(
     return enriched
 
 
+def add_human_visibility_metrics(
+    metrics: dict[str, Any],
+    rendered: dict[str, Any],
+    camera: dict[str, Any],
+    image_size: tuple[int, int],
+    eps_m: float,
+) -> dict[str, Any]:
+    np = rendered["deps"]["np"]
+    scene_depth = rasterize_depth(
+        rendered["scene_vertices"],
+        rendered["scene_faces"],
+        camera,
+        image_size,
+        rendered["deps"],
+        rendered["device"],
+    )
+    human_depth = rasterize_depth(
+        rendered["human_vertices"],
+        rendered["human_faces"],
+        camera,
+        image_size,
+        rendered["deps"],
+        rendered["device"],
+    )
+    human_stats = visible_surface_stats(
+        human_depth,
+        scene_depth,
+        np,
+        eps_m,
+    )
+    human_ratio = float(human_stats["visible_over_projected_surface_ratio"])
+    height, width = image_size
+    coverage = float(int(human_stats["visible_pixel_count"]) / max(width * height, 1))
+    enriched = dict(metrics)
+    enriched["human_visible_over_total_ratio"] = human_ratio
+    enriched["human_visible_over_projected_surface_ratio"] = human_ratio
+    enriched["human_visible_pixel_count"] = int(human_stats["visible_pixel_count"])
+    enriched["human_projected_pixel_count"] = int(human_stats["projected_pixel_count"])
+    enriched["human_visible_image_coverage_ratio"] = coverage
+    enriched["visibility_metric"] = "rendered_surface_pixels"
+    enriched["visibility_occlusion_model"] = "cropped_scene_depth"
+    enriched["occlusion_depth_eps_m"] = float(eps_m)
+    enriched["selection_score"] = float(4.0 * human_ratio + coverage)
+    return enriched
+
+
 def view_passes_visibility(metrics: dict[str, Any], args: argparse.Namespace) -> bool:
     return (
         float(metrics.get("human_visible_over_total_ratio", 0.0))
         >= float(args.min_human_visible_over_total_ratio)
         and float(metrics.get("target_visible_over_total_ratio", 0.0))
         >= float(args.min_target_visible_over_total_ratio)
+    )
+
+
+def global_view_passes_visibility(metrics: dict[str, Any], args: argparse.Namespace) -> bool:
+    return (
+        float(metrics.get("human_visible_over_total_ratio", 0.0))
+        >= float(args.min_human_visible_over_total_ratio)
     )
 
 
@@ -1489,6 +1551,168 @@ def build_view_evidence(
     }
 
 
+def select_global_view_cameras(
+    rendered: dict[str, Any],
+    base_camera: dict[str, Any],
+    args: argparse.Namespace,
+    np: Any,
+) -> list[dict[str, Any]]:
+    base_width, base_height = parse_size(args.view_planner_image_size)
+    human_vertices = rendered["human_vertices"]
+    human_min = human_vertices.min(axis=0)
+    human_max = human_vertices.max(axis=0)
+    pivot = (human_min + human_max) * 0.5
+
+    candidates = []
+    original_visibility = add_human_visibility_metrics(
+        {},
+        rendered,
+        base_camera,
+        (base_height, base_width),
+        float(args.occlusion_depth_eps_m),
+    )
+    if global_view_passes_visibility(original_visibility, args):
+        candidates.append(
+            {
+                "camera_kind": "original",
+                "yaw_offset_deg": 0.0,
+                "elevation_deg": 0.0,
+                "camera": base_camera,
+                "pivot_world": [float(value) for value in pivot.tolist()],
+                "orbit_radius_scale": 1.0,
+                "visibility": original_visibility,
+                "selection_status": "selected",
+            }
+        )
+
+    for yaw in parse_float_list(args.candidate_yaws_deg):
+        for elevation in parse_float_list(args.candidate_elevations_deg):
+            for radius_scale in parse_float_list(args.candidate_radius_scales):
+                camera = orbit_camera(base_camera, pivot, yaw, radius_scale, elevation, np)
+                visibility = add_human_visibility_metrics(
+                    {},
+                    rendered,
+                    camera,
+                    (base_height, base_width),
+                    float(args.occlusion_depth_eps_m),
+                )
+                if not global_view_passes_visibility(visibility, args):
+                    continue
+                candidates.append(
+                    {
+                        "camera_kind": "orbit",
+                        "yaw_offset_deg": float(yaw),
+                        "elevation_deg": float(elevation),
+                        "camera": camera,
+                        "pivot_world": [float(value) for value in pivot.tolist()],
+                        "orbit_radius_scale": float(radius_scale),
+                        "visibility": visibility,
+                        "selection_status": "selected",
+                    }
+                )
+    candidates.sort(key=lambda item: item["visibility"]["selection_score"], reverse=True)
+
+    views = []
+    selected_yaws: list[float] = []
+    for candidate in candidates:
+        if len(views) >= max(1, int(args.contact_view_count)):
+            break
+        yaw = float(candidate["yaw_offset_deg"])
+        if any(
+            abs(((yaw - used + 180.0) % 360.0) - 180.0) < float(args.min_view_angular_separation_deg)
+            for used in selected_yaws
+        ):
+            continue
+        candidate = dict(candidate)
+        candidate["view_index"] = len(views)
+        if candidate["camera_kind"] == "original":
+            candidate["view_name"] = f"view_{len(views):02d}_original"
+        else:
+            candidate["view_name"] = (
+                f"view_{len(views):02d}_orbit_yaw_{int(candidate['yaw_offset_deg']):+d}"
+                f"_elev_{int(candidate['elevation_deg']):+d}_r_{candidate['orbit_radius_scale']:.2f}"
+            )
+        views.append(candidate)
+        selected_yaws.append(yaw)
+    return views
+
+
+def build_global_view_evidence(
+    rendered: dict[str, Any],
+    view: dict[str, Any],
+    views_dir: Path,
+    args: argparse.Namespace,
+    np: Any,
+) -> dict[str, Any]:
+    base_camera = view["camera"]
+    base_width, base_height = parse_size(args.render_image_size)
+    human_projected = project_vertices(rendered["human_vertices"], base_camera, base_width, base_height, np)
+    output_size = parse_size(args.contact_context_output_size)
+    bbox = bbox_from_projected(
+        human_projected,
+        base_width,
+        base_height,
+        float(args.context_padding_frac),
+        1,
+        np,
+        aspect_ratio=float(output_size[0]) / float(output_size[1]),
+    )
+    if bbox is None:
+        bbox = [0, 0, base_width, base_height]
+
+    view_dir = views_dir / view["view_name"]
+    image_path = view_dir / "view.png"
+    zoom_camera = optical_zoom_camera(
+        base_camera,
+        bbox,
+        base_width,
+        base_height,
+        output_size,
+        float(args.contact_context_fill_frac),
+    )
+    image = composite_scene_and_human(rendered, zoom_camera, (output_size[1], output_size[0]))
+    image_path.parent.mkdir(parents=True, exist_ok=True)
+    rendered["deps"]["Image"].fromarray(image).save(image_path)
+    final_visibility = add_human_visibility_metrics(
+        {},
+        rendered,
+        zoom_camera,
+        (output_size[1], output_size[0]),
+        float(args.occlusion_depth_eps_m),
+    )
+    return {
+        "view_index": int(view["view_index"]),
+        "view_name": view["view_name"],
+        "camera_kind": view["camera_kind"],
+        "yaw_offset_deg": float(view["yaw_offset_deg"]),
+        "elevation_deg": float(view.get("elevation_deg", 0.0)),
+        "pivot_world": view.get("pivot_world"),
+        "orbit_radius_scale": view.get("orbit_radius_scale"),
+        "candidate_camera": {
+            "yaw_offset_deg": float(view["yaw_offset_deg"]),
+            "elevation_deg": float(view.get("elevation_deg", 0.0)),
+            "radius_scale": view.get("orbit_radius_scale"),
+            "pivot_world": view.get("pivot_world"),
+        },
+        "planner_visibility": view["visibility"],
+        "selection_status": view.get("selection_status", "selected"),
+        "final_visibility": final_visibility,
+        "bbox_xyxy": bbox,
+        "image": str(image_path),
+        "rendering": {
+            "path": str(image_path),
+            "output_size": [int(output_size[0]), int(output_size[1])],
+            "optical_zoom_factor": zoom_camera["optical_zoom_factor"],
+            "fx": zoom_camera["fx"],
+            "fy": zoom_camera["fy"],
+            "cx": zoom_camera["cx"],
+            "cy": zoom_camera["cy"],
+            "base_width": int(base_width),
+            "base_height": int(base_height),
+        },
+    }
+
+
 def read_prompt(path: Path, fallback: str) -> str:
     return path.read_text(encoding="utf-8") if path.exists() else fallback
 
@@ -1543,8 +1767,17 @@ def generate_evidence(
     full_scene_path = evidence_dir / "full_scene.png"
     Image.fromarray(image).save(full_scene_path)
 
+    global_views_dir = pose_dir / "views"
+    global_views = []
+    selected_global_views = select_global_view_cameras(rendered, camera, args, np)
+    for view in selected_global_views:
+        view_evidence = build_global_view_evidence(rendered, view, global_views_dir, args, np)
+        global_views.append(view_evidence)
+    log("evidence", f"global pose/penetration views={len(global_views)}")
+
     contact_entries = []
     manifest_files = [str(full_scene_path)]
+    manifest_files.extend([view["image"] for view in global_views])
     for edge in metrics.get("contact", {}).get("edges", []):
         index = int(edge["index"])
         part_name = edge.get("moving_part_name")
@@ -1612,7 +1845,12 @@ def generate_evidence(
         "interaction": metrics.get("interaction"),
         "height": metrics.get("height"),
         "optimization": metrics.get("optimization"),
-        "images": {"full_scene": str(full_scene_path)},
+        "view_count": len(global_views),
+        "views": global_views,
+        "images": {
+            "full_scene": str(full_scene_path),
+            "views": [view["image"] for view in global_views],
+        },
     }
     pose_json_path = pose_dir / "pose_evidence.json"
     save_json(pose_json_path, pose_entry)
@@ -1620,7 +1858,12 @@ def generate_evidence(
 
     penetration_entry = {
         "penetration": metrics.get("penetration"),
-        "images": {"full_scene": str(full_scene_path)},
+        "view_count": len(global_views),
+        "views": global_views,
+        "images": {
+            "full_scene": str(full_scene_path),
+            "views": [view["image"] for view in global_views],
+        },
     }
     penetration_json_path = penetration_dir / "penetration_evidence.json"
     save_json(penetration_json_path, penetration_entry)
@@ -1667,23 +1910,11 @@ def extract_json_object(text: str) -> dict[str, Any]:
 
 
 def normalize_judgment(payload: dict[str, Any], edge_index: int | None = None) -> dict[str, Any]:
-    score = payload.get("score_0_to_5")
-    try:
-        score = int(score)
-    except Exception:
-        score = None
-    if score is not None:
-        score = max(0, min(5, score))
     passed = payload.get("pass")
     if not isinstance(passed, bool):
         passed = None
-    tags = payload.get("failure_tags", [])
-    if not isinstance(tags, list):
-        tags = []
     result = {
-        "score_0_to_5": score,
         "pass": passed,
-        "failure_tags": rank_failure_tags([str(tag) for tag in tags]),
         "reason": str(payload.get("reason", ""))[:1000],
     }
     if edge_index is not None:
@@ -1695,7 +1926,7 @@ def vlm_request(
     client: Any,
     model: str,
     system_prompt: str,
-    evidence: dict[str, Any],
+    task_text: str,
     image_paths: list[Path],
     timeout: float,
     thinking_effort: str,
@@ -1703,11 +1934,7 @@ def vlm_request(
     content: list[dict[str, Any]] = [
         {
             "type": "text",
-            "text": (
-                "Evaluate this evidence and return only the requested strict "
-                "JSON.\n\nEvidence JSON:\n"
-                + json.dumps(evidence, indent=2)
-            ),
+            "text": task_text,
         }
     ]
     for path in image_paths:
@@ -1736,7 +1963,7 @@ def judge_with_vlm(
     client: Any,
     model: str,
     system_prompt: str,
-    evidence: dict[str, Any],
+    task_text: str,
     image_paths: list[Path],
     args: argparse.Namespace,
     edge_index: int | None = None,
@@ -1749,7 +1976,7 @@ def judge_with_vlm(
                 client,
                 args.model,
                 system_prompt,
-                evidence,
+                task_text,
                 image_paths,
                 args.timeout,
                 args.vlm_thinking_effort,
@@ -1764,55 +1991,50 @@ def judge_with_vlm(
             log("warn", f"judge={judge_name} failed attempt={attempt + 1}: {error}")
     return normalize_judgment(
         {
-            "score_0_to_5": None,
             "pass": None,
-            "failure_tags": ["needs_review"],
             "reason": f"VLM judge failed after retries: {judge_name}",
         },
         edge_index=edge_index,
     )
 
 
-def aggregate_contact_view_judgments(view_judgments: list[dict[str, Any]], score_threshold: float) -> dict[str, Any]:
-    threshold = float(score_threshold)
-    if not view_judgments:
-        return {
-            "aggregation_method": "average_score_threshold",
-            "score_threshold": threshold,
-            "pass": None,
-            "aggregated_pass": None,
-            "aggregated_score": None,
-            "missing_count": 4,
-            "failure_tags": ["needs_review"],
-        }
+def contact_task_text(edge: dict[str, Any], interaction: str) -> str:
+    return "\n".join(
+        [
+            "Task: Decide whether the highlighted red human body part is in plausible contact with the target.",
+            f"Interaction: {interaction}",
+            f"Body part: {edge.get('body_part')}",
+            f"Moving segment: {edge.get('moving_segment_id')}",
+            f"Target: {edge.get('target')}",
+            f"Number of rendered views: {edge.get('view_count', 0)}",
+            "Each view contributes two images in order: context image, then local contact image.",
+            'Return only strict JSON: {"pass": true, "reason": "short concrete reason"}',
+        ]
+    )
 
-    scores = [judgment.get("score_0_to_5") for judgment in view_judgments if isinstance(judgment.get("score_0_to_5"), int)]
-    missing_count = len(view_judgments) - len(scores)
-    aggregated_score = float(sum(scores) / len(scores)) if scores else None
-    if aggregated_score is None:
-        aggregated_pass = None
-    else:
-        aggregated_pass = bool(aggregated_score > threshold)
 
-    failure_tags: list[str] = []
-    if aggregated_pass is False:
-        for judgment in view_judgments:
-            failure_tags.extend(judgment.get("failure_tags", []))
-        if not failure_tags:
-            failure_tags.append("missing_contact")
-    elif aggregated_pass is None:
-        failure_tags.append("needs_review")
+def pose_task_text(pose: dict[str, Any], interaction: str) -> str:
+    return "\n".join(
+        [
+            "Task: Decide whether the optimized human pose is plausible for the interaction.",
+            f"Interaction: {interaction}",
+            f"Number of rendered views: {pose.get('view_count', 0)}",
+            "Use all images together. A problem does not need to be visible in every view.",
+            'Return only strict JSON: {"pass": true, "reason": "short concrete reason"}',
+        ]
+    )
 
-    return {
-        "aggregation_method": "average_score_threshold",
-        "score_threshold": threshold,
-        "pass": aggregated_pass,
-        "aggregated_pass": aggregated_pass,
-        "aggregated_score": aggregated_score,
-        "score_count": int(len(scores)),
-        "missing_count": int(missing_count),
-        "failure_tags": rank_failure_tags(failure_tags),
-    }
+
+def penetration_task_text(penetration: dict[str, Any], interaction: str) -> str:
+    return "\n".join(
+        [
+            "Task: Decide whether there is visible serious human-scene penetration.",
+            f"Interaction: {interaction}",
+            f"Number of rendered views: {penetration.get('view_count', 0)}",
+            "Use all images together. A problem does not need to be visible in every view.",
+            'Return only strict JSON: {"pass": true, "reason": "short concrete reason"}',
+        ]
+    )
 
 
 def run_vlm_judgments(evidence_manifest: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
@@ -1851,66 +2073,60 @@ def run_vlm_judgments(evidence_manifest: dict[str, Any], args: argparse.Namespac
     penetration_prompt = read_prompt(PENETRATION_PROMPT,
                                      "Return strict JSON judging whether the human visibly penetrates scene geometry.")
 
+    pose = evidence_manifest.get("pose", {})
+    interaction = str(pose.get("interaction", ""))
     contact_judgments = []
     for edge in evidence_manifest.get("contact_edges", []):
         edge_index = int(edge.get("edge_index", len(contact_judgments)))
-        view_judgments = []
+        image_paths: list[Path] = []
         for view in edge.get("views", []):
-            image_paths = [
-                view.get("images", {}).get("context"),
-                view.get("images", {}).get("local_contact"),
-            ]
-            images = [Path(path) for path in image_paths if path]
-            evidence = {
-                "edge_index": edge_index,
-                "body_part": edge.get("body_part"),
-                "moving_segment_id": edge.get("moving_segment_id"),
-                "crop_segment_id": edge.get("crop_segment_id"),
-                "target": edge.get("target"),
-                "contact_distance_m": edge.get("contact_distance_m"),
-                "contact_threshold_m": edge.get("contact_threshold_m"),
-                "deterministic_pass": edge.get("deterministic_pass"),
-                "view": view,
-            }
-            judgment = judge_with_vlm(
-                "contact",
-                client,
-                args.model,
-                contact_prompt,
-                evidence,
-                images,
-                args,
-                edge_index=edge_index,
-            )
-            judgment["view_index"] = int(view.get("view_index", len(view_judgments)))
-            judgment["view_name"] = view.get("view_name")
-            view_judgments.append(judgment)
-        aggregate = aggregate_contact_view_judgments(
-            view_judgments,
-            float(args.contact_avg_score_pass_threshold),
+            images = view.get("images", {})
+            for key in ["context", "local_contact"]:
+                path = images.get(key)
+                if path:
+                    image_paths.append(Path(path))
+        judgment = judge_with_vlm(
+            "contact",
+            client,
+            args.model,
+            contact_prompt,
+            contact_task_text(edge, interaction),
+            image_paths,
+            args,
+            edge_index=edge_index,
         )
         contact_judgments.append(
             {
                 "edge_index": edge_index,
                 "body_part": edge.get("body_part"),
+                "moving_segment_id": edge.get("moving_segment_id"),
+                "crop_segment_id": edge.get("crop_segment_id"),
                 "target": edge.get("target"),
-                "view_judgments": view_judgments,
-                **aggregate,
+                "view_count": int(edge.get("view_count", 0)),
+                "image_paths": [str(path) for path in image_paths],
+                **judgment,
             }
         )
 
-    pose = evidence_manifest.get("pose", {})
-    pose_images = [Path(pose.get("images", {}).get("full_scene", ""))]
-    pose_judgment = judge_with_vlm("pose", client, args.model, pose_prompt, pose, pose_images, args)
+    pose_images = [Path(path) for path in pose.get("images", {}).get("views", []) if path]
+    pose_judgment = judge_with_vlm(
+        "pose",
+        client,
+        args.model,
+        pose_prompt,
+        pose_task_text(pose, interaction),
+        pose_images,
+        args,
+    )
 
     penetration = evidence_manifest.get("penetration", {})
-    penetration_images = [Path(penetration.get("images", {}).get("full_scene", ""))]
+    penetration_images = [Path(path) for path in penetration.get("images", {}).get("views", []) if path]
     penetration_judgment = judge_with_vlm(
         "penetration",
         client,
         args.model,
         penetration_prompt,
-        penetration,
+        penetration_task_text(penetration, interaction),
         penetration_images,
         args)
 
