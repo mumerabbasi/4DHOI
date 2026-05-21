@@ -72,6 +72,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--severe-penetration-min-sdf-m", type=float, default=-0.03)
     parser.add_argument("--severe-penetration-inside-points", type=int, default=1000)
     parser.add_argument("--skip-vlm", action="store_true")
+    parser.add_argument("--skip-renders", action="store_true")
+    parser.add_argument("--evidence-manifest", default=None)
     parser.add_argument("--ollama-host", default="http://127.0.0.1:11434/v1")
     parser.add_argument("--ollama-api-key", default="ollama")
     parser.add_argument("--model", default="qwen3.6:27b")
@@ -89,14 +91,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--contact-context-fill-frac", type=float, default=0.94)
     parser.add_argument("--contact-local-fill-frac", type=float, default=0.94)
     parser.add_argument("--view-planner-image-size", default="480x480")
-    parser.add_argument("--candidate-yaws-deg", default="-60,-30,0,30,60,120,-120,150,-150")
-    parser.add_argument("--candidate-elevations-deg", default="-10,0,10")
-    parser.add_argument("--candidate-radius-scales", default="1.0,1.25,1.5")
+    parser.add_argument("--candidate-elevations-deg", default="0,10,20")
+    parser.add_argument("--adaptive-yaw-step-deg", type=float, default=30.0)
+    parser.add_argument("--adaptive-radius-target-fill-ratio", type=float, default=0.78)
+    parser.add_argument("--adaptive-radius-min-scale", type=float, default=0.80)
+    parser.add_argument("--adaptive-radius-max-scale", type=float, default=2.00)
+    parser.add_argument("--candidate-diagnostics-limit", type=int, default=500)
+    parser.add_argument("--hard-min-human-visible-ratio", type=float, default=0.20)
+    parser.add_argument("--hard-min-target-visible-ratio", type=float, default=0.02)
+    parser.add_argument("--hard-min-target-visible-pixels", type=int, default=25)
+    parser.add_argument("--hard-max-human-frame-fill-ratio", type=float, default=0.95)
+    parser.add_argument("--relaxed-angular-separations-deg", default=None)
     parser.add_argument("--virtual-camera-fov-y-deg", type=float, default=50.0)
-    parser.add_argument("--max-human-frame-fill-ratio", type=float, default=0.92)
-    parser.add_argument("--min-human-visible-over-total-ratio", type=float, default=0.50)
-    parser.add_argument("--min-target-visible-over-total-ratio", type=float, default=0.75)
-    parser.add_argument("--max-target-self-occluded-ratio", type=float, default=0.10)
     parser.add_argument("--min-view-angular-separation-deg", type=float, default=15.0)
     parser.add_argument("--occlusion-depth-eps-m", type=float, default=0.01)
     return parser.parse_args()
@@ -165,7 +171,7 @@ def rank_failure_tags(tags: list[str]) -> list[str]:
         "implausible_pose",
         "wrong_interaction",
         "wrong_target",
-        "needs_review",
+        "no_decision",
     ]
     normalized = [slugify(tag) for tag in tags if tag]
     return sorted(
@@ -388,7 +394,7 @@ def collect_metrics(
 def build_verification_summary(metrics: dict[str, Any], vlm_judgments: dict[str, Any] | None = None) -> dict[str, Any]:
     failure_tags = list(metrics.get("deterministic", {}).get("failure_tags", []))
     vlm_enabled = bool(vlm_judgments and vlm_judgments.get("enabled"))
-    vlm_missing = False
+    vlm_no_decision = False
 
     if vlm_enabled and vlm_judgments:
         for judgment in vlm_judgments.get("contact_edges", []):
@@ -396,8 +402,8 @@ def build_verification_summary(metrics: dict[str, Any], vlm_judgments: dict[str,
             if verdict is False:
                 failure_tags.append("missing_contact")
             elif verdict is None:
-                vlm_missing = True
-                failure_tags.append("needs_review")
+                vlm_no_decision = True
+                failure_tags.append("no_decision")
 
         pose = vlm_judgments.get("pose")
         if isinstance(pose, dict):
@@ -405,8 +411,8 @@ def build_verification_summary(metrics: dict[str, Any], vlm_judgments: dict[str,
             if verdict is False:
                 failure_tags.append("implausible_pose")
             elif verdict is None:
-                vlm_missing = True
-                failure_tags.append("needs_review")
+                vlm_no_decision = True
+                failure_tags.append("no_decision")
 
         penetration = vlm_judgments.get("penetration")
         if isinstance(penetration, dict):
@@ -414,16 +420,16 @@ def build_verification_summary(metrics: dict[str, Any], vlm_judgments: dict[str,
             if verdict is False:
                 failure_tags.append("severe_penetration")
             elif verdict is None:
-                vlm_missing = True
-                failure_tags.append("needs_review")
+                vlm_no_decision = True
+                failure_tags.append("no_decision")
 
     ranked_tags = rank_failure_tags(failure_tags)
     if metrics.get("deterministic", {}).get("failure_tags"):
         status = "fail"
-    elif vlm_enabled and any(tag != "needs_review" for tag in ranked_tags):
+    elif vlm_enabled and any(tag != "no_decision" for tag in ranked_tags):
         status = "fail"
-    elif vlm_enabled and vlm_missing:
-        status = "needs_review"
+    elif vlm_enabled and vlm_no_decision:
+        status = "no_decision"
     else:
         status = "pass"
 
@@ -1228,29 +1234,6 @@ def add_human_visibility_metrics(
     return enriched
 
 
-def view_passes_visibility(metrics: dict[str, Any], args: argparse.Namespace) -> bool:
-    return (
-        float(metrics.get("human_visible_over_total_ratio", 0.0))
-        >= float(args.min_human_visible_over_total_ratio)
-        and float(metrics.get("target_visible_over_total_ratio", 0.0))
-        >= float(args.min_target_visible_over_total_ratio)
-    )
-
-
-def global_view_passes_visibility(metrics: dict[str, Any], args: argparse.Namespace) -> bool:
-    return (
-        float(metrics.get("human_visible_over_total_ratio", 0.0))
-        >= float(args.min_human_visible_over_total_ratio)
-    )
-
-
-def view_passes_self_occlusion(metrics: dict[str, Any], args: argparse.Namespace) -> bool:
-    return (
-        float(metrics.get("target_self_occluded_over_projected_surface_ratio", 1.0))
-        <= float(args.max_target_self_occluded_ratio)
-    )
-
-
 VISUAL_SEGMENT_ALIASES = {
     "left_hand_inner": "left_hand",
     "right_hand_inner": "right_hand",
@@ -1411,6 +1394,207 @@ def save_optical_zoom_render_with_visibility(
     return metadata, visibility
 
 
+def clamp(value: float, low: float, high: float) -> float:
+    return min(max(float(value), float(low)), float(high))
+
+
+def adaptive_yaws(args: argparse.Namespace) -> list[float]:
+    step = max(float(args.adaptive_yaw_step_deg), 1.0)
+    count = max(1, int(round(360.0 / step)))
+    return [float(-180.0 + index * step) for index in range(count)]
+
+
+def adaptive_orbit_camera(
+    base_camera: dict[str, Any],
+    pivot: Any,
+    yaw: float,
+    elevation: float,
+    human_bbox: dict[str, Any],
+    human_vertices: Any,
+    args: argparse.Namespace,
+    np: Any,
+    output_size: tuple[int, int],
+) -> tuple[dict[str, Any], float]:
+    width, height = output_size
+    initial = virtual_orbit_camera(
+        base_camera,
+        pivot,
+        yaw,
+        1.0,
+        elevation,
+        human_bbox["base_radius_m"],
+        float(args.virtual_camera_fov_y_deg),
+        output_size,
+        np,
+    )
+    fill = human_frame_fill_metrics(human_vertices, initial, width, height, np)
+    raw_fill = max(float(fill["human_frame_fill_ratio"]), 1e-6)
+    target_fill = clamp(float(args.adaptive_radius_target_fill_ratio), 0.1, 0.95)
+    radius_scale = clamp(
+        raw_fill / target_fill,
+        float(args.adaptive_radius_min_scale),
+        float(args.adaptive_radius_max_scale),
+    )
+    camera = virtual_orbit_camera(
+        base_camera,
+        pivot,
+        yaw,
+        radius_scale,
+        elevation,
+        human_bbox["base_radius_m"],
+        float(args.virtual_camera_fov_y_deg),
+        output_size,
+        np,
+    )
+    return camera, float(radius_scale)
+
+
+def hard_reject_contact(metrics: dict[str, Any], args: argparse.Namespace) -> list[str]:
+    reasons = []
+    if float(metrics.get("human_visible_over_total_ratio", 0.0)) < float(args.hard_min_human_visible_ratio):
+        reasons.append("hard_low_human_visibility")
+    if float(metrics.get("target_visible_over_total_ratio", 0.0)) < float(args.hard_min_target_visible_ratio):
+        reasons.append("hard_low_target_visibility")
+    if int(metrics.get("target_visible_pixel_count", 0)) < int(args.hard_min_target_visible_pixels):
+        reasons.append("hard_low_target_visible_pixels")
+    if float(metrics.get("human_frame_fill_ratio", 1.0)) > float(args.hard_max_human_frame_fill_ratio):
+        reasons.append("hard_human_frame_too_full")
+    return reasons
+
+
+def hard_reject_global(metrics: dict[str, Any], args: argparse.Namespace) -> list[str]:
+    reasons = []
+    if float(metrics.get("human_visible_over_total_ratio", 0.0)) < float(args.hard_min_human_visible_ratio):
+        reasons.append("hard_low_human_visibility")
+    if float(metrics.get("human_frame_fill_ratio", 1.0)) > float(args.hard_max_human_frame_fill_ratio):
+        reasons.append("hard_human_frame_too_full")
+    return reasons
+
+
+def overfill_penalty(fill_ratio: float, target_ratio: float) -> float:
+    if fill_ratio <= target_ratio:
+        return 0.0
+    return float((fill_ratio - target_ratio) / max(1.0 - target_ratio, 1e-6))
+
+
+def contact_rank_score(metrics: dict[str, Any], args: argparse.Namespace) -> float:
+    target_visible = float(metrics.get("target_visible_over_total_ratio", 0.0))
+    human_visible = float(metrics.get("human_visible_over_total_ratio", 0.0))
+    self_occluded = float(metrics.get("target_self_occluded_over_projected_surface_ratio", 1.0))
+    fill = float(metrics.get("human_frame_fill_ratio", 1.0))
+    target_pixels = int(metrics.get("target_visible_pixel_count", 0))
+    width_ratio = float(metrics.get("human_frame_fill_width_ratio", 0.0))
+    height_ratio = float(metrics.get("human_frame_fill_height_ratio", 0.0))
+    target_pixel_bonus = min(float(target_pixels) / 2500.0, 1.0)
+    coverage_bonus = min(max(width_ratio, height_ratio), 1.0)
+    return float(
+        4.0 * target_visible
+        + 2.0 * human_visible
+        - 2.0 * self_occluded
+        - overfill_penalty(fill, float(args.adaptive_radius_target_fill_ratio))
+        + 0.5 * target_pixel_bonus
+        + 0.25 * coverage_bonus
+    )
+
+
+def global_rank_score(metrics: dict[str, Any], args: argparse.Namespace) -> float:
+    human_visible = float(metrics.get("human_visible_over_total_ratio", 0.0))
+    coverage = float(metrics.get("human_visible_image_coverage_ratio", 0.0))
+    fill = float(metrics.get("human_frame_fill_ratio", 1.0))
+    return float(
+        4.0 * human_visible
+        + coverage
+        - overfill_penalty(fill, float(args.adaptive_radius_target_fill_ratio))
+    )
+
+
+def angular_separation_schedule(args: argparse.Namespace) -> list[float]:
+    if args.relaxed_angular_separations_deg:
+        values = parse_float_list(args.relaxed_angular_separations_deg)
+    else:
+        start = float(args.min_view_angular_separation_deg)
+        values = [start, min(start, 10.0), min(start, 5.0), 0.0]
+    schedule: list[float] = []
+    for value in values:
+        value = float(value)
+        if value not in schedule:
+            schedule.append(value)
+    return schedule
+
+
+def summarize_candidate_diagnostics(diagnostics: list[dict[str, Any]]) -> dict[str, Any]:
+    reason_counts: dict[str, int] = {}
+    selected = 0
+    hard_rejected = 0
+    for item in diagnostics:
+        if item.get("selection_status") == "selected":
+            selected += 1
+        if item.get("selection_status") == "hard_rejected":
+            hard_rejected += 1
+        for reason in item.get("rejection_reasons", []):
+            reason_counts[str(reason)] = reason_counts.get(str(reason), 0) + 1
+    return {
+        "candidate_count": len(diagnostics),
+        "selected_count": selected,
+        "hard_rejected_count": hard_rejected,
+        "ranked_candidate_count": len(diagnostics) - hard_rejected,
+        "rejection_reason_counts": dict(sorted(reason_counts.items())),
+    }
+
+
+def select_ranked_candidates(
+    candidates: list[dict[str, Any]],
+    diagnostics: list[dict[str, Any]],
+    args: argparse.Namespace,
+) -> list[dict[str, Any]]:
+    candidates.sort(key=lambda item: item["rank_score"], reverse=True)
+    best_views: list[dict[str, Any]] = []
+    best_sep = angular_separation_schedule(args)[-1]
+
+    for min_sep in angular_separation_schedule(args):
+        views = []
+        selected_yaws: list[float] = []
+        for candidate in candidates:
+            if len(views) >= max(1, int(args.contact_view_count)):
+                break
+            yaw = float(candidate["yaw_offset_deg"])
+            if any(abs(((yaw - used + 180.0) % 360.0) - 180.0) < min_sep for used in selected_yaws):
+                continue
+            candidate = dict(candidate)
+            candidate["view_index"] = len(views)
+            candidate["selection_min_angular_separation_deg"] = float(min_sep)
+            candidate["view_name"] = (
+                f"view_{len(views):02d}_ranked_yaw_{int(round(candidate['yaw_offset_deg'])):+d}"
+                f"_elev_{int(round(candidate['elevation_deg'])):+d}_r_{candidate['orbit_radius_scale']:.2f}"
+            )
+            views.append(candidate)
+            selected_yaws.append(yaw)
+        best_views = views
+        best_sep = min_sep
+        if len(views) >= max(1, int(args.contact_view_count)):
+            break
+
+    for view in best_views:
+        diagnostics[int(view["candidate_id"])]["selection_status"] = "selected"
+        diagnostics[int(view["candidate_id"])]["view_name"] = view["view_name"]
+        diagnostics[int(view["candidate_id"])]["selection_min_angular_separation_deg"] = float(best_sep)
+    return best_views
+
+
+def contact_visibility_status(views: list[dict[str, Any]], segment_ids: list[int]) -> str:
+    if views:
+        return "selected_views"
+    if not segment_ids:
+        return "missing_segment_vertices"
+    return "no_visible_contact_views"
+
+
+def contact_verification_mode(views: list[dict[str, Any]]) -> str:
+    if views:
+        return "vlm_images"
+    return "unverified_no_images"
+
+
 def select_contact_view_cameras(
     rendered: dict[str, Any],
     base_camera: dict[str, Any],
@@ -1419,82 +1603,82 @@ def select_contact_view_cameras(
     target_faces: Any,
     args: argparse.Namespace,
     np: Any,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
     base_width, base_height = parse_size(args.view_planner_image_size)
     human_bbox = human_bbox_info(human_vertices, np)
     segment_vertices_np = human_vertices[np.asarray(segment_vertex_ids, dtype=np.int64)]
     segment_center = segment_vertices_np.mean(axis=0)
     contact_pivot = 0.65 * segment_center + 0.35 * human_bbox["center"]
     candidates = []
+    diagnostics: list[dict[str, Any]] = []
 
-    for yaw in parse_float_list(args.candidate_yaws_deg):
+    for yaw in adaptive_yaws(args):
         for elevation in parse_float_list(args.candidate_elevations_deg):
-            for radius_scale in parse_float_list(args.candidate_radius_scales):
-                camera = virtual_orbit_camera(
-                    base_camera,
-                    contact_pivot,
-                    yaw,
-                    radius_scale,
-                    elevation,
-                    human_bbox["base_radius_m"],
-                    float(args.virtual_camera_fov_y_deg),
-                    (base_width, base_height),
-                    np,
-                )
-                visibility = add_surface_visibility_ratios(
-                    {},
-                    rendered,
-                    camera,
-                    (base_height, base_width),
-                    target_faces,
-                    float(args.occlusion_depth_eps_m),
-                )
-                fill_metrics = human_frame_fill_metrics(human_vertices, camera, base_width, base_height, np)
-                visibility.update(fill_metrics)
-                if float(fill_metrics["human_frame_fill_ratio"]) > float(args.max_human_frame_fill_ratio):
-                    continue
-                if not view_passes_visibility(visibility, args) or not view_passes_self_occlusion(visibility, args):
-                    continue
-                candidates.append(
-                    {
-                        "camera_kind": "virtual_orbit",
-                        "yaw_offset_deg": float(yaw),
-                        "elevation_deg": float(elevation),
-                        "camera": camera,
-                        "pivot_world": [float(value) for value in contact_pivot.tolist()],
-                        "orbit_radius_scale": float(radius_scale),
-                        "orbit_base_radius_m": float(human_bbox["base_radius_m"]),
-                        "orbit_radius_m": float(human_bbox["base_radius_m"]) * float(radius_scale),
-                        "human_bbox_center_world": [float(value) for value in human_bbox["center"].tolist()],
-                        "segment_center_world": [float(value) for value in segment_center.tolist()],
-                        "human_height_m": float(human_bbox["height_m"]),
-                        "human_xy_extent_m": float(human_bbox["xy_extent_m"]),
-                        "visibility": visibility,
-                        "selection_status": "selected",
-                    }
-                )
-    candidates.sort(key=lambda item: item["visibility"]["selection_score"], reverse=True)
+            camera, radius_scale = adaptive_orbit_camera(
+                base_camera,
+                contact_pivot,
+                yaw,
+                elevation,
+                human_bbox,
+                human_vertices,
+                args,
+                np,
+                (base_width, base_height),
+            )
+            visibility = add_surface_visibility_ratios(
+                {},
+                rendered,
+                camera,
+                (base_height, base_width),
+                target_faces,
+                float(args.occlusion_depth_eps_m),
+            )
+            visibility.update(human_frame_fill_metrics(human_vertices, camera, base_width, base_height, np))
+            reasons = hard_reject_contact(visibility, args)
+            rank_score = contact_rank_score(visibility, args)
+            visibility["rank_score"] = rank_score
+            candidate_id = len(diagnostics)
+            diagnostics.append(
+                {
+                    "candidate_id": candidate_id,
+                    "camera_kind": "ranked_virtual_orbit",
+                    "yaw_offset_deg": float(yaw),
+                    "elevation_deg": float(elevation),
+                    "orbit_radius_scale": float(radius_scale),
+                    "orbit_base_radius_m": float(human_bbox["base_radius_m"]),
+                    "orbit_radius_m": float(human_bbox["base_radius_m"]) * float(radius_scale),
+                    "pivot_world": [float(value) for value in contact_pivot.tolist()],
+                    "rank_score": rank_score,
+                    "visibility": visibility,
+                    "rejection_reasons": reasons,
+                    "selection_status": "hard_rejected" if reasons else "ranked_candidate",
+                }
+            )
+            if reasons:
+                continue
+            candidates.append(
+                {
+                    "candidate_id": candidate_id,
+                    "camera_kind": "ranked_virtual_orbit",
+                    "yaw_offset_deg": float(yaw),
+                    "elevation_deg": float(elevation),
+                    "camera": camera,
+                    "pivot_world": [float(value) for value in contact_pivot.tolist()],
+                    "orbit_radius_scale": float(radius_scale),
+                    "orbit_base_radius_m": float(human_bbox["base_radius_m"]),
+                    "orbit_radius_m": float(human_bbox["base_radius_m"]) * float(radius_scale),
+                    "human_bbox_center_world": [float(value) for value in human_bbox["center"].tolist()],
+                    "segment_center_world": [float(value) for value in segment_center.tolist()],
+                    "human_height_m": float(human_bbox["height_m"]),
+                    "human_xy_extent_m": float(human_bbox["xy_extent_m"]),
+                    "rank_score": rank_score,
+                    "visibility": visibility,
+                    "selection_status": "selected",
+                }
+            )
 
-    views = []
-    selected_yaws: list[float] = []
-    for candidate in candidates:
-        if len(views) >= max(1, int(args.contact_view_count)):
-            break
-        yaw = float(candidate["yaw_offset_deg"])
-        if any(
-            abs(((yaw - used + 180.0) % 360.0) - 180.0) < float(args.min_view_angular_separation_deg)
-            for used in selected_yaws
-        ):
-            continue
-        candidate = dict(candidate)
-        candidate["view_index"] = len(views)
-        candidate["view_name"] = (
-            f"view_{len(views):02d}_virtual_yaw_{int(candidate['yaw_offset_deg']):+d}"
-            f"_elev_{int(candidate['elevation_deg']):+d}_r_{candidate['orbit_radius_scale']:.2f}"
-        )
-        views.append(candidate)
-        selected_yaws.append(yaw)
-    return views
+    views = select_ranked_candidates(candidates, diagnostics, args)
+    return views, diagnostics[: int(args.candidate_diagnostics_limit)], summarize_candidate_diagnostics(diagnostics)
 
 
 def build_view_evidence(
@@ -1577,6 +1761,8 @@ def build_view_evidence(
         "orbit_radius_scale": view.get("orbit_radius_scale"),
         "orbit_base_radius_m": view.get("orbit_base_radius_m"),
         "orbit_radius_m": view.get("orbit_radius_m"),
+        "rank_score": view.get("rank_score"),
+        "selection_min_angular_separation_deg": view.get("selection_min_angular_separation_deg"),
         "human_bbox_center_world": view.get("human_bbox_center_world"),
         "segment_center_world": view.get("segment_center_world"),
         "human_height_m": view.get("human_height_m"),
@@ -1614,80 +1800,80 @@ def select_global_view_cameras(
     base_camera: dict[str, Any],
     args: argparse.Namespace,
     np: Any,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
     base_width, base_height = parse_size(args.view_planner_image_size)
     human_vertices = rendered["human_vertices"]
     human_bbox = human_bbox_info(human_vertices, np)
     pivot = human_bbox["center"]
 
     candidates = []
+    diagnostics: list[dict[str, Any]] = []
 
-    for yaw in parse_float_list(args.candidate_yaws_deg):
+    for yaw in adaptive_yaws(args):
         for elevation in parse_float_list(args.candidate_elevations_deg):
-            for radius_scale in parse_float_list(args.candidate_radius_scales):
-                camera = virtual_orbit_camera(
-                    base_camera,
-                    pivot,
-                    yaw,
-                    radius_scale,
-                    elevation,
-                    human_bbox["base_radius_m"],
-                    float(args.virtual_camera_fov_y_deg),
-                    (base_width, base_height),
-                    np,
-                )
-                visibility = add_human_visibility_metrics(
-                    {},
-                    rendered,
-                    camera,
-                    (base_height, base_width),
-                    float(args.occlusion_depth_eps_m),
-                )
-                fill_metrics = human_frame_fill_metrics(human_vertices, camera, base_width, base_height, np)
-                visibility.update(fill_metrics)
-                if float(fill_metrics["human_frame_fill_ratio"]) > float(args.max_human_frame_fill_ratio):
-                    continue
-                if not global_view_passes_visibility(visibility, args):
-                    continue
-                candidates.append(
-                    {
-                        "camera_kind": "virtual_orbit",
-                        "yaw_offset_deg": float(yaw),
-                        "elevation_deg": float(elevation),
-                        "camera": camera,
-                        "pivot_world": [float(value) for value in pivot.tolist()],
-                        "orbit_radius_scale": float(radius_scale),
-                        "orbit_base_radius_m": float(human_bbox["base_radius_m"]),
-                        "orbit_radius_m": float(human_bbox["base_radius_m"]) * float(radius_scale),
-                        "human_bbox_center_world": [float(value) for value in human_bbox["center"].tolist()],
-                        "human_height_m": float(human_bbox["height_m"]),
-                        "human_xy_extent_m": float(human_bbox["xy_extent_m"]),
-                        "visibility": visibility,
-                        "selection_status": "selected",
-                    }
-                )
-    candidates.sort(key=lambda item: item["visibility"]["selection_score"], reverse=True)
+            camera, radius_scale = adaptive_orbit_camera(
+                base_camera,
+                pivot,
+                yaw,
+                elevation,
+                human_bbox,
+                human_vertices,
+                args,
+                np,
+                (base_width, base_height),
+            )
+            visibility = add_human_visibility_metrics(
+                {},
+                rendered,
+                camera,
+                (base_height, base_width),
+                float(args.occlusion_depth_eps_m),
+            )
+            visibility.update(human_frame_fill_metrics(human_vertices, camera, base_width, base_height, np))
+            reasons = hard_reject_global(visibility, args)
+            rank_score = global_rank_score(visibility, args)
+            visibility["rank_score"] = rank_score
+            candidate_id = len(diagnostics)
+            diagnostics.append(
+                {
+                    "candidate_id": candidate_id,
+                    "camera_kind": "ranked_virtual_orbit",
+                    "yaw_offset_deg": float(yaw),
+                    "elevation_deg": float(elevation),
+                    "orbit_radius_scale": float(radius_scale),
+                    "orbit_base_radius_m": float(human_bbox["base_radius_m"]),
+                    "orbit_radius_m": float(human_bbox["base_radius_m"]) * float(radius_scale),
+                    "pivot_world": [float(value) for value in pivot.tolist()],
+                    "rank_score": rank_score,
+                    "visibility": visibility,
+                    "rejection_reasons": reasons,
+                    "selection_status": "hard_rejected" if reasons else "ranked_candidate",
+                }
+            )
+            if reasons:
+                continue
+            candidates.append(
+                {
+                    "candidate_id": candidate_id,
+                    "camera_kind": "ranked_virtual_orbit",
+                    "yaw_offset_deg": float(yaw),
+                    "elevation_deg": float(elevation),
+                    "camera": camera,
+                    "pivot_world": [float(value) for value in pivot.tolist()],
+                    "orbit_radius_scale": float(radius_scale),
+                    "orbit_base_radius_m": float(human_bbox["base_radius_m"]),
+                    "orbit_radius_m": float(human_bbox["base_radius_m"]) * float(radius_scale),
+                    "human_bbox_center_world": [float(value) for value in human_bbox["center"].tolist()],
+                    "human_height_m": float(human_bbox["height_m"]),
+                    "human_xy_extent_m": float(human_bbox["xy_extent_m"]),
+                    "rank_score": rank_score,
+                    "visibility": visibility,
+                    "selection_status": "selected",
+                }
+            )
 
-    views = []
-    selected_yaws: list[float] = []
-    for candidate in candidates:
-        if len(views) >= max(1, int(args.contact_view_count)):
-            break
-        yaw = float(candidate["yaw_offset_deg"])
-        if any(
-            abs(((yaw - used + 180.0) % 360.0) - 180.0) < float(args.min_view_angular_separation_deg)
-            for used in selected_yaws
-        ):
-            continue
-        candidate = dict(candidate)
-        candidate["view_index"] = len(views)
-        candidate["view_name"] = (
-            f"view_{len(views):02d}_virtual_yaw_{int(candidate['yaw_offset_deg']):+d}"
-            f"_elev_{int(candidate['elevation_deg']):+d}_r_{candidate['orbit_radius_scale']:.2f}"
-        )
-        views.append(candidate)
-        selected_yaws.append(yaw)
-    return views
+    views = select_ranked_candidates(candidates, diagnostics, args)
+    return views, diagnostics[: int(args.candidate_diagnostics_limit)], summarize_candidate_diagnostics(diagnostics)
 
 
 def build_global_view_evidence(
@@ -1743,6 +1929,8 @@ def build_global_view_evidence(
         "orbit_radius_scale": view.get("orbit_radius_scale"),
         "orbit_base_radius_m": view.get("orbit_base_radius_m"),
         "orbit_radius_m": view.get("orbit_radius_m"),
+        "rank_score": view.get("rank_score"),
+        "selection_min_angular_separation_deg": view.get("selection_min_angular_separation_deg"),
         "human_bbox_center_world": view.get("human_bbox_center_world"),
         "human_height_m": view.get("human_height_m"),
         "human_xy_extent_m": view.get("human_xy_extent_m"),
@@ -1832,14 +2020,23 @@ def generate_evidence(
 
     global_views_dir = pose_dir / "views"
     global_views = []
-    selected_global_views = select_global_view_cameras(rendered, camera, args, np)
+    selected_global_views, global_diagnostics, global_summary = select_global_view_cameras(rendered, camera, args, np)
     for view in selected_global_views:
         view_evidence = build_global_view_evidence(rendered, view, global_views_dir, args, np)
         global_views.append(view_evidence)
+    global_diag_path = pose_dir / "global_view_candidates.json"
+    save_json(
+        global_diag_path,
+        {
+            "selection_mode": "ranked_virtual_orbit",
+            "summary": global_summary,
+            "candidates": global_diagnostics,
+        },
+    )
     log("evidence", f"global pose/penetration views={len(global_views)}")
 
     contact_entries = []
-    manifest_files = [str(full_scene_path)]
+    manifest_files = [str(full_scene_path), str(global_diag_path)]
     manifest_files.extend([view["image"] for view in global_views])
     for edge in metrics.get("contact", {}).get("edges", []):
         index = int(edge["index"])
@@ -1850,6 +2047,8 @@ def generate_evidence(
         edge_slug = f"edge_{index:02d}_{slugify(part_name or 'part')}_to_{slugify(target or 'target')}"
         edge_dir = contact_dir / edge_slug
         views: list[dict[str, Any]] = []
+        diagnostics: list[dict[str, Any]] = []
+        diagnostic_summary = {"candidate_count": 0, "selected_count": 0, "rejected_count": 0}
         if not segment_ids:
             log("warn", f"edge={index} no segmentation vertices for {segment_id or part_name}")
         else:
@@ -1858,7 +2057,7 @@ def generate_evidence(
                 **rendered,
                 "human_colors": highlight_vertex_colors(rendered["human_colors"], segment_ids, np),
             }
-            selected_views = select_contact_view_cameras(
+            selected_views, diagnostics, diagnostic_summary = select_contact_view_cameras(
                 highlighted_rendered,
                 camera,
                 rendered["human_vertices"],
@@ -1882,6 +2081,18 @@ def generate_evidence(
                 views.append(view_evidence)
                 manifest_files.extend([view_evidence["images"]["context"], view_evidence["images"]["local_contact"]])
 
+        edge_dir.mkdir(parents=True, exist_ok=True)
+        diagnostics_path = edge_dir / "candidate_rejections.json"
+        save_json(
+            diagnostics_path,
+            {
+                "selection_mode": "ranked_virtual_orbit",
+                "summary": diagnostic_summary,
+                "candidates": diagnostics,
+            },
+        )
+        verification_mode = contact_verification_mode(views)
+        visibility_status = contact_visibility_status(views, segment_ids)
         entry = {
             "edge_index": index,
             "body_part": part_name,
@@ -1891,17 +2102,23 @@ def generate_evidence(
             "contact_distance_m": edge.get("nocontact_distance_m"),
             "contact_threshold_m": edge.get("threshold_m"),
             "deterministic_pass": edge.get("pass"),
+            "contact_verification_mode": verification_mode,
+            "visibility_status": visibility_status,
             "view_count": len(views),
             "views": views,
+            "candidate_diagnostics": {
+                "path": str(diagnostics_path),
+                "summary": diagnostic_summary,
+            },
         }
         json_path = edge_dir / f"{edge_slug}_evidence.json"
         save_json(json_path, entry)
-        manifest_files.append(str(json_path))
+        manifest_files.extend([str(diagnostics_path), str(json_path)])
         contact_entries.append(entry)
         log(
             "evidence",
             f"edge={index} part={part_name} crop_segment={crop_segment_id} target={target} "
-            f"distance={edge.get('nocontact_distance_m')} views={len(views)}",
+            f"mode={verification_mode} visibility={visibility_status} views={len(views)}",
         )
 
     pose_entry = {
@@ -1913,6 +2130,10 @@ def generate_evidence(
         "images": {
             "full_scene": str(full_scene_path),
             "views": [view["image"] for view in global_views],
+        },
+        "candidate_diagnostics": {
+            "path": str(global_diag_path),
+            "summary": global_summary,
         },
     }
     pose_json_path = pose_dir / "pose_evidence.json"
@@ -1927,6 +2148,10 @@ def generate_evidence(
             "full_scene": str(full_scene_path),
             "views": [view["image"] for view in global_views],
         },
+        "candidate_diagnostics": {
+            "path": str(global_diag_path),
+            "summary": global_summary,
+        },
     }
     penetration_json_path = penetration_dir / "penetration_evidence.json"
     save_json(penetration_json_path, penetration_entry)
@@ -1934,11 +2159,24 @@ def generate_evidence(
 
     manifest = {
         "evidence_dir": str(evidence_dir),
-        "render_mode": "scannet_colored_scene_neutral_smplx_human",
+        "render_mode": "ranked_virtual_orbit_scannet_crop",
         "camera_image": str(camera["image_path"]),
         "scene_mesh": str(camera["scene_mesh_path"]),
         "scene_crop": rendered.get("scene_crop"),
         "human_mesh": str(human_mesh_path),
+        "adaptive_view_selection": {
+            "yaw_step_deg": float(args.adaptive_yaw_step_deg),
+            "radius_target_fill_ratio": float(args.adaptive_radius_target_fill_ratio),
+            "radius_min_scale": float(args.adaptive_radius_min_scale),
+            "radius_max_scale": float(args.adaptive_radius_max_scale),
+        },
+        "ranked_view_selection": {
+            "hard_min_human_visible_ratio": float(args.hard_min_human_visible_ratio),
+            "hard_min_target_visible_ratio": float(args.hard_min_target_visible_ratio),
+            "hard_min_target_visible_pixels": int(args.hard_min_target_visible_pixels),
+            "hard_max_human_frame_fill_ratio": float(args.hard_max_human_frame_fill_ratio),
+            "angular_separation_schedule_deg": angular_separation_schedule(args),
+        },
         "files": manifest_files,
         "contact_edges": contact_entries,
         "pose": pose_entry,
@@ -1973,10 +2211,12 @@ def extract_json_object(text: str) -> dict[str, Any]:
 
 
 def normalize_judgment(payload: dict[str, Any], edge_index: int | None = None) -> dict[str, Any]:
-    passed = payload.get("pass")
-    if not isinstance(passed, bool):
-        passed = None
+    decision = str(payload.get("decision", "")).strip().lower()
+    if decision not in {"pass", "fail", "no_decision"}:
+        raise ValueError("VLM JSON decision must be pass, fail, or no_decision")
+    passed = {"pass": True, "fail": False, "no_decision": None}[decision]
     result = {
+        "decision": decision,
         "pass": passed,
         "reason": str(payload.get("reason", ""))[:1000],
     }
@@ -2046,15 +2286,13 @@ def judge_with_vlm(
             )
             payload = extract_json_object(text)
             judgment = normalize_judgment(payload, edge_index=edge_index)
-            if judgment["pass"] is None:
-                raise ValueError("VLM JSON did not contain boolean pass")
-            log("vlm", f"done judge={judge_name}{suffix} pass={judgment['pass']}")
+            log("vlm", f"done judge={judge_name}{suffix} decision={judgment['decision']}")
             return judgment
         except Exception as error:
             log("warn", f"judge={judge_name} failed attempt={attempt + 1}: {error}")
     return normalize_judgment(
         {
-            "pass": None,
+            "decision": "no_decision",
             "reason": f"VLM judge failed after retries: {judge_name}",
         },
         edge_index=edge_index,
@@ -2064,14 +2302,16 @@ def judge_with_vlm(
 def contact_task_text(edge: dict[str, Any], interaction: str) -> str:
     return "\n".join(
         [
-            "Task: Decide whether the highlighted red human body part is in plausible contact with the target.",
+            "Task: Decide whether the highlighted red human body part is in plausible "
+            "contact with the target.",
             f"Interaction: {interaction}",
             f"Body part: {edge.get('body_part')}",
             f"Moving segment: {edge.get('moving_segment_id')}",
             f"Target: {edge.get('target')}",
-            f"Number of rendered views: {edge.get('view_count', 0)}",
+            "You will receive 4 different rendered views.",
             "Each view contributes two images in order: context image, then local contact image.",
-            'Return only strict JSON: {"pass": true, "reason": "short concrete reason"}',
+            'Return only strict JSON: {"decision": "pass|fail|no_decision", '
+            '"reason": "short concrete reason"}',
         ]
     )
 
@@ -2081,9 +2321,10 @@ def pose_task_text(pose: dict[str, Any], interaction: str) -> str:
         [
             "Task: Decide whether the optimized human pose is plausible for the interaction.",
             f"Interaction: {interaction}",
-            f"Number of rendered views: {pose.get('view_count', 0)}",
+            "You will receive 4 different rendered views.",
             "Use all images together. A problem does not need to be visible in every view.",
-            'Return only strict JSON: {"pass": true, "reason": "short concrete reason"}',
+            'Return only strict JSON: {"decision": "pass|fail|no_decision", '
+            '"reason": "short concrete reason"}',
         ]
     )
 
@@ -2093,14 +2334,18 @@ def penetration_task_text(penetration: dict[str, Any], interaction: str) -> str:
         [
             "Task: Decide whether there is visible serious human-scene penetration.",
             f"Interaction: {interaction}",
-            f"Number of rendered views: {penetration.get('view_count', 0)}",
+            "You will receive 4 different rendered views.",
             "Use all images together. A problem does not need to be visible in every view.",
-            'Return only strict JSON: {"pass": true, "reason": "short concrete reason"}',
+            'Return only strict JSON: {"decision": "pass|fail|no_decision", '
+            '"reason": "short concrete reason"}',
         ]
     )
 
 
-def run_vlm_judgments(evidence_manifest: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
+def run_vlm_judgments(
+    evidence_manifest: dict[str, Any],
+    args: argparse.Namespace,
+) -> dict[str, Any]:
     if args.skip_vlm:
         log("vlm", "skipped because --skip-vlm was set")
         return {
@@ -2126,15 +2371,17 @@ def run_vlm_judgments(evidence_manifest: dict[str, Any], args: argparse.Namespac
     contact_prompt = read_prompt(
         CONTACT_PROMPT,
         (
-            "Return strict JSON judging whether the crop shows the requested "
-            "body part in plausible contact with the target."
+            "Return strict JSON with decision pass, fail, or no_decision, "
+            "judging whether the highlighted body part is in plausible contact."
         ),
     )
     pose_prompt = read_prompt(
         POSE_PROMPT,
-        "Return strict JSON judging whether the optimized human pose is plausible for the interaction.")
+        "Return strict JSON with decision pass, fail, or no_decision, "
+        "judging whether the optimized human pose is plausible for the interaction.")
     penetration_prompt = read_prompt(PENETRATION_PROMPT,
-                                     "Return strict JSON judging whether the human visibly penetrates scene geometry.")
+                                     "Return strict JSON with decision pass, fail, or no_decision, "
+                                     "judging whether the human visibly penetrates scene geometry.")
 
     pose = evidence_manifest.get("pose", {})
     interaction = str(pose.get("interaction", ""))
@@ -2148,6 +2395,26 @@ def run_vlm_judgments(evidence_manifest: dict[str, Any], args: argparse.Namespac
                 path = images.get(key)
                 if path:
                     image_paths.append(Path(path))
+        if not image_paths:
+            contact_judgments.append(
+                {
+                    "edge_index": edge_index,
+                    "body_part": edge.get("body_part"),
+                    "moving_segment_id": edge.get("moving_segment_id"),
+                    "crop_segment_id": edge.get("crop_segment_id"),
+                    "target": edge.get("target"),
+                    "view_count": int(edge.get("view_count", 0)),
+                    "image_paths": [],
+                    "decision": "no_decision",
+                    "pass": None,
+                    "reason": "No selected contact images were available for VLM judging.",
+                    "skipped_vlm": True,
+                    "contact_verification_mode": edge.get("contact_verification_mode"),
+                    "visibility_status": edge.get("visibility_status"),
+                }
+            )
+            log("vlm", f"skip contact edge={edge_index} reason=no_contact_images")
+            continue
         judgment = judge_with_vlm(
             "contact",
             client,
@@ -2167,6 +2434,8 @@ def run_vlm_judgments(evidence_manifest: dict[str, Any], args: argparse.Namespac
                 "target": edge.get("target"),
                 "view_count": int(edge.get("view_count", 0)),
                 "image_paths": [str(path) for path in image_paths],
+                "contact_verification_mode": edge.get("contact_verification_mode"),
+                "visibility_status": edge.get("visibility_status"),
                 **judgment,
             }
         )
@@ -2239,8 +2508,19 @@ def main() -> None:
         f"edges={metrics['contact']['edge_count']} deterministic_pass={metrics['deterministic']['pass']}",
     )
 
-    log("evidence", "generating original-camera scene render and per-edge crops")
-    evidence_manifest = generate_evidence(metrics, input_scene, optimizer_root, outdir, args)
+    default_manifest_path = outdir / "evidence" / "evidence_manifest.json"
+    evidence_manifest_path = resolve_path(args.evidence_manifest, default_manifest_path)
+    if args.skip_renders:
+        if not evidence_manifest_path.exists():
+            raise FileNotFoundError(
+                "--skip-renders was set, but the evidence manifest was not found: "
+                f"{evidence_manifest_path}"
+            )
+        log("evidence", f"reusing existing evidence manifest: {evidence_manifest_path}")
+        evidence_manifest = load_json(evidence_manifest_path)
+    else:
+        log("evidence", "generating ranked virtual-orbit evidence")
+        evidence_manifest = generate_evidence(metrics, input_scene, optimizer_root, outdir, args)
     vlm_judgments = run_vlm_judgments(evidence_manifest, args)
     save_json(outdir / "vlm_judgments.json", vlm_judgments)
 

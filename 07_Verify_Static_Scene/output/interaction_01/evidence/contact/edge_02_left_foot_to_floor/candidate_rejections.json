@@ -1,0 +1,1729 @@
+{
+  "selection_mode": "adaptive_virtual_orbit",
+  "summary": {
+    "candidate_count": 36,
+    "selected_count": 4,
+    "hard_rejected_count": 24,
+    "ranked_candidate_count": 12,
+    "rejection_reason_counts": {
+      "hard_low_human_visibility": 19,
+      "hard_low_target_visibility": 21,
+      "hard_low_target_visible_pixels": 21
+    }
+  },
+  "candidates": [
+    {
+      "candidate_id": 0,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": -180.0,
+      "elevation_deg": 0.0,
+      "orbit_radius_scale": 0.9381052979037293,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 1.876957916753171,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 0.19355158232417546,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.0001531745423910546,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.0001531745423910546,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 4,
+        "human_projected_pixel_count": 26114,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 1433,
+        "target_self_visible_over_projected_surface_ratio": 0.9993021632937893,
+        "target_self_occluded_over_projected_surface_ratio": 0.0006978367062107083,
+        "target_self_visible_pixel_count": 1432,
+        "target_self_projected_pixel_count": 1433,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.0003063490847821092,
+        "human_frame_fill_ratio": 0.7785636266072591,
+        "human_frame_fill_width_ratio": 0.42092603047688804,
+        "human_frame_fill_height_ratio": 0.7785636266072591,
+        "human_frame_bbox_xyxy": [
+          134.13031005859375,
+          -58.053314208984375,
+          336.1748046875,
+          315.6572265625
+        ],
+        "rank_score": 0.19355158232417546
+      },
+      "rejection_reasons": [
+        "hard_low_human_visibility",
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 1,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": -180.0,
+      "elevation_deg": 10.0,
+      "orbit_radius_scale": 1.0281361473931205,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.057091336827372,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 0.1309424034614899,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.0,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.0,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 0,
+        "human_projected_pixel_count": 23541,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 1253,
+        "target_self_visible_over_projected_surface_ratio": 0.9680766161213089,
+        "target_self_occluded_over_projected_surface_ratio": 0.03192338387869109,
+        "target_self_visible_pixel_count": 1213,
+        "target_self_projected_pixel_count": 1253,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.0,
+        "human_frame_fill_ratio": 0.7791566848754883,
+        "human_frame_fill_width_ratio": 0.41355190277099607,
+        "human_frame_fill_height_ratio": 0.7791566848754883,
+        "human_frame_bbox_xyxy": [
+          133.805908203125,
+          -62.111907958984375,
+          332.3108215332031,
+          311.88330078125
+        ],
+        "rank_score": 0.1309424034614899
+      },
+      "rejection_reasons": [
+        "hard_low_human_visibility",
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 2,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": -180.0,
+      "elevation_deg": 20.0,
+      "orbit_radius_scale": 1.104953390920264,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.2107870186486087,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 0.05372552977854142,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.0,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.0,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 0,
+        "human_projected_pixel_count": 22410,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 1138,
+        "target_self_visible_over_projected_surface_ratio": 0.9305799648506151,
+        "target_self_occluded_over_projected_surface_ratio": 0.06942003514938488,
+        "target_self_visible_pixel_count": 1059,
+        "target_self_projected_pixel_count": 1138,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.0,
+        "human_frame_fill_ratio": 0.7702624003092448,
+        "human_frame_fill_width_ratio": 0.41189695994059244,
+        "human_frame_fill_height_ratio": 0.7702624003092448,
+        "human_frame_bbox_xyxy": [
+          132.12881469726562,
+          -61.5599365234375,
+          329.83935546875,
+          308.166015625
+        ],
+        "rank_score": 0.05372552977854142
+      },
+      "rejection_reasons": [
+        "hard_low_human_visibility",
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 3,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": -150.0,
+      "elevation_deg": 0.0,
+      "orbit_radius_scale": 0.8999338720598792,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 1.8005846566389063,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 0.19341225624084474,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.0,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.0,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 0,
+        "human_projected_pixel_count": 31442,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 1476,
+        "target_self_visible_over_projected_surface_ratio": 1.0,
+        "target_self_occluded_over_projected_surface_ratio": 0.0,
+        "target_self_visible_pixel_count": 1476,
+        "target_self_projected_pixel_count": 1476,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.0,
+        "human_frame_fill_ratio": 0.773649024963379,
+        "human_frame_fill_width_ratio": 0.45502106348673504,
+        "human_frame_fill_height_ratio": 0.773649024963379,
+        "human_frame_bbox_xyxy": [
+          144.5381317138672,
+          -50.022247314453125,
+          362.9482421875,
+          321.32928466796875
+        ],
+        "rank_score": 0.19341225624084474
+      },
+      "rejection_reasons": [
+        "hard_low_human_visibility",
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 4,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": -150.0,
+      "elevation_deg": 10.0,
+      "orbit_radius_scale": 0.9980002020159338,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 1.996795438935154,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 0.13757997775952394,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.0,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.0,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 0,
+        "human_projected_pixel_count": 28328,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 1254,
+        "target_self_visible_over_projected_surface_ratio": 0.9712918660287081,
+        "target_self_occluded_over_projected_surface_ratio": 0.028708133971291905,
+        "target_self_visible_pixel_count": 1218,
+        "target_self_projected_pixel_count": 1254,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.0,
+        "human_frame_fill_ratio": 0.779984982808431,
+        "human_frame_fill_width_ratio": 0.4264803568522135,
+        "human_frame_fill_height_ratio": 0.779984982808431,
+        "human_frame_bbox_xyxy": [
+          151.92666625976562,
+          -58.033721923828125,
+          356.6372375488281,
+          316.35906982421875
+        ],
+        "rank_score": 0.13757997775952394
+      },
+      "rejection_reasons": [
+        "hard_low_human_visibility",
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 5,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": -150.0,
+      "elevation_deg": 20.0,
+      "orbit_radius_scale": 1.0842366503854082,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.1693370340433527,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 0.06498966131662823,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.0,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.0,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 0,
+        "human_projected_pixel_count": 26618,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 1117,
+        "target_self_visible_over_projected_surface_ratio": 0.9355416293643688,
+        "target_self_occluded_over_projected_surface_ratio": 0.0644583706356312,
+        "target_self_visible_pixel_count": 1045,
+        "target_self_projected_pixel_count": 1117,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.0,
+        "human_frame_fill_ratio": 0.7756256103515625,
+        "human_frame_fill_width_ratio": 0.40586299896240235,
+        "human_frame_fill_height_ratio": 0.7756256103515625,
+        "human_frame_bbox_xyxy": [
+          157.30752563476562,
+          -60.7730712890625,
+          352.12176513671875,
+          311.5272216796875
+        ],
+        "rank_score": 0.06498966131662823
+      },
+      "rejection_reasons": [
+        "hard_low_human_visibility",
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 6,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": -120.0,
+      "elevation_deg": 0.0,
+      "orbit_radius_scale": 0.8869459690191807,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 1.7745985040303072,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 0.1930145263671875,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.0,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.0,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 0,
+        "human_projected_pixel_count": 32808,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 1147,
+        "target_self_visible_over_projected_surface_ratio": 1.0,
+        "target_self_occluded_over_projected_surface_ratio": 0.0,
+        "target_self_visible_pixel_count": 1147,
+        "target_self_projected_pixel_count": 1147,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.0,
+        "human_frame_fill_ratio": 0.77205810546875,
+        "human_frame_fill_width_ratio": 0.40982128779093424,
+        "human_frame_fill_height_ratio": 0.77205810546875,
+        "human_frame_bbox_xyxy": [
+          174.07618713378906,
+          -46.47210693359375,
+          370.7904052734375,
+          324.11578369140625
+        ],
+        "rank_score": 0.1930145263671875
+      },
+      "rejection_reasons": [
+        "hard_low_human_visibility",
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 7,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": -120.0,
+      "elevation_deg": 10.0,
+      "orbit_radius_scale": 0.9895409478081597,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 1.979870191640859,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 0.10029506604857905,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.0,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.0,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 0,
+        "human_projected_pixel_count": 29233,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 972,
+        "target_self_visible_over_projected_surface_ratio": 0.9526748971193416,
+        "target_self_occluded_over_projected_surface_ratio": 0.04732510288065839,
+        "target_self_visible_pixel_count": 926,
+        "target_self_projected_pixel_count": 972,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.0,
+        "human_frame_fill_ratio": 0.7797810872395833,
+        "human_frame_fill_width_ratio": 0.3820441881815592,
+        "human_frame_fill_height_ratio": 0.7797810872395833,
+        "human_frame_bbox_xyxy": [
+          179.0013885498047,
+          -55.028961181640625,
+          362.3825988769531,
+          319.2659606933594
+        ],
+        "rank_score": 0.10029506604857905
+      },
+      "rejection_reasons": [
+        "hard_low_human_visibility",
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 8,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": -120.0,
+      "elevation_deg": 20.0,
+      "orbit_radius_scale": 1.083110581096421,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.1670839984070547,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 0.022458905288853553,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.0,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.0,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 0,
+        "human_projected_pixel_count": 26550,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 873,
+        "target_self_visible_over_projected_surface_ratio": 0.9140893470790378,
+        "target_self_occluded_over_projected_surface_ratio": 0.08591065292096223,
+        "target_self_visible_pixel_count": 798,
+        "target_self_projected_pixel_count": 873,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.0,
+        "human_frame_fill_ratio": 0.777120844523112,
+        "human_frame_fill_width_ratio": 0.3607556660970052,
+        "human_frame_fill_height_ratio": 0.777120844523112,
+        "human_frame_bbox_xyxy": [
+          182.6021728515625,
+          -58.554779052734375,
+          355.764892578125,
+          314.4632263183594
+        ],
+        "rank_score": 0.022458905288853553
+      },
+      "rejection_reasons": [
+        "hard_low_human_visibility",
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 9,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": -90.0,
+      "elevation_deg": 0.0,
+      "orbit_radius_scale": 0.8974623068785056,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 1.795639557358136,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 0.19058054949552,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.0,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.0,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 0,
+        "human_projected_pixel_count": 27897,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 697,
+        "target_self_visible_over_projected_surface_ratio": 0.9985652797704447,
+        "target_self_occluded_over_projected_surface_ratio": 0.0014347202295552641,
+        "target_self_visible_pixel_count": 696,
+        "target_self_projected_pixel_count": 697,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.0,
+        "human_frame_fill_ratio": 0.7737999598185221,
+        "human_frame_fill_width_ratio": 0.3850817362467448,
+        "human_frame_fill_height_ratio": 0.7737999598185221,
+        "human_frame_bbox_xyxy": [
+          197.80291748046875,
+          -49.004791259765625,
+          382.64215087890625,
+          322.419189453125
+        ],
+        "rank_score": 0.19058054949552
+      },
+      "rejection_reasons": [
+        "hard_low_human_visibility",
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 10,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": -90.0,
+      "elevation_deg": 10.0,
+      "orbit_radius_scale": 0.9959780864226513,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 1.9927495968746918,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 0.019488907597186134,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.0,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.0,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 0,
+        "human_projected_pixel_count": 26764,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 604,
+        "target_self_visible_over_projected_surface_ratio": 0.9122516556291391,
+        "target_self_occluded_over_projected_surface_ratio": 0.08774834437086088,
+        "target_self_visible_pixel_count": 551,
+        "target_self_projected_pixel_count": 604,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.0,
+        "human_frame_fill_ratio": 0.7799423853556315,
+        "human_frame_fill_width_ratio": 0.3398608207702637,
+        "human_frame_fill_height_ratio": 0.7799423853556315,
+        "human_frame_bbox_xyxy": [
+          202.74839782714844,
+          -56.93402099609375,
+          365.881591796875,
+          317.4383239746094
+        ],
+        "rank_score": 0.019488907597186134
+      },
+      "rejection_reasons": [
+        "hard_low_human_visibility",
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 11,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": -90.0,
+      "elevation_deg": 20.0,
+      "orbit_radius_scale": 1.0850279555361495,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.1709202747206735,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": -0.10383561824230436,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.0,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.0,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 0,
+        "human_projected_pixel_count": 26261,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 564,
+        "target_self_visible_over_projected_surface_ratio": 0.851063829787234,
+        "target_self_occluded_over_projected_surface_ratio": 0.14893617021276595,
+        "target_self_visible_pixel_count": 480,
+        "target_self_projected_pixel_count": 564,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.0,
+        "human_frame_fill_ratio": 0.7761468887329102,
+        "human_frame_fill_width_ratio": 0.30687243143717446,
+        "human_frame_fill_height_ratio": 0.7761468887329102,
+        "human_frame_bbox_xyxy": [
+          206.35589599609375,
+          -60.030670166015625,
+          353.6546630859375,
+          312.51983642578125
+        ],
+        "rank_score": -0.10383561824230436
+      },
+      "rejection_reasons": [
+        "hard_low_human_visibility",
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 12,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": -60.0,
+      "elevation_deg": 0.0,
+      "orbit_radius_scale": 0.9508306552202272,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 1.9024187687620941,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 0.4674376855260035,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.16686527847466132,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.16686527847466132,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 5321,
+        "human_projected_pixel_count": 31888,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 784,
+        "target_self_visible_over_projected_surface_ratio": 0.9693877551020408,
+        "target_self_occluded_over_projected_surface_ratio": 0.030612244897959218,
+        "target_self_visible_pixel_count": 760,
+        "target_self_projected_pixel_count": 784,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.33373055694932263,
+        "human_frame_fill_ratio": 0.7797264734903971,
+        "human_frame_fill_width_ratio": 0.39001296361287435,
+        "human_frame_fill_height_ratio": 0.7797264734903971,
+        "human_frame_bbox_xyxy": [
+          189.9947052001953,
+          -50.10577392578125,
+          377.200927734375,
+          324.1629333496094
+        ],
+        "rank_score": 0.4674376855260035
+      },
+      "rejection_reasons": [
+        "hard_low_human_visibility",
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 13,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": -60.0,
+      "elevation_deg": 10.0,
+      "orbit_radius_scale": 1.070807856372279,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.142468748263799,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 0.6617350083680504,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.32763532763532766,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.32763532763532766,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 9430,
+        "human_projected_pixel_count": 28782,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 607,
+        "target_self_visible_over_projected_surface_ratio": 0.9060955518945635,
+        "target_self_occluded_over_projected_surface_ratio": 0.09390444810543652,
+        "target_self_visible_pixel_count": 550,
+        "target_self_projected_pixel_count": 607,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.6552706552706553,
+        "human_frame_fill_ratio": 0.7770929972330729,
+        "human_frame_fill_width_ratio": 0.3413722356160482,
+        "human_frame_fill_height_ratio": 0.7770929972330729,
+        "human_frame_bbox_xyxy": [
+          194.15966796875,
+          -46.903594970703125,
+          358.0183410644531,
+          326.1010437011719
+        ],
+        "rank_score": 0.6617350083680504
+      },
+      "rejection_reasons": [
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 14,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": -60.0,
+      "elevation_deg": 20.0,
+      "orbit_radius_scale": 1.1752749712039263,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.351486199355676,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 0.7142527642269938,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.41770491803278686,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.41770491803278686,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 10829,
+        "human_projected_pixel_count": 25925,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 506,
+        "target_self_visible_over_projected_surface_ratio": 0.8438735177865613,
+        "target_self_occluded_over_projected_surface_ratio": 0.15612648221343872,
+        "target_self_visible_pixel_count": 427,
+        "target_self_projected_pixel_count": 506,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.8354098360655737,
+        "human_frame_fill_ratio": 0.7643835703531902,
+        "human_frame_fill_width_ratio": 0.31688257853190105,
+        "human_frame_fill_height_ratio": 0.7643835703531902,
+        "human_frame_bbox_xyxy": [
+          197.238037109375,
+          -40.15087890625,
+          349.3416748046875,
+          326.75323486328125
+        ],
+        "rank_score": 0.7142527642269938
+      },
+      "rejection_reasons": [
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 15,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": -30.0,
+      "elevation_deg": 0.0,
+      "orbit_radius_scale": 1.025165329631577,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.0511473346676783,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 6.063317881834696,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.9973174937727534,
+        "target_visible_over_total_ratio": 0.9440258342303552,
+        "human_visible_over_projected_surface_ratio": 0.9973174937727534,
+        "target_visible_over_projected_surface_ratio": 0.9440258342303552,
+        "human_visible_pixel_count": 31230,
+        "human_projected_pixel_count": 31314,
+        "target_visible_pixel_count": 877,
+        "target_projected_pixel_count": 929,
+        "target_self_visible_over_projected_surface_ratio": 0.961248654467169,
+        "target_self_occluded_over_projected_surface_ratio": 0.038751345532830994,
+        "target_self_visible_pixel_count": 893,
+        "target_self_projected_pixel_count": 929,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 5.770738324466928,
+        "human_frame_fill_ratio": 0.778728993733724,
+        "human_frame_fill_width_ratio": 0.4325071334838867,
+        "human_frame_fill_height_ratio": 0.778728993733724,
+        "human_frame_bbox_xyxy": [
+          160.09426879882812,
+          -52.37518310546875,
+          367.69769287109375,
+          321.41473388671875
+        ],
+        "rank_score": 6.063317881834696
+      },
+      "rejection_reasons": [],
+      "selection_status": "selected",
+      "view_name": "view_00_ranked_yaw_-30_elev_+0_r_1.03",
+      "selection_min_angular_separation_deg": 15.0
+    },
+    {
+      "candidate_id": 16,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": -30.0,
+      "elevation_deg": 10.0,
+      "orbit_radius_scale": 1.1551096500494542,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.311139492787304,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 5.86129971451289,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.9989947944713696,
+        "target_visible_over_total_ratio": 0.9232914923291492,
+        "human_visible_over_projected_surface_ratio": 0.9989947944713696,
+        "target_visible_over_projected_surface_ratio": 0.9232914923291492,
+        "human_visible_pixel_count": 27827,
+        "human_projected_pixel_count": 27855,
+        "target_visible_pixel_count": 662,
+        "target_projected_pixel_count": 717,
+        "target_self_visible_over_projected_surface_ratio": 0.9232914923291492,
+        "target_self_occluded_over_projected_surface_ratio": 0.0767085076708508,
+        "target_self_visible_pixel_count": 662,
+        "target_self_projected_pixel_count": 717,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 5.691155558259336,
+        "human_frame_fill_ratio": 0.7646446863810221,
+        "human_frame_fill_width_ratio": 0.3893442153930664,
+        "human_frame_fill_height_ratio": 0.7646446863810221,
+        "human_frame_bbox_xyxy": [
+          166.75820922851562,
+          -39.2808837890625,
+          353.6434326171875,
+          327.7485656738281
+        ],
+        "rank_score": 5.86129971451289
+      },
+      "rejection_reasons": [],
+      "selection_status": "ranked_candidate"
+    },
+    {
+      "candidate_id": 17,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": -30.0,
+      "elevation_deg": 20.0,
+      "orbit_radius_scale": 1.2583162030603132,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.517634816038764,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 5.54358525398479,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.9976559753096066,
+        "target_visible_over_total_ratio": 0.8760330578512396,
+        "human_visible_over_projected_surface_ratio": 0.9976559753096066,
+        "target_visible_over_projected_surface_ratio": 0.8760330578512396,
+        "human_visible_pixel_count": 25537,
+        "human_projected_pixel_count": 25597,
+        "target_visible_pixel_count": 530,
+        "target_projected_pixel_count": 605,
+        "target_self_visible_over_projected_surface_ratio": 0.8760330578512396,
+        "target_self_occluded_over_projected_surface_ratio": 0.12396694214876036,
+        "target_self_visible_pixel_count": 530,
+        "target_self_projected_pixel_count": 605,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 5.499444182024172,
+        "human_frame_fill_ratio": 0.7442998250325521,
+        "human_frame_fill_width_ratio": 0.36223278045654295,
+        "human_frame_fill_height_ratio": 0.7442998250325521,
+        "human_frame_bbox_xyxy": [
+          170.99423217773438,
+          -25.0670166015625,
+          344.865966796875,
+          332.1968994140625
+        ],
+        "rank_score": 5.54358525398479
+      },
+      "rejection_reasons": [],
+      "selection_status": "ranked_candidate"
+    },
+    {
+      "candidate_id": 18,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 0.0,
+      "elevation_deg": 0.0,
+      "orbit_radius_scale": 1.1087429014026609,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.2183690584435527,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 2.588070187208877,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.9951271446705704,
+        "target_visible_over_total_ratio": 0.3872053872053872,
+        "human_visible_over_projected_surface_ratio": 0.9951271446705704,
+        "target_visible_over_projected_surface_ratio": 0.3872053872053872,
+        "human_visible_pixel_count": 24302,
+        "human_projected_pixel_count": 24421,
+        "target_visible_pixel_count": 345,
+        "target_projected_pixel_count": 891,
+        "target_self_visible_over_projected_surface_ratio": 0.3939393939393939,
+        "target_self_occluded_over_projected_surface_ratio": 0.6060606060606061,
+        "target_self_visible_pixel_count": 351,
+        "target_self_projected_pixel_count": 891,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 3.53907583816269,
+        "human_frame_fill_ratio": 0.7684622446695963,
+        "human_frame_fill_width_ratio": 0.4155712127685547,
+        "human_frame_fill_height_ratio": 0.7684622446695963,
+        "human_frame_bbox_xyxy": [
+          144.7166748046875,
+          -52.879425048828125,
+          344.19085693359375,
+          315.9824523925781
+        ],
+        "rank_score": 2.588070187208877
+      },
+      "rejection_reasons": [],
+      "selection_status": "ranked_candidate"
+    },
+    {
+      "candidate_id": 19,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 0.0,
+      "elevation_deg": 10.0,
+      "orbit_radius_scale": 1.2356880383613782,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.4723604604113434,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 3.2180840338511896,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.9997662021883476,
+        "target_visible_over_total_ratio": 0.4936708860759494,
+        "human_visible_over_projected_surface_ratio": 0.9997662021883476,
+        "target_visible_over_projected_surface_ratio": 0.4936708860759494,
+        "human_visible_pixel_count": 21381,
+        "human_projected_pixel_count": 21386,
+        "target_visible_pixel_count": 351,
+        "target_projected_pixel_count": 711,
+        "target_self_visible_over_projected_surface_ratio": 0.4936708860759494,
+        "target_self_occluded_over_projected_surface_ratio": 0.5063291139240507,
+        "target_self_visible_pixel_count": 351,
+        "target_self_projected_pixel_count": 711,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 3.9742159486804924,
+        "human_frame_fill_ratio": 0.7453052520751953,
+        "human_frame_fill_width_ratio": 0.3936711629231771,
+        "human_frame_fill_height_ratio": 0.7453052520751953,
+        "human_frame_bbox_xyxy": [
+          151.67535400390625,
+          -32.89544677734375,
+          340.63751220703125,
+          324.85107421875
+        ],
+        "rank_score": 3.2180840338511896
+      },
+      "rejection_reasons": [],
+      "selection_status": "selected",
+      "view_name": "view_03_ranked_yaw_+0_elev_+10_r_1.24",
+      "selection_min_angular_separation_deg": 15.0
+    },
+    {
+      "candidate_id": 20,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 0.0,
+      "elevation_deg": 20.0,
+      "orbit_radius_scale": 1.32853516146668,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.6581286712397794,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 2.7828441471612426,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.996134140661388,
+        "target_visible_over_total_ratio": 0.42628205128205127,
+        "human_visible_over_projected_surface_ratio": 0.996134140661388,
+        "target_visible_over_projected_surface_ratio": 0.42628205128205127,
+        "human_visible_pixel_count": 21387,
+        "human_projected_pixel_count": 21470,
+        "target_visible_pixel_count": 266,
+        "target_projected_pixel_count": 624,
+        "target_self_visible_over_projected_surface_ratio": 0.42628205128205127,
+        "target_self_occluded_over_projected_surface_ratio": 0.5737179487179487,
+        "target_self_visible_pixel_count": 266,
+        "target_self_projected_pixel_count": 624,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 3.697396486450981,
+        "human_frame_fill_ratio": 0.7187342325846354,
+        "human_frame_fill_width_ratio": 0.38416013717651365,
+        "human_frame_fill_height_ratio": 0.7187342325846354,
+        "human_frame_bbox_xyxy": [
+          155.5447540283203,
+          -13.275314331054688,
+          339.9416198730469,
+          331.71710205078125
+        ],
+        "rank_score": 2.7828441471612426
+      },
+      "rejection_reasons": [],
+      "selection_status": "ranked_candidate"
+    },
+    {
+      "candidate_id": 21,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 30.0,
+      "elevation_deg": 0.0,
+      "orbit_radius_scale": 1.1716761955848107,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.344285781232027,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 5.543048140769845,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.9540048830432386,
+        "target_visible_over_total_ratio": 0.8553888130968622,
+        "human_visible_over_projected_surface_ratio": 0.9540048830432386,
+        "target_visible_over_projected_surface_ratio": 0.8553888130968622,
+        "human_visible_pixel_count": 24226,
+        "human_projected_pixel_count": 25394,
+        "target_visible_pixel_count": 627,
+        "target_projected_pixel_count": 733,
+        "target_self_visible_over_projected_surface_ratio": 0.9495225102319236,
+        "target_self_occluded_over_projected_surface_ratio": 0.05047748976807642,
+        "target_self_visible_pixel_count": 696,
+        "target_self_projected_pixel_count": 733,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 5.329565018473926,
+        "human_frame_fill_ratio": 0.7561524073282878,
+        "human_frame_fill_width_ratio": 0.3736840883890788,
+        "human_frame_fill_height_ratio": 0.7561524073282878,
+        "human_frame_bbox_xyxy": [
+          141.93458557128906,
+          -53.320343017578125,
+          321.3029479980469,
+          309.6328125
+        ],
+        "rank_score": 5.543048140769845
+      },
+      "rejection_reasons": [],
+      "selection_status": "selected",
+      "view_name": "view_01_ranked_yaw_+30_elev_+0_r_1.17",
+      "selection_min_angular_separation_deg": 15.0
+    },
+    {
+      "candidate_id": 22,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 30.0,
+      "elevation_deg": 10.0,
+      "orbit_radius_scale": 1.2840949979602783,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.569212941948475,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 5.363081106172539,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.9865672935263021,
+        "target_visible_over_total_ratio": 0.8176100628930818,
+        "human_visible_over_projected_surface_ratio": 0.9865672935263021,
+        "target_visible_over_projected_surface_ratio": 0.8176100628930818,
+        "human_visible_pixel_count": 22768,
+        "human_projected_pixel_count": 23078,
+        "target_visible_pixel_count": 520,
+        "target_projected_pixel_count": 636,
+        "target_self_visible_over_projected_surface_ratio": 0.9166666666666666,
+        "target_self_occluded_over_projected_surface_ratio": 0.08333333333333337,
+        "target_self_visible_pixel_count": 583,
+        "target_self_projected_pixel_count": 636,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 5.243574838624932,
+        "human_frame_fill_ratio": 0.7286917368570963,
+        "human_frame_fill_width_ratio": 0.3495563189188639,
+        "human_frame_fill_height_ratio": 0.7286917368570963,
+        "human_frame_bbox_xyxy": [
+          147.20826721191406,
+          -31.491119384765625,
+          314.99530029296875,
+          318.2809143066406
+        ],
+        "rank_score": 5.363081106172539
+      },
+      "rejection_reasons": [],
+      "selection_status": "ranked_candidate"
+    },
+    {
+      "candidate_id": 23,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 30.0,
+      "elevation_deg": 20.0,
+      "orbit_radius_scale": 1.3549573197324052,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.710994036402281,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 5.002226037997881,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.9874781203716171,
+        "target_visible_over_total_ratio": 0.7487266553480475,
+        "human_visible_over_projected_surface_ratio": 0.9874781203716171,
+        "target_visible_over_projected_surface_ratio": 0.7487266553480475,
+        "human_visible_pixel_count": 22002,
+        "human_projected_pixel_count": 22281,
+        "target_visible_pixel_count": 441,
+        "target_projected_pixel_count": 589,
+        "target_self_visible_over_projected_surface_ratio": 0.8845500848896435,
+        "target_self_occluded_over_projected_surface_ratio": 0.11544991511035652,
+        "target_self_visible_pixel_count": 521,
+        "target_self_projected_pixel_count": 589,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 4.969862862135424,
+        "human_frame_fill_ratio": 0.7002520243326823,
+        "human_frame_fill_width_ratio": 0.3422642389933268,
+        "human_frame_fill_height_ratio": 0.7002520243326823,
+        "human_frame_bbox_xyxy": [
+          149.14175415039062,
+          -10.744598388671875,
+          313.4285888671875,
+          325.3763732910156
+        ],
+        "rank_score": 5.002226037997881
+      },
+      "rejection_reasons": [],
+      "selection_status": "ranked_candidate"
+    },
+    {
+      "candidate_id": 24,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 60.0,
+      "elevation_deg": 0.0,
+      "orbit_radius_scale": 1.1862097846137154,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.373364537153773,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 4.372861165219444,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.9153801663923121,
+        "target_visible_over_total_ratio": 0.6031195840554593,
+        "human_visible_over_projected_surface_ratio": 0.9153801663923121,
+        "target_visible_over_projected_surface_ratio": 0.6031195840554593,
+        "human_visible_pixel_count": 20575,
+        "human_projected_pixel_count": 22477,
+        "target_visible_pixel_count": 348,
+        "target_projected_pixel_count": 577,
+        "target_self_visible_over_projected_surface_ratio": 0.9358752166377816,
+        "target_self_occluded_over_projected_surface_ratio": 0.06412478336221838,
+        "target_self_visible_pixel_count": 540,
+        "target_self_projected_pixel_count": 577,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 4.243238669006462,
+        "human_frame_fill_ratio": 0.7530882517496745,
+        "human_frame_fill_width_ratio": 0.3489370346069336,
+        "human_frame_fill_height_ratio": 0.7530882517496745,
+        "human_frame_bbox_xyxy": [
+          135.33477783203125,
+          -57.44683837890625,
+          302.8245544433594,
+          304.0355224609375
+        ],
+        "rank_score": 4.372861165219444
+      },
+      "rejection_reasons": [],
+      "selection_status": "selected",
+      "view_name": "view_02_ranked_yaw_+60_elev_+0_r_1.19",
+      "selection_min_angular_separation_deg": 15.0
+    },
+    {
+      "candidate_id": 25,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 60.0,
+      "elevation_deg": 10.0,
+      "orbit_radius_scale": 1.2719169029822714,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.5448470505810357,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 3.957864533707944,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.9531352210073825,
+        "target_visible_over_total_ratio": 0.503690036900369,
+        "human_visible_over_projected_surface_ratio": 0.9531352210073825,
+        "target_visible_over_projected_surface_ratio": 0.503690036900369,
+        "human_visible_pixel_count": 20399,
+        "human_projected_pixel_count": 21402,
+        "target_visible_pixel_count": 273,
+        "target_projected_pixel_count": 542,
+        "target_self_visible_over_projected_surface_ratio": 0.9003690036900369,
+        "target_self_occluded_over_projected_surface_ratio": 0.09963099630996308,
+        "target_self_visible_pixel_count": 488,
+        "target_self_projected_pixel_count": 542,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 3.9210305896162407,
+        "human_frame_fill_ratio": 0.7259837468465169,
+        "human_frame_fill_width_ratio": 0.32130775451660154,
+        "human_frame_fill_height_ratio": 0.7259837468465169,
+        "human_frame_bbox_xyxy": [
+          144.78421020507812,
+          -39.390106201171875,
+          299.0119323730469,
+          309.08209228515625
+        ],
+        "rank_score": 3.957864533707944
+      },
+      "rejection_reasons": [],
+      "selection_status": "ranked_candidate"
+    },
+    {
+      "candidate_id": 26,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 60.0,
+      "elevation_deg": 20.0,
+      "orbit_radius_scale": 1.3150934887747479,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.631234617843104,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 3.4869493379937864,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.9416205570664916,
+        "target_visible_over_total_ratio": 0.4124087591240876,
+        "human_visible_over_projected_surface_ratio": 0.9416205570664916,
+        "target_visible_over_projected_surface_ratio": 0.4124087591240876,
+        "human_visible_pixel_count": 20081,
+        "human_projected_pixel_count": 21326,
+        "target_visible_pixel_count": 226,
+        "target_projected_pixel_count": 548,
+        "target_self_visible_over_projected_surface_ratio": 0.8667883211678832,
+        "target_self_occluded_over_projected_surface_ratio": 0.13321167883211682,
+        "target_self_visible_pixel_count": 475,
+        "target_self_projected_pixel_count": 548,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 3.532876150629334,
+        "human_frame_fill_ratio": 0.7011861801147461,
+        "human_frame_fill_width_ratio": 0.3075661341349284,
+        "human_frame_fill_height_ratio": 0.7011861801147461,
+        "human_frame_bbox_xyxy": [
+          149.83639526367188,
+          -22.976898193359375,
+          297.4681396484375,
+          313.59246826171875
+        ],
+        "rank_score": 3.4869493379937864
+      },
+      "rejection_reasons": [],
+      "selection_status": "ranked_candidate"
+    },
+    {
+      "candidate_id": 27,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 90.0,
+      "elevation_deg": 0.0,
+      "orbit_radius_scale": 1.1463523929954593,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.2936180024031563,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 1.4513811384346011,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.7006509462430487,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.7006509462430487,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 16253,
+        "human_projected_pixel_count": 23197,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 442,
+        "target_self_visible_over_projected_surface_ratio": 0.9298642533936652,
+        "target_self_occluded_over_projected_surface_ratio": 0.07013574660633481,
+        "target_self_visible_pixel_count": 411,
+        "target_self_projected_pixel_count": 442,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 1.4013018924860974,
+        "human_frame_fill_ratio": 0.761402956644694,
+        "human_frame_fill_width_ratio": 0.3062546412150065,
+        "human_frame_fill_height_ratio": 0.761402956644694,
+        "human_frame_bbox_xyxy": [
+          126.5431900024414,
+          -64.29403686523438,
+          273.54541015625,
+          301.17938232421875
+        ],
+        "rank_score": 1.4513811384346011
+      },
+      "rejection_reasons": [
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 28,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 90.0,
+      "elevation_deg": 10.0,
+      "orbit_radius_scale": 1.2048105093149037,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.410580804414236,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 1.5987065268698681,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.8207764580748095,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.8207764580748095,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 18520,
+        "human_projected_pixel_count": 22564,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 491,
+        "target_self_visible_over_projected_surface_ratio": 0.8859470468431772,
+        "target_self_occluded_over_projected_surface_ratio": 0.11405295315682284,
+        "target_self_visible_pixel_count": 435,
+        "target_self_projected_pixel_count": 491,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 1.641552916149619,
+        "human_frame_fill_ratio": 0.7410380681355794,
+        "human_frame_fill_width_ratio": 0.28592809041341144,
+        "human_frame_fill_height_ratio": 0.7410380681355794,
+        "human_frame_bbox_xyxy": [
+          134.07504272460938,
+          -55.84326171875,
+          271.3205261230469,
+          299.8550109863281
+        ],
+        "rank_score": 1.5987065268698681
+      },
+      "rejection_reasons": [
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 29,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 90.0,
+      "elevation_deg": 20.0,
+      "orbit_radius_scale": 1.2285634391328208,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.4581055862990064,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 1.6346995240755797,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.8652045884059245,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.8652045884059245,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 19686,
+        "human_projected_pixel_count": 22753,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 551,
+        "target_self_visible_over_projected_surface_ratio": 0.8620689655172413,
+        "target_self_occluded_over_projected_surface_ratio": 0.13793103448275867,
+        "target_self_visible_pixel_count": 475,
+        "target_self_projected_pixel_count": 551,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 1.730409176811849,
+        "human_frame_fill_ratio": 0.7206096649169922,
+        "human_frame_fill_width_ratio": 0.2755765914916992,
+        "human_frame_fill_height_ratio": 0.7206096649169922,
+        "human_frame_bbox_xyxy": [
+          137.91116333007812,
+          -47.248260498046875,
+          270.18792724609375,
+          298.6443786621094
+        ],
+        "rank_score": 1.6346995240755797
+      },
+      "rejection_reasons": [
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 30,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 120.0,
+      "elevation_deg": 0.0,
+      "orbit_radius_scale": 1.0836551535842764,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.168173577204456,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 0.6459966077412618,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.011934947975867798,
+        "target_visible_over_total_ratio": 0.12457912457912458,
+        "human_visible_over_projected_surface_ratio": 0.011934947975867798,
+        "target_visible_over_projected_surface_ratio": 0.12457912457912458,
+        "human_visible_pixel_count": 273,
+        "human_projected_pixel_count": 22874,
+        "target_visible_pixel_count": 74,
+        "target_projected_pixel_count": 594,
+        "target_self_visible_over_projected_surface_ratio": 0.9579124579124579,
+        "target_self_occluded_over_projected_surface_ratio": 0.04208754208754206,
+        "target_self_visible_pixel_count": 569,
+        "target_self_projected_pixel_count": 594,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.5221863942682339,
+        "human_frame_fill_ratio": 0.772741190592448,
+        "human_frame_fill_width_ratio": 0.3280155817667643,
+        "human_frame_fill_height_ratio": 0.772741190592448,
+        "human_frame_bbox_xyxy": [
+          118.84082794189453,
+          -65.27899169921875,
+          276.2882995605469,
+          305.63677978515625
+        ],
+        "rank_score": 0.6459966077412618
+      },
+      "rejection_reasons": [
+        "hard_low_human_visibility"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 31,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 120.0,
+      "elevation_deg": 10.0,
+      "orbit_radius_scale": 1.1531331804063585,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.307184978990057,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 0.5670942409810622,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.008815841935055154,
+        "target_visible_over_total_ratio": 0.1277602523659306,
+        "human_visible_over_projected_surface_ratio": 0.008815841935055154,
+        "target_visible_over_projected_surface_ratio": 0.1277602523659306,
+        "human_visible_pixel_count": 199,
+        "human_projected_pixel_count": 22573,
+        "target_visible_pixel_count": 81,
+        "target_projected_pixel_count": 634,
+        "target_self_visible_over_projected_surface_ratio": 0.916403785488959,
+        "target_self_occluded_over_projected_surface_ratio": 0.08359621451104104,
+        "target_self_visible_pixel_count": 581,
+        "target_self_projected_pixel_count": 634,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.5286726933338327,
+        "human_frame_fill_ratio": 0.7576559066772461,
+        "human_frame_fill_width_ratio": 0.31006584167480467,
+        "human_frame_fill_height_ratio": 0.7576559066772461,
+        "human_frame_bbox_xyxy": [
+          124.75064849853516,
+          -59.394195556640625,
+          273.5822448730469,
+          304.2806396484375
+        ],
+        "rank_score": 0.5670942409810622
+      },
+      "rejection_reasons": [
+        "hard_low_human_visibility"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 32,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 120.0,
+      "elevation_deg": 20.0,
+      "orbit_radius_scale": 1.195636732965453,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.392225943628244,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 0.47861980964527095,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.011003638299760405,
+        "target_visible_over_total_ratio": 0.11764705882352941,
+        "human_visible_over_projected_surface_ratio": 0.011003638299760405,
+        "target_visible_over_projected_surface_ratio": 0.11764705882352941,
+        "human_visible_pixel_count": 248,
+        "human_projected_pixel_count": 22538,
+        "target_visible_pixel_count": 80,
+        "target_projected_pixel_count": 680,
+        "target_self_visible_over_projected_surface_ratio": 0.8926470588235295,
+        "target_self_occluded_over_projected_surface_ratio": 0.10735294117647054,
+        "target_self_visible_pixel_count": 607,
+        "target_self_projected_pixel_count": 680,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.4925955118936384,
+        "human_frame_fill_ratio": 0.7389207204182943,
+        "human_frame_fill_width_ratio": 0.30412451426188153,
+        "human_frame_fill_height_ratio": 0.7389207204182943,
+        "human_frame_bbox_xyxy": [
+          127.61052703857422,
+          -51.52264404296875,
+          273.5903015136719,
+          303.1593017578125
+        ],
+        "rank_score": 0.47861980964527095
+      },
+      "rejection_reasons": [
+        "hard_low_human_visibility"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 33,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 150.0,
+      "elevation_deg": 0.0,
+      "orbit_radius_scale": 1.0046742105076456,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.0101487726206035,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 0.2229466524532293,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.02471182098997966,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.02471182098997966,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 656,
+        "human_projected_pixel_count": 26546,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 1026,
+        "target_self_visible_over_projected_surface_ratio": 0.9892787524366472,
+        "target_self_occluded_over_projected_surface_ratio": 0.010721247563352798,
+        "target_self_visible_pixel_count": 1015,
+        "target_self_projected_pixel_count": 1026,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.04942364197995932,
+        "human_frame_fill_ratio": 0.7798620223999023,
+        "human_frame_fill_width_ratio": 0.3823216120402018,
+        "human_frame_fill_height_ratio": 0.7798620223999023,
+        "human_frame_bbox_xyxy": [
+          122.7047348022461,
+          -63.523101806640625,
+          306.2191162109375,
+          310.8106689453125
+        ],
+        "rank_score": 0.2229466524532293
+      },
+      "rejection_reasons": [
+        "hard_low_human_visibility",
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 34,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 150.0,
+      "elevation_deg": 10.0,
+      "orbit_radius_scale": 1.0872311877389238,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.175328494282682,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 0.10198487320244866,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.005370187561697927,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.005370187561697927,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 136,
+        "human_projected_pixel_count": 25325,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 962,
+        "target_self_visible_over_projected_surface_ratio": 0.9490644490644491,
+        "target_self_occluded_over_projected_surface_ratio": 0.05093555093555091,
+        "target_self_visible_pixel_count": 913,
+        "target_self_projected_pixel_count": 962,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.010740375123395854,
+        "human_frame_fill_ratio": 0.7724623998006185,
+        "human_frame_fill_width_ratio": 0.3804987589518229,
+        "human_frame_fill_height_ratio": 0.7724623998006185,
+        "human_frame_bbox_xyxy": [
+          121.65398406982422,
+          -62.156280517578125,
+          304.29339599609375,
+          308.62567138671875
+        ],
+        "rank_score": 0.10198487320244866
+      },
+      "rejection_reasons": [
+        "hard_low_human_visibility",
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    },
+    {
+      "candidate_id": 35,
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 150.0,
+      "elevation_deg": 20.0,
+      "orbit_radius_scale": 1.1493398389245708,
+      "orbit_base_radius_m": 2.000796627998352,
+      "orbit_radius_m": 2.29959527414445,
+      "pivot_world": [
+        0.9571980834007263,
+        3.6717748641967773,
+        0.39276614785194397
+      ],
+      "rank_score": 0.04377369008199142,
+      "visibility": {
+        "human_visible_over_total_ratio": 0.007795918367346939,
+        "target_visible_over_total_ratio": 0.0,
+        "human_visible_over_projected_surface_ratio": 0.007795918367346939,
+        "target_visible_over_projected_surface_ratio": 0.0,
+        "human_visible_pixel_count": 191,
+        "human_projected_pixel_count": 24500,
+        "target_visible_pixel_count": 0,
+        "target_projected_pixel_count": 931,
+        "target_self_visible_over_projected_surface_ratio": 0.9194414607948442,
+        "target_self_occluded_over_projected_surface_ratio": 0.08055853920515577,
+        "target_self_visible_pixel_count": 856,
+        "target_self_projected_pixel_count": 931,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 0.015591836734693878,
+        "human_frame_fill_ratio": 0.7571957270304362,
+        "human_frame_fill_width_ratio": 0.38595472971598305,
+        "human_frame_fill_height_ratio": 0.7571957270304362,
+        "human_frame_bbox_xyxy": [
+          118.41141510009766,
+          -57.037078857421875,
+          303.669677734375,
+          306.4168701171875
+        ],
+        "rank_score": 0.04377369008199142
+      },
+      "rejection_reasons": [
+        "hard_low_human_visibility",
+        "hard_low_target_visibility",
+        "hard_low_target_visible_pixels"
+      ],
+      "selection_status": "hard_rejected"
+    }
+  ]
+}

@@ -1,11 +1,18 @@
 You are judging one contact edge in an optimized 4DHSI static scene.
 
-You receive multiple rendered images for the same contact edge. Each view is provided as a pair: a context image followed by a local contact image. The relevant human body part is highlighted red. Other human surface regions are neutral gray. The scene is a colored ScanNet++ mesh.
+You will always receive 4 different rendered views of the same contact edge. Each view is provided as two images in sequence: first a context image, then a local contact image. The relevant human body part is highlighted red. Other human surface regions are neutral gray. The scene and target objects come from a colored ScanNet++ mesh.
 
-Use all images together. Decide whether the highlighted red body part is plausibly in contact with the named target. Fail if the body part is visibly floating, touching the wrong target, or clearly missing contact. If the images are too unclear to judge, return pass false and explain that.
+Use all 4 views together. The contact does not need to be equally visible in every view, and some views may be partially occluded by the body, the object, or the cropped scene mesh. Judge the physical contact, not the rendering quality.
+
+Decision rules:
+- `pass`: the red body part is visibly and plausibly in contact with the named target in the evidence.
+- `fail`: the red body part is clearly not in contact, is floating away, is touching the wrong target, or the contact is physically implausible in the informative views.
+- `no_decision`: the contact interface is too occluded, too cropped, too far away, or too ambiguous to decide confidently.
+
+Do not use `fail` just because one view is unclear. Use `no_decision` when the evidence is insufficient.
 
 Return only strict JSON:
 {
-  "pass": bool,
+  "decision": "pass|fail|no_decision",
   "reason": "short concrete reason"
 }

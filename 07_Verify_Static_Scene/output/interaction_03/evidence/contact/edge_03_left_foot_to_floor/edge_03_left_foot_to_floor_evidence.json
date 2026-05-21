@@ -1,0 +1,641 @@
+{
+  "edge_index": 3,
+  "body_part": "left foot",
+  "moving_segment_id": "left_foot_bottom",
+  "crop_segment_id": "left_foot",
+  "target": "floor",
+  "contact_distance_m": 0.01487508952719054,
+  "contact_threshold_m": 0.05,
+  "deterministic_pass": true,
+  "contact_verification_mode": "vlm_images",
+  "visibility_status": "selected_views",
+  "view_count": 4,
+  "views": [
+    {
+      "view_index": 0,
+      "view_name": "view_00_ranked_yaw_+60_elev_+0_r_0.91",
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 60.0,
+      "elevation_deg": 0.0,
+      "pivot_world": [
+        1.5445852279663086,
+        3.2006802558898926,
+        0.3934019207954407
+      ],
+      "orbit_radius_scale": 0.9127369090023203,
+      "orbit_base_radius_m": 1.9739263534545897,
+      "orbit_radius_m": 1.8016754384503637,
+      "human_bbox_center_world": [
+        1.4661741256713867,
+        3.403240442276001,
+        0.8372668027877808
+      ],
+      "segment_center_world": [
+        1.5868066549301147,
+        3.0916097164154053,
+        0.15439774096012115
+      ],
+      "human_height_m": 1.409947395324707,
+      "human_xy_extent_m": 0.8572177886962891,
+      "virtual_camera_fov_y_deg": 50.0,
+      "candidate_camera": {
+        "camera_kind": "ranked_virtual_orbit",
+        "yaw_offset_deg": 60.0,
+        "elevation_deg": 0.0,
+        "radius_scale": 0.9127369090023203,
+        "base_radius_m": 1.9739263534545897,
+        "radius_m": 1.8016754384503637,
+        "pivot_world": [
+          1.5445852279663086,
+          3.2006802558898926,
+          0.3934019207954407
+        ],
+        "fov_y_deg": 50.0
+      },
+      "planner_visibility": {
+        "human_visible_over_total_ratio": 0.9552268012993621,
+        "target_visible_over_total_ratio": 0.9979508196721312,
+        "human_visible_over_projected_surface_ratio": 0.9552268012993621,
+        "target_visible_over_projected_surface_ratio": 0.9979508196721312,
+        "human_visible_pixel_count": 24407,
+        "human_projected_pixel_count": 25551,
+        "target_visible_pixel_count": 1461,
+        "target_projected_pixel_count": 1464,
+        "target_self_visible_over_projected_surface_ratio": 0.9979508196721312,
+        "target_self_occluded_over_projected_surface_ratio": 0.002049180327868827,
+        "target_self_visible_pixel_count": 1461,
+        "target_self_projected_pixel_count": 1464,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 5.902256881287249,
+        "human_frame_fill_ratio": 0.7758557637532552,
+        "human_frame_fill_width_ratio": 0.47107248306274413,
+        "human_frame_fill_height_ratio": 0.7758557637532552,
+        "human_frame_bbox_xyxy": [
+          154.7130889892578,
+          -51.9195556640625,
+          380.827880859375,
+          320.4912109375
+        ],
+        "rank_score": 6.384322461569826
+      },
+      "selection_status": "selected",
+      "final_context_visibility": {
+        "human_visible_over_total_ratio": 0.9592644978783592,
+        "target_visible_over_total_ratio": 0.998641304347826,
+        "human_visible_over_projected_surface_ratio": 0.9592644978783592,
+        "target_visible_over_projected_surface_ratio": 0.998641304347826,
+        "human_visible_pixel_count": 13564,
+        "human_projected_pixel_count": 14140,
+        "target_visible_pixel_count": 735,
+        "target_projected_pixel_count": 736,
+        "target_self_visible_over_projected_surface_ratio": 0.998641304347826,
+        "target_self_occluded_over_projected_surface_ratio": 0.0013586956521739468,
+        "target_self_visible_pixel_count": 735,
+        "target_self_projected_pixel_count": 736,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 5.913094213148023
+      },
+      "final_local_visibility": {
+        "human_visible_over_total_ratio": 0.9339508530685001,
+        "target_visible_over_total_ratio": 0.9936802973977695,
+        "human_visible_over_projected_surface_ratio": 0.9339508530685001,
+        "target_visible_over_projected_surface_ratio": 0.9936802973977695,
+        "human_visible_pixel_count": 29341,
+        "human_projected_pixel_count": 31416,
+        "target_visible_pixel_count": 2673,
+        "target_projected_pixel_count": 2690,
+        "target_self_visible_over_projected_surface_ratio": 0.9947955390334573,
+        "target_self_occluded_over_projected_surface_ratio": 0.005204460966542701,
+        "target_self_visible_pixel_count": 2676,
+        "target_self_projected_pixel_count": 2690,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 5.842622895728079
+      },
+      "context_bbox_xyxy": [
+        -49,
+        -183,
+        585,
+        451
+      ],
+      "local_bbox_xyxy": [
+        53,
+        139,
+        386,
+        472
+      ],
+      "images": {
+        "context": "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_03/evidence/contact/edge_03_left_foot_to_floor/view_00_ranked_yaw_+60_elev_+0_r_0.91/context.png",
+        "local_contact": "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_03/evidence/contact/edge_03_left_foot_to_floor/view_00_ranked_yaw_+60_elev_+0_r_0.91/local_contact.png"
+      },
+      "rendering": {
+        "context": {
+          "path": "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_03/evidence/contact/edge_03_left_foot_to_floor/view_00_ranked_yaw_+60_elev_+0_r_0.91/context.png",
+          "output_size": [
+            480,
+            480
+          ],
+          "optical_zoom_factor": 0.7116719242902207,
+          "fx": 366.28448802545597,
+          "fy": 366.28448802545597,
+          "cx": 220.0731861198738,
+          "cy": 315.4372239747634,
+          "base_width": 480,
+          "base_height": 480
+        },
+        "local_contact": {
+          "path": "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_03/evidence/contact/edge_03_left_foot_to_floor/view_00_ranked_yaw_+60_elev_+0_r_0.91/local_contact.png",
+          "output_size": [
+            480,
+            480
+          ],
+          "optical_zoom_factor": 1.3549549549549549,
+          "fx": 697.3704666911084,
+          "fy": 697.3704666911084,
+          "cx": 267.7765765765766,
+          "cy": 151.25045045045044,
+          "base_width": 480,
+          "base_height": 480
+        }
+      }
+    },
+    {
+      "view_index": 1,
+      "view_name": "view_01_ranked_yaw_+30_elev_+0_r_0.87",
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 30.0,
+      "elevation_deg": 0.0,
+      "pivot_world": [
+        1.5445852279663086,
+        3.2006802558898926,
+        0.3934019207954407
+      ],
+      "orbit_radius_scale": 0.8720322959443443,
+      "orbit_base_radius_m": 1.9739263534545897,
+      "orbit_radius_m": 1.721327530028053,
+      "human_bbox_center_world": [
+        1.4661741256713867,
+        3.403240442276001,
+        0.8372668027877808
+      ],
+      "segment_center_world": [
+        1.5868066549301147,
+        3.0916097164154053,
+        0.15439774096012115
+      ],
+      "human_height_m": 1.409947395324707,
+      "human_xy_extent_m": 0.8572177886962891,
+      "virtual_camera_fov_y_deg": 50.0,
+      "candidate_camera": {
+        "camera_kind": "ranked_virtual_orbit",
+        "yaw_offset_deg": 30.0,
+        "elevation_deg": 0.0,
+        "radius_scale": 0.8720322959443443,
+        "base_radius_m": 1.9739263534545897,
+        "radius_m": 1.721327530028053,
+        "pivot_world": [
+          1.5445852279663086,
+          3.2006802558898926,
+          0.3934019207954407
+        ],
+        "fov_y_deg": 50.0
+      },
+      "planner_visibility": {
+        "human_visible_over_total_ratio": 0.9874584628577554,
+        "target_visible_over_total_ratio": 0.9786729857819905,
+        "human_visible_over_projected_surface_ratio": 0.9874584628577554,
+        "target_visible_over_projected_surface_ratio": 0.9786729857819905,
+        "human_visible_pixel_count": 27636,
+        "human_projected_pixel_count": 27987,
+        "target_visible_pixel_count": 1239,
+        "target_projected_pixel_count": 1266,
+        "target_self_visible_over_projected_surface_ratio": 0.9794628751974723,
+        "target_self_occluded_over_projected_surface_ratio": 0.020537124802527673,
+        "target_self_visible_pixel_count": 1240,
+        "target_self_projected_pixel_count": 1266,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 5.889608868843473,
+        "human_frame_fill_ratio": 0.7700828552246094,
+        "human_frame_fill_width_ratio": 0.455033810933431,
+        "human_frame_fill_height_ratio": 0.7700828552246094,
+        "human_frame_bbox_xyxy": [
+          124.32553100585938,
+          -41.548187255859375,
+          342.74176025390625,
+          328.0915832519531
+        ],
+        "rank_score": 6.28885533304457
+      },
+      "selection_status": "selected",
+      "final_context_visibility": {
+        "human_visible_over_total_ratio": 0.9880616595605116,
+        "target_visible_over_total_ratio": 0.9785276073619632,
+        "human_visible_over_projected_surface_ratio": 0.9880616595605116,
+        "target_visible_over_projected_surface_ratio": 0.9785276073619632,
+        "human_visible_pixel_count": 15063,
+        "human_projected_pixel_count": 15245,
+        "target_visible_pixel_count": 638,
+        "target_projected_pixel_count": 652,
+        "target_self_visible_over_projected_surface_ratio": 0.9785276073619632,
+        "target_self_occluded_over_projected_surface_ratio": 0.021472392638036797,
+        "target_self_visible_pixel_count": 638,
+        "target_self_projected_pixel_count": 652,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 5.8902337485688765
+      },
+      "final_local_visibility": {
+        "human_visible_over_total_ratio": 0.9849038227416606,
+        "target_visible_over_total_ratio": 0.9772676119738916,
+        "human_visible_over_projected_surface_ratio": 0.9849038227416606,
+        "target_visible_over_projected_surface_ratio": 0.9772676119738916,
+        "human_visible_pixel_count": 32360,
+        "human_projected_pixel_count": 32856,
+        "target_visible_pixel_count": 4342,
+        "target_projected_pixel_count": 4443,
+        "target_self_visible_over_projected_surface_ratio": 0.9786180508665316,
+        "target_self_occluded_over_projected_surface_ratio": 0.02138194913346836,
+        "target_self_visible_pixel_count": 4348,
+        "target_self_projected_pixel_count": 4443,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 5.878878093378887
+      },
+      "context_bbox_xyxy": [
+        -81,
+        -171,
+        548,
+        458
+      ],
+      "local_bbox_xyxy": [
+        111,
+        190,
+        352,
+        431
+      ],
+      "images": {
+        "context": "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_03/evidence/contact/edge_03_left_foot_to_floor/view_01_ranked_yaw_+30_elev_+0_r_0.87/context.png",
+        "local_contact": "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_03/evidence/contact/edge_03_left_foot_to_floor/view_01_ranked_yaw_+30_elev_+0_r_0.87/local_contact.png"
+      },
+      "rendering": {
+        "context": {
+          "path": "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_03/evidence/contact/edge_03_left_foot_to_floor/view_01_ranked_yaw_+30_elev_+0_r_0.87/context.png",
+          "output_size": [
+            480,
+            480
+          ],
+          "optical_zoom_factor": 0.717329093799682,
+          "fx": 369.19612942470445,
+          "fy": 369.19612942470445,
+          "cx": 244.66263910969792,
+          "cy": 309.2222575516693,
+          "base_width": 480,
+          "base_height": 480
+        },
+        "local_contact": {
+          "path": "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_03/evidence/contact/edge_03_left_foot_to_floor/view_01_ranked_yaw_+30_elev_+0_r_0.87/local_contact.png",
+          "output_size": [
+            480,
+            480
+          ],
+          "optical_zoom_factor": 1.8721991701244813,
+          "fx": 963.5865784570087,
+          "fy": 963.5865784570087,
+          "cx": 255.9136929460581,
+          "cy": 108.00995850622405,
+          "base_width": 480,
+          "base_height": 480
+        }
+      }
+    },
+    {
+      "view_index": 2,
+      "view_name": "view_02_ranked_yaw_+90_elev_+0_r_0.99",
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": 90.0,
+      "elevation_deg": 0.0,
+      "pivot_world": [
+        1.5445852279663086,
+        3.2006802558898926,
+        0.3934019207954407
+      ],
+      "orbit_radius_scale": 0.985814934102898,
+      "orbit_base_radius_m": 1.9739263534545897,
+      "orbit_radius_m": 1.94592607805481,
+      "human_bbox_center_world": [
+        1.4661741256713867,
+        3.403240442276001,
+        0.8372668027877808
+      ],
+      "segment_center_world": [
+        1.5868066549301147,
+        3.0916097164154053,
+        0.15439774096012115
+      ],
+      "human_height_m": 1.409947395324707,
+      "human_xy_extent_m": 0.8572177886962891,
+      "virtual_camera_fov_y_deg": 50.0,
+      "candidate_camera": {
+        "camera_kind": "ranked_virtual_orbit",
+        "yaw_offset_deg": 90.0,
+        "elevation_deg": 0.0,
+        "radius_scale": 0.985814934102898,
+        "base_radius_m": 1.9739263534545897,
+        "radius_m": 1.94592607805481,
+        "pivot_world": [
+          1.5445852279663086,
+          3.2006802558898926,
+          0.3934019207954407
+        ],
+        "fov_y_deg": 50.0
+      },
+      "planner_visibility": {
+        "human_visible_over_total_ratio": 0.9204990438029323,
+        "target_visible_over_total_ratio": 0.999219968798752,
+        "human_visible_over_projected_surface_ratio": 0.9204990438029323,
+        "target_visible_over_projected_surface_ratio": 0.999219968798752,
+        "human_visible_pixel_count": 20216,
+        "human_projected_pixel_count": 21962,
+        "target_visible_pixel_count": 1281,
+        "target_projected_pixel_count": 1282,
+        "target_self_visible_over_projected_surface_ratio": 0.999219968798752,
+        "target_self_occluded_over_projected_surface_ratio": 0.0007800312012480326,
+        "target_self_visible_pixel_count": 1281,
+        "target_self_projected_pixel_count": 1282,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 5.837877962800873,
+        "human_frame_fill_ratio": 0.7801135381062826,
+        "human_frame_fill_width_ratio": 0.46648534138997394,
+        "human_frame_fill_height_ratio": 0.7801135381062826,
+        "human_frame_bbox_xyxy": [
+          179.57269287109375,
+          -64.10379028320312,
+          403.48565673828125,
+          310.3507080078125
+        ],
+        "rank_score": 6.287030202623662
+      },
+      "selection_status": "selected",
+      "final_context_visibility": {
+        "human_visible_over_total_ratio": 0.9306339988863257,
+        "target_visible_over_total_ratio": 1.0,
+        "human_visible_over_projected_surface_ratio": 0.9306339988863257,
+        "target_visible_over_projected_surface_ratio": 1.0,
+        "human_visible_pixel_count": 11699,
+        "human_projected_pixel_count": 12571,
+        "target_visible_pixel_count": 636,
+        "target_projected_pixel_count": 636,
+        "target_self_visible_over_projected_surface_ratio": 1.0,
+        "target_self_occluded_over_projected_surface_ratio": 0.0,
+        "target_self_visible_pixel_count": 636,
+        "target_self_projected_pixel_count": 636,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 5.861267997772652
+      },
+      "final_local_visibility": {
+        "human_visible_over_total_ratio": 0.8767366354575656,
+        "target_visible_over_total_ratio": 0.9995841995841996,
+        "human_visible_over_projected_surface_ratio": 0.8767366354575656,
+        "target_visible_over_projected_surface_ratio": 0.9995841995841996,
+        "human_visible_pixel_count": 23223,
+        "human_projected_pixel_count": 26488,
+        "target_visible_pixel_count": 2404,
+        "target_projected_pixel_count": 2405,
+        "target_self_visible_over_projected_surface_ratio": 0.9995841995841996,
+        "target_self_occluded_over_projected_surface_ratio": 0.0004158004158003603,
+        "target_self_visible_pixel_count": 2404,
+        "target_self_projected_pixel_count": 2405,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 5.751810069251929
+      },
+      "context_bbox_xyxy": [
+        -27,
+        -196,
+        610,
+        442
+      ],
+      "local_bbox_xyxy": [
+        51,
+        134,
+        381,
+        464
+      ],
+      "images": {
+        "context": "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_03/evidence/contact/edge_03_left_foot_to_floor/view_02_ranked_yaw_+90_elev_+0_r_0.99/context.png",
+        "local_contact": "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_03/evidence/contact/edge_03_left_foot_to_floor/view_02_ranked_yaw_+90_elev_+0_r_0.99/local_contact.png"
+      },
+      "rendering": {
+        "context": {
+          "path": "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_03/evidence/contact/edge_03_left_foot_to_floor/view_02_ranked_yaw_+90_elev_+0_r_0.99/context.png",
+          "output_size": [
+            480,
+            480
+          ],
+          "optical_zoom_factor": 0.7072100313479623,
+          "fx": 363.9880335550769,
+          "fy": 363.9880335550769,
+          "cx": 203.57868338557995,
+          "cy": 322.7435736677116,
+          "base_width": 480,
+          "base_height": 480
+        },
+        "local_contact": {
+          "path": "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_03/evidence/contact/edge_03_left_foot_to_floor/view_02_ranked_yaw_+90_elev_+0_r_0.99/local_contact.png",
+          "output_size": [
+            480,
+            480
+          ],
+          "optical_zoom_factor": 1.3672727272727272,
+          "fx": 703.7101982064821,
+          "fy": 703.7101982064821,
+          "cx": 272.81454545454545,
+          "cy": 159.3309090909091,
+          "base_width": 480,
+          "base_height": 480
+        }
+      }
+    },
+    {
+      "view_index": 3,
+      "view_name": "view_03_ranked_yaw_-60_elev_+0_r_0.95",
+      "camera_kind": "ranked_virtual_orbit",
+      "yaw_offset_deg": -60.0,
+      "elevation_deg": 0.0,
+      "pivot_world": [
+        1.5445852279663086,
+        3.2006802558898926,
+        0.3934019207954407
+      ],
+      "orbit_radius_scale": 0.9548133458846654,
+      "orbit_base_radius_m": 1.9739263534545897,
+      "orbit_radius_m": 1.8847312260718934,
+      "human_bbox_center_world": [
+        1.4661741256713867,
+        3.403240442276001,
+        0.8372668027877808
+      ],
+      "segment_center_world": [
+        1.5868066549301147,
+        3.0916097164154053,
+        0.15439774096012115
+      ],
+      "human_height_m": 1.409947395324707,
+      "human_xy_extent_m": 0.8572177886962891,
+      "virtual_camera_fov_y_deg": 50.0,
+      "candidate_camera": {
+        "camera_kind": "ranked_virtual_orbit",
+        "yaw_offset_deg": -60.0,
+        "elevation_deg": 0.0,
+        "radius_scale": 0.9548133458846654,
+        "base_radius_m": 1.9739263534545897,
+        "radius_m": 1.8847312260718934,
+        "pivot_world": [
+          1.5445852279663086,
+          3.2006802558898926,
+          0.3934019207954407
+        ],
+        "fov_y_deg": 50.0
+      },
+      "planner_visibility": {
+        "human_visible_over_total_ratio": 0.9798466378293355,
+        "target_visible_over_total_ratio": 0.951651893634166,
+        "human_visible_over_projected_surface_ratio": 0.9798466378293355,
+        "target_visible_over_projected_surface_ratio": 0.951651893634166,
+        "human_visible_pixel_count": 29901,
+        "human_projected_pixel_count": 30516,
+        "target_visible_pixel_count": 1181,
+        "target_projected_pixel_count": 1241,
+        "target_self_visible_over_projected_surface_ratio": 0.9548751007252216,
+        "target_self_occluded_over_projected_surface_ratio": 0.04512489927477836,
+        "target_self_visible_pixel_count": 1185,
+        "target_self_projected_pixel_count": 1241,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 5.766300850195335,
+        "human_frame_fill_ratio": 0.780039660135905,
+        "human_frame_fill_width_ratio": 0.5025672912597656,
+        "human_frame_fill_height_ratio": 0.780039660135905,
+        "human_frame_bbox_xyxy": [
+          59.871368408203125,
+          -45.362396240234375,
+          301.1036682128906,
+          329.056640625
+        ],
+        "rank_score": 6.107080693334733
+      },
+      "selection_status": "selected",
+      "final_context_visibility": {
+        "human_visible_over_total_ratio": 0.9808476461139256,
+        "target_visible_over_total_ratio": 0.9513776337115073,
+        "human_visible_over_projected_surface_ratio": 0.9808476461139256,
+        "target_visible_over_projected_surface_ratio": 0.9513776337115073,
+        "human_visible_pixel_count": 15876,
+        "human_projected_pixel_count": 16186,
+        "target_visible_pixel_count": 587,
+        "target_projected_pixel_count": 617,
+        "target_self_visible_over_projected_surface_ratio": 0.9562398703403565,
+        "target_self_occluded_over_projected_surface_ratio": 0.04376012965964349,
+        "target_self_visible_pixel_count": 590,
+        "target_self_projected_pixel_count": 617,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 5.76720582707388
+      },
+      "final_local_visibility": {
+        "human_visible_over_total_ratio": 0.9629159974075013,
+        "target_visible_over_total_ratio": 0.9537037037037037,
+        "human_visible_over_projected_surface_ratio": 0.9629159974075013,
+        "target_visible_over_projected_surface_ratio": 0.9537037037037037,
+        "human_visible_pixel_count": 34171,
+        "human_projected_pixel_count": 35487,
+        "target_visible_pixel_count": 2472,
+        "target_projected_pixel_count": 2592,
+        "target_self_visible_over_projected_surface_ratio": 0.9579475308641975,
+        "target_self_occluded_over_projected_surface_ratio": 0.04205246913580252,
+        "target_self_visible_pixel_count": 2483,
+        "target_self_projected_pixel_count": 2592,
+        "visibility_metric": "rendered_surface_pixels",
+        "visibility_occlusion_model": "cropped_scene_depth_plus_human_self_depth",
+        "occlusion_depth_eps_m": 0.01,
+        "selection_score": 5.740646809629817
+      },
+      "context_bbox_xyxy": [
+        -138,
+        -177,
+        499,
+        461
+      ],
+      "local_bbox_xyxy": [
+        111,
+        146,
+        422,
+        457
+      ],
+      "images": {
+        "context": "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_03/evidence/contact/edge_03_left_foot_to_floor/view_03_ranked_yaw_-60_elev_+0_r_0.95/context.png",
+        "local_contact": "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_03/evidence/contact/edge_03_left_foot_to_floor/view_03_ranked_yaw_-60_elev_+0_r_0.95/local_contact.png"
+      },
+      "rendering": {
+        "context": {
+          "path": "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_03/evidence/contact/edge_03_left_foot_to_floor/view_03_ranked_yaw_-60_elev_+0_r_0.95/context.png",
+          "output_size": [
+            480,
+            480
+          ],
+          "optical_zoom_factor": 0.7072100313479623,
+          "fx": 363.9880335550769,
+          "fy": 363.9880335550769,
+          "cx": 282.07899686520375,
+          "cy": 309.3065830721003,
+          "base_width": 480,
+          "base_height": 480
+        },
+        "local_contact": {
+          "path": "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_03/evidence/contact/edge_03_left_foot_to_floor/view_03_ranked_yaw_-60_elev_+0_r_0.95/local_contact.png",
+          "output_size": [
+            480,
+            480
+          ],
+          "optical_zoom_factor": 1.4508038585209002,
+          "fx": 746.7021395760099,
+          "fy": 746.7021395760099,
+          "cx": 201.55369774919615,
+          "cy": 150.77556270096466,
+          "base_width": 480,
+          "base_height": 480
+        }
+      }
+    }
+  ],
+  "candidate_diagnostics": {
+    "path": "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_03/evidence/contact/edge_03_left_foot_to_floor/candidate_rejections.json",
+    "summary": {
+      "candidate_count": 36,
+      "selected_count": 4,
+      "hard_rejected_count": 12,
+      "ranked_candidate_count": 24,
+      "rejection_reason_counts": {
+        "hard_low_human_visibility": 12,
+        "hard_low_target_visibility": 9,
+        "hard_low_target_visible_pixels": 10
+      }
+    }
+  }
+}

@@ -1,0 +1,200 @@
+{
+  "interaction_name": "interaction_03",
+  "scene_id": "442b144761",
+  "target_object": {
+    "label": "brown small wooden table"
+  },
+  "interaction": "A person sits on the brown small wooden table positioned in front of the whiteboard. The hips rest on the table surface, while the legs are bent with both feet planted firmly on the grey floor. The hands rest on the table surface for stability. The person has short black hair, a neutral facial expression, a gray shirt, blue jeans, and white sneakers. The room features white walls, a blue door, and a grey floor.",
+  "source_paths": {
+    "sig_json": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/output/interaction_03/scene_interaction_graph.json",
+    "input_scene_json": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_03/input_scene.json",
+    "optimizer_output_root": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_03",
+    "alignment_summary": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_03/alignment_summary.json",
+    "world_mesh": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_03/meshes/frame_0000_world.ply"
+  },
+  "thresholds": {
+    "contact_threshold_m": 0.05,
+    "severe_penetration_min_sdf_m": -0.03,
+    "severe_penetration_inside_points": 1000
+  },
+  "contact": {
+    "pass": true,
+    "failure_tags": [],
+    "edge_count": 5,
+    "edges": [
+      {
+        "index": 0,
+        "moving_part_name": "hips",
+        "moving_segment_id": "hips_contact",
+        "fixed_part_name": "brown small wooden table",
+        "fixed_entity_name": "brown small wooden table",
+        "fixed_point_count": 2048,
+        "moving_vertex_count": 203,
+        "reduction": "mean",
+        "nocontact_raw": 0.002241566777229309,
+        "nocontact_distance_m": 0.04734518747696865,
+        "threshold_m": 0.05,
+        "pass": true
+      },
+      {
+        "index": 1,
+        "moving_part_name": "left hand",
+        "moving_segment_id": "left_hand_inner",
+        "fixed_part_name": "brown small wooden table",
+        "fixed_entity_name": "brown small wooden table",
+        "fixed_point_count": 2048,
+        "moving_vertex_count": 371,
+        "reduction": "mean",
+        "nocontact_raw": 0.0011830846779048443,
+        "nocontact_distance_m": 0.03439599799256949,
+        "threshold_m": 0.05,
+        "pass": true
+      },
+      {
+        "index": 2,
+        "moving_part_name": "right hand",
+        "moving_segment_id": "right_hand_inner",
+        "fixed_part_name": "brown small wooden table",
+        "fixed_entity_name": "brown small wooden table",
+        "fixed_point_count": 2048,
+        "moving_vertex_count": 373,
+        "reduction": "mean",
+        "nocontact_raw": 0.001286010374315083,
+        "nocontact_distance_m": 0.035860986800631725,
+        "threshold_m": 0.05,
+        "pass": true
+      },
+      {
+        "index": 3,
+        "moving_part_name": "left foot",
+        "moving_segment_id": "left_foot_bottom",
+        "fixed_part_name": "floor",
+        "fixed_entity_name": "floor",
+        "fixed_point_count": 2048,
+        "moving_vertex_count": 120,
+        "reduction": "mean",
+        "nocontact_raw": 0.0002212682884419337,
+        "nocontact_distance_m": 0.01487508952719054,
+        "threshold_m": 0.05,
+        "pass": true
+      },
+      {
+        "index": 4,
+        "moving_part_name": "right foot",
+        "moving_segment_id": "right_foot_bottom",
+        "fixed_part_name": "floor",
+        "fixed_entity_name": "floor",
+        "fixed_point_count": 2048,
+        "moving_vertex_count": 120,
+        "reduction": "mean",
+        "nocontact_raw": 0.0001753094547893852,
+        "nocontact_distance_m": 0.01324044768085223,
+        "threshold_m": 0.05,
+        "pass": true
+      }
+    ],
+    "mean_distance_m": 0.029143541895642527,
+    "max_distance_m": 0.04734518747696865
+  },
+  "penetration": {
+    "pass": false,
+    "failure_tags": [
+      "severe_penetration"
+    ],
+    "severe_penetration": true,
+    "severe_by_min_sdf": true,
+    "severe_by_inside_points": true,
+    "thresholds": {
+      "min_sdf_m": -0.03,
+      "inside_points": 1000
+    },
+    "scene_points": {
+      "num_scene_collision_points": 700000,
+      "num_sdf_query_points": 700000,
+      "num_visualized_points": 700000,
+      "num_inside_points": 2744,
+      "num_margin_points": 1859,
+      "min_sdf_m": -0.04842124879360199,
+      "max_sdf_m": 2.9238646030426025
+    },
+    "sdf_grid": {
+      "num_grid_points": 262144,
+      "grid_shape": [
+        64,
+        64,
+        64
+      ],
+      "min_sdf_m": -0.09700562059879303,
+      "max_sdf_m": 0.7650573253631592,
+      "num_inside_grid_points": 10818,
+      "num_near_surface_grid_points": 5313,
+      "color_clamp_m": 0.05
+    }
+  },
+  "optimization": {
+    "final_total_loss": 0.8211272954940796,
+    "final_iter": 1000,
+    "stage_iters": {
+      "rigid": 400,
+      "pose": 600
+    },
+    "scene_intersect_stats": {
+      "num_scene_collision_points": 700000,
+      "num_sdf_query_points": 700000,
+      "num_inside_or_margin_points": 4603
+    },
+    "final_loss_summary": {
+      "available": true,
+      "path": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_03/debug/csv/final_loss_summary.csv",
+      "final_iter": 1000,
+      "final_total_loss": 0.8211272954940796,
+      "total_scaled": 0.8211272954940796,
+      "root_orient_gvhmr_weight": 20.0,
+      "root_orient_gvhmr_raw": 0.0002057389065157622,
+      "root_orient_gvhmr_scaled": 0.004114778130315244,
+      "pose_gvhmr_weight": 10.0,
+      "pose_gvhmr_raw": 0.004891191143542528,
+      "pose_gvhmr_scaled": 0.04891191143542528,
+      "height_prior_weight": 1.0,
+      "height_prior_raw": 0.0002176605339627713,
+      "height_prior_scaled": 0.0002176605339627713,
+      "scene_intersect_weight": 10.0,
+      "scene_intersect_raw": 0.019931970164179802,
+      "scene_intersect_scaled": 0.19931970164179802,
+      "nocontact_weight": 500.0,
+      "nocontact_raw": 0.0010214478243142366,
+      "nocontact_scaled": 0.5107239121571183,
+      "self_intersect_weight": 0.001,
+      "self_intersect_raw": 57.83937072753906,
+      "self_intersect_scaled": 0.057839370727539065,
+      "scene_intersect_num_scene_collision_points": 700000,
+      "scene_intersect_num_sdf_query_points": 700000,
+      "scene_intersect_num_inside_or_margin_points": 4603
+    }
+  },
+  "height": {
+    "optimized_params": {
+      "available": true,
+      "path": "/my_workspace/4DHHOI/4DHSI/06_Optimize_Static_Scene/output/interaction_03/debug/params/optimized_frame_0000.pt",
+      "height_m": 1.8280504941940308,
+      "scale": 1.0328421592712402,
+      "canonical_height_unscaled_m": 1.7699223756790161,
+      "loader": "zip_pickle"
+    },
+    "height_prior": {
+      "target_m": 1.8288,
+      "min_m": 1.778,
+      "max_m": 1.8796,
+      "sigma_m": 0.0508,
+      "target_ft_in": "6 ft 0 in",
+      "min_ft_in": "5 ft 10 in",
+      "max_ft_in": "6 ft 2 in"
+    }
+  },
+  "deterministic": {
+    "pass": false,
+    "failure_tags": [
+      "severe_penetration"
+    ]
+  }
+}
