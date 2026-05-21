@@ -1,0 +1,63 @@
+{
+  "interaction_name": "interaction_01",
+  "scene_id": "442b144761",
+  "target_object": {
+    "label": "brown small wooden table"
+  },
+  "status": "no_decision",
+  "failure_tags": [
+    "no_decision"
+  ],
+  "deterministic_pass": true,
+  "vlm_enabled": true,
+  "contact_pass": true,
+  "penetration_pass": true,
+  "max_contact_distance_m": 0.034779788063022524,
+  "mean_contact_distance_m": 0.02312670571878023,
+  "severe_penetration": false,
+  "final_total_loss": 0.44984787702560425,
+  "vlm_provider": "ollama",
+  "vlm_model": "qwen3.6:27b",
+  "vlm_decisions": {
+    "contact_edges": [
+      {
+        "edge_index": 0,
+        "body_part": "left hand",
+        "target": "brown small wooden table",
+        "decision": "pass",
+        "reason": "The red left hand is visibly resting on and grasping the top surface of the brown wooden table in all views."
+      },
+      {
+        "edge_index": 1,
+        "body_part": "right hand",
+        "target": "brown small wooden table",
+        "decision": "pass",
+        "reason": "The red highlighted right hand is clearly grasping the edge of the brown wooden table in multiple views, consistent with the interaction description."
+      },
+      {
+        "edge_index": 2,
+        "body_part": "left foot",
+        "target": "floor",
+        "decision": "pass",
+        "reason": "The red highlighted left foot is visibly planted on the floor surface in all views."
+      },
+      {
+        "edge_index": 3,
+        "body_part": "right foot",
+        "target": "floor",
+        "decision": "pass",
+        "reason": "The red highlighted right foot is clearly planted on the floor surface in all views."
+      }
+    ],
+    "pose": {
+      "decision": "pass",
+      "pass": true,
+      "reason": "The pose is anatomically plausible and consistent with the interaction description. The figure is in a squatting position with knees bent and torso leaning forward, hands placed on the table edges, which is the correct biomechanical stance for preparing to lift a heavy object."
+    },
+    "penetration": {
+      "decision": "no_decision",
+      "pass": null,
+      "reason": "VLM judge failed after retries: penetration"
+    }
+  }
+}

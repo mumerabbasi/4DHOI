@@ -1,0 +1,361 @@
+{
+  "interaction_name": "interaction_04",
+  "render_mode": "ranked_virtual_orbit_scannet_crop",
+  "global_view_count": 6,
+  "global_views": [
+    {
+      "view_index": 0,
+      "yaw_deg": 60.0,
+      "elevation_deg": 20.0,
+      "radius_scale": 0.9937671922210953,
+      "rank_score": 4.089299270672091,
+      "human_visible_ratio": 0.9975864149642272,
+      "target_visible_ratio": null
+    },
+    {
+      "view_index": 1,
+      "yaw_deg": 30.0,
+      "elevation_deg": 20.0,
+      "radius_scale": 0.9822629455827241,
+      "rank_score": 4.07550825214312,
+      "human_visible_ratio": 0.9926221335992024,
+      "target_visible_ratio": null
+    },
+    {
+      "view_index": 2,
+      "yaw_deg": 90.0,
+      "elevation_deg": 20.0,
+      "radius_scale": 1.0007701775966547,
+      "rank_score": 4.066875869295469,
+      "human_visible_ratio": 0.9925902780877561,
+      "target_visible_ratio": null
+    },
+    {
+      "view_index": 3,
+      "yaw_deg": -90.0,
+      "elevation_deg": 20.0,
+      "radius_scale": 1.0813153910840678,
+      "rank_score": 4.0531957448103135,
+      "human_visible_ratio": 0.9904842660636894,
+      "target_visible_ratio": null
+    },
+    {
+      "view_index": 4,
+      "yaw_deg": 0.0,
+      "elevation_deg": 20.0,
+      "radius_scale": 1.0387593456822581,
+      "rank_score": 4.035150608781648,
+      "human_visible_ratio": 0.9856344403898564,
+      "target_visible_ratio": null
+    },
+    {
+      "view_index": 5,
+      "yaw_deg": -30.0,
+      "elevation_deg": 20.0,
+      "radius_scale": 1.0769295488667283,
+      "rank_score": 4.033093946664787,
+      "human_visible_ratio": 0.9867608998606411,
+      "target_visible_ratio": null
+    }
+  ],
+  "contact_edges": [
+    {
+      "edge_index": 0,
+      "body_part": "left hand",
+      "target": "wooden chair",
+      "view_count": 6,
+      "visibility_status": "selected_views",
+      "deterministic_pass": true,
+      "contact_distance_m": 0.021161273136392798,
+      "views": [
+        {
+          "view_index": 0,
+          "yaw_deg": 120.0,
+          "elevation_deg": 20.0,
+          "radius_scale": 0.9443817790756877,
+          "rank_score": 5.710468679320298,
+          "human_visible_ratio": 0.8060043981260159,
+          "target_visible_ratio": 0.9437412095639943
+        },
+        {
+          "view_index": 1,
+          "yaw_deg": 90.0,
+          "elevation_deg": 20.0,
+          "radius_scale": 0.9598027742826022,
+          "rank_score": 5.441182367821898,
+          "human_visible_ratio": 0.9732617909640184,
+          "target_visible_ratio": 0.8333333333333334
+        },
+        {
+          "view_index": 2,
+          "yaw_deg": 0.0,
+          "elevation_deg": 10.0,
+          "radius_scale": 1.102803711198334,
+          "rank_score": 3.4483208052528247,
+          "human_visible_ratio": 0.9842051472637741,
+          "target_visible_ratio": 0.3184713375796178
+        },
+        {
+          "view_index": 3,
+          "yaw_deg": -30.0,
+          "elevation_deg": -10.0,
+          "radius_scale": 1.0536740783952239,
+          "rank_score": 3.4291840647454848,
+          "human_visible_ratio": 0.9828274588932298,
+          "target_visible_ratio": 0.3162705667276051
+        },
+        {
+          "view_index": 4,
+          "yaw_deg": 30.0,
+          "elevation_deg": 0.0,
+          "radius_scale": 1.0133396865975142,
+          "rank_score": 3.36221091936723,
+          "human_visible_ratio": 0.9835633626097867,
+          "target_visible_ratio": 0.2982456140350877
+        },
+        {
+          "view_index": 5,
+          "yaw_deg": 60.0,
+          "elevation_deg": -10.0,
+          "radius_scale": 0.9632107335278111,
+          "rank_score": 2.640324279832642,
+          "human_visible_ratio": 0.9899667036625971,
+          "target_visible_ratio": 0.25304136253041365
+        }
+      ]
+    },
+    {
+      "edge_index": 1,
+      "body_part": "right hand",
+      "target": "wooden chair",
+      "view_count": 6,
+      "visibility_status": "selected_views",
+      "deterministic_pass": true,
+      "contact_distance_m": 0.02678392264942797,
+      "views": [
+        {
+          "view_index": 0,
+          "yaw_deg": 30.0,
+          "elevation_deg": -10.0,
+          "radius_scale": 0.9607374566233057,
+          "rank_score": 6.2735249119266445,
+          "human_visible_ratio": 0.9822976437553412,
+          "target_visible_ratio": 0.9920106524633822
+        },
+        {
+          "view_index": 1,
+          "yaw_deg": 60.0,
+          "elevation_deg": 0.0,
+          "radius_scale": 0.9556419829018096,
+          "rank_score": 6.205313200816673,
+          "human_visible_ratio": 0.9936494883040936,
+          "target_visible_ratio": 0.9715909090909091
+        },
+        {
+          "view_index": 2,
+          "yaw_deg": 0.0,
+          "elevation_deg": -10.0,
+          "radius_scale": 1.0180587442512186,
+          "rank_score": 6.109123855710919,
+          "human_visible_ratio": 0.9815889130609943,
+          "target_visible_ratio": 0.9731663685152058
+        },
+        {
+          "view_index": 3,
+          "yaw_deg": 90.0,
+          "elevation_deg": 20.0,
+          "radius_scale": 0.9217860556056356,
+          "rank_score": 6.086994907887343,
+          "human_visible_ratio": 0.9854934924078091,
+          "target_visible_ratio": 0.9535714285714286
+        },
+        {
+          "view_index": 4,
+          "yaw_deg": -30.0,
+          "elevation_deg": -10.0,
+          "radius_scale": 1.0723846794193626,
+          "rank_score": 5.6138341323811,
+          "human_visible_ratio": 0.9827369878423398,
+          "target_visible_ratio": 0.8968824940047961
+        },
+        {
+          "view_index": 5,
+          "yaw_deg": 120.0,
+          "elevation_deg": 20.0,
+          "radius_scale": 0.9164199666080312,
+          "rank_score": 4.581130245846623,
+          "human_visible_ratio": 0.8020523005627276,
+          "target_visible_ratio": 0.6770642201834862
+        }
+      ]
+    },
+    {
+      "edge_index": 2,
+      "body_part": "left foot",
+      "target": "floor",
+      "view_count": 6,
+      "visibility_status": "selected_views",
+      "deterministic_pass": true,
+      "contact_distance_m": 0.015865333724060123,
+      "views": [
+        {
+          "view_index": 0,
+          "yaw_deg": 30.0,
+          "elevation_deg": 0.0,
+          "radius_scale": 0.9881224183954743,
+          "rank_score": 6.24562765910677,
+          "human_visible_ratio": 0.9782209995414948,
+          "target_visible_ratio": 0.9887005649717514
+        },
+        {
+          "view_index": 1,
+          "yaw_deg": 60.0,
+          "elevation_deg": 0.0,
+          "radius_scale": 0.9974180531297993,
+          "rank_score": 6.2441580378494494,
+          "human_visible_ratio": 0.9873747298093928,
+          "target_visible_ratio": 0.993963782696177
+        },
+        {
+          "view_index": 2,
+          "yaw_deg": 0.0,
+          "elevation_deg": 0.0,
+          "radius_scale": 0.9961084219125601,
+          "rank_score": 6.163155937886726,
+          "human_visible_ratio": 0.9789986708019495,
+          "target_visible_ratio": 0.9700374531835206
+        },
+        {
+          "view_index": 3,
+          "yaw_deg": -30.0,
+          "elevation_deg": 0.0,
+          "radius_scale": 1.0029373821030314,
+          "rank_score": 6.072869167775485,
+          "human_visible_ratio": 0.9811550151975684,
+          "target_visible_ratio": 0.9568733153638814
+        },
+        {
+          "view_index": 4,
+          "yaw_deg": 90.0,
+          "elevation_deg": 0.0,
+          "radius_scale": 1.0078431805993755,
+          "rank_score": 6.018243893689692,
+          "human_visible_ratio": 0.8890785865797506,
+          "target_visible_ratio": 0.9947916666666666
+        },
+        {
+          "view_index": 5,
+          "yaw_deg": 120.0,
+          "elevation_deg": 10.0,
+          "radius_scale": 1.0864934350690272,
+          "rank_score": 5.545397810080335,
+          "human_visible_ratio": 0.8024314289136424,
+          "target_visible_ratio": 0.9405405405405406
+        }
+      ]
+    },
+    {
+      "edge_index": 3,
+      "body_part": "right foot",
+      "target": "floor",
+      "view_count": 6,
+      "visibility_status": "selected_views",
+      "deterministic_pass": true,
+      "contact_distance_m": 0.014823934188883413,
+      "views": [
+        {
+          "view_index": 0,
+          "yaw_deg": -30.0,
+          "elevation_deg": -10.0,
+          "radius_scale": 0.8074393639197716,
+          "rank_score": 6.337272259328743,
+          "human_visible_ratio": 0.9771834918418986,
+          "target_visible_ratio": 0.9778852798894264
+        },
+        {
+          "view_index": 1,
+          "yaw_deg": 0.0,
+          "elevation_deg": 0.0,
+          "radius_scale": 0.9309693686982505,
+          "rank_score": 6.248526687644344,
+          "human_visible_ratio": 0.9790500917677604,
+          "target_visible_ratio": 0.9873563218390805
+        },
+        {
+          "view_index": 2,
+          "yaw_deg": 30.0,
+          "elevation_deg": 0.0,
+          "radius_scale": 0.9820201254298543,
+          "rank_score": 5.975685851453545,
+          "human_visible_ratio": 0.9773020852555823,
+          "target_visible_ratio": 0.9543726235741445
+        },
+        {
+          "view_index": 3,
+          "yaw_deg": 60.0,
+          "elevation_deg": 0.0,
+          "radius_scale": 1.0597872122740133,
+          "rank_score": 5.7850888195852646,
+          "human_visible_ratio": 0.9842161845191556,
+          "target_visible_ratio": 0.924812030075188
+        },
+        {
+          "view_index": 4,
+          "yaw_deg": 90.0,
+          "elevation_deg": 0.0,
+          "radius_scale": 1.1319276206513755,
+          "rank_score": 5.687999631754295,
+          "human_visible_ratio": 0.9231992367626014,
+          "target_visible_ratio": 0.9276315789473685
+        },
+        {
+          "view_index": 5,
+          "yaw_deg": -90.0,
+          "elevation_deg": 10.0,
+          "radius_scale": 1.0107449588612614,
+          "rank_score": 5.189549134480221,
+          "human_visible_ratio": 0.961082585536734,
+          "target_visible_ratio": 0.7560975609756098
+        }
+      ]
+    }
+  ],
+  "render_params": {
+    "render_image_size": "480x480",
+    "contact_context_output_size": "480x480",
+    "contact_local_output_size": "480x480",
+    "view_planner_image_size": "480x480",
+    "contact_view_count": 6,
+    "candidate_elevations_deg": [
+      -10.0,
+      0.0,
+      10.0,
+      20.0
+    ],
+    "adaptive_yaw_step_deg": 30.0,
+    "adaptive_radius_target_fill_ratio": 0.78,
+    "adaptive_radius_min_scale": 0.8,
+    "adaptive_radius_max_scale": 2.0,
+    "virtual_camera_fov_y_deg": 50.0,
+    "min_view_angular_separation_deg": 15.0,
+    "angular_separation_schedule_deg": [
+      15.0,
+      10.0,
+      5.0,
+      0.0
+    ],
+    "hard_min_human_visible_ratio": 0.2,
+    "hard_min_target_visible_ratio": 0.02,
+    "hard_min_target_visible_pixels": 25,
+    "hard_max_human_frame_fill_ratio": 0.95
+  },
+  "global_selection": {
+    "candidate_count": 48,
+    "selected_count": 6,
+    "hard_rejected_count": 15,
+    "ranked_candidate_count": 33,
+    "rejection_reason_counts": {
+      "hard_low_human_visibility": 15
+    }
+  }
+}

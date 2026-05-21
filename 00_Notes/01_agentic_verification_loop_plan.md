@@ -27,7 +27,7 @@ Each candidate should have a `candidate_manifest.json` containing source interac
 
 ### Deterministic Geometry Evaluation
 
-Add `07_Verify_Static_Scene` to read optimized candidates and produce:
+Add `07_Evaluate_Static_Scene` to read optimized candidates and produce:
 
 - `metrics.json`
 - `evidence/`

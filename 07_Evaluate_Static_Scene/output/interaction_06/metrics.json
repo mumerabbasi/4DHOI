@@ -1,0 +1,57 @@
+{
+  "interaction_name": "interaction_06",
+  "scene_id": "d61691f945",
+  "interaction": "A person sits on the green office chair positioned near the whiteboard wall. Their hips rest firmly on the seat cushion, supporting their upright posture. Both feet are planted flat on the patterned carpet floor, providing stability. The person has short black hair, a calm neutral facial expression, and is wearing a gray shirt, blue jeans, and white sneakers. The green chair is distinct from the blue chairs arranged around the conference table. The room features concrete walls, a large window with blinds, and a whiteboard.",
+  "target_object": {
+    "label": "green chair"
+  },
+  "contact": {
+    "pass": true,
+    "edge_count": 3,
+    "mean_distance_m": 0.027690327347792938,
+    "max_distance_m": 0.04707825819199868,
+    "edges": [
+      {
+        "edge_index": 0,
+        "body_part": "hips",
+        "target": "green chair",
+        "distance_m": 0.04707825819199868,
+        "threshold_m": 0.05,
+        "pass": true
+      },
+      {
+        "edge_index": 1,
+        "body_part": "left foot",
+        "target": "floor",
+        "distance_m": 0.01668406246273134,
+        "threshold_m": 0.05,
+        "pass": true
+      },
+      {
+        "edge_index": 2,
+        "body_part": "right foot",
+        "target": "floor",
+        "distance_m": 0.019308661388648795,
+        "threshold_m": 0.05,
+        "pass": true
+      }
+    ]
+  },
+  "penetration": {
+    "pass": false,
+    "severe_penetration": true,
+    "num_inside_points": 1316,
+    "min_sdf_m": -0.058540668338537216,
+    "thresholds": {
+      "min_sdf_m": -0.03,
+      "inside_points": 1000
+    }
+  },
+  "deterministic": {
+    "pass": false,
+    "failure_tags": [
+      "severe_penetration"
+    ]
+  },
+  "final_total_loss": 0.7515835762023926
+}

@@ -1,0 +1,49 @@
+{
+  "enabled": true,
+  "provider": "ollama",
+  "model": "qwen3.6:27b",
+  "contact_edges": [
+    {
+      "edge_index": 0,
+      "body_part": "right hand",
+      "target": "round white table",
+      "decision": "pass",
+      "pass": true,
+      "reason": "The highlighted red hand is clearly resting on the surface of the round white table in multiple views, consistent with the interaction description."
+    },
+    {
+      "edge_index": 1,
+      "body_part": "left hand",
+      "target": "round white table",
+      "decision": "pass",
+      "pass": true,
+      "reason": "The red highlighted body part (left hand) is visibly resting flat on the surface of the round white table in the provided views, indicating plausible contact."
+    },
+    {
+      "edge_index": 2,
+      "body_part": "left foot",
+      "target": "floor",
+      "decision": "pass",
+      "pass": true,
+      "reason": "The red highlighted left foot is visibly planted on the floor surface in all provided views."
+    },
+    {
+      "edge_index": 3,
+      "body_part": "right foot",
+      "target": "floor",
+      "decision": "pass",
+      "pass": true,
+      "reason": "The red highlighted right foot is clearly planted on the blue floor surface in multiple views, consistent with the description of a stable stance."
+    }
+  ],
+  "pose": {
+    "decision": "pass",
+    "pass": true,
+    "reason": "The full-body pose is physically plausible and stable. The person is standing with feet planted on the floor, leaning forward with the right hand on the table, which matches the core interaction. Although the left arm is resting on the chair/table rather than hanging strictly by the side, the overall posture is anatomically reasonable and consistent with standing beside a table."
+  },
+  "penetration": {
+    "decision": "pass",
+    "pass": true,
+    "reason": "The human model is positioned plausibly with hands resting on the table surface and feet planted on the floor. While the feet are in close proximity to the chair bases, there is no clear, serious penetration into the scene geometry; the interactions appear to be plausible contact or occlusion."
+  }
+}

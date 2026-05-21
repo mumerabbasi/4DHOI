@@ -1,0 +1,86 @@
+{
+  "enabled": true,
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "contact_edges": [
+    {
+      "edge_index": 0,
+      "body_part": "hips",
+      "moving_segment_id": "hips_contact",
+      "crop_segment_id": "hips",
+      "target": "green chair",
+      "view_count": 4,
+      "image_paths": [
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_00_hips_to_green_chair/view_00_ranked_yaw_+90_elev_+0_r_1.05/context.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_00_hips_to_green_chair/view_00_ranked_yaw_+90_elev_+0_r_1.05/local_contact.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_00_hips_to_green_chair/view_01_ranked_yaw_-90_elev_+10_r_1.02/context.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_00_hips_to_green_chair/view_01_ranked_yaw_-90_elev_+10_r_1.02/local_contact.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_00_hips_to_green_chair/view_02_ranked_yaw_+120_elev_+10_r_1.01/context.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_00_hips_to_green_chair/view_02_ranked_yaw_+120_elev_+10_r_1.01/local_contact.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_00_hips_to_green_chair/view_03_ranked_yaw_-60_elev_+10_r_1.10/context.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_00_hips_to_green_chair/view_03_ranked_yaw_-60_elev_+10_r_1.10/local_contact.png"
+      ],
+      "contact_verification_mode": "vlm_images",
+      "visibility_status": "selected_views",
+      "decision": "pass",
+      "pass": true,
+      "reason": "The highlighted red hips are clearly and plausibly resting on the seat cushion of the green office chair across all provided views."
+    },
+    {
+      "edge_index": 1,
+      "body_part": "left foot",
+      "moving_segment_id": "left_foot_bottom",
+      "crop_segment_id": "left_foot",
+      "target": "floor",
+      "view_count": 4,
+      "image_paths": [
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_01_left_foot_to_floor/view_00_ranked_yaw_+60_elev_+0_r_0.90/context.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_01_left_foot_to_floor/view_00_ranked_yaw_+60_elev_+0_r_0.90/local_contact.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_01_left_foot_to_floor/view_01_ranked_yaw_+90_elev_+0_r_0.94/context.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_01_left_foot_to_floor/view_01_ranked_yaw_+90_elev_+0_r_0.94/local_contact.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_01_left_foot_to_floor/view_02_ranked_yaw_+120_elev_+0_r_1.01/context.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_01_left_foot_to_floor/view_02_ranked_yaw_+120_elev_+0_r_1.01/local_contact.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_01_left_foot_to_floor/view_03_ranked_yaw_-30_elev_+0_r_0.94/context.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_01_left_foot_to_floor/view_03_ranked_yaw_-30_elev_+0_r_0.94/local_contact.png"
+      ],
+      "contact_verification_mode": "vlm_images",
+      "visibility_status": "selected_views",
+      "decision": "pass",
+      "pass": true,
+      "reason": "The highlighted left foot is resting flat and plausibly on the floor surface across all views."
+    },
+    {
+      "edge_index": 2,
+      "body_part": "right foot",
+      "moving_segment_id": "right_foot_bottom",
+      "crop_segment_id": "right_foot",
+      "target": "floor",
+      "view_count": 4,
+      "image_paths": [
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_02_right_foot_to_floor/view_00_ranked_yaw_-60_elev_+0_r_0.91/context.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_02_right_foot_to_floor/view_00_ranked_yaw_-60_elev_+0_r_0.91/local_contact.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_02_right_foot_to_floor/view_01_ranked_yaw_-90_elev_+0_r_0.97/context.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_02_right_foot_to_floor/view_01_ranked_yaw_-90_elev_+0_r_0.97/local_contact.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_02_right_foot_to_floor/view_02_ranked_yaw_-30_elev_+0_r_0.89/context.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_02_right_foot_to_floor/view_02_ranked_yaw_-30_elev_+0_r_0.89/local_contact.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_02_right_foot_to_floor/view_03_ranked_yaw_+60_elev_+0_r_0.97/context.png",
+        "/my_workspace/4DHHOI/4DHSI/07_Verify_Static_Scene/output/interaction_06/evidence/contact/edge_02_right_foot_to_floor/view_03_ranked_yaw_+60_elev_+0_r_0.97/local_contact.png"
+      ],
+      "contact_verification_mode": "vlm_images",
+      "visibility_status": "selected_views",
+      "decision": "pass",
+      "pass": true,
+      "reason": "The right foot is visibly and plausibly planted flat on the floor in all provided views."
+    }
+  ],
+  "pose": {
+    "decision": "pass",
+    "pass": true,
+    "reason": "The human model is realistically seated on the green office chair with a natural upright posture, and the feet are well-positioned near the floor, matching the interaction description perfectly."
+  },
+  "penetration": {
+    "decision": "pass",
+    "pass": true,
+    "reason": "The human model is realistically positioned on the green office chair with natural contact on the seat cushion and feet on the floor, showing no visible penetration with the chair, wall, or surrounding scene geometry."
+  }
+}

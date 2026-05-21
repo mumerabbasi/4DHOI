@@ -1,0 +1,56 @@
+{
+  "interaction_name": "interaction_06",
+  "scene_id": "d61691f945",
+  "target_object": {
+    "label": "green chair"
+  },
+  "status": "fail",
+  "failure_tags": [
+    "severe_penetration"
+  ],
+  "deterministic_pass": false,
+  "vlm_enabled": true,
+  "contact_pass": true,
+  "penetration_pass": false,
+  "max_contact_distance_m": 0.04707825819199868,
+  "mean_contact_distance_m": 0.027690327347792938,
+  "severe_penetration": true,
+  "final_total_loss": 0.7515835762023926,
+  "vlm_provider": "ollama",
+  "vlm_model": "qwen3.6:27b",
+  "vlm_decisions": {
+    "contact_edges": [
+      {
+        "edge_index": 0,
+        "body_part": "hips",
+        "target": "green chair",
+        "decision": "pass",
+        "reason": "The red highlighted hips are clearly resting on the seat cushion of the green chair in all views, consistent with a sitting posture."
+      },
+      {
+        "edge_index": 1,
+        "body_part": "left foot",
+        "target": "floor",
+        "decision": "pass",
+        "reason": "The red highlighted left foot is visibly resting flat on the floor surface in all provided views, consistent with the sitting posture."
+      },
+      {
+        "edge_index": 2,
+        "body_part": "right foot",
+        "target": "floor",
+        "decision": "pass",
+        "reason": "The red highlighted right foot is visibly resting on the floor surface in all views, consistent with the description of feet being planted flat."
+      }
+    ],
+    "pose": {
+      "decision": "pass",
+      "pass": true,
+      "reason": "The human model is sitting upright on the green chair with feet planted on the floor and hands resting on the thighs, which is a physically plausible and stable pose matching the description."
+    },
+    "penetration": {
+      "decision": "pass",
+      "pass": true,
+      "reason": "The human model is sitting on the chair with feet hovering above the floor; there are no visible instances of body parts passing through the chair, floor, or walls."
+    }
+  }
+}

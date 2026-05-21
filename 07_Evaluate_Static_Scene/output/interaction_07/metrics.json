@@ -1,0 +1,63 @@
+{
+  "interaction_name": "interaction_07",
+  "scene_id": "6126572846",
+  "interaction": "A person stands beside the round white table, leaning slightly forward with their right hand resting flat on the table surface. The left arm hangs naturally by their side. Both feet are planted on the dark grey floor in a stable, relaxed stance. The person has short dark hair, a neutral facial expression, a light-colored shirt, and dark pants. The room is a clean, bright indoor space with white walls, a large whiteboard on the right wall, and a wooden door in the background.",
+  "target_object": {
+    "label": "round white table"
+  },
+  "contact": {
+    "pass": true,
+    "edge_count": 4,
+    "mean_distance_m": 0.025561332376621032,
+    "max_distance_m": 0.03213574878679692,
+    "edges": [
+      {
+        "edge_index": 0,
+        "body_part": "right hand",
+        "target": "round white table",
+        "distance_m": 0.028209408493686097,
+        "threshold_m": 0.05,
+        "pass": true
+      },
+      {
+        "edge_index": 1,
+        "body_part": "left hand",
+        "target": "round white table",
+        "distance_m": 0.03213574878679692,
+        "threshold_m": 0.05,
+        "pass": true
+      },
+      {
+        "edge_index": 2,
+        "body_part": "left foot",
+        "target": "floor",
+        "distance_m": 0.020896828753281648,
+        "threshold_m": 0.05,
+        "pass": true
+      },
+      {
+        "edge_index": 3,
+        "body_part": "right foot",
+        "target": "floor",
+        "distance_m": 0.021003343472719465,
+        "threshold_m": 0.05,
+        "pass": true
+      }
+    ]
+  },
+  "penetration": {
+    "pass": true,
+    "severe_penetration": false,
+    "num_inside_points": 236,
+    "min_sdf_m": -0.016998643055558205,
+    "thresholds": {
+      "min_sdf_m": -0.03,
+      "inside_points": 1000
+    }
+  },
+  "deterministic": {
+    "pass": true,
+    "failure_tags": []
+  },
+  "final_total_loss": 0.5727893710136414
+}
