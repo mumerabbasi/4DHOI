@@ -1,13 +1,18 @@
-"""Mesh-to-depth alignment using bidirectional chamfer losses on a fixed visible subset.
+"""Mesh-to-depth alignment using chamfer losses on a fixed visible subset.
 
 Overview
 --------
-This script aligns human/object meshes to frame_00 depth in camera coordinates
-with bidirectional chamfer terms in 3D and 2D:
+This script aligns frame-0 human/object meshes to frame_00 depth in camera
+coordinates. Humans are loaded directly from GVHMR SMPL-X parameters; objects are
+loaded from SAM3DObjects meshes. Each mesh gets its own similarity transform:
+
+    p' = exp(alpha) * p + [tx, ty, tz]
+
+The transform is optimized with bidirectional chamfer terms in 3D and 2D:
 - 3D: observed depth points <-> transformed mesh surface samples
 - 2D: observed mask pixels <-> projected transformed mesh surface samples
 
-Compared to the base chamfer script, visibility is computed once at initialization:
+Visibility is computed once at initialization:
 1. Sample mesh points on surface (triangle-area weighted).
 2. Render once at init pose and keep only visible sampled points as fixed subset.
 3. Optimize on that fixed subset for all subsequent iterations.
@@ -41,7 +46,6 @@ from utils_align_meshes import (
     colorize_points_by_xyz,
     erode_mask,
     ensure_3x3_intrinsics,
-    find_first_human_ply,
     add_overlay_legend,
     load_binary_mask,
     load_json,
@@ -62,6 +66,7 @@ from utils_align_meshes import (
 class ObservationSet:
     obs_points_3d: np.ndarray  # (N3,3)
     obs_pixels_2d: np.ndarray  # (N2,2), (u,v)
+    observed_height_3d_m: float
     mask_pixels_total: int
     depth_valid_pixels_total: int
     obs_3d_used: int
@@ -78,7 +83,8 @@ class OptimizationResultChamfer:
     model_sample_count_total: int
     model_sample_count_visible_fixed: int
     model_sample_visible_ratio: float
-    visible_subset_mode: str
+    scale_init: float
+    log_scale_init: float
     scale: float
     log_scale: float
     tx_init: float
@@ -125,21 +131,10 @@ class ResumeStateChamfer:
     best_delta_ty: float | None
     best_delta_tz: float | None
     visible_subset_indices: np.ndarray
-    visible_subset_mode: str
     visible_subset_z_abs_tol_m: float
     visible_subset_z_rel_tol: float
-    min_visible_subset_points_per_mesh: int
     visible_subset_focal_scale: float
     optimizer_state_dict: dict[str, Any] | None
-
-
-@dataclass
-class FixedVisibleSubset:
-    indices: np.ndarray
-    mode: str
-    strict_visible_count: int
-    in_frame_positive_count: int
-    positive_depth_count: int
 
 
 def geman_mcclure_func(residual: torch.Tensor, rho: float) -> torch.Tensor:
@@ -149,6 +144,36 @@ def geman_mcclure_func(residual: torch.Tensor, rho: float) -> torch.Tensor:
     return rho2 * dist
 
 
+def compute_height_y_percentile_m(points: np.ndarray) -> float:
+    y = points[:, 1].astype(np.float32)
+    return float(np.percentile(y, 95.0) - np.percentile(y, 5.0))
+
+
+def load_first_frame_smplx_mesh_from_gvhmr(
+    result_path: Path,
+    smplx_layer: Any,
+    faces_smplx: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    data = torch.load(str(result_path), map_location="cpu")
+    params = data["smpl_params_incam"]
+
+    betas = params["betas"].detach().clone().float()
+    body_pose = params["body_pose"].detach().clone().float()
+    global_orient = params["global_orient"].detach().clone().float()
+    transl = params["transl"].detach().clone().float()
+
+    beta_frame0 = betas[:1] if betas.ndim > 1 else betas.view(1, -1)
+    with torch.no_grad():
+        output = smplx_layer(
+            betas=beta_frame0,
+            body_pose=body_pose[:1],
+            global_orient=global_orient[:1],
+            transl=transl[:1],
+        )
+    verts = output.vertices[0].detach().cpu().numpy().astype(np.float32)
+    return verts, np.asarray(faces_smplx, dtype=np.int64)
+
+
 def sample_mesh_surface_points(
     verts_cv: np.ndarray,
     faces: np.ndarray,
@@ -156,11 +181,6 @@ def sample_mesh_surface_points(
     seed: int,
 ) -> np.ndarray:
     """Uniformly sample mesh surface points in OpenCV camera coordinates."""
-    if n_samples <= 0:
-        raise ValueError("n_samples must be > 0")
-    if verts_cv.shape[0] == 0 or faces.shape[0] == 0:
-        return np.zeros((0, 3), dtype=np.float32)
-
     tri = verts_cv[faces]  # (F,3,3)
     v0 = tri[:, 0, :]
     v1 = tri[:, 1, :]
@@ -170,11 +190,6 @@ def sample_mesh_surface_points(
 
     rng = np.random.default_rng(seed)
     area_sum = float(np.sum(areas))
-    if not np.isfinite(area_sum) or area_sum <= 1e-12:
-        # Degenerate fallback: sample vertices.
-        vidx = rng.choice(verts_cv.shape[0], size=int(n_samples), replace=True)
-        return verts_cv[vidx].astype(np.float32)
-
     probs = areas / area_sum
     fidx = rng.choice(faces.shape[0], size=int(n_samples), replace=True, p=probs)
     tri_sel = tri[fidx]  # (N,3,3)
@@ -208,18 +223,9 @@ def build_fixed_visible_subset(
     tz_init: float,
     z_abs_tol_m: float,
     z_rel_tol: float,
-    min_visible_subset_points_per_mesh: int,
     focal_scale_for_visibility: float,
-) -> FixedVisibleSubset:
+) -> np.ndarray:
     n_samples = int(sampled_points_base.shape[0])
-    if n_samples == 0:
-        return FixedVisibleSubset(
-            indices=np.zeros((0,), dtype=np.int64),
-            mode="no_samples",
-            strict_visible_count=0,
-            in_frame_positive_count=0,
-            positive_depth_count=0,
-        )
 
     verts_init = (float(scale_init) * verts_cv).astype(np.float32)
     verts_init[:, 0] += float(tx_init)
@@ -297,28 +303,7 @@ def build_fixed_visible_subset(
         ztol = float(z_abs_tol_m) + float(z_rel_tol) * np.maximum(zr, 1e-6)
         strict_visible[ii] = np.abs(z[ii] - zr) <= ztol
 
-    strict_idx = np.nonzero(strict_visible)[0].astype(np.int64)
-    in_frame_positive_idx = np.nonzero(in_frame)[0].astype(np.int64)
-    positive_depth_idx = np.nonzero(valid_depth)[0].astype(np.int64)
-
-    min_count = int(min_visible_subset_points_per_mesh)
-    if strict_idx.shape[0] >= min_count:
-        idx = strict_idx
-        mode = "strict_visible"
-    elif in_frame_positive_idx.shape[0] >= min_count:
-        idx = in_frame_positive_idx
-        mode = "fallback_in_frame_positive_depth"
-    else:
-        idx = positive_depth_idx
-        mode = "fallback_positive_depth"
-
-    return FixedVisibleSubset(
-        indices=idx.astype(np.int64),
-        mode=mode,
-        strict_visible_count=int(strict_idx.shape[0]),
-        in_frame_positive_count=int(in_frame_positive_idx.shape[0]),
-        positive_depth_count=int(positive_depth_idx.shape[0]),
-    )
+    return np.nonzero(strict_visible)[0].astype(np.int64)
 
 
 def colorize_points_by_xy(points_2d: np.ndarray) -> np.ndarray:
@@ -337,88 +322,79 @@ def colorize_points_by_xy(points_2d: np.ndarray) -> np.ndarray:
 def build_observation_set(
     depth: np.ndarray,
     intrinsics: np.ndarray,
-    mask_2d: np.ndarray | None,
-    mask_3d: np.ndarray | None,
+    mask_2d: np.ndarray,
+    mask_3d: np.ndarray,
     max_obs_3d_points: int,
     max_obs_2d_points: int,
     seed: int,
 ) -> ObservationSet:
-    if mask_2d is None and mask_3d is None:
-        return ObservationSet(
-            obs_points_3d=np.zeros((0, 3), dtype=np.float32),
-            obs_pixels_2d=np.zeros((0, 2), dtype=np.float32),
-            mask_pixels_total=0,
-            depth_valid_pixels_total=0,
-            obs_3d_used=0,
-            obs_2d_used=0,
-        )
-
     rng = np.random.default_rng(seed)
 
     # O2D: all pixels in the raw silhouette mask (with optional cap).
-    if mask_2d is None:
-        obs2d = np.zeros((0, 2), dtype=np.float32)
-        n_mask_2d_total = 0
+    mask_2d_bool = mask_2d > 0.5
+    ys2d_all, xs2d_all = np.nonzero(mask_2d_bool)
+    n_mask_2d_total = int(xs2d_all.shape[0])
+    if n_mask_2d_total > 0:
+        idx2d = np.arange(n_mask_2d_total, dtype=np.int64)
+        if max_obs_2d_points > 0 and n_mask_2d_total > int(max_obs_2d_points):
+            idx2d = rng.choice(
+                n_mask_2d_total, size=int(max_obs_2d_points), replace=False
+            )
+        xs2d = xs2d_all[idx2d].astype(np.float32)
+        ys2d = ys2d_all[idx2d].astype(np.float32)
+        obs2d = np.stack([xs2d, ys2d], axis=1).astype(np.float32)
     else:
-        mask_2d_bool = mask_2d > 0.5
-        ys2d_all, xs2d_all = np.nonzero(mask_2d_bool)
-        n_mask_2d_total = int(xs2d_all.shape[0])
-        if n_mask_2d_total > 0:
-            idx2d = np.arange(n_mask_2d_total, dtype=np.int64)
-            if max_obs_2d_points > 0 and n_mask_2d_total > int(max_obs_2d_points):
-                idx2d = rng.choice(
-                    n_mask_2d_total, size=int(max_obs_2d_points), replace=False
-                )
-            xs2d = xs2d_all[idx2d].astype(np.float32)
-            ys2d = ys2d_all[idx2d].astype(np.float32)
-            obs2d = np.stack([xs2d, ys2d], axis=1).astype(np.float32)
-        else:
-            obs2d = np.zeros((0, 2), dtype=np.float32)
+        obs2d = np.zeros((0, 2), dtype=np.float32)
 
     # O3D: depth-valid pixels within the eroded mask, backprojected.
-    if mask_3d is None:
+    mask_3d_bool = mask_3d > 0.5
+    ys3_mask, xs3_mask = np.nonzero(mask_3d_bool)
+    if xs3_mask.shape[0] == 0:
         obs3d = np.zeros((0, 3), dtype=np.float32)
+        observed_height_3d_m = 0.0
         n_depth_valid_total = 0
     else:
-        mask_3d_bool = mask_3d > 0.5
-        ys3_mask, xs3_mask = np.nonzero(mask_3d_bool)
-        if xs3_mask.shape[0] == 0:
-            obs3d = np.zeros((0, 3), dtype=np.float32)
-            n_depth_valid_total = 0
+        z_all = depth[ys3_mask, xs3_mask]
+        valid_depth = np.isfinite(z_all) & (z_all > 0.0)
+        ys3_all = ys3_mask[valid_depth]
+        xs3_all = xs3_mask[valid_depth]
+        z3_all = z_all[valid_depth].astype(np.float32)
+        n_depth_valid_total = int(z3_all.shape[0])
+
+        if n_depth_valid_total > 0:
+            fx = float(intrinsics[0, 0])
+            fy = float(intrinsics[1, 1])
+            cx = float(intrinsics[0, 2])
+            cy = float(intrinsics[1, 2])
+            x3_all = ((xs3_all.astype(np.float32) - cx) / fx) * z3_all
+            y3_all = ((ys3_all.astype(np.float32) - cy) / fy) * z3_all
+            observed_height_3d_m = compute_height_y_percentile_m(
+                np.stack([x3_all, y3_all, z3_all], axis=1).astype(np.float32)
+            )
+
+            idx3d = np.arange(n_depth_valid_total, dtype=np.int64)
+            if (
+                max_obs_3d_points > 0
+                and n_depth_valid_total > int(max_obs_3d_points)
+            ):
+                idx3d = rng.choice(
+                    n_depth_valid_total, size=int(max_obs_3d_points), replace=False
+                )
+            xs3 = xs3_all[idx3d].astype(np.float32)
+            ys3 = ys3_all[idx3d].astype(np.float32)
+            z3 = z3_all[idx3d]
+
+            x3 = ((xs3 - cx) / fx) * z3
+            y3 = ((ys3 - cy) / fy) * z3
+            obs3d = np.stack([x3, y3, z3], axis=1).astype(np.float32)
         else:
-            z_all = depth[ys3_mask, xs3_mask]
-            valid_depth = np.isfinite(z_all) & (z_all > 0.0)
-            ys3_all = ys3_mask[valid_depth]
-            xs3_all = xs3_mask[valid_depth]
-            z3_all = z_all[valid_depth].astype(np.float32)
-            n_depth_valid_total = int(z3_all.shape[0])
-
-            if n_depth_valid_total > 0:
-                idx3d = np.arange(n_depth_valid_total, dtype=np.int64)
-                if (
-                    max_obs_3d_points > 0
-                    and n_depth_valid_total > int(max_obs_3d_points)
-                ):
-                    idx3d = rng.choice(
-                        n_depth_valid_total, size=int(max_obs_3d_points), replace=False
-                    )
-                xs3 = xs3_all[idx3d].astype(np.float32)
-                ys3 = ys3_all[idx3d].astype(np.float32)
-                z3 = z3_all[idx3d]
-
-                fx = float(intrinsics[0, 0])
-                fy = float(intrinsics[1, 1])
-                cx = float(intrinsics[0, 2])
-                cy = float(intrinsics[1, 2])
-                x3 = ((xs3 - cx) / fx) * z3
-                y3 = ((ys3 - cy) / fy) * z3
-                obs3d = np.stack([x3, y3, z3], axis=1).astype(np.float32)
-            else:
-                obs3d = np.zeros((0, 3), dtype=np.float32)
+            observed_height_3d_m = 0.0
+            obs3d = np.zeros((0, 3), dtype=np.float32)
 
     return ObservationSet(
         obs_points_3d=obs3d,
         obs_pixels_2d=obs2d,
+        observed_height_3d_m=observed_height_3d_m,
         mask_pixels_total=n_mask_2d_total,
         depth_valid_pixels_total=n_depth_valid_total,
         obs_3d_used=int(obs3d.shape[0]),
@@ -622,7 +598,6 @@ def save_chamfer_debug_snapshot(
     nn2d_idx: np.ndarray,
     nn2d_d2: np.ndarray,
     nn3d_d2: np.ndarray,
-    visible_subset_mode: str,
     visible_subset_count: int,
     total_model_samples: int,
     point_radius: int,
@@ -692,7 +667,7 @@ def save_chamfer_debug_snapshot(
     )
     cv2.putText(
         right,
-        f"N={model2d_visible.shape[0]} visible={visible_subset_count} mode={visible_subset_mode}",
+        f"N={model2d_visible.shape[0]} visible={visible_subset_count}",
         (12, 56),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.5,
@@ -820,6 +795,7 @@ def build_resume_signature(
     interaction_name: str,
     mesh_slug: str,
     mesh_name: str,
+    mesh_kind: str,
     intrinsics_source: str,
     opt_max_side: int,
     sam3_mask_erode_iters: int,
@@ -832,18 +808,17 @@ def build_resume_signature(
     max_obs_3d_points_per_mesh: int,
     max_obs_2d_points_per_mesh: int,
     nn_chunk_size: int,
-    min_obs_3d_points_per_mesh: int,
-    min_obs_2d_points_per_mesh: int,
     visible_subset_z_abs_tol_m: float,
     visible_subset_z_rel_tol: float,
-    min_visible_subset_points_per_mesh: int,
     visible_subset_focal_scale: float,
 ) -> dict[str, Any]:
     return {
         "interaction_name": interaction_name,
         "mesh_slug": mesh_slug,
         "mesh_name": mesh_name,
+        "mesh_kind": mesh_kind,
         "mask_observation_mode": "raw_2d_eroded_3d",
+        "scale_parameterization": "unbounded_log_scale_with_height_init",
         "intrinsics_source": intrinsics_source,
         "opt_max_side": int(opt_max_side),
         "sam3_mask_erode_iters": int(sam3_mask_erode_iters),
@@ -856,11 +831,8 @@ def build_resume_signature(
         "max_obs_3d_points_per_mesh": int(max_obs_3d_points_per_mesh),
         "max_obs_2d_points_per_mesh": int(max_obs_2d_points_per_mesh),
         "nn_chunk_size": int(nn_chunk_size),
-        "min_obs_3d_points_per_mesh": int(min_obs_3d_points_per_mesh),
-        "min_obs_2d_points_per_mesh": int(min_obs_2d_points_per_mesh),
         "visible_subset_z_abs_tol_m": float(visible_subset_z_abs_tol_m),
         "visible_subset_z_rel_tol": float(visible_subset_z_rel_tol),
-        "min_visible_subset_points_per_mesh": int(min_visible_subset_points_per_mesh),
         "visible_subset_focal_scale": float(visible_subset_focal_scale),
     }
 
@@ -918,10 +890,8 @@ def save_resume_checkpoint(
     best_delta_ty: float | None,
     best_delta_tz: float | None,
     visible_subset_indices: np.ndarray,
-    visible_subset_mode: str,
     visible_subset_z_abs_tol_m: float,
     visible_subset_z_rel_tol: float,
-    min_visible_subset_points_per_mesh: int,
     visible_subset_focal_scale: float,
 ) -> None:
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
@@ -945,10 +915,8 @@ def save_resume_checkpoint(
         "best_delta_ty": None if best_delta_ty is None else float(best_delta_ty),
         "best_delta_tz": None if best_delta_tz is None else float(best_delta_tz),
         "visible_subset_indices": visible_subset_indices.astype(np.int64).tolist(),
-        "visible_subset_mode": str(visible_subset_mode),
         "visible_subset_z_abs_tol_m": float(visible_subset_z_abs_tol_m),
         "visible_subset_z_rel_tol": float(visible_subset_z_rel_tol),
-        "min_visible_subset_points_per_mesh": int(min_visible_subset_points_per_mesh),
         "visible_subset_focal_scale": float(visible_subset_focal_scale),
     }
     torch.save(payload, str(checkpoint_path))
@@ -1009,12 +977,8 @@ def load_resume_checkpoint(
             None if payload.get("best_delta_tz") is None else float(payload["best_delta_tz"])
         ),
         visible_subset_indices=visible_subset_indices,
-        visible_subset_mode=str(payload.get("visible_subset_mode", "unknown")),
         visible_subset_z_abs_tol_m=float(payload.get("visible_subset_z_abs_tol_m", 0.02)),
         visible_subset_z_rel_tol=float(payload.get("visible_subset_z_rel_tol", 0.01)),
-        min_visible_subset_points_per_mesh=int(
-            payload.get("min_visible_subset_points_per_mesh", 128)
-        ),
         visible_subset_focal_scale=float(payload.get("visible_subset_focal_scale", 0.6)),
         optimizer_state_dict=payload.get("optimizer_state_dict"),
     )
@@ -1050,23 +1014,7 @@ def save_loss_history_csv_chamfer(
     np.savetxt(
         str(out_path),
         arr,
-        fmt=[
-            "%d",
-            "%.8f",
-            "%.8f",
-            "%.8f",
-            "%.8f",
-            "%.8f",
-            "%.8f",
-            "%.8f",
-            "%.8f",
-            "%.8f",
-            "%.8f",
-            "%.8f",
-            "%.8f",
-            "%.8f",
-            "%.8f",
-        ],
+        fmt=["%d"] + ["%.8f"] * (arr.shape[1] - 1),
         delimiter=",",
         header=(
             "iter,total,cd3d,cd3d_fwd,cd3d_bwd,cd3d_raw,cd3d_raw_fwd,cd3d_raw_bwd,"
@@ -1133,7 +1081,6 @@ def plot_loss_curves_chamfer(
 
 
 def compute_losses_chamfer_torch(
-    model_points_base_all: torch.Tensor,
     model_points_base_visible: torch.Tensor,
     obs3d: torch.Tensor,
     obs2d: torch.Tensor,
@@ -1155,8 +1102,6 @@ def compute_losses_chamfer_torch(
     ty = ty_init + delta_ty
     tz = tz_init + delta_tz
 
-    model3d_all = scale * model_points_base_all
-    model3d_all = model3d_all + torch.stack([tx, ty, tz]).view(1, 3)
     model3d_visible = scale * model_points_base_visible
     model3d_visible = model3d_visible + torch.stack([tx, ty, tz]).view(1, 3)
 
@@ -1238,7 +1183,6 @@ def compute_losses_chamfer_torch(
         "tx": tx,
         "ty": ty,
         "tz": tz,
-        "model3d_all": model3d_all,
         "model3d_visible": model3d_visible,
         "model2d_visible": model2d_visible,
     }
@@ -1246,6 +1190,7 @@ def compute_losses_chamfer_torch(
 
 def optimize_scale_txyz_chamfer(
     mesh_name: str,
+    mesh_kind: str,
     obs: ObservationSet,
     model_points_base_np: np.ndarray,
     verts_cv_np: np.ndarray,
@@ -1266,8 +1211,6 @@ def optimize_scale_txyz_chamfer(
     debug_max_points_vis: int,
     debug_max_nn_lines: int,
     debug_seed: int,
-    min_obs_3d_points_per_mesh: int,
-    min_obs_2d_points_per_mesh: int,
     checkpoint_path: Path,
     resume_signature: dict[str, Any],
     resume_state: ResumeStateChamfer | None,
@@ -1277,7 +1220,6 @@ def optimize_scale_txyz_chamfer(
     early_stop_min_iter: int,
     visible_subset_z_abs_tol_m: float,
     visible_subset_z_rel_tol: float,
-    min_visible_subset_points_per_mesh: int,
     visible_subset_focal_scale: float,
 ) -> OptimizationResultChamfer:
     n_obs3d = int(obs.obs_points_3d.shape[0])
@@ -1286,89 +1228,6 @@ def optimize_scale_txyz_chamfer(
     resumed = resume_state is not None
     resume_source = "checkpoint" if resumed else "fresh"
     start_iter = 0 if resume_state is None else int(resume_state.start_iter)
-
-    if n_model_total == 0:
-        return OptimizationResultChamfer(
-            status="skipped_no_model_samples",
-            message="No model surface samples available.",
-            obs_3d_count=n_obs3d,
-            obs_2d_count=n_obs2d,
-            model_sample_count=0,
-            model_sample_count_total=0,
-            model_sample_count_visible_fixed=0,
-            model_sample_visible_ratio=0.0,
-            visible_subset_mode="no_samples",
-            scale=1.0,
-            log_scale=0.0,
-            tx_init=0.0,
-            ty_init=0.0,
-            tz_init=0.0,
-            delta_tx=0.0,
-            delta_ty=0.0,
-            delta_tz=0.0,
-            tx=0.0,
-            ty=0.0,
-            tz=0.0,
-            history=new_history_dict_chamfer(),
-            final_total_loss=None,
-            final_cd3d_loss=None,
-            final_cd2d_loss=None,
-            resumed=resumed,
-            resume_source=resume_source,
-            start_iter=start_iter,
-            end_iter=start_iter,
-            iters_executed_this_run=0,
-            early_stopped=False,
-            early_stop_iter=None,
-            best_iter=None,
-            best_total=None,
-            checkpoint_path=str(checkpoint_path),
-        )
-
-    enough_3d = n_obs3d >= int(min_obs_3d_points_per_mesh)
-    enough_2d = n_obs2d >= int(min_obs_2d_points_per_mesh)
-    if not enough_3d and not enough_2d:
-        msg = (
-            "Too few observations for both 3D and 2D: "
-            f"obs3d={n_obs3d} (<{int(min_obs_3d_points_per_mesh)}), "
-            f"obs2d={n_obs2d} (<{int(min_obs_2d_points_per_mesh)})."
-        )
-        return OptimizationResultChamfer(
-            status="skipped_too_few_observations",
-            message=msg,
-            obs_3d_count=n_obs3d,
-            obs_2d_count=n_obs2d,
-            model_sample_count=0,
-            model_sample_count_total=n_model_total,
-            model_sample_count_visible_fixed=0,
-            model_sample_visible_ratio=0.0,
-            visible_subset_mode="too_few_observations",
-            scale=1.0,
-            log_scale=0.0,
-            tx_init=0.0,
-            ty_init=0.0,
-            tz_init=0.0,
-            delta_tx=0.0,
-            delta_ty=0.0,
-            delta_tz=0.0,
-            tx=0.0,
-            ty=0.0,
-            tz=0.0,
-            history=new_history_dict_chamfer(),
-            final_total_loss=None,
-            final_cd3d_loss=None,
-            final_cd2d_loss=None,
-            resumed=resumed,
-            resume_source=resume_source,
-            start_iter=start_iter,
-            end_iter=start_iter,
-            iters_executed_this_run=0,
-            early_stopped=False,
-            early_stop_iter=None,
-            best_iter=None,
-            best_total=None,
-            checkpoint_path=str(checkpoint_path),
-        )
 
     obs3d_t = torch.from_numpy(obs.obs_points_3d).to(device=device, dtype=torch.float32)
     obs2d_t = torch.from_numpy(obs.obs_pixels_2d).to(device=device, dtype=torch.float32)
@@ -1380,70 +1239,30 @@ def optimize_scale_txyz_chamfer(
     else:
         tx_init_val = 0.0
         ty_init_val = 0.0
-        if n_obs3d > 0:
-            obs_z_median = float(np.median(obs.obs_points_3d[:, 2]))
-            model_z_median = float(np.median(model_points_base_np[:, 2]))
-            tz_init_val = obs_z_median - model_z_median
-            tz_init_val = 0.0
-        else:
-            tz_init_val = 0.0
+        tz_init_val = 0.0
 
-    log_scale_init = 0.0 if resume_state is None else float(resume_state.log_scale)
+    mesh_height_init_m = compute_height_y_percentile_m(verts_cv_np)
+    if resume_state is None:
+        scale_init_val = float(obs.observed_height_3d_m) / float(mesh_height_init_m)
+        log_scale_init = math.log(scale_init_val)
+        print(
+            f"[{mesh_name}] height scale init: "
+            f"mesh_height={mesh_height_init_m:.4f}m "
+            f"depth_height={obs.observed_height_3d_m:.4f}m "
+            f"scale={scale_init_val:.6f}"
+        )
+    else:
+        log_scale_init = float(resume_state.log_scale)
+        scale_init_val = float(math.exp(log_scale_init))
+
     delta_tx_init = 0.0 if resume_state is None else float(resume_state.delta_tx)
     delta_ty_init = 0.0 if resume_state is None else float(resume_state.delta_ty)
     delta_tz_init = 0.0 if resume_state is None else float(resume_state.delta_tz)
 
     if resumed:
-        if not math.isclose(
-            float(resume_state.visible_subset_z_abs_tol_m),
-            float(visible_subset_z_abs_tol_m),
-            rel_tol=0.0,
-            abs_tol=1e-12,
-        ):
-            raise RuntimeError(
-                f"[{mesh_name}] checkpoint visible_subset_z_abs_tol_m mismatch: "
-                f"checkpoint={resume_state.visible_subset_z_abs_tol_m} "
-                f"current={visible_subset_z_abs_tol_m}"
-            )
-        if not math.isclose(
-            float(resume_state.visible_subset_z_rel_tol),
-            float(visible_subset_z_rel_tol),
-            rel_tol=0.0,
-            abs_tol=1e-12,
-        ):
-            raise RuntimeError(
-                f"[{mesh_name}] checkpoint visible_subset_z_rel_tol mismatch: "
-                f"checkpoint={resume_state.visible_subset_z_rel_tol} "
-                f"current={visible_subset_z_rel_tol}"
-            )
-        if int(resume_state.min_visible_subset_points_per_mesh) != int(
-            min_visible_subset_points_per_mesh
-        ):
-            raise RuntimeError(
-                f"[{mesh_name}] checkpoint min_visible_subset_points_per_mesh mismatch: "
-                f"checkpoint={resume_state.min_visible_subset_points_per_mesh} "
-                f"current={min_visible_subset_points_per_mesh}"
-            )
-        if not math.isclose(
-            float(resume_state.visible_subset_focal_scale),
-            float(visible_subset_focal_scale),
-            rel_tol=0.0,
-            abs_tol=1e-12,
-        ):
-            raise RuntimeError(
-                f"[{mesh_name}] checkpoint visible_subset_focal_scale mismatch: "
-                f"checkpoint={resume_state.visible_subset_focal_scale} "
-                f"current={visible_subset_focal_scale}"
-            )
-
-    if resumed:
         visible_subset_indices = resume_state.visible_subset_indices.astype(np.int64)
-        visible_subset_mode = str(resume_state.visible_subset_mode)
-        strict_visible_count = int(visible_subset_indices.shape[0])
-        in_frame_positive_count = int(visible_subset_indices.shape[0])
-        positive_depth_count = int(visible_subset_indices.shape[0])
     else:
-        subset = build_fixed_visible_subset(
+        visible_subset_indices = build_fixed_visible_subset(
             verts_cv=verts_cv_np,
             faces=faces_np,
             sampled_points_base=model_points_base_np,
@@ -1457,68 +1276,14 @@ def optimize_scale_txyz_chamfer(
             tz_init=float(tz_init_val + delta_tz_init),
             z_abs_tol_m=float(visible_subset_z_abs_tol_m),
             z_rel_tol=float(visible_subset_z_rel_tol),
-            min_visible_subset_points_per_mesh=int(min_visible_subset_points_per_mesh),
             focal_scale_for_visibility=float(visible_subset_focal_scale),
-        )
-        visible_subset_indices = subset.indices.astype(np.int64)
-        visible_subset_mode = subset.mode
-        strict_visible_count = int(subset.strict_visible_count)
-        in_frame_positive_count = int(subset.in_frame_positive_count)
-        positive_depth_count = int(subset.positive_depth_count)
-
-    valid_idx = (
-        (visible_subset_indices >= 0) & (visible_subset_indices < int(n_model_total))
-    )
-    visible_subset_indices = visible_subset_indices[valid_idx]
-    if visible_subset_indices.shape[0] == 0:
-        msg = (
-            "No visible fixed model subset points after one-time visibility selection "
-            f"(mode={visible_subset_mode})."
-        )
-        return OptimizationResultChamfer(
-            status="skipped_no_visible_subset",
-            message=msg,
-            obs_3d_count=n_obs3d,
-            obs_2d_count=n_obs2d,
-            model_sample_count=0,
-            model_sample_count_total=n_model_total,
-            model_sample_count_visible_fixed=0,
-            model_sample_visible_ratio=0.0,
-            visible_subset_mode=visible_subset_mode,
-            scale=1.0,
-            log_scale=0.0,
-            tx_init=tx_init_val,
-            ty_init=ty_init_val,
-            tz_init=tz_init_val,
-            delta_tx=0.0,
-            delta_ty=0.0,
-            delta_tz=0.0,
-            tx=float(tx_init_val),
-            ty=float(ty_init_val),
-            tz=float(tz_init_val),
-            history=new_history_dict_chamfer(),
-            final_total_loss=None,
-            final_cd3d_loss=None,
-            final_cd2d_loss=None,
-            resumed=resumed,
-            resume_source=resume_source,
-            start_iter=start_iter,
-            end_iter=start_iter,
-            iters_executed_this_run=0,
-            early_stopped=False,
-            early_stop_iter=None,
-            best_iter=None,
-            best_total=None,
-            checkpoint_path=str(checkpoint_path),
         )
 
     n_model_visible = int(visible_subset_indices.shape[0])
     visible_ratio = float(n_model_visible) / float(max(1, n_model_total))
     print(
         f"[{mesh_name}] fixed visible subset: {n_model_visible}/{n_model_total} "
-        f"(ratio={visible_ratio:.4f}, mode={visible_subset_mode}, "
-        f"strict={strict_visible_count}, in_frame_zpos={in_frame_positive_count}, "
-        f"zpos={positive_depth_count})"
+        f"(ratio={visible_ratio:.4f})"
     )
 
     model_visible_base_np = model_points_base_np[visible_subset_indices]
@@ -1552,15 +1317,6 @@ def optimize_scale_txyz_chamfer(
 
     if resumed:
         history = normalize_history_chamfer(resume_state.history)
-        if len(history["iter"]) > 0 and int(history["iter"][-1]) != start_iter:
-            raise ValueError(
-                f"{mesh_name}: checkpoint start_iter={start_iter} does not match "
-                f"history last iter={history['iter'][-1]}."
-            )
-        if len(history["iter"]) == 0 and start_iter != 0:
-            raise ValueError(
-                f"{mesh_name}: checkpoint start_iter={start_iter} with empty history."
-            )
     else:
         history = new_history_dict_chamfer()
     obs3d_anchor_colors = colorize_points_by_xyz(obs.obs_points_3d)
@@ -1569,7 +1325,12 @@ def optimize_scale_txyz_chamfer(
 
     def _save_debug(iter_idx: int, losses_eval: dict[str, torch.Tensor], save_fixed: bool) -> None:
         with torch.no_grad():
-            model3d_all_t = losses_eval["model3d_all"]
+            scale_t = losses_eval["scale"]
+            tx_t = losses_eval["tx"]
+            ty_t = losses_eval["ty"]
+            tz_t = losses_eval["tz"]
+            model3d_all_t = scale_t * model_base_all_t
+            model3d_all_t = model3d_all_t + torch.stack([tx_t, ty_t, tz_t]).view(1, 3)
             model3d_visible_t = losses_eval["model3d_visible"]
             model2d_visible_t = losses_eval["model2d_visible"]
             model3d_all_np = model3d_all_t.detach().cpu().numpy()
@@ -1651,7 +1412,6 @@ def optimize_scale_txyz_chamfer(
                 else idx2d_t.detach().cpu().numpy().astype(np.int64),
                 nn2d_d2=d2_2d_t.detach().cpu().numpy(),
                 nn3d_d2=d2_3d_t.detach().cpu().numpy(),
-                visible_subset_mode=visible_subset_mode,
                 visible_subset_count=int(n_model_visible),
                 total_model_samples=int(n_model_total),
                 point_radius=debug_point_radius,
@@ -1690,7 +1450,6 @@ def optimize_scale_txyz_chamfer(
     else:
         with torch.no_grad():
             init_losses = compute_losses_chamfer_torch(
-                model_points_base_all=model_base_all_t,
                 model_points_base_visible=model_base_visible_t,
                 obs3d=obs3d_t,
                 obs2d=obs2d_t,
@@ -1755,10 +1514,8 @@ def optimize_scale_txyz_chamfer(
             best_delta_ty=best_delta_ty,
             best_delta_tz=best_delta_tz,
             visible_subset_indices=visible_subset_indices,
-            visible_subset_mode=visible_subset_mode,
             visible_subset_z_abs_tol_m=float(visible_subset_z_abs_tol_m),
             visible_subset_z_rel_tol=float(visible_subset_z_rel_tol),
-            min_visible_subset_points_per_mesh=int(min_visible_subset_points_per_mesh),
             visible_subset_focal_scale=float(visible_subset_focal_scale),
         )
 
@@ -1774,7 +1531,6 @@ def optimize_scale_txyz_chamfer(
         global_iter = start_iter + local_iter
         optimizer.zero_grad(set_to_none=True)
         losses = compute_losses_chamfer_torch(
-            model_points_base_all=model_base_all_t,
             model_points_base_visible=model_base_visible_t,
             obs3d=obs3d_t,
             obs2d=obs2d_t,
@@ -1796,7 +1552,6 @@ def optimize_scale_txyz_chamfer(
 
         with torch.no_grad():
             eval_losses = compute_losses_chamfer_torch(
-                model_points_base_all=model_base_all_t,
                 model_points_base_visible=model_base_visible_t,
                 obs3d=obs3d_t,
                 obs2d=obs2d_t,
@@ -1884,7 +1639,6 @@ def optimize_scale_txyz_chamfer(
 
     with torch.no_grad():
         final_losses = compute_losses_chamfer_torch(
-            model_points_base_all=model_base_all_t,
             model_points_base_visible=model_base_visible_t,
             obs3d=obs3d_t,
             obs2d=obs2d_t,
@@ -1902,8 +1656,8 @@ def optimize_scale_txyz_chamfer(
             nn_chunk_size=nn_chunk_size,
         )
 
-    scale_final = float(math.exp(float(log_scale.detach().cpu().item())))
     log_scale_final = float(log_scale.detach().cpu().item())
+    scale_final = float(math.exp(log_scale_final))
     delta_tx_final = float(delta_tx.detach().cpu().item())
     delta_ty_final = float(delta_ty.detach().cpu().item())
     delta_tz_final = float(delta_tz.detach().cpu().item())
@@ -1922,7 +1676,8 @@ def optimize_scale_txyz_chamfer(
         model_sample_count_total=n_model_total,
         model_sample_count_visible_fixed=n_model_visible,
         model_sample_visible_ratio=visible_ratio,
-        visible_subset_mode=visible_subset_mode,
+        scale_init=scale_init_val,
+        log_scale_init=log_scale_init,
         scale=scale_final,
         log_scale=log_scale_final,
         tx_init=tx_init_val,
@@ -1988,6 +1743,12 @@ def parse_args() -> argparse.Namespace:
         help="Directory like ../06_Estimate_Human_Motion/output/interaction_xx",
     )
     parser.add_argument(
+        "--smpl_folder",
+        type=str,
+        default="../../GVHMR/inputs/checkpoints/body_models/",
+        help="SMPL-X body model folder used to load humans from GVHMR params.",
+    )
+    parser.add_argument(
         "--output_root",
         type=str,
         default="./output",
@@ -2015,11 +1776,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", type=str, default="cuda:0")
     parser.add_argument("--opt_max_side", type=int, default=1280)
 
-    parser.add_argument("--iters", type=int, default=10000)
+    parser.add_argument("--iters", type=int, default=4000)
     parser.add_argument("--lr", type=float, default=5e-3)
 
     parser.add_argument("--w_cd3d", type=float, default=1e3)
-    parser.add_argument("--w_cd2d", type=float, default=5e-3)
+    parser.add_argument("--w_cd2d", type=float, default=1e-3)
     parser.add_argument("--rho_geman_3d", type=float, default=0.2)
 
     parser.add_argument("--mesh_sample_points", type=int, default=6000)
@@ -2027,11 +1788,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max_obs_2d_points_per_mesh", type=int, default=6000)
     parser.add_argument("--nn_chunk_size", type=int, default=1024)
 
-    parser.add_argument("--min_obs_3d_points_per_mesh", type=int, default=32)
-    parser.add_argument("--min_obs_2d_points_per_mesh", type=int, default=64)
     parser.add_argument("--visible_subset_z_abs_tol_m", type=float, default=0.02)
     parser.add_argument("--visible_subset_z_rel_tol", type=float, default=0.01)
-    parser.add_argument("--min_visible_subset_points_per_mesh", type=int, default=128)
     parser.add_argument(
         "--visible_subset_focal_scale",
         type=float,
@@ -2114,7 +1872,6 @@ def main() -> None:
     ).resolve()
 
     output_root = resolve_path(args.output_root, script_dir)
-    assert output_root is not None
     output_dir = output_root / args.interaction_name
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -2246,6 +2003,26 @@ def main() -> None:
     if len(human_seg_dirs) == 0:
         raise FileNotFoundError(f"No human mask folders found in: {humans_dir}")
 
+    smpl_folder = resolve_path(args.smpl_folder, script_dir)
+    if not smpl_folder.exists():
+        raise FileNotFoundError(f"SMPL-X body model folder not found: {smpl_folder}")
+    import smplx
+
+    print(f"Loading SMPL-X human meshes from GVHMR params using: {smpl_folder}")
+    smplx_layer = smplx.create(
+        str(smpl_folder),
+        model_type="smplx",
+        gender="neutral",
+        num_pca_comps=12,
+        flat_hand_mean=False,
+        create_body_pose=False,
+        create_betas=False,
+        create_global_orient=False,
+        create_transl=False,
+    )
+    smplx_layer.eval()
+    smplx_faces = np.asarray(smplx_layer.faces, dtype=np.int64)
+
     human_assets: list[MeshAsset] = []
     for human_seg_dir in human_seg_dirs:
         human_dir_name = human_seg_dir.name
@@ -2253,26 +2030,30 @@ def main() -> None:
         if not human_mask_dir.exists():
             raise FileNotFoundError(f"Human mask dir not found: {human_mask_dir}")
 
-        human_mesh_dir = (human_motion_humans_dir / human_dir_name / "human_plys").resolve()
-        if not human_mesh_dir.exists():
-            raise FileNotFoundError(
-                f"Human PLY dir not found for '{human_dir_name}': {human_mesh_dir}"
-            )
-
-        human_mesh_path = find_first_human_ply(human_mesh_dir)
-        if not human_mesh_path.exists():
-            raise FileNotFoundError(f"Human mesh not found: {human_mesh_path}")
-        if human_mesh_path.suffix.lower() != ".ply":
-            raise ValueError(f"Human mesh must be a .ply file, got: {human_mesh_path}")
+        human_result_dir = (human_motion_humans_dir / human_dir_name).resolve()
 
         human_mask_path = resolve_frame_0000_mask(human_mask_dir)
         human_mask = load_binary_mask(human_mask_path, (depth_h, depth_w))
 
-        human_verts_src, human_faces, human_vertex_colors = load_mesh(human_mesh_path)
+        human_result_path = human_result_dir / "hmr4d_results.pt"
+        if not human_result_path.exists():
+            raise FileNotFoundError(
+                f"GVHMR result file not found for '{human_dir_name}': "
+                f"{human_result_path}"
+            )
+        human_verts_src, human_faces = load_first_frame_smplx_mesh_from_gvhmr(
+            result_path=human_result_path,
+            smplx_layer=smplx_layer,
+            faces_smplx=smplx_faces,
+        )
+        human_vertex_colors = None
+        human_mesh_path = human_result_path
+
+        human_slug = slugify(human_dir_name)
         human_assets.append(
             MeshAsset(
                 name=human_dir_name,
-                slug=slugify(human_dir_name),
+                slug=human_slug,
                 kind="human",
                 source_mesh_path=human_mesh_path,
                 source_coord="opencv_camera",
@@ -2368,6 +2149,8 @@ def main() -> None:
                 "mask_path": None if asset.mask_path is None else str(asset.mask_path),
                 "mask_pixels_total": int(obs.mask_pixels_total),
                 "depth_valid_pixels_total": int(obs.depth_valid_pixels_total),
+                "observed_height_3d_m": float(obs.observed_height_3d_m),
+                "mesh_height_init_m": float(compute_height_y_percentile_m(verts_cv)),
                 "obs_3d_used": int(obs.obs_3d_used),
                 "obs_2d_used": int(obs.obs_2d_used),
                 "model_surface_samples": int(model_samples.shape[0]),
@@ -2398,6 +2181,7 @@ def main() -> None:
             interaction_name=args.interaction_name,
             mesh_slug=asset.slug,
             mesh_name=asset.name,
+            mesh_kind=asset.kind,
             intrinsics_source=args.intrinsics_source,
             opt_max_side=int(args.opt_max_side),
             sam3_mask_erode_iters=int(args.sam3_mask_erode_iters),
@@ -2410,13 +2194,8 @@ def main() -> None:
             max_obs_3d_points_per_mesh=int(args.max_obs_3d_points_per_mesh),
             max_obs_2d_points_per_mesh=int(args.max_obs_2d_points_per_mesh),
             nn_chunk_size=int(args.nn_chunk_size),
-            min_obs_3d_points_per_mesh=int(args.min_obs_3d_points_per_mesh),
-            min_obs_2d_points_per_mesh=int(args.min_obs_2d_points_per_mesh),
             visible_subset_z_abs_tol_m=float(args.visible_subset_z_abs_tol_m),
             visible_subset_z_rel_tol=float(args.visible_subset_z_rel_tol),
-            min_visible_subset_points_per_mesh=int(
-                args.min_visible_subset_points_per_mesh
-            ),
             visible_subset_focal_scale=float(args.visible_subset_focal_scale),
         )
 
@@ -2441,6 +2220,7 @@ def main() -> None:
 
         result = optimize_scale_txyz_chamfer(
             mesh_name=asset.name,
+            mesh_kind=asset.kind,
             obs=obs,
             model_points_base_np=model_samples,
             verts_cv_np=verts_cv,
@@ -2461,8 +2241,6 @@ def main() -> None:
             debug_max_points_vis=int(args.debug_max_points_vis),
             debug_max_nn_lines=int(args.debug_max_nn_lines),
             debug_seed=int(args.seed + 2029 * (idx + 1)),
-            min_obs_3d_points_per_mesh=int(args.min_obs_3d_points_per_mesh),
-            min_obs_2d_points_per_mesh=int(args.min_obs_2d_points_per_mesh),
             checkpoint_path=checkpoint_path,
             resume_signature=resume_signature,
             resume_state=resume_state,
@@ -2472,9 +2250,6 @@ def main() -> None:
             early_stop_min_iter=int(args.early_stop_min_iter),
             visible_subset_z_abs_tol_m=float(args.visible_subset_z_abs_tol_m),
             visible_subset_z_rel_tol=float(args.visible_subset_z_rel_tol),
-            min_visible_subset_points_per_mesh=int(
-                args.min_visible_subset_points_per_mesh
-            ),
             visible_subset_focal_scale=float(args.visible_subset_focal_scale),
         )
         optimization_results.append(result)
@@ -2545,6 +2320,8 @@ def main() -> None:
                 "optimized_parameters": {
                     "status": result.status,
                     "message": result.message,
+                    "log_scale_init": float(result.log_scale_init),
+                    "scale_init": float(result.scale_init),
                     "log_scale_alpha": float(result.log_scale),
                     "scale_exp_alpha": float(scale),
                     "tx_init_m": float(result.tx_init),
@@ -2564,7 +2341,6 @@ def main() -> None:
                         result.model_sample_count_visible_fixed
                     ),
                     "model_sample_visible_ratio": float(result.model_sample_visible_ratio),
-                    "visible_subset_mode": result.visible_subset_mode,
                 },
                 "source_to_output_matrix_4x4": source_to_output_4x4.tolist(),
             }
@@ -2590,6 +2366,9 @@ def main() -> None:
             "segmentation_video_dir": str(segmentation_video_dir),
             "depth_video_dir": str(depth_video_dir),
             "human_video_dir": str(human_video_dir),
+            "human_source": "gvhmr_smplx",
+            "human_smplx_params": "smpl_params_incam",
+            "smpl_folder": str(smpl_folder),
             "depth_npy": str(depth_npy_path),
             "depth_intrinsics_json": str(depth_intrinsics_json_path),
             "frame_00": str(frame_path),
@@ -2610,13 +2389,8 @@ def main() -> None:
             "max_obs_3d_points_per_mesh": int(args.max_obs_3d_points_per_mesh),
             "max_obs_2d_points_per_mesh": int(args.max_obs_2d_points_per_mesh),
             "nn_chunk_size": int(args.nn_chunk_size),
-            "min_obs_3d_points_per_mesh": int(args.min_obs_3d_points_per_mesh),
-            "min_obs_2d_points_per_mesh": int(args.min_obs_2d_points_per_mesh),
             "visible_subset_z_abs_tol_m": float(args.visible_subset_z_abs_tol_m),
             "visible_subset_z_rel_tol": float(args.visible_subset_z_rel_tol),
-            "min_visible_subset_points_per_mesh": int(
-                args.min_visible_subset_points_per_mesh
-            ),
             "visible_subset_focal_scale": float(args.visible_subset_focal_scale),
             "no_resume": bool(args.no_resume),
             "checkpoint_every": int(args.checkpoint_every),
@@ -2631,23 +2405,6 @@ def main() -> None:
             "resize_scale_for_optimization": float(resize_scale),
             "output_coordinate": args.output_coord,
             "sam3_mask_erode_iters": int(args.sam3_mask_erode_iters),
-        },
-        "energy_terms": {
-            "transform": "p' = exp(alpha) * p + [tx, ty, tz]^T",
-            "obs3d": "O3D = depth back-projected points inside eroded asset mask",
-            "obs2d": "O2D = raw mask pixels (u,v)",
-            "model3d_all": "M3D_all = sampled mesh surface points",
-            "model3d_visible_fixed": "M3D_vis = fixed visible subset sampled once from one-time render at init",
-            "model2d_visible_fixed": "M2D_vis' = project(M3D_vis')",
-            "L_cd3d_raw_fwd": "mean_{o in O3D} min_{m in M3D_vis'} ||o-m||_2^2",
-            "L_cd3d_raw_bwd": "mean_{m in M3D_vis'} min_{o in O3D} ||m-o||_2^2",
-            "L_cd3d_fwd": "GemanMcClure(L_cd3d_raw_fwd)",
-            "L_cd3d_bwd": "GemanMcClure(L_cd3d_raw_bwd)",
-            "L_cd3d": "0.5 * (L_cd3d_fwd + L_cd3d_bwd)",
-            "L_cd2d_fwd": "mean_{o in O2D} min_{m in M2D_vis'} ||o-m||_2^2",
-            "L_cd2d_bwd": "mean_{m in M2D_vis'} min_{o in O2D} ||m-o||_2^2",
-            "L_cd2d": "0.5 * (L_cd2d_fwd + L_cd2d_bwd)",
-            "L_total": "w_cd3d*L_cd3d + w_cd2d*L_cd2d",
         },
         "observation_stats": observation_stats,
         "per_mesh_optimization": [
@@ -2664,7 +2421,8 @@ def main() -> None:
                     result.model_sample_count_visible_fixed
                 ),
                 "model_sample_visible_ratio": float(result.model_sample_visible_ratio),
-                "visible_subset_mode": result.visible_subset_mode,
+                "scale_init": float(result.scale_init),
+                "log_scale_init": float(result.log_scale_init),
                 "final_scale": float(result.scale),
                 "final_tx_m": float(result.tx),
                 "final_ty_m": float(result.ty),
