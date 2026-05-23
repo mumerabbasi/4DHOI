@@ -16,7 +16,7 @@ def parse_args() -> argparse.Namespace:
         "--aligned_mesh_dir",
         type=str,
         default=None,
-        help="07_Align_Meshes/output/<interaction> (auto-resolved).",
+        help="09_Align_Meshes/output/<interaction> (auto-resolved).",
     )
     p.add_argument(
         "--tracked_object_dir",

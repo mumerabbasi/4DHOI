@@ -1,19 +1,16 @@
-"""Estimate per-object WAFT tracks from 03_Segment_Video frame-0 masks."""
+"""Track per-object frame-0 mask points through a video with CoTracker3."""
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
-import shutil
-import sys
 from pathlib import Path
 
 import cv2
 import numpy as np
 import torch
 
-from optical_flow_utils import (
+from track_object_points_utils import (
     compute_target_track_points,
     erode_mask,
     find_single_mp4,
@@ -25,18 +22,18 @@ from optical_flow_utils import (
 
 
 def build_default_paths(interaction_name: str, script_dir: Path) -> tuple[Path, Path, Path]:
-    """Build default video, segmentation, and output directories for one video."""
+    """Build default video, segmentation, and output directories for one interaction."""
     project_dir = script_dir.parent
     video_dir = project_dir / "02_Generate_Video" / "output" / interaction_name
     segment_video_dir = project_dir / "03_Segment_Video" / "output" / interaction_name
-    output_dir = script_dir / "output_waft" / interaction_name
+    output_dir = script_dir / "output" / interaction_name
     return video_dir, segment_video_dir, output_dir
 
 
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments."""
     parser = argparse.ArgumentParser(
-        description="Run WAFT-based tracking per object for an interaction_xx directory."
+        description="Track object-mask seed points with CoTracker3 for an interaction_xx directory."
     )
     parser.add_argument(
         "--interaction_name",
@@ -65,42 +62,15 @@ def parse_args() -> argparse.Namespace:
         default=None,
         type=str,
         help=(
-            "Output directory for this video. "
-            "Default: <script_dir>/output_waft/<interaction_xx>"
+            "Output directory for this interaction. "
+            "Default: <script_dir>/output/<interaction_xx>"
         ),
-    )
-    parser.add_argument(
-        "--waft_dir",
-        default="/my_workspace/4DHHOI/WAFT",
-        type=str,
-        help="Path to WAFT repo root.",
-    )
-    parser.add_argument(
-        "--cfg",
-        default=None,
-        type=str,
-        help=(
-            "WAFT config JSON. Default: "
-            "<waft_dir>/config/a2/dinov3/tar-c-t-spring-540p.json"
-        ),
-    )
-    parser.add_argument(
-        "--ckpt",
-        default=None,
-        type=str,
-        help="WAFT checkpoint .pth. Default: <waft_dir>/ckpts/a2/dinov3/spring.pth",
     )
     parser.add_argument(
         "--device",
         default="cuda",
         type=str,
         help="torch device string, e.g. 'cuda', 'cuda:0', or 'cpu'.",
-    )
-    parser.add_argument(
-        "--scale",
-        default=0.0,
-        type=float,
-        help="WAFT InferenceWrapper scale factor (0.0 keeps native).",
     )
     parser.add_argument(
         "--track_point_density",
@@ -153,11 +123,26 @@ def parse_args() -> argparse.Namespace:
         type=int,
         help="Random seed used for visualization point subsampling.",
     )
+    parser.add_argument(
+        "--hub_repo",
+        default="facebookresearch/co-tracker",
+        type=str,
+        help="torch.hub repository for CoTracker3.",
+    )
+    parser.add_argument(
+        "--hub_model",
+        default="cotracker3_offline",
+        type=str,
+        help="torch.hub model name.",
+    )
     return parser.parse_args()
 
 
-def load_video_frames(video_mp4: Path) -> tuple[list[np.ndarray], float]:
-    """Load MP4 as BGR frames and return video FPS."""
+def load_video_tensor(
+    video_mp4: Path,
+    device: torch.device,
+) -> tuple[torch.Tensor, list[np.ndarray], float]:
+    """Load MP4 into tensor [1, T, 3, H, W] float32 and return BGR frames + FPS."""
     cap = cv2.VideoCapture(str(video_mp4))
     if not cap.isOpened():
         raise RuntimeError(f"Could not open video: {video_mp4}")
@@ -166,203 +151,57 @@ def load_video_frames(video_mp4: Path) -> tuple[list[np.ndarray], float]:
     if fps is None or fps <= 0:
         fps = 24.0
 
-    frames_bgr: list[np.ndarray] = []
+    frames_bgr = []
+    frames_rgb = []
     while True:
         ok, frame_bgr = cap.read()
         if not ok:
             break
         frames_bgr.append(frame_bgr)
+        frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+        frames_rgb.append(frame_rgb)
 
     cap.release()
 
-    if len(frames_bgr) < 2:
-        raise RuntimeError(f"Need at least 2 frames, found {len(frames_bgr)}")
-    return frames_bgr, float(fps)
+    if len(frames_rgb) < 2:
+        raise RuntimeError(f"Need at least 2 frames, found {len(frames_rgb)}")
+
+    video_np = np.stack(frames_rgb, axis=0).astype(np.float32)  # [T, H, W, 3]
+    video_t = torch.from_numpy(video_np).permute(0, 3, 1, 2).unsqueeze(0)  # [1, T, 3, H, W]
+    return video_t.to(device=device), frames_bgr, float(fps)
 
 
-def add_waft_to_syspath(waft_dir: Path) -> None:
-    """Ensure WAFT modules are importable."""
-    waft_dir_str = str(waft_dir)
-    if waft_dir_str not in sys.path:
-        sys.path.insert(0, waft_dir_str)
-
-
-def _patch_waft_dinov3_weights() -> None:
-    """Patch WAFT's dinov3 module to use direct download URLs."""
-    dinov3_urls = {
-        "vits": (
-            "https://dinov3.llamameta.net/dinov3_vits16/"
-            "dinov3_vits16_pretrain_lvd1689m-08c60483.pth?"
-            "Policy=eyJTdGF0ZW1lbnQiOlt7InVuaXF1ZV9oYXNoIjoiZHhub3htb2VzcXpsM3V"
-            "zYnd3aDRpc2RtIiwiUmVzb3VyY2UiOiJodHRwczpcL1wvZGlub3YzLmxsYW1hbWV0Y"
-            "S5uZXRcLyoiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFR"
-            "pbWUiOjE3NzA1Mjk4Mzh9fX1dfQ__&Signature=pS2lHy5xzRbTqr6bQqCKqzzEGNy"
-            "oRGSp2DaKHowhG-gALWgF4HAGsvvyfCfy%7ExqRFPRcBwQFOmWQXG4vBweC%7ET3CH"
-            "8bixblE%7EM5n%7EwbA80a3HWHWZ33mJ%7ExTXS1WQML6B3dJWfSuK4R3xaIYd5Ev6"
-            "1MwOZsdGtma0%7EByzlWQSUZCU9YLB2pHEYEkJSBvaeFn2TM0whIKo7m0MH02N9%7E"
-            "7ett-BBmnGqJ-XT-1XCula0YZzTUmF4HcXG3u83SNrq7n4zjJRlIXK-0r7m9NoWjwv"
-            "IFLVvM74Ru3XHUZxSG-cump-VX2c%7EFDtjibFArHzX4nKeZE2VmZYlQLJ-WJDUMRt"
-            "A__&Key-Pair-Id=K15QRJLYKIFSLZ&Download-Request-ID=1457298125810808"
-        ),
-        "vitb": (
-            "https://dinov3.llamameta.net/dinov3_vitb16/"
-            "dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth?"
-            "Policy=eyJTdGF0ZW1lbnQiOlt7InVuaXF1ZV9oYXNoIjoiZHhub3htb2VzcXpsM3V"
-            "zYnd3aDRpc2RtIiwiUmVzb3VyY2UiOiJodHRwczpcL1wvZGlub3YzLmxsYW1hbWV0Y"
-            "S5uZXRcLyoiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFR"
-            "pbWUiOjE3NzA1Mjk4Mzh9fX1dfQ__&Signature=pS2lHy5xzRbTqr6bQqCKqzzEGNy"
-            "oRGSp2DaKHowhG-gALWgF4HAGsvvyfCfy%7ExqRFPRcBwQFOmWQXG4vBweC%7ET3CH"
-            "8bixblE%7EM5n%7EwbA80a3HWHWZ33mJ%7ExTXS1WQML6B3dJWfSuK4R3xaIYd5Ev6"
-            "1MwOZsdGtma0%7EByzlWQSUZCU9YLB2pHEYEkJSBvaeFn2TM0whIKo7m0MH02N9%7E"
-            "7ett-BBmnGqJ-XT-1XCula0YZzTUmF4HcXG3u83SNrq7n4zjJRlIXK-0r7m9NoWjwv"
-            "IFLVvM74Ru3XHUZxSG-cump-VX2c%7EFDtjibFArHzX4nKeZE2VmZYlQLJ-WJDUMRt"
-            "A__&Key-Pair-Id=K15QRJLYKIFSLZ&Download-Request-ID=1457298125810808"
-        ),
-        "vitl": (
-            "https://dinov3.llamameta.net/dinov3_vitl16/"
-            "dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth?"
-            "Policy=eyJTdGF0ZW1lbnQiOlt7InVuaXF1ZV9oYXNoIjoiZHhub3htb2VzcXpsM3V"
-            "zYnd3aDRpc2RtIiwiUmVzb3VyY2UiOiJodHRwczpcL1wvZGlub3YzLmxsYW1hbWV0Y"
-            "S5uZXRcLyoiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFR"
-            "pbWUiOjE3NzA1Mjk4Mzh9fX1dfQ__&Signature=pS2lHy5xzRbTqr6bQqCKqzzEGNy"
-            "oRGSp2DaKHowhG-gALWgF4HAGsvvyfCfy%7ExqRFPRcBwQFOmWQXG4vBweC%7ET3CH"
-            "8bixblE%7EM5n%7EwbA80a3HWHWZ33mJ%7ExTXS1WQML6B3dJWfSuK4R3xaIYd5Ev6"
-            "1MwOZsdGtma0%7EByzlWQSUZCU9YLB2pHEYEkJSBvaeFn2TM0whIKo7m0MH02N9%7E"
-            "7ett-BBmnGqJ-XT-1XCula0YZzTUmF4HcXG3u83SNrq7n4zjJRlIXK-0r7m9NoWjwv"
-            "IFLVvM74Ru3XHUZxSG-cump-VX2c%7EFDtjibFArHzX4nKeZE2VmZYlQLJ-WJDUMRt"
-            "A__&Key-Pair-Id=K15QRJLYKIFSLZ&Download-Request-ID=1457298125810808"
-        ),
-    }
-
-    import model.backbone.dinov3 as waft_dinov3  # type: ignore
-
-    waft_dinov3.WEIGHTS_URLS = dinov3_urls
-
-
-def load_waft_model(
-    cfg_path: Path,
-    ckpt_path: Path,
-    device: torch.device,
-    scale: float,
-    waft_dir: Path,
-):
-    """Load WAFT model and wrap it with InferenceWrapper."""
-    original_cwd = os.getcwd()
-    os.chdir(waft_dir)
-
-    try:
-        from config.parser import json_to_args  # type: ignore
-        from inference_tools import InferenceWrapper  # type: ignore
-        from model import fetch_model  # type: ignore
-        from utils.utils import load_ckpt  # type: ignore
-
-        _patch_waft_dinov3_weights()
-
-        waft_args = json_to_args(str(cfg_path))
-        waft_args.cfg = str(cfg_path)
-        waft_args.ckpt = str(ckpt_path)
-        waft_args.scale = scale
-
-        model = fetch_model(waft_args)
-        load_ckpt(model, str(ckpt_path))
-        model = model.to(device).eval()
-
-        wrapped = InferenceWrapper(
-            model,
-            scale=scale,
-            train_size=waft_args.image_size,
-            pad_to_train_size=False,
-            tiling=False,
-        )
-        return wrapped
-    finally:
-        os.chdir(original_cwd)
-
-
-def compute_dense_flows(
-    wrapped_model,
-    frames_bgr: list[np.ndarray],
-    device: torch.device,
-) -> list[np.ndarray]:
-    """Compute WAFT dense flow for all consecutive frame pairs."""
-    num_frames = len(frames_bgr)
-    if num_frames < 2:
-        raise RuntimeError(f"Need at least 2 frames, found {num_frames}")
-
-    flows: list[np.ndarray] = []
-    for t in range(num_frames - 1):
-        rgb1 = cv2.cvtColor(frames_bgr[t], cv2.COLOR_BGR2RGB)
-        rgb2 = cv2.cvtColor(frames_bgr[t + 1], cv2.COLOR_BGR2RGB)
-
-        im1 = torch.from_numpy(rgb1).float().permute(2, 0, 1)[None].to(device)
-        im2 = torch.from_numpy(rgb2).float().permute(2, 0, 1)[None].to(device)
-
-        with torch.no_grad():
-            out = wrapped_model.calc_flow(im1, im2)
-
-        flow = out["flow"][-1][0].permute(1, 2, 0).detach().cpu().numpy().astype(np.float32)
-        flows.append(flow)
-
-    return flows
-
-
-def propagate_tracks_from_flows(
-    seed_xy: np.ndarray,
-    flows: list[np.ndarray],
-    width: int,
-    height: int,
+def run_cotracker_queries(
+    cotracker: torch.nn.Module,
+    video: torch.Tensor,
+    points_xy: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Propagate seed points using dense frame-to-frame optical flow."""
-    num_frames = len(flows) + 1
-    num_points = int(seed_xy.shape[0])
-    tracks = np.zeros((num_frames, num_points, 2), dtype=np.float32)
-    visibility = np.zeros((num_frames, num_points), dtype=np.bool_)
+    """Run CoTracker with query points at frame 0.
+
+    Returns:
+        tracks: [T, N, 2] float32
+        visibility: [T, N] bool
+    """
+    num_points = int(points_xy.shape[0])
     if num_points == 0:
-        return tracks, visibility
+        return np.zeros((0, 0, 2), dtype=np.float32), np.zeros((0, 0), dtype=bool)
 
-    u = seed_xy.astype(np.float32).copy()
-    alive = np.ones(num_points, dtype=bool)
-    tracks[0] = u
-    visibility[0] = alive
+    device = video.device
+    queries = np.zeros((1, num_points, 3), dtype=np.float32)
+    # CoTracker query format: [t, x, y]
+    queries[0, :, 1:] = points_xy
+    queries_t = torch.from_numpy(queries).to(device=device, dtype=torch.float32)
 
-    for t, flow in enumerate(flows):
-        if flow.shape[:2] != (height, width) or flow.shape[2] != 2:
-            raise ValueError(f"Bad flow shape {flow.shape} at frame {t}")
+    with torch.no_grad():
+        pred_tracks, pred_visibility = cotracker(video, queries=queries_t)
 
-        idx_alive = np.where(alive)[0]
-        if len(idx_alive) > 0:
-            x_idx = np.round(u[idx_alive, 0]).astype(np.int32)
-            y_idx = np.round(u[idx_alive, 1]).astype(np.int32)
+    tracks = pred_tracks[0].detach().cpu().numpy().astype(np.float32)  # [T, N, 2]
+    vis = pred_visibility[0].detach().cpu().numpy()
 
-            in_bounds_before = (
-                (x_idx >= 0)
-                & (x_idx <= (width - 1))
-                & (y_idx >= 0)
-                & (y_idx <= (height - 1))
-            )
-            alive[idx_alive[~in_bounds_before]] = False
-            idx_alive = idx_alive[in_bounds_before]
-            if len(idx_alive) > 0:
-                x_safe = np.clip(x_idx[in_bounds_before], 0, width - 1)
-                y_safe = np.clip(y_idx[in_bounds_before], 0, height - 1)
-                d = flow[y_safe, x_safe]
-                finite = np.isfinite(d[:, 0]) & np.isfinite(d[:, 1])
-                alive[idx_alive[~finite]] = False
+    if vis.ndim == 3 and vis.shape[-1] == 1:
+        vis = vis[..., 0]
 
-                idx_valid = idx_alive[finite]
-                if len(idx_valid) > 0:
-                    u[idx_valid] = u[idx_valid] + d[finite]
-
-        in_bounds_after = (
-            (u[:, 0] >= 0.0)
-            & (u[:, 0] <= (width - 1))
-            & (u[:, 1] >= 0.0)
-            & (u[:, 1] <= (height - 1))
-        )
-        alive &= in_bounds_after
-        tracks[t + 1] = u
-        visibility[t + 1] = alive
-
+    visibility = vis > 0.5
     return tracks, visibility
 
 
@@ -407,20 +246,6 @@ def discover_segment_video_object_masks(segment_video_dir: Path) -> list[tuple[s
     return discovered
 
 
-def cleanup_waft_extras(output_video_dir: Path) -> None:
-    """Remove legacy WAFT-only artifacts so output mirrors CoTracker layout."""
-    legacy_paths = [
-        output_video_dir / "optical_flow",
-        output_video_dir / "visualization.mp4",
-        output_video_dir / "visualization_arrows.mp4",
-    ]
-    for path in legacy_paths:
-        if path.is_dir():
-            shutil.rmtree(path)
-        elif path.exists():
-            path.unlink()
-
-
 def main() -> None:
     args = parse_args()
     script_dir = Path(__file__).resolve().parent
@@ -453,21 +278,6 @@ def main() -> None:
     else:
         output_video_dir = resolve_path(args.output_dir, script_dir)
     output_video_dir.mkdir(parents=True, exist_ok=True)
-    cleanup_waft_extras(output_video_dir)
-
-    waft_dir = resolve_path(args.waft_dir, script_dir)
-    if not waft_dir.exists() or not waft_dir.is_dir():
-        raise NotADirectoryError(f"WAFT repo not found: {waft_dir}")
-
-    cfg_default = waft_dir / "config" / "a2" / "dinov3" / "tar-c-t-spring-540p.json"
-    ckpt_default = waft_dir / "ckpts" / "a2" / "dinov3" / "spring.pth"
-    cfg_path = resolve_path(args.cfg, script_dir) if args.cfg else cfg_default
-    ckpt_path = resolve_path(args.ckpt, script_dir) if args.ckpt else ckpt_default
-
-    if not cfg_path.exists():
-        raise FileNotFoundError(f"Config not found: {cfg_path}")
-    if not ckpt_path.exists():
-        raise FileNotFoundError(f"Checkpoint not found: {ckpt_path}")
 
     device = torch.device(
         "cuda" if args.device.startswith("cuda") and torch.cuda.is_available() else "cpu"
@@ -477,32 +287,18 @@ def main() -> None:
     print(f"[INFO] video_mp4: {video_mp4.name}")
     print(f"[INFO] segment_video_dir: {segmentation_dir}")
     print(f"[INFO] output_dir: {output_video_dir}")
-    print(f"[INFO] waft_dir: {waft_dir}")
-    print(f"[INFO] cfg: {cfg_path}")
-    print(f"[INFO] ckpt: {ckpt_path}")
     print(f"[INFO] device: {device}")
 
-    print("[INFO] Loading video frames...")
-    frames_bgr, video_fps = load_video_frames(video_mp4)
-    num_frames = len(frames_bgr)
-    height, width = frames_bgr[0].shape[:2]
-    print(f"[OK] loaded {num_frames} frames")
+    print("[INFO] Loading video tensor...")
+    video, frames_bgr, video_fps = load_video_tensor(video_mp4, device=device)
+    _, num_frames, _, height, width = video.shape
+    print(f"[OK] video tensor shape: {tuple(video.shape)}")
     vis_fps = float(args.vis_fps) if args.vis_fps is not None else float(video_fps)
 
-    print("[INFO] Loading WAFT model...")
-    add_waft_to_syspath(waft_dir)
-    wrapped_model = load_waft_model(
-        cfg_path=cfg_path,
-        ckpt_path=ckpt_path,
-        device=device,
-        scale=float(args.scale),
-        waft_dir=waft_dir,
-    )
-    print("[OK] WAFT loaded")
-
-    print("[INFO] Computing dense WAFT flow...")
-    flows = compute_dense_flows(wrapped_model=wrapped_model, frames_bgr=frames_bgr, device=device)
-    print(f"[OK] computed {len(flows)} flow fields")
+    print("[INFO] Loading CoTracker (torch.hub)...")
+    cotracker = torch.hub.load(args.hub_repo, args.hub_model).to(device)
+    cotracker.eval()
+    print("[OK] CoTracker loaded")
 
     objects = discover_segment_video_object_masks(segmentation_dir)
     print(f"[INFO] discovered {len(objects)} object masks from 03_Segment_Video")
@@ -564,12 +360,7 @@ def main() -> None:
             print("[WARN] No valid seed points after mask filtering, skipping")
             continue
 
-        tracks, visibility = propagate_tracks_from_flows(
-            seed_xy=seed_xy,
-            flows=flows,
-            width=width,
-            height=height,
-        )
+        tracks, visibility = run_cotracker_queries(cotracker, video, seed_xy)
 
         obj_out = output_video_dir / slug
         obj_out.mkdir(parents=True, exist_ok=True)
@@ -622,5 +413,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    os.environ.setdefault("TORCH_CUDNN_V8_API_ENABLED", "1")
     main()

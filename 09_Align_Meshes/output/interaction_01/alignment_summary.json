@@ -51,8 +51,6 @@
     "debug_point_radius": 1,
     "debug_max_points_vis": 50000,
     "debug_max_nn_lines": 2000,
-    "resize_scale_for_optimization": 1.0,
-    "output_coordinate": "opencv",
     "sam3_mask_erode_iters": 3
   },
   "observation_stats": [
@@ -144,6 +142,10 @@
         "cd2d_bwd": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/loss_curves/person_1_loss_cd2d_bwd.png"
       },
       "loss_curve_csv": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/loss_curves/person_1_loss.csv",
+      "overlays": {
+        "before": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/overlays/before_person_1.png",
+        "after": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/overlays/after_person_1.png"
+      },
       "debug_dir": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/debug/person_1"
     },
     {
@@ -190,6 +192,10 @@
         "cd2d_bwd": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/loss_curves/iron_loss_cd2d_bwd.png"
       },
       "loss_curve_csv": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/loss_curves/iron_loss.csv",
+      "overlays": {
+        "before": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/overlays/before_iron.png",
+        "after": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/overlays/after_iron.png"
+      },
       "debug_dir": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/debug/iron"
     },
     {
@@ -236,6 +242,10 @@
         "cd2d_bwd": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/loss_curves/ironing_board_loss_cd2d_bwd.png"
       },
       "loss_curve_csv": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/loss_curves/ironing_board_loss.csv",
+      "overlays": {
+        "before": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/overlays/before_ironing_board.png",
+        "after": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/overlays/after_ironing_board.png"
+      },
       "debug_dir": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/debug/ironing_board"
     }
   ],
@@ -243,9 +253,10 @@
     "output_dir": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01",
     "meshes_dir": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/meshes",
     "mesh_format": "ply",
-    "output_coordinate": "opencv",
-    "overlay_before": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/overlay_before.png",
-    "overlay_after": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/overlay_after.png",
+    "coordinate_system": "opencv",
+    "overlays_dir": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/overlays",
+    "overlay_before": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/overlays/overlay_before.png",
+    "overlay_after": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/overlays/overlay_after.png",
     "debug_root": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/debug"
   }
 }

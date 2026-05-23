@@ -4,9 +4,7 @@
       "name": "person_1",
       "slug": "person_1",
       "kind": "human",
-      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/output/interaction_03/humans/person_1/hmr4d_results.pt",
-      "source_coordinate": "opencv_camera",
-      "output_coordinate": "opencv",
+      "input_mesh_path": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/output/interaction_03/humans/person_1/hmr4d_results.pt",
       "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_03/meshes/person_1.ply",
       "optimized_parameters": {
         "status": "optimized",
@@ -62,9 +60,7 @@
       "name": "umbrella",
       "slug": "umbrella",
       "kind": "object",
-      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_03/meshes/umbrella.ply",
-      "source_coordinate": "opencv_camera",
-      "output_coordinate": "opencv",
+      "input_mesh_path": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_03/meshes/umbrella.ply",
       "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_03/meshes/umbrella.ply",
       "optimized_parameters": {
         "status": "optimized",

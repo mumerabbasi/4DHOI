@@ -21,7 +21,6 @@ from utils_align_meshes import (
     DEFAULT_OVERLAY_CONTOUR_THICKNESS,
     DEFAULT_OVERLAY_FILL_ALPHA,
     F_CV_TO_P3D,
-    F_P3D_TO_CV,
     MeshAsset,
     build_overlay_color_map,
     build_cameras,
@@ -1559,25 +1558,15 @@ def main() -> None:
     k_full = load_object_intrinsics(object_intrinsics_json_path)
 
     assets: list[MeshAsset] = []
-    object_mesh_specs: list[tuple[str, Path, str]] = []
     object_meshes_dir = (object_video_dir / "meshes").resolve()
-    if object_meshes_dir.is_dir():
-        object_mesh_specs = [
-            (mesh_path.stem, mesh_path.resolve(), "opencv_camera")
-            for mesh_path in sorted(object_meshes_dir.glob("*.ply"))
-            if mesh_path.is_file()
-        ]
+    object_mesh_paths = sorted(
+        mesh_path.resolve()
+        for mesh_path in object_meshes_dir.glob("*.ply")
+        if mesh_path.is_file()
+    )
 
-    if len(object_mesh_specs) == 0:
-        for obj_dir in sorted(object_video_dir.iterdir()):
-            if not obj_dir.is_dir():
-                continue
-            mesh_path = obj_dir / "mesh_posed.ply"
-            if not mesh_path.exists():
-                continue
-            object_mesh_specs.append((obj_dir.name, mesh_path.resolve(), "pytorch3d_camera"))
-
-    for object_dir_name, mesh_path, source_coord in object_mesh_specs:
+    for mesh_path in object_mesh_paths:
+        object_dir_name = mesh_path.stem
         obj_name = object_dir_name.replace("_", " ")
         mask_dir = (
             segmentation_video_dir
@@ -1594,21 +1583,15 @@ def main() -> None:
 
         verts_src, faces, vertex_colors = load_mesh(mesh_path)
         mask = load_binary_mask(mask_path, (depth_h, depth_w))
-        if source_coord == "opencv_camera":
-            source_to_cv = np.eye(3, dtype=np.float32)
-        else:
-            source_to_cv = F_P3D_TO_CV.copy().astype(np.float32)
         assets.append(
             MeshAsset(
                 name=obj_name,
                 slug=slugify(obj_name),
                 kind="object",
-                source_mesh_path=mesh_path,
-                source_coord=source_coord,
-                verts_source=verts_src,
+                mesh_path=mesh_path,
+                verts=verts_src.astype(np.float32),
                 faces=faces,
                 vertex_colors=vertex_colors,
-                source_to_cv=source_to_cv,
                 mask_path=mask_path,
                 mask=mask,
             )
@@ -1677,12 +1660,10 @@ def main() -> None:
                 name=human_dir_name,
                 slug=human_slug,
                 kind="human",
-                source_mesh_path=human_mesh_path,
-                source_coord="opencv_camera",
-                verts_source=human_verts_src,
+                mesh_path=human_mesh_path,
+                verts=human_verts_src.astype(np.float32),
                 faces=human_faces,
                 vertex_colors=human_vertex_colors,
-                source_to_cv=np.eye(3, dtype=np.float32),
                 mask_path=human_mask_path,
                 mask=human_mask,
             )
@@ -1698,22 +1679,19 @@ def main() -> None:
     depth_opt = depth_obs
     frame_opt = frame_bgr
     k_opt = k_full
-    resize_scale = 1.0
 
     print(
-        f"Optimization resolution: {depth_opt.shape[1]}x{depth_opt.shape[0]} "
-        f"(scale={resize_scale:.4f})"
+        f"Optimization resolution: {depth_opt.shape[1]}x{depth_opt.shape[0]}"
     )
 
     device = parse_device(args.device)
     print(f"Using device: {device}")
 
-    verts_base_cv_np: list[np.ndarray] = []
-    for asset in assets:
-        verts_cv = (asset.verts_source @ asset.source_to_cv.transpose(0, 1)).astype(
-            np.float32
-        )
-        verts_base_cv_np.append(verts_cv)
+    verts_base_cv_np = [asset.verts.astype(np.float32) for asset in assets]
+    overlays_dir = output_dir / "overlays"
+    overlays_dir.mkdir(parents=True, exist_ok=True)
+    overlay_color_map = build_overlay_color_map(names)
+    overlay_legend_items = [(name, overlay_color_map[name]) for name in names]
 
     overlay_before = render_quality_overlay_from_cv_meshes(
         frame_bgr=frame_bgr,
@@ -1724,11 +1702,31 @@ def main() -> None:
         device=device,
         fill_alpha=DEFAULT_OVERLAY_FILL_ALPHA,
         contour_thickness=DEFAULT_OVERLAY_CONTOUR_THICKNESS,
+        color_map=overlay_color_map,
     )
-    overlay_color_map = build_overlay_color_map(names)
-    overlay_legend_items = [(name, overlay_color_map[name]) for name in names]
     overlay_before = add_overlay_legend(overlay_before, overlay_legend_items)
-    cv2.imwrite(str(output_dir / "overlay_before.png"), overlay_before)
+    overlay_before_path = overlays_dir / "overlay_before.png"
+    cv2.imwrite(str(overlay_before_path), overlay_before)
+
+    per_mesh_overlay_paths: dict[str, dict[str, str]] = {}
+    for asset, verts_cv in zip(assets, verts_base_cv_np):
+        single_before = render_quality_overlay_from_cv_meshes(
+            frame_bgr=frame_bgr,
+            verts_cv_list=[verts_cv],
+            faces_list=[asset.faces],
+            names=[asset.name],
+            k=k_full,
+            device=device,
+            fill_alpha=DEFAULT_OVERLAY_FILL_ALPHA,
+            contour_thickness=DEFAULT_OVERLAY_CONTOUR_THICKNESS,
+            color_map=overlay_color_map,
+        )
+        single_before = add_overlay_legend(
+            single_before, [(asset.name, overlay_color_map[asset.name])]
+        )
+        single_before_path = overlays_dir / f"before_{asset.slug}.png"
+        cv2.imwrite(str(single_before_path), single_before)
+        per_mesh_overlay_paths[asset.slug] = {"before": str(single_before_path)}
 
     observations: list[ObservationSet] = []
     model_samples_list: list[np.ndarray] = []
@@ -1862,7 +1860,7 @@ def main() -> None:
         )
 
         source_to_output_4x4 = np.eye(4, dtype=np.float32)
-        source_to_output_4x4[:3, :3] = scale * asset.source_to_cv.astype(np.float32)
+        source_to_output_4x4[:3, :3] = scale * np.eye(3, dtype=np.float32)
         t_cv = np.array([tx, ty, tz], dtype=np.float32)
         source_to_output_4x4[:3, 3] = t_cv
 
@@ -1871,9 +1869,7 @@ def main() -> None:
                 "name": asset.name,
                 "slug": asset.slug,
                 "kind": asset.kind,
-                "source_mesh_path": str(asset.source_mesh_path),
-                "source_coordinate": asset.source_coord,
-                "output_coordinate": "opencv",
+                "input_mesh_path": str(asset.mesh_path),
                 "aligned_mesh_ply": str(out_mesh_path),
                 "optimized_parameters": {
                     "status": result.status,
@@ -1913,9 +1909,32 @@ def main() -> None:
         device=device,
         fill_alpha=DEFAULT_OVERLAY_FILL_ALPHA,
         contour_thickness=DEFAULT_OVERLAY_CONTOUR_THICKNESS,
+        color_map=overlay_color_map,
     )
     overlay_after = add_overlay_legend(overlay_after, overlay_legend_items)
-    cv2.imwrite(str(output_dir / "overlay_after.png"), overlay_after)
+    overlay_after_path = overlays_dir / "overlay_after.png"
+    cv2.imwrite(str(overlay_after_path), overlay_after)
+
+    for asset, verts_cv in zip(assets, verts_after_np):
+        single_after = render_quality_overlay_from_cv_meshes(
+            frame_bgr=frame_bgr,
+            verts_cv_list=[verts_cv],
+            faces_list=[asset.faces],
+            names=[asset.name],
+            k=k_full,
+            device=device,
+            fill_alpha=DEFAULT_OVERLAY_FILL_ALPHA,
+            contour_thickness=DEFAULT_OVERLAY_CONTOUR_THICKNESS,
+            color_map=overlay_color_map,
+        )
+        single_after = add_overlay_legend(
+            single_after, [(asset.name, overlay_color_map[asset.name])]
+        )
+        single_after_path = overlays_dir / f"after_{asset.slug}.png"
+        cv2.imwrite(str(single_after_path), single_after)
+        per_mesh_overlay_paths.setdefault(asset.slug, {})["after"] = str(
+            single_after_path
+        )
 
     summary_out = {
         "inputs": {
@@ -1954,8 +1973,6 @@ def main() -> None:
             "debug_point_radius": int(args.debug_point_radius),
             "debug_max_points_vis": int(args.debug_max_points_vis),
             "debug_max_nn_lines": int(args.debug_max_nn_lines),
-            "resize_scale_for_optimization": float(resize_scale),
-            "output_coordinate": "opencv",
             "sam3_mask_erode_iters": int(args.sam3_mask_erode_iters),
         },
         "observation_stats": observation_stats,
@@ -2013,6 +2030,7 @@ def main() -> None:
                 "loss_curve_csv": str(losses_dir / f"{asset.slug}_loss.csv")
                 if len(result.history["iter"]) > 0
                 else None,
+                "overlays": per_mesh_overlay_paths.get(asset.slug, {}),
                 "debug_dir": str(debug_root / asset.slug),
             }
             for asset, result in zip(assets, optimization_results)
@@ -2021,9 +2039,10 @@ def main() -> None:
             "output_dir": str(output_dir),
             "meshes_dir": str(meshes_out_dir),
             "mesh_format": "ply",
-            "output_coordinate": "opencv",
-            "overlay_before": str(output_dir / "overlay_before.png"),
-            "overlay_after": str(output_dir / "overlay_after.png"),
+            "coordinate_system": "opencv",
+            "overlays_dir": str(overlays_dir),
+            "overlay_before": str(overlay_before_path),
+            "overlay_after": str(overlay_after_path),
             "debug_root": str(debug_root),
         },
     }

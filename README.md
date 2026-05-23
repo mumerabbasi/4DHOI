@@ -15,7 +15,7 @@ A modular research pipeline that turns a text prompt into a temporally coherent 
 ![SAM3D](https://img.shields.io/badge/SAM3D-Object_Meshes-475569)
 ![Depth Anything 3](https://img.shields.io/badge/Depth_Anything_3-Monocular_Depth-16A34A)
 ![GVHMR](https://img.shields.io/badge/GVHMR-Human_Motion-1D4ED8)
-![CoTracker / WAFT](https://img.shields.io/badge/CoTracker_%2F_WAFT-Object_Tracking-4B5563)
+![CoTracker](https://img.shields.io/badge/CoTracker-Object_Point_Tracking-4B5563)
 
 </div>
 
@@ -28,7 +28,7 @@ A modular research pipeline that turns a text prompt into a temporally coherent 
 | Structured interaction planning | A text prompt is first converted into a **Part Affordance Graph (PAG)** that describes the interaction, relevant objects, object parts, and state changes |
 | Video synthesis | **FLUX.2 [klein]** samples candidate first frames, a **Qwen-VL** tournament picks the strongest one, and **Wan 2.2** expands it into a locked-camera video |
 | 4D scene recovery | **Qwen-VL + SAM3** segment humans, objects, and parts, **Depth Anything 3** estimates monocular depth, and **GVHMR** recovers human motion |
-| Object reasoning | **SAM3D** reconstructs first-frame object meshes, rendered-view segmentation labels semantic parts, and **CoTracker / WAFT** provides motion cues |
+| Object reasoning | **SAM3D** reconstructs first-frame object meshes, rendered-view segmentation labels semantic parts, and **CoTracker** tracks object points |
 | Final refinement | Human and object trajectories are jointly optimized with tracking, mask, part, smoothness, contact, and intersection-aware losses |
 
 ---
@@ -93,7 +93,7 @@ Text Prompt
              |
              v
 +-----------------------------+
-|  Object Tracking            |  CoTracker / WAFT cues + per-object SE(3) optimization
+|  Object Tracking            |  CoTracker object point tracks + per-object SE(3) optimization
 +------------+----------------+
              |
              v
@@ -112,8 +112,8 @@ Text Prompt
 | Video generation | Sample candidate first frames, select the best one, and expand it into a fixed-camera interaction video | `02_Generate_Video/` |
 | Scene understanding | Segment humans/objects/parts, estimate monocular depth, and recover human motion | `03_Segment_Video/`, `05_Estimate_Depth/`, `06_Estimate_Human_Motion/` |
 | Object reconstruction | Reconstruct object meshes from the selected first frame and its masks | `04_Generate_Object_Mesh/` |
-| Alignment | Register human and object assets into one shared camera-centric 3D frame | `07_Align_Meshes/` |
-| Part labeling and motion cues | Render aligned meshes, label semantic parts, and estimate tracking cues from video | `08_Segment_Object_Mesh/`, `09_Estimate_Optical_Flow/` |
+| Alignment | Register human and object assets into one shared camera-centric 3D frame | `09_Align_Meshes/` |
+| Part labeling and motion cues | Render aligned meshes, label semantic parts, and track object points through video | `08_Segment_Object_Mesh/`, `07_Track_Object_Points/` |
 | Final 4D refinement | Track object pose over time and jointly optimize the full human-object sequence | `10_Track_Object_Mesh/`, `11_Track_Human_Object_Mesh/` |
 
 ---
@@ -128,9 +128,9 @@ Text Prompt
 ├── 04_Generate_Object_Mesh/      # First-frame object mesh reconstruction
 ├── 05_Estimate_Depth/            # Monocular depth estimation and point cloud export
 ├── 06_Estimate_Human_Motion/     # GVHMR-based human motion recovery and export
-├── 07_Align_Meshes/              # Human/object alignment in a shared 3D frame
+├── 07_Track_Object_Points/       # CoTracker object point tracks
 ├── 08_Segment_Object_Mesh/       # Render-time semantic object-part segmentation
-├── 09_Estimate_Optical_Flow/     # CoTracker / WAFT motion cues
+├── 09_Align_Meshes/              # Human/object alignment in a shared 3D frame
 ├── 10_Track_Object_Mesh/         # Per-object SE(3) tracking
 ├── 11_Track_Human_Object_Mesh/   # Final joint human-object refinement
 ├── 12_Blender_Scripts/           # Visualization and import helpers
@@ -181,10 +181,10 @@ python 03_Segment_Video/01_segment_video.py --interaction_name interaction_01
 python 04_Generate_Object_Mesh/01_generate_objects_meshes.py --interaction_name interaction_01
 python 05_Estimate_Depth/01_estimate_depth.py --interaction_name interaction_01
 python 06_Estimate_Human_Motion/01_estimate_human_motion.py --interaction_name interaction_01
-python 07_Align_Meshes/01_align_meshes.py --interaction_name interaction_01
+python 09_Align_Meshes/01_align_meshes.py --interaction_name interaction_01
 python 08_Segment_Object_Mesh/01_render_mesh_views.py --interaction_name interaction_01
 python 08_Segment_Object_Mesh/02_segment_renders.py --interaction_name interaction_01
-python 09_Estimate_Optical_Flow/01_estimate_optical_flow_cotracker.py --interaction_name interaction_01
+python 07_Track_Object_Points/01_track_object_points_cotracker.py --interaction_name interaction_01
 python 10_Track_Object_Mesh/01_track_object_mesh.py --interaction_name interaction_01
 python 11_Track_Human_Object_Mesh/01_track_human_object_mesh.py --interaction_name interaction_01
 ```

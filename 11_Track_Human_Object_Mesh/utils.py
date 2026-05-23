@@ -48,7 +48,7 @@ def resolve_dirs(
     aligned = (
         Path(args.aligned_mesh_dir)
         if args.aligned_mesh_dir
-        else parent / "07_Align_Meshes" / "output" / vname
+        else parent / "09_Align_Meshes" / "output" / vname
     )
     tracked = (
         Path(args.tracked_object_dir)

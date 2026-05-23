@@ -16,9 +16,8 @@ from pytorch3d.structures import Meshes
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-# OpenCV (+X right, +Y down, +Z forward) <-> PyTorch3D (+X left, +Y up, +Z forward)
-F_P3D_TO_CV = np.diag([-1.0, -1.0, 1.0]).astype(np.float32)
-F_CV_TO_P3D = F_P3D_TO_CV.copy()
+# OpenCV (+X right, +Y down, +Z forward) to PyTorch3D (+X left, +Y up, +Z forward).
+F_CV_TO_P3D = np.diag([-1.0, -1.0, 1.0]).astype(np.float32)
 
 OVERLAY_PALETTE_BGR: list[tuple[int, int, int]] = [
     (0, 255, 255),
@@ -40,37 +39,12 @@ class MeshAsset:
     name: str
     slug: str
     kind: str
-    source_mesh_path: Path
-    source_coord: str
-    verts_source: np.ndarray
+    mesh_path: Path
+    verts: np.ndarray
     faces: np.ndarray
     vertex_colors: np.ndarray | None
-    source_to_cv: np.ndarray
     mask_path: Path | None
     mask: np.ndarray | None
-
-
-@dataclass
-class CorrespondenceSet:
-    mesh_points_base: np.ndarray  # (N,3)
-    depth_points: np.ndarray  # (N,3)
-    uv_ref: np.ndarray  # (N,2)
-    colors_rgb: np.ndarray  # (N,3) uint8
-    pixels_considered: int
-    pixels_used: int
-
-
-@dataclass
-class OptimizationResult:
-    status: str
-    message: str | None
-    correspondences: int
-    scale: float
-    log_scale: float
-    tz_init: float
-    delta_tz: float
-    tz: float
-    history: dict[str, list[float]]
 
 
 def slugify(text: str) -> str:
@@ -202,13 +176,6 @@ def erode_mask(mask: np.ndarray | None, erode_iters: int) -> np.ndarray | None:
     return (eroded > 127).astype(np.float32)
 
 
-def find_first_human_ply(output_plys_dir: Path) -> Path:
-    ply_paths = sorted(output_plys_dir.glob("*.ply"))
-    if not ply_paths:
-        raise FileNotFoundError(f"No .ply files found in {output_plys_dir}")
-    return ply_paths[0]
-
-
 def parse_device(device_str: str) -> torch.device:
     device_str = device_str.strip()
     if not device_str:
@@ -234,43 +201,6 @@ def build_cameras(
         image_size=torch.tensor([[height, width]], dtype=torch.float32, device=device),
         in_ndc=False,
         device=device,
-    )
-
-
-def maybe_resize_for_optimization(
-    depth: np.ndarray,
-    masks: list[np.ndarray | None],
-    frame: np.ndarray,
-    k: np.ndarray,
-    opt_max_side: int,
-) -> tuple[np.ndarray, list[np.ndarray | None], np.ndarray, np.ndarray, float]:
-    h, w = depth.shape
-    if opt_max_side <= 0 or max(h, w) <= opt_max_side:
-        return depth, masks, frame, k, 1.0
-
-    scale = float(opt_max_side) / float(max(h, w))
-    out_h = max(1, int(round(h * scale)))
-    out_w = max(1, int(round(w * scale)))
-
-    depth_rs = cv2.resize(depth, (out_w, out_h), interpolation=cv2.INTER_LINEAR)
-    frame_rs = cv2.resize(frame, (out_w, out_h), interpolation=cv2.INTER_LINEAR)
-    masks_rs: list[np.ndarray | None] = []
-    for m in masks:
-        if m is None:
-            masks_rs.append(None)
-            continue
-        mr = cv2.resize(m, (out_w, out_h), interpolation=cv2.INTER_NEAREST)
-        masks_rs.append((mr > 0.5).astype(np.float32))
-
-    k_rs = k.copy()
-    k_rs[0, :] *= scale
-    k_rs[1, :] *= scale
-    return (
-        depth_rs.astype(np.float32),
-        masks_rs,
-        frame_rs,
-        k_rs.astype(np.float32),
-        scale,
     )
 
 
@@ -445,13 +375,15 @@ def render_quality_overlay_from_cv_meshes(
     fill_alpha: float = DEFAULT_OVERLAY_FILL_ALPHA,
     contour_thickness: int = DEFAULT_OVERLAY_CONTOUR_THICKNESS,
     dilate_px: int = 0,
+    color_map: dict[str, tuple[int, int, int]] | None = None,
 ) -> np.ndarray:
     """Render multi-mesh silhouette+outline overlay from OpenCV-camera meshes."""
     if len(verts_cv_list) != len(faces_list) or len(verts_cv_list) != len(names):
         raise ValueError("verts/faces/names lengths must match for overlay rendering.")
 
     h, w = frame_bgr.shape[:2]
-    color_map = build_overlay_color_map(names)
+    if color_map is None:
+        color_map = build_overlay_color_map(names)
     out = frame_bgr.copy()
     for name, verts_cv, faces in zip(names, verts_cv_list, faces_list):
         if verts_cv.size == 0 or faces.size == 0:

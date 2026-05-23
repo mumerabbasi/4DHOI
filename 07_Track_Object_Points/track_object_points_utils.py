@@ -1,4 +1,4 @@
-"""Shared utilities for optical flow estimation scripts."""
+"""Shared utilities for object point tracking scripts."""
 
 from __future__ import annotations
 

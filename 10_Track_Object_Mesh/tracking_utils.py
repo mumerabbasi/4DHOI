@@ -1,4 +1,4 @@
-"""Utilities used by CoTracker-based SE(3) object mesh tracking."""
+"""Utilities used by object-point-track SE(3) mesh tracking."""
 
 from __future__ import annotations
 
@@ -115,16 +115,16 @@ def _resolve_default_dirs(
 ) -> tuple[Path, Path, Path, Path]:
     interaction_name = args.interaction_name
 
-    if args.cotracker_video_dir is None:
-        cotracker_video_dir = (
-            script_dir.parent / "09_Estimate_Optical_Flow" / "output_cotracker" / interaction_name
+    if args.object_point_tracks_dir is None:
+        object_point_tracks_dir = (
+            script_dir.parent / "07_Track_Object_Points" / "output" / interaction_name
         ).resolve()
     else:
-        cotracker_video_dir = resolve_path(args.cotracker_video_dir, script_dir)
+        object_point_tracks_dir = resolve_path(args.object_point_tracks_dir, script_dir)
 
     if args.aligned_mesh_video_dir is None:
         aligned_mesh_video_dir = (
-            script_dir.parent / "07_Align_Meshes" / "output" / interaction_name
+            script_dir.parent / "09_Align_Meshes" / "output" / interaction_name
         ).resolve()
     else:
         aligned_mesh_video_dir = resolve_path(args.aligned_mesh_video_dir, script_dir)
@@ -137,7 +137,7 @@ def _resolve_default_dirs(
         segment_video_dir = resolve_path(args.segment_video_dir, script_dir)
 
     output_root = resolve_path(args.output_root, script_dir)
-    return cotracker_video_dir, aligned_mesh_video_dir, segment_video_dir, output_root
+    return object_point_tracks_dir, aligned_mesh_video_dir, segment_video_dir, output_root
 
 
 def _resolve_pag_path(args: argparse.Namespace, script_dir: Path) -> Path:
@@ -222,9 +222,9 @@ def _load_pag_objects_from_states_only(pag_path: Path) -> list[tuple[str, str]]:
     return objects
 
 
-def _resolve_frames_dir(cotracker_video_dir: Path, segment_video_dir: Path) -> Path | None:
+def _resolve_frames_dir(object_point_tracks_dir: Path, segment_video_dir: Path) -> Path | None:
     candidates = [
-        cotracker_video_dir / "_frames",
+        object_point_tracks_dir / "_frames",
         segment_video_dir / "_frames",
     ]
     for cand in candidates:
@@ -356,8 +356,14 @@ def _save_loss_plots(debug_dir: Path, iter_rows: list[dict[str, Any]]) -> dict[s
     it = np.array([int(r["iter"]) for r in iter_rows], dtype=np.int32)
     total = np.array([float(r["total"]) for r in iter_rows], dtype=np.float32)
     e_img = np.array([float(r["e_img"]) for r in iter_rows], dtype=np.float32)
-    e_smooth = np.array([float(r["e_smooth"]) for r in iter_rows], dtype=np.float32)
-    e_vel = np.array([float(r["e_vel"]) for r in iter_rows], dtype=np.float32)
+    e_smooth_trans = np.array(
+        [float(r["e_smooth_trans"]) for r in iter_rows],
+        dtype=np.float32,
+    )
+    e_smooth_rot = np.array(
+        [float(r["e_smooth_rot"]) for r in iter_rows],
+        dtype=np.float32,
+    )
 
     debug_dir.mkdir(parents=True, exist_ok=True)
     saved: dict[str, str] = {}
@@ -496,21 +502,33 @@ def _save_loss_plots(debug_dir: Path, iter_rows: list[dict[str, Any]]) -> dict[s
 
     total_path = debug_dir / "loss_total.png"
     e_img_path = debug_dir / "loss_e_img.png"
-    e_smooth_path = debug_dir / "loss_e_smooth.png"
-    e_vel_path = debug_dir / "loss_e_vel.png"
+    e_smooth_trans_path = debug_dir / "loss_e_smooth_trans.png"
+    e_smooth_rot_path = debug_dir / "loss_e_smooth_rot.png"
     legacy_combined = debug_dir / "loss_curves.png"
 
     _save_single(total, "E_total", "Total Loss", total_path, lw=2.0)
     _save_single(e_img, "E_img", "Image Reprojection Loss", e_img_path, lw=1.8)
-    _save_single(e_smooth, "E_smooth", "Acceleration Smoothness Loss", e_smooth_path, lw=1.8)
-    _save_single(e_vel, "E_vel", "Velocity Regularization Loss", e_vel_path, lw=1.8)
+    _save_single(
+        e_smooth_trans,
+        "E_smooth_trans",
+        "Translation Temporal Loss",
+        e_smooth_trans_path,
+        lw=1.8,
+    )
+    _save_single(
+        e_smooth_rot,
+        "E_smooth_rot",
+        "Rotation Temporal Loss",
+        e_smooth_rot_path,
+        lw=1.8,
+    )
     if legacy_combined.exists():
         legacy_combined.unlink()
 
     saved["total"] = str(total_path)
     saved["e_img"] = str(e_img_path)
-    saved["e_smooth"] = str(e_smooth_path)
-    saved["e_vel"] = str(e_vel_path)
+    saved["e_smooth_trans"] = str(e_smooth_trans_path)
+    saved["e_smooth_rot"] = str(e_smooth_rot_path)
     return saved
 
 

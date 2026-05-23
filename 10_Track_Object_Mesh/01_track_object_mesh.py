@@ -1,4 +1,4 @@
-"""Multi-frame SE(3) object mesh tracking from CoTracker tracks"""
+"""Multi-frame SE(3) object mesh tracking from object point tracks."""
 
 from __future__ import annotations
 
@@ -11,12 +11,13 @@ from typing import Any
 
 import cv2
 import numpy as np
+import roma
 import torch
 import torch.nn.functional as F
 import trimesh
 from pytorch3d.renderer import MeshRasterizer, PerspectiveCameras, RasterizationSettings
 from pytorch3d.structures import Meshes
-from pytorch3d.transforms import axis_angle_to_matrix, matrix_to_axis_angle
+from pytorch3d.transforms import axis_angle_to_matrix
 
 from tracking_utils import (
     _draw_frame0_correspondence,
@@ -48,8 +49,26 @@ OVERLAY_CONTOUR_THICKNESS = 0
 OVERLAY_COLOR_BGR = (0, 255, 255)  # yellow-cyan
 
 
+def _object_slug(name: str) -> str:
+    return name.strip().replace(" ", "_").replace("-", "_")
+
+
+def _load_pag_motion_flags(pag_path: Path) -> dict[str, tuple[bool, bool]]:
+    with pag_path.open("r", encoding="utf-8") as f:
+        payload = json.load(f)
+
+    flags: dict[str, tuple[bool, bool]] = {}
+    for item in payload["object states"]:
+        name = item["name"].strip()
+        flags[_object_slug(name)] = (
+            bool(item.get("is_translational", True)),
+            bool(item.get("is_rotational", True)),
+        )
+    return flags
+
+
 # ---------------------------------------------------------------------------
-# Argument parsing (same interface as original)
+# Argument parsing
 # ---------------------------------------------------------------------------
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
@@ -62,16 +81,16 @@ def parse_args() -> argparse.Namespace:
         help="Interaction name used to resolve default input paths.",
     )
     p.add_argument(
-        "--cotracker_video_dir",
+        "--object_point_tracks_dir",
         type=str,
         default=None,
-        help="CoTracker dir (default: ../09_Estimate_Optical_Flow/output_cotracker/<interaction_name>).",
+        help="Object point tracks dir (default: ../07_Track_Object_Points/output/<interaction_name>).",
     )
     p.add_argument(
         "--aligned_mesh_video_dir",
         type=str,
         default=None,
-        help="Aligned-mesh dir (default: ../07_Align_Meshes/output/<interaction_name>).",
+        help="Aligned-mesh dir (default: ../09_Align_Meshes/output/<interaction_name>).",
     )
     p.add_argument(
         "--segment_video_dir",
@@ -125,7 +144,7 @@ def parse_args() -> argparse.Namespace:
         "--visibility_threshold",
         type=float,
         default=0.0,
-        help="Minimum CoTracker visibility to keep a sample.",
+        help="Minimum point-track visibility to keep a sample.",
     )
     p.add_argument(
         "--min_valid_tracks",
@@ -141,8 +160,18 @@ def parse_args() -> argparse.Namespace:
         help="Huber delta for reprojection residuals (px).",
     )
     p.add_argument("--lambda_img", type=float, default=1.0, help="Weight for image reprojection loss.")
-    p.add_argument("--lambda_a", type=float, default=300.0, help="Weight for acceleration smoothness loss.")
-    p.add_argument("--lambda_v", type=float, default=80.0, help="Weight for velocity smoothness loss.")
+    p.add_argument(
+        "--lambda_smooth_trans",
+        type=float,
+        default=300.0,
+        help="Weight for module-11 translation temporal loss.",
+    )
+    p.add_argument(
+        "--lambda_smooth_rot",
+        type=float,
+        default=80.0,
+        help="Weight for module-11 rotation temporal loss.",
+    )
     p.add_argument("--adam_iters", type=int, default=4000, help="Number of Adam iterations.")
     p.add_argument("--adam_lr", type=float, default=1e-2, help="Adam learning rate.")
     p.add_argument(
@@ -163,10 +192,7 @@ def parse_args() -> argparse.Namespace:
         default=300,
         help="Minimum iterations before early stopping is allowed.",
     )
-    p.add_argument("--disable_lbfgs", action="store_true", help="Skip LBFGS refinement.")
-    p.add_argument("--lbfgs_iters", type=int, default=120, help="Maximum LBFGS iterations.")
-    p.add_argument("--lbfgs_lr", type=float, default=0.5, help="LBFGS step size.")
-    p.add_argument("--log_every", type=int, default=20, help="Log optimization stats every N iterations.")
+    p.add_argument("--log_every", type=int, default=50, help="Log optimization stats every N iterations.")
 
     # --- Optimisation improvements ---
     p.add_argument("--disable_pnp_init", action="store_true",
@@ -371,30 +397,38 @@ def _build_T_matrices(
     return torch.cat([eye, T], dim=0)  # [T, 4, 4]
 
 
-def _relative_body_velocity(
-    R_all: torch.Tensor,     # [T, 3, 3]
-    t_all: torch.Tensor,     # [T, 3]
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """Compute body-frame velocity for t = 0 .. T-2.
+def _l2_loss(x: torch.Tensor, y: torch.Tensor, dim: int = -1) -> torch.Tensor:
+    return ((x - y) ** 2).sum(dim).mean()
 
-    R_rel_t = R_t^T @ R_{t+1}
-    omega_t = axis_angle(R_rel_t)      (3-vector)
-    v_t     = R_t^T @ (t_{t+1} - t_t)  (body-frame translation vel)
 
-    Returns:
-        omega [T-1, 3], v [T-1, 3]
-    """
-    R_rel = torch.bmm(R_all[:-1].transpose(-1, -2), R_all[1:])  # [T-1,3,3]
-    omega = matrix_to_axis_angle(R_rel)                          # [T-1,3]
+def _simple_static_loss(x: torch.Tensor) -> torch.Tensor:
+    if x.shape[-2] < 2:
+        return x.new_tensor(0.0)
+    return _l2_loss(x[..., 1:, :], x[..., :-1, :])
 
-    dt = t_all[1:] - t_all[:-1]   # [T-1, 3]
-    # Body-frame: rotate back by current R
-    v = torch.bmm(
-        R_all[:-1].transpose(-1, -2),
-        dt.unsqueeze(-1),
-    ).squeeze(-1)  # [T-1, 3]
 
-    return omega, v
+def _simple_smoothness_loss(x: torch.Tensor) -> torch.Tensor:
+    if x.shape[-2] < 3:
+        return x.new_tensor(0.0)
+    return _l2_loss(x[..., 1:-1, :], 0.5 * (x[..., :-2, :] + x[..., 2:, :]))
+
+
+def _rotation_static_loss(rot_mats: torch.Tensor) -> torch.Tensor:
+    if rot_mats.shape[0] < 2:
+        return rot_mats.new_tensor(0.0)
+    return _simple_static_loss(roma.rotmat_to_rotvec(rot_mats))
+
+
+def _rotation_smoothness_loss(rot_mats: torch.Tensor) -> torch.Tensor:
+    if rot_mats.shape[0] < 3:
+        return rot_mats.new_tensor(0.0)
+    interp = roma.rotmat_slerp(
+        rot_mats[:-2],
+        rot_mats[2:],
+        torch.tensor(0.5, device=rot_mats.device, dtype=rot_mats.dtype),
+    )
+    diff = roma.rotmat_geodesic_distance(interp, rot_mats[1:-1])
+    return (diff**2).mean()
 
 
 # ---------------------------------------------------------------------------
@@ -413,14 +447,14 @@ def _huber_on_squared(s: torch.Tensor, delta: float) -> torch.Tensor:
 class LossBundle:
     total: torch.Tensor
     e_img: torch.Tensor
-    e_smooth: torch.Tensor
-    e_vel: torch.Tensor
+    e_smooth_trans: torch.Tensor
+    e_smooth_rot: torch.Tensor
     e_img_raw: torch.Tensor
-    e_smooth_raw: torch.Tensor
-    e_vel_raw: torch.Tensor
+    e_smooth_trans_raw: torch.Tensor
+    e_smooth_rot_raw: torch.Tensor
     e_img_denom: torch.Tensor
-    e_smooth_denom: torch.Tensor
-    e_vel_denom: torch.Tensor
+    e_smooth_trans_denom: torch.Tensor
+    e_smooth_rot_denom: torch.Tensor
     T_mats: torch.Tensor        # [T, 4, 4] standard convention
     pred_uv: torch.Tensor       # [T, M, 2]
     obs_uv: torch.Tensor        # [T, M, 2]
@@ -438,10 +472,14 @@ def _compute_loss(
     vis: torch.Tensor,         # [T, M]
     masks: torch.Tensor,      # [T, H, W]
     fx: float, fy: float, cx: float, cy: float,
-    lambda_img: float, lambda_a: float, lambda_v: float,
+    lambda_img: float,
+    lambda_smooth_trans: float,
+    lambda_smooth_rot: float,
     huber_delta: float,
     vis_threshold: float,
     mask_gate_threshold: float,
+    is_translational: bool,
+    is_rotational: bool,
 ) -> LossBundle:
     device = x0.device
     t_frames = obs_uv.shape[0]
@@ -480,38 +518,39 @@ def _compute_loss(
     e_img_denom = weights.sum().clamp(min=1.0)
     e_img = e_img_raw / e_img_denom
 
-    # --- Velocity & smoothness (body-frame SE(3)) ---
-    if t_frames > 1:
-        omega_vel, trans_vel = _relative_body_velocity(R_all, t_all)
-        vel = torch.cat([omega_vel, trans_vel], dim=-1)  # [T-1, 6]
-        e_vel_raw = (vel ** 2).sum()
-        e_vel_denom = torch.tensor(max(vel.numel(), 1), dtype=torch.float32, device=device)
-        e_vel = e_vel_raw / e_vel_denom
-
-        if vel.shape[0] >= 2:
-            accel = vel[1:] - vel[:-1]
-            e_smooth_raw = (accel ** 2).sum()
-            e_smooth_denom = torch.tensor(max(accel.numel(), 1), dtype=torch.float32, device=device)
-            e_smooth = e_smooth_raw / e_smooth_denom
-        else:
-            e_smooth_raw = torch.zeros((), device=device)
-            e_smooth_denom = torch.ones((), device=device)
-            e_smooth = torch.zeros((), device=device)
+    # --- Module-11 object temporal terms ---
+    if is_translational:
+        e_smooth_trans = _simple_smoothness_loss(t_all)
     else:
-        e_vel_raw = torch.zeros((), device=device)
-        e_vel_denom = torch.ones((), device=device)
-        e_vel = torch.zeros((), device=device)
-        e_smooth_raw = torch.zeros((), device=device)
-        e_smooth_denom = torch.ones((), device=device)
-        e_smooth = torch.zeros((), device=device)
+        e_smooth_trans = _simple_static_loss(t_all) * 10.0
 
-    total = lambda_img * e_img + lambda_a * e_smooth + lambda_v * e_vel
+    if is_rotational:
+        e_smooth_rot = _rotation_smoothness_loss(R_all)
+    else:
+        e_smooth_rot = _rotation_static_loss(R_all) * 10.0
+
+    e_smooth_trans_raw = e_smooth_trans
+    e_smooth_rot_raw = e_smooth_rot
+    e_smooth_trans_denom = torch.ones((), dtype=torch.float32, device=device)
+    e_smooth_rot_denom = torch.ones((), dtype=torch.float32, device=device)
+
+    total = (
+        lambda_img * e_img
+        + lambda_smooth_trans * e_smooth_trans
+        + lambda_smooth_rot * e_smooth_rot
+    )
 
     return LossBundle(
         total=total,
-        e_img=e_img, e_smooth=e_smooth, e_vel=e_vel,
-        e_img_raw=e_img_raw, e_smooth_raw=e_smooth_raw, e_vel_raw=e_vel_raw,
-        e_img_denom=e_img_denom, e_smooth_denom=e_smooth_denom, e_vel_denom=e_vel_denom,
+        e_img=e_img,
+        e_smooth_trans=e_smooth_trans,
+        e_smooth_rot=e_smooth_rot,
+        e_img_raw=e_img_raw,
+        e_smooth_trans_raw=e_smooth_trans_raw,
+        e_smooth_rot_raw=e_smooth_rot_raw,
+        e_img_denom=e_img_denom,
+        e_smooth_trans_denom=e_smooth_trans_denom,
+        e_smooth_rot_denom=e_smooth_rot_denom,
         T_mats=T_mats, pred_uv=pred_uv, obs_uv=obs_uv,
         weights=weights, r2=r2,
         mask_values=mask_vals, vis_weights=vis_w,
@@ -863,6 +902,8 @@ def _run_single_object(
     args: argparse.Namespace,
     out_dir: Path,
     device: torch.device,
+    is_translational: bool,
+    is_rotational: bool,
 ) -> dict[str, Any]:
     t0 = time.time()
     ensure_dir(out_dir)
@@ -997,11 +1038,13 @@ def _run_single_object(
         return dict(
             fx=fx, fy=fy, cx=cx, cy=cy,
             lambda_img=float(args.lambda_img),
-            lambda_a=float(args.lambda_a),
-            lambda_v=float(args.lambda_v),
+            lambda_smooth_trans=float(args.lambda_smooth_trans),
+            lambda_smooth_rot=float(args.lambda_smooth_rot),
             huber_delta=huber_delta_override if huber_delta_override is not None else float(args.huber_delta_px),
             vis_threshold=float(args.visibility_threshold),
             mask_gate_threshold=float(args.mask_gate_threshold),
+            is_translational=is_translational,
+            is_rotational=is_rotational,
         )
 
     def _record(it: int, stage: str, b: LossBundle):
@@ -1012,11 +1055,11 @@ def _run_single_object(
         else:
             mean_rp = float("nan")
         ei = float(b.e_img.detach().item())
-        es = float(b.e_smooth.detach().item())
-        ev = float(b.e_vel.detach().item())
+        es = float(b.e_smooth_trans.detach().item())
+        ev = float(b.e_smooth_rot.detach().item())
         ti = args.lambda_img * ei
-        ts = args.lambda_a * es
-        tv = args.lambda_v * ev
+        ts = args.lambda_smooth_trans * es
+        tv = args.lambda_smooth_rot * ev
         # Pose magnitude summary
         with torch.no_grad():
             t_norms = b.T_mats[:, :3, 3].norm(dim=-1)
@@ -1024,15 +1067,15 @@ def _run_single_object(
         iter_rows.append({
             "iter": it, "stage": stage,
             "total": float(b.total.detach().item()),
-            "e_img": ei, "e_smooth": es, "e_vel": ev,
-            "term_img": ti, "term_smooth_weighted": ts, "term_vel_weighted": tv,
+            "e_img": ei, "e_smooth_trans": es, "e_smooth_rot": ev,
+            "term_img": ti, "term_smooth_trans_weighted": ts, "term_smooth_rot_weighted": tv,
             "total_from_terms": ti + ts + tv,
             "e_img_raw": float(b.e_img_raw.detach().item()),
-            "e_smooth_raw": float(b.e_smooth_raw.detach().item()),
-            "e_vel_raw": float(b.e_vel_raw.detach().item()),
+            "e_smooth_trans_raw": float(b.e_smooth_trans_raw.detach().item()),
+            "e_smooth_rot_raw": float(b.e_smooth_rot_raw.detach().item()),
             "e_img_denom": float(b.e_img_denom.detach().item()),
-            "e_smooth_denom": float(b.e_smooth_denom.detach().item()),
-            "e_vel_denom": float(b.e_vel_denom.detach().item()),
+            "e_smooth_trans_denom": float(b.e_smooth_trans_denom.detach().item()),
+            "e_smooth_rot_denom": float(b.e_smooth_rot_denom.detach().item()),
             "active_pairs": int(active.sum().item()),
             "sum_weight": float(b.weights.sum().item()),
             "mean_reproj_px": mean_rp,
@@ -1139,8 +1182,10 @@ def _run_single_object(
                         f"  [{object_slug}] adam {it:05d}  "
                         f"total={b_eval.total.item():.6f}  "
                         f"img={args.lambda_img * b_eval.e_img.item():.6f}  "
-                        f"smooth={args.lambda_a * b_eval.e_smooth.item():.6f}  "
-                        f"vel={args.lambda_v * b_eval.e_vel.item():.6f}  "
+                        "smooth_t="
+                        f"{args.lambda_smooth_trans * b_eval.e_smooth_trans.item():.6f}  "
+                        "smooth_r="
+                        f"{args.lambda_smooth_rot * b_eval.e_smooth_rot.item():.6f}  "
                         f"max_t={t_norms.max().item():.5f}  "
                         f"lr={cur_lr:.6f}  huber={current_huber:.2f}"
                     )
@@ -1161,43 +1206,6 @@ def _run_single_object(
             with torch.no_grad():
                 rotvecs.copy_(best_rotvecs)
                 translations.copy_(best_trans)
-
-    # ==================== L-BFGS refinement ====================
-    if t_use > 1 and not args.disable_lbfgs and args.lbfgs_iters > 0 and not early_stopped:
-        lbfgs = torch.optim.LBFGS(
-            [rotvecs, translations],
-            lr=float(args.lbfgs_lr),
-            max_iter=int(args.lbfgs_iters),
-            line_search_fn="strong_wolfe",
-        )
-        n_closure = {"n": 0}
-
-        def closure():
-            lbfgs.zero_grad(set_to_none=True)
-            b = _compute_loss(
-                rotvecs, translations, x0_m3, obs_uv, vis_tm, masks_t,
-                **_loss_kwargs(),
-            )
-            if not torch.isfinite(b.total):
-                raise RuntimeError("Non-finite loss in L-BFGS")
-            b.total.backward()
-            n_closure["n"] += 1
-            return b.total
-
-        lbfgs.step(closure)
-        with torch.no_grad():
-            b_lbfgs = _compute_loss(
-                rotvecs, translations, x0_m3, obs_uv, vis_tm, masks_t,
-                **_loss_kwargs(),
-            )
-        _record(
-            (iter_rows[-1]["iter"] + 1) if iter_rows else 1,
-            "lbfgs_final", b_lbfgs,
-        )
-        print(f"  [{object_slug}] lbfgs closures={n_closure['n']} "
-              f"total={b_lbfgs.total.item():.6f}")
-    elif early_stopped:
-        print(f"  [{object_slug}] skipping L-BFGS (early stop)")
 
     # ==================== Final evaluation ====================
     with torch.no_grad():
@@ -1278,10 +1286,12 @@ def _run_single_object(
         "num_dropped_outside_mask0": mapping.outside_mask0_count,
         "num_dropped_nonfinite_seed": mapping.nonfinite_seed_count,
         "num_frames": t_use,
+        "is_translational": bool(is_translational),
+        "is_rotational": bool(is_rotational),
         "huber_delta_px": float(args.huber_delta_px),
         "lambda_img": float(args.lambda_img),
-        "lambda_a": float(args.lambda_a),
-        "lambda_v": float(args.lambda_v),
+        "lambda_smooth_trans": float(args.lambda_smooth_trans),
+        "lambda_smooth_rot": float(args.lambda_smooth_rot),
         "adam_iters": int(args.adam_iters),
         "early_stop_patience": int(args.early_stop_patience),
         "early_stop_rel_min_delta": float(args.early_stop_rel_min_delta),
@@ -1290,21 +1300,23 @@ def _run_single_object(
         "early_stop_iter": early_stop_iter,
         "best_iter": best_iter,
         "best_total_loss": best_total,
-        "lbfgs_enabled": not args.disable_lbfgs,
-        "lbfgs_iters": int(args.lbfgs_iters),
         "final_total_loss": float(final.total.item()),
         "final_e_img": float(final.e_img.item()),
-        "final_e_smooth": float(final.e_smooth.item()),
-        "final_e_vel": float(final.e_vel.item()),
+        "final_e_smooth_trans": float(final.e_smooth_trans.item()),
+        "final_e_smooth_rot": float(final.e_smooth_rot.item()),
         "final_e_img_raw": float(final.e_img_raw.item()),
-        "final_e_smooth_raw": float(final.e_smooth_raw.item()),
-        "final_e_vel_raw": float(final.e_vel_raw.item()),
+        "final_e_smooth_trans_raw": float(final.e_smooth_trans_raw.item()),
+        "final_e_smooth_rot_raw": float(final.e_smooth_rot_raw.item()),
         "final_e_img_denom": float(final.e_img_denom.item()),
-        "final_e_smooth_denom": float(final.e_smooth_denom.item()),
-        "final_e_vel_denom": float(final.e_vel_denom.item()),
+        "final_e_smooth_trans_denom": float(final.e_smooth_trans_denom.item()),
+        "final_e_smooth_rot_denom": float(final.e_smooth_rot_denom.item()),
         "final_term_img": float(args.lambda_img) * float(final.e_img.item()),
-        "final_term_smooth_weighted": float(args.lambda_a) * float(final.e_smooth.item()),
-        "final_term_vel_weighted": float(args.lambda_v) * float(final.e_vel.item()),
+        "final_term_smooth_trans_weighted": (
+            float(args.lambda_smooth_trans) * float(final.e_smooth_trans.item())
+        ),
+        "final_term_smooth_rot_weighted": (
+            float(args.lambda_smooth_rot) * float(final.e_smooth_rot.item())
+        ),
         "final_active_pairs": final_active,
         "final_sum_weight": float(final.weights.sum().item()),
         "final_mean_reproj_px": mean_reproj,
@@ -1335,20 +1347,25 @@ def main() -> None:
     ]:
         if val < lo:
             raise ValueError(f"--{name} must be >= {lo}")
-    for name in ("lambda_img", "lambda_a", "lambda_v", "early_stop_rel_min_delta"):
+    for name in (
+        "lambda_img",
+        "lambda_smooth_trans",
+        "lambda_smooth_rot",
+        "early_stop_rel_min_delta",
+    ):
         if getattr(args, name) < 0:
             raise ValueError(f"--{name} must be >= 0")
 
     script_dir = Path(__file__).resolve().parent
 
-    cotracker_dir, aligned_dir, segment_dir, output_root = _resolve_default_dirs(args, script_dir)
+    object_point_tracks_dir, aligned_dir, segment_dir, output_root = _resolve_default_dirs(args, script_dir)
     pag_path = _resolve_pag_path(args, script_dir)
     k, intr_path = _load_intrinsics_from_alignment_summary(aligned_dir)
     out_video_dir = (output_root / args.interaction_name).resolve()
     ensure_dir(out_video_dir)
 
     for label, d in [
-        ("CoTracker", cotracker_dir),
+        ("Object point tracks", object_point_tracks_dir),
         ("Aligned", aligned_dir),
         ("Segment", segment_dir),
     ]:
@@ -1357,15 +1374,16 @@ def main() -> None:
 
     device = _to_device(args.device)
     pag_objects = _load_pag_objects_from_states_only(pag_path)
+    pag_motion_flags = _load_pag_motion_flags(pag_path)
 
-    frames_dir = _resolve_frames_dir(cotracker_dir, segment_dir)
+    frames_dir = _resolve_frames_dir(object_point_tracks_dir, segment_dir)
     frame_paths: list[Path] = list_images(frames_dir) if frames_dir else []
     if not frame_paths:
         print("[WARN] No frames directory found.")
 
     # --- Print important info ---
     print("=" * 60)
-    print("track_object_mesh_claude.py — corrected SE(3) tracker")
+    print("01_track_object_mesh.py - SE(3) object tracker")
     print(f"  video:  {args.interaction_name}")
     print(f"  device: {device}")
     print(f"  K:      fx={k[0,0]:.1f}  fy={k[1,1]:.1f}  cx={k[0,2]:.1f}  cy={k[1,2]:.1f}")
@@ -1376,9 +1394,9 @@ def main() -> None:
     summary: dict[str, Any] = {
         "interaction_name": args.interaction_name,
         "status": "completed",
-        "script": "track_object_mesh_claude.py",
+        "script": "01_track_object_mesh.py",
         "inputs": {
-            "cotracker_video_dir": str(cotracker_dir),
+            "object_point_tracks_dir": str(object_point_tracks_dir),
             "aligned_mesh_video_dir": str(aligned_dir),
             "segment_video_dir": str(segment_dir),
             "pag_file": str(pag_path),
@@ -1388,16 +1406,13 @@ def main() -> None:
         "optimization_settings": {
             "huber_delta_px": float(args.huber_delta_px),
             "lambda_img": float(args.lambda_img),
-            "lambda_a": float(args.lambda_a),
-            "lambda_v": float(args.lambda_v),
+            "lambda_smooth_trans": float(args.lambda_smooth_trans),
+            "lambda_smooth_rot": float(args.lambda_smooth_rot),
             "adam_iters": int(args.adam_iters),
             "adam_lr": float(args.adam_lr),
             "early_stop_patience": int(args.early_stop_patience),
             "early_stop_rel_min_delta": float(args.early_stop_rel_min_delta),
             "early_stop_min_iter": int(args.early_stop_min_iter),
-            "lbfgs_enabled": not args.disable_lbfgs,
-            "lbfgs_iters": int(args.lbfgs_iters),
-            "lbfgs_lr": float(args.lbfgs_lr),
             "pnp_init_enabled": not args.disable_pnp_init,
             "pnp_ransac_thresh": float(args.pnp_ransac_thresh),
             "outlier_reproj_thresh_px": float(args.outlier_reproj_thresh_px),
@@ -1413,13 +1428,19 @@ def main() -> None:
             "bugs_fixed": [
                 "PyTorch3D se3_exp_map row-vector convention → translation was always zero",
                 "Rotation was transposed (R^T instead of R)",
-                "Body-frame velocity/smoothness now computed properly",
+                "Temporal smoothness uses module-11 translation midpoint and rotation geodesic terms",
             ],
         },
         "device": str(device),
         "output_dir": str(out_video_dir),
         "objects_from_pag_states": [
-            {"name": n, "slug": s} for n, s in pag_objects
+            {
+                "name": n,
+                "slug": s,
+                "is_translational": pag_motion_flags[s][0],
+                "is_rotational": pag_motion_flags[s][1],
+            }
+            for n, s in pag_objects
         ],
         "objects_processed": [],
         "objects_skipped": [],
@@ -1427,9 +1448,10 @@ def main() -> None:
     }
 
     for obj_name, obj_slug in pag_objects:
+        is_translational, is_rotational = pag_motion_flags[obj_slug]
         mesh_path = aligned_dir / "meshes" / f"{obj_slug}.ply"
-        tracks_path = cotracker_dir / obj_slug / "tracks.npy"
-        vis_path = cotracker_dir / obj_slug / "visibility.npy"
+        tracks_path = object_point_tracks_dir / obj_slug / "tracks.npy"
+        vis_path = object_point_tracks_dir / obj_slug / "visibility.npy"
         mask_dir = _resolve_object_mask_dir(segment_dir, obj_slug)
         obj_out = out_video_dir / obj_slug
 
@@ -1457,6 +1479,7 @@ def main() -> None:
             obj_summary = _run_single_object(
                 obj_name, obj_slug, mesh_path, tracks_path, vis_path,
                 mask_dir, frame_paths, k, args, obj_out, device,
+                is_translational, is_rotational,
             )
             summary["objects_processed"].append(obj_summary)
             print(f"[OK] {obj_slug} → {obj_out}")

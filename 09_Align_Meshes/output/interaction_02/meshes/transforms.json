@@ -4,9 +4,7 @@
       "name": "person_1",
       "slug": "person_1",
       "kind": "human",
-      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/output/interaction_02/humans/person_1/hmr4d_results.pt",
-      "source_coordinate": "opencv_camera",
-      "output_coordinate": "opencv",
+      "input_mesh_path": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/output/interaction_02/humans/person_1/hmr4d_results.pt",
       "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_02/meshes/person_1.ply",
       "optimized_parameters": {
         "status": "optimized",
@@ -62,9 +60,7 @@
       "name": "dumbbell (left hand)",
       "slug": "dumbbell_(left_hand)",
       "kind": "object",
-      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_02/meshes/dumbbell_(left_hand).ply",
-      "source_coordinate": "opencv_camera",
-      "output_coordinate": "opencv",
+      "input_mesh_path": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_02/meshes/dumbbell_(left_hand).ply",
       "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_02/meshes/dumbbell_(left_hand).ply",
       "optimized_parameters": {
         "status": "optimized",
@@ -120,9 +116,7 @@
       "name": "dumbbell (right hand)",
       "slug": "dumbbell_(right_hand)",
       "kind": "object",
-      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_02/meshes/dumbbell_(right_hand).ply",
-      "source_coordinate": "opencv_camera",
-      "output_coordinate": "opencv",
+      "input_mesh_path": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_02/meshes/dumbbell_(right_hand).ply",
       "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_02/meshes/dumbbell_(right_hand).ply",
       "optimized_parameters": {
         "status": "optimized",

@@ -396,7 +396,7 @@ def _load_human_data(
             f"Human mesh '{human_slug}' has {vertex_count} vertices, but the "
             f"SMPL segmentation references vertex {max_segment_id}. Rerun "
             "06_Estimate_Human_Motion/02_export_human_motion_to_ply.py and "
-            "07_Align_Meshes with SMPL-X outputs before final optimization."
+            "09_Align_Meshes with SMPL-X outputs before final optimization."
         )
 
     base_verts = torch.from_numpy(human_verts_np).float().to(device)

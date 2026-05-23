@@ -7,9 +7,9 @@ import sys
 from pathlib import Path
 
 
-VIDEO_DIR = ""
+INTERACTION_DIR = ""
 
-# Leave blank to derive the root collection name from VIDEO_DIR.
+# Leave blank to derive the root collection name from INTERACTION_DIR.
 ROOT_COLLECTION_NAME = ""
 
 # Pick your color here (R, G, B, A) in 0..1.
@@ -106,9 +106,9 @@ def _import_ply(filepath: str):
     raise RuntimeError("No PLY importer found (wm.ply_import or import_mesh.ply).")
 
 
-def _find_sequences(video_dir: Path):
+def _find_sequences(interaction_dir: Path):
     sequences = []
-    for child in sorted(video_dir.iterdir(), key=lambda path: _natural_key(path.name)):
+    for child in sorted(interaction_dir.iterdir(), key=lambda path: _natural_key(path.name)):
         if not child.is_dir():
             continue
 
@@ -136,37 +136,37 @@ def _make_empty(name: str, parent=None):
     return empty
 
 
-def _parse_video_dir_arg():
+def _parse_interaction_dir_arg():
     if "--" not in sys.argv:
         return None
 
     parser = argparse.ArgumentParser(description="Import all PLY sequences inside an interaction directory.")
-    parser.add_argument("video_dir", nargs="?", help="Path to an interaction_xx directory.")
-    parser.add_argument("--video-dir", dest="video_dir_option", help="Path to an interaction_xx directory.")
+    parser.add_argument("interaction_dir", nargs="?", help="Path to an interaction_xx directory.")
+    parser.add_argument("--interaction-dir", dest="interaction_dir_option", help="Path to an interaction_xx directory.")
     args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:])
-    return args.video_dir_option or args.video_dir
+    return args.interaction_dir_option or args.interaction_dir
 
 
-def import_ply_video_hierarchies(video_dir=None):
-    video_dir_arg = video_dir or _parse_video_dir_arg() or VIDEO_DIR
-    if not video_dir_arg:
-        raise ValueError("Set VIDEO_DIR or pass the interaction directory after '--'.")
+def import_ply_interaction_hierarchies(interaction_dir=None):
+    interaction_dir_arg = interaction_dir or _parse_interaction_dir_arg() or INTERACTION_DIR
+    if not interaction_dir_arg:
+        raise ValueError("Set INTERACTION_DIR or pass the interaction directory after '--'.")
 
-    resolved_video_dir = Path(bpy.path.abspath(video_dir_arg)).expanduser().resolve()
-    if not resolved_video_dir.is_dir():
-        raise NotADirectoryError(f"Interaction directory not found: {resolved_video_dir}")
+    resolved_interaction_dir = Path(bpy.path.abspath(interaction_dir_arg)).expanduser().resolve()
+    if not resolved_interaction_dir.is_dir():
+        raise NotADirectoryError(f"Interaction directory not found: {resolved_interaction_dir}")
 
-    sequences = _find_sequences(resolved_video_dir)
+    sequences = _find_sequences(resolved_interaction_dir)
     if not sequences:
         raise FileNotFoundError(
-            f"No sequences found under {resolved_video_dir}. Expected interaction_xx/<sequence>/meshes/*.ply"
+            f"No sequences found under {resolved_interaction_dir}. Expected interaction_xx/<sequence>/meshes/*.ply"
         )
 
-    root_name = ROOT_COLLECTION_NAME.strip() or resolved_video_dir.name
+    root_name = ROOT_COLLECTION_NAME.strip() or resolved_interaction_dir.name
     root_empty_name = f"{root_name}::root"
     material_name = f"{root_name}_mat"
 
-    print(f"Interaction directory: {resolved_video_dir}")
+    print(f"Interaction directory: {resolved_interaction_dir}")
     print(f"Found {len(sequences)} sequences:")
     for sequence_name, ply_files in sequences:
         print(f"  - {sequence_name}: {len(ply_files)} frames")
@@ -254,4 +254,4 @@ def import_ply_video_hierarchies(video_dir=None):
 
 
 if __name__ == "__main__":
-    import_ply_video_hierarchies()
+    import_ply_interaction_hierarchies()
