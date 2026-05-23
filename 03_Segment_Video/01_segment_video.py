@@ -19,16 +19,6 @@ import cv2
 import numpy as np
 from openai import OpenAI
 
-
-# Ollama configuration
-OLLAMA_HOST = "http://127.0.0.1:11434/v1"
-OLLAMA_API_KEY = "ollama"
-QWEN_MODEL = "qwen3-vl:32b-thinking"
-
-# SAM3 configuration
-SAM3_CHECKPOINT = None
-SAM3_BPE_PATH = "/my_workspace/4DHHOI/sam3/sam3/assets/bpe_simple_vocab_16e6.txt.gz"
-
 VIZ_COLORS = [
     (0, 255, 0),    # Green
     (255, 0, 0),    # Blue
@@ -273,15 +263,15 @@ Detect all parts listed above."""
     )
 
 
-def load_sam3_tracker():
+def load_sam3_tracker(checkpoint_path: str | None, bpe_path: str):
     """Load SAM3 video model and return its tracker module."""
     import torch
     from sam3.model_builder import build_sam3_video_model
 
     print("Loading SAM3 video tracker...")
     model = build_sam3_video_model(
-        checkpoint_path=SAM3_CHECKPOINT,
-        bpe_path=SAM3_BPE_PATH,
+        checkpoint_path=checkpoint_path,
+        bpe_path=bpe_path,
     )
     tracker = model.tracker
     tracker.backbone = model.detector.backbone
@@ -615,13 +605,13 @@ def rename_numeric_frames_to_prefixed(frames_dir: Path) -> None:
             pass
 
 
-def build_default_paths(video_name: str) -> tuple[Path, Path, Path]:
-    """Build default input/output paths for a given video name."""
+def build_default_paths(interaction_name: str) -> tuple[Path, Path, Path]:
+    """Build default input/output paths for a given interaction name."""
     script_dir = Path(__file__).parent.resolve()
     project_dir = script_dir.parent
-    video_dir = project_dir / "Generate_Video" / "output" / video_name
-    pag_dir = project_dir / "Generate_PAG" / "output" / video_name
-    output_root = script_dir / "output" / video_name
+    video_dir = project_dir / "02_Generate_Video" / "output" / interaction_name
+    pag_dir = project_dir / "01_Generate_PAG" / "output" / interaction_name
+    output_root = script_dir / "output" / interaction_name
     return video_dir, pag_dir, output_root
 
 
@@ -793,29 +783,29 @@ def main():
         description="Segment objects, parts, and humans from video using Qwen-VL + SAM3."
     )
     parser.add_argument(
-        "--video_name",
+        "--interaction_name",
         type=str,
-        default="video_01",
-        help="Video name used to build default paths for the other arguments.",
+        default="interaction_01",
+        help="Interaction name used to build default paths for the other arguments.",
     )
     parser.add_argument(
         "--video_path",
         type=str,
         default=None,
-        help="Path to video directory. Defaults to ../Generate_Video/output/<video_name>/.",
+        help="Path to interaction directory. Defaults to ../02_Generate_Video/output/<interaction_name>/.",
     )
     parser.add_argument(
         "--pag_file",
         type=str,
         default=None,
         help="PAG JSON file to extract objects, parts, and humans. "
-        "If not specified, will look in ../Generate_PAG/output/<video_name>/.",
+        "If not specified, will look in ../01_Generate_PAG/output/<interaction_name>/.",
     )
     parser.add_argument(
         "--output_root",
         type=str,
         default=None,
-        help="Root output directory. Defaults to Segment_Video/<video_name>/.",
+        help="Root output directory. Defaults to 03_Segment_Video/output/<interaction_name>/.",
     )
     parser.add_argument(
         "--mask_postprocess",
@@ -825,20 +815,32 @@ def main():
     parser.add_argument(
         "--ollama_host",
         type=str,
-        default=OLLAMA_HOST,
+        default="http://127.0.0.1:11434/v1",
         help="OpenAI-compatible Ollama host (e.g., http://127.0.0.1:11434/v1).",
     )
     parser.add_argument(
         "--ollama_api_key",
         type=str,
-        default=OLLAMA_API_KEY,
+        default="ollama",
         help="API key used by OpenAI client for Ollama (default: ollama).",
     )
     parser.add_argument(
         "--qwen_model",
         type=str,
-        default=QWEN_MODEL,
+        default="qwen3-vl:32b-thinking",
         help="Qwen-VL model name served by Ollama.",
+    )
+    parser.add_argument(
+        "--sam3_checkpoint",
+        type=str,
+        default=None,
+        help="Optional SAM3 checkpoint path. Defaults to SAM3's configured checkpoint.",
+    )
+    parser.add_argument(
+        "--sam3_bpe_path",
+        type=str,
+        default="/my_workspace/4DHHOI/sam3/sam3/assets/bpe_simple_vocab_16e6.txt.gz",
+        help="SAM3 BPE vocabulary path.",
     )
     parser.add_argument(
         "--reasoning-effort",
@@ -853,7 +855,7 @@ def main():
     args = parser.parse_args()
 
     default_video_dir, default_pag_dir, default_output_root = build_default_paths(
-        args.video_name
+        args.interaction_name
     )
 
     video_dir = Path(args.video_path).resolve() if args.video_path else default_video_dir
@@ -891,7 +893,10 @@ def main():
             desc = f" ({h['description']})" if h["description"] else ""
             print(f"  {h['name']}{desc}")
 
-    predictor = load_sam3_tracker()
+    predictor = load_sam3_tracker(
+        checkpoint_path=args.sam3_checkpoint,
+        bpe_path=args.sam3_bpe_path,
+    )
     qwen_client = OpenAI(base_url=args.ollama_host, api_key=args.ollama_api_key)
     reasoning_effort = None
     if args.reasoning_effort != "none":

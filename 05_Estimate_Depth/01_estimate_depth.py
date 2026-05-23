@@ -24,7 +24,7 @@ def find_single_mp4(video_dir: Path) -> Path:
     """Find exactly one MP4 file in a directory."""
     mp4_files = sorted(video_dir.glob("*.mp4"))
     if len(mp4_files) == 0:
-        raise FileNotFoundError(f"No .mp4 found in video dir: {video_dir}")
+        raise FileNotFoundError(f"No .mp4 found in interaction dir: {video_dir}")
     if len(mp4_files) > 1:
         raise RuntimeError(
             f"Expected exactly one .mp4 in {video_dir}, found {[p.name for p in mp4_files]}"
@@ -167,10 +167,10 @@ def parse_device(device: str) -> torch.device:
     return torch.device(device)
 
 
-def build_default_paths(video_name: str, script_dir: Path) -> tuple[Path, Path]:
-    """Build default input/output paths for a given video name."""
+def build_default_paths(interaction_name: str, script_dir: Path) -> tuple[Path, Path]:
+    """Build default input/output paths for a given interaction name."""
     project_dir = script_dir.parent
-    video_dir = project_dir / "Generate_Video" / "output" / video_name
+    video_dir = project_dir / "02_Generate_Video" / "output" / interaction_name
     output_root = script_dir / "output"
     return video_dir, output_root
 
@@ -180,26 +180,26 @@ def parse_args() -> argparse.Namespace:
         description="Extract first frame and estimate depth + pose using Depth Anything 3."
     )
     parser.add_argument(
-        "--video_name",
+        "--interaction_name",
         type=str,
-        default="video_01",
-        help="Video name used to build default paths for the other arguments.",
+        default="interaction_01",
+        help="Interaction name used to build default paths for the other arguments.",
     )
     parser.add_argument(
         "--video_dir",
         type=str,
         default=None,
         help=(
-            "Directory like */video_xx containing exactly one .mp4, "
+            "Directory like */interaction_xx containing exactly one .mp4, "
             "or a direct path to an .mp4 file. "
-            "Defaults to ../Generate_Video/output/<video_name>/."
+            "Defaults to ../02_Generate_Video/output/<interaction_name>/."
         ),
     )
     parser.add_argument(
         "--output_root",
         type=str,
         default=None,
-        help="Output root directory. Final output is <output_root>/<video_xx>.",
+        help="Output root directory. Final output is <output_root>/<interaction_xx>.",
     )
     parser.add_argument(
         "--da3_repo",
@@ -263,7 +263,7 @@ def main() -> None:
     args = parse_args()
     script_dir = Path(__file__).resolve().parent
 
-    default_video_dir, default_output_root = build_default_paths(args.video_name, script_dir)
+    default_video_dir, default_output_root = build_default_paths(args.interaction_name, script_dir)
 
     video_input = (
         resolve_path(args.video_dir, script_dir) if args.video_dir else default_video_dir
@@ -279,14 +279,14 @@ def main() -> None:
     else:
         raise FileNotFoundError(f"Video input does not exist: {video_input}")
 
-    video_name = args.video_name
+    interaction_name = args.interaction_name
 
     output_root = (
         resolve_path(args.output_root, script_dir)
         if args.output_root
         else default_output_root
     )
-    output_dir = output_root / video_name
+    output_dir = output_root / interaction_name
     output_dir.mkdir(parents=True, exist_ok=True)
 
     frame_bgr = extract_first_frame_bgr(video_mp4)

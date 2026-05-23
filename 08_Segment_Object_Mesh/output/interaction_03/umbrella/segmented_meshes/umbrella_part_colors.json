@@ -1,7 +1,8 @@
 {
   "label_map": {
     "canopy": 0,
-    "shaft": 1
+    "handle": 1,
+    "shaft": 2
   },
   "part_colors_rgb_255": {
     "canopy": [
@@ -9,10 +10,15 @@
       71,
       71
     ],
-    "shaft": [
+    "handle": [
       41,
       88,
       204
+    ],
+    "shaft": [
+      123,
+      204,
+      10
     ]
   },
   "unlabeled_color_rgb_255": [

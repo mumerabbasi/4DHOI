@@ -1,0 +1,175 @@
+{
+  "transforms": [
+    {
+      "name": "person_1",
+      "slug": "person_1",
+      "kind": "human",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/output/interaction_01/humans/person_1/human_plys/frame_0000.ply",
+      "source_coordinate": "opencv_camera",
+      "output_coordinate": "opencv",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/meshes/person_1.ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 0.08761309087276459,
+        "scale_exp_alpha": 1.091565703580998,
+        "tx_init_m": 0.0,
+        "ty_init_m": 0.0,
+        "tz_init_m": 0.0,
+        "delta_tx_m": 0.010367040522396564,
+        "delta_ty_m": 0.0006014321697875857,
+        "delta_tz_m": 0.19161266088485718,
+        "tx_total_m": 0.010367040522396564,
+        "ty_total_m": 0.0006014321697875857,
+        "tz_total_m": 0.19161266088485718,
+        "obs_3d_count": 6000,
+        "obs_2d_count": 6000,
+        "model_sample_count": 3277,
+        "model_sample_count_total": 6000,
+        "model_sample_count_visible_fixed": 3277,
+        "model_sample_visible_ratio": 0.5461666666666667,
+        "visible_subset_mode": "strict_visible"
+      },
+      "source_to_output_matrix_4x4": [
+        [
+          1.091565728187561,
+          0.0,
+          0.0,
+          0.010367040522396564
+        ],
+        [
+          0.0,
+          1.091565728187561,
+          0.0,
+          0.0006014321697875857
+        ],
+        [
+          0.0,
+          0.0,
+          1.091565728187561,
+          0.19161266088485718
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "iron",
+      "slug": "iron",
+      "kind": "object",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_01/meshes/iron.ply",
+      "source_coordinate": "opencv_camera",
+      "output_coordinate": "opencv",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/meshes/iron.ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 0.9664666652679443,
+        "scale_exp_alpha": 2.628640165846304,
+        "tx_init_m": 0.0,
+        "ty_init_m": 0.0,
+        "tz_init_m": 0.0,
+        "delta_tx_m": -0.016344094648957253,
+        "delta_ty_m": 0.04081001505255699,
+        "delta_tz_m": 0.11825574934482574,
+        "tx_total_m": -0.016344094648957253,
+        "ty_total_m": 0.04081001505255699,
+        "tz_total_m": 0.11825574934482574,
+        "obs_3d_count": 3656,
+        "obs_2d_count": 4071,
+        "model_sample_count": 5080,
+        "model_sample_count_total": 6000,
+        "model_sample_count_visible_fixed": 5080,
+        "model_sample_visible_ratio": 0.8466666666666667,
+        "visible_subset_mode": "strict_visible"
+      },
+      "source_to_output_matrix_4x4": [
+        [
+          2.6286401748657227,
+          0.0,
+          0.0,
+          -0.016344094648957253
+        ],
+        [
+          0.0,
+          2.6286401748657227,
+          0.0,
+          0.04081001505255699
+        ],
+        [
+          0.0,
+          0.0,
+          2.6286401748657227,
+          0.11825574934482574
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "ironing board",
+      "slug": "ironing_board",
+      "kind": "object",
+      "source_mesh_path": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_01/meshes/ironing_board.ply",
+      "source_coordinate": "opencv_camera",
+      "output_coordinate": "opencv",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/meshes/ironing_board.ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_alpha": 0.9805747866630554,
+        "scale_exp_alpha": 2.6659881760670516,
+        "tx_init_m": 0.0,
+        "ty_init_m": 0.0,
+        "tz_init_m": 0.0,
+        "delta_tx_m": -0.09470316767692566,
+        "delta_ty_m": 0.022023700177669525,
+        "delta_tz_m": 0.10311046242713928,
+        "tx_total_m": -0.09470316767692566,
+        "ty_total_m": 0.022023700177669525,
+        "tz_total_m": 0.10311046242713928,
+        "obs_3d_count": 6000,
+        "obs_2d_count": 6000,
+        "model_sample_count": 1910,
+        "model_sample_count_total": 6000,
+        "model_sample_count_visible_fixed": 1910,
+        "model_sample_visible_ratio": 0.31833333333333336,
+        "visible_subset_mode": "strict_visible"
+      },
+      "source_to_output_matrix_4x4": [
+        [
+          2.6659882068634033,
+          0.0,
+          0.0,
+          -0.09470316767692566
+        ],
+        [
+          0.0,
+          2.6659882068634033,
+          0.0,
+          0.022023700177669525
+        ],
+        [
+          0.0,
+          0.0,
+          2.6659882068634033,
+          0.10311046242713928
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    }
+  ]
+}

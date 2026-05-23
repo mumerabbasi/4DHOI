@@ -1,0 +1,43 @@
+{
+  "object_name": "harp",
+  "image": "az155_el+30.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_04/harp/renders/face_id/az155_el+300001.exr",
+  "parts": {
+    "soundboard": {
+      "sam3_prompt": "soundboard of the harp",
+      "used_prompt": null,
+      "prompt": "soundboard of the harp",
+      "raw_candidates": [],
+      "kept_candidates": [],
+      "text_mask_found": false,
+      "fallback_used": false,
+      "fallback_bbox": null,
+      "fallback_error": "missing bbox",
+      "final_source": "missing"
+    },
+    "neck": {
+      "sam3_prompt": "neck of the harp",
+      "used_prompt": null,
+      "prompt": "neck of the harp",
+      "raw_candidates": [],
+      "kept_candidates": [],
+      "text_mask_found": false,
+      "fallback_used": false,
+      "fallback_bbox": null,
+      "fallback_error": "missing bbox",
+      "final_source": "missing"
+    },
+    "strings": {
+      "sam3_prompt": "strings of the harp",
+      "used_prompt": null,
+      "prompt": "strings of the harp",
+      "raw_candidates": [],
+      "kept_candidates": [],
+      "text_mask_found": false,
+      "fallback_used": false,
+      "fallback_bbox": null,
+      "fallback_error": "missing bbox",
+      "final_source": "missing"
+    }
+  }
+}

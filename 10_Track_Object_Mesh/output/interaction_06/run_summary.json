@@ -1,14 +1,14 @@
 {
-  "video_name": "video_06",
+  "interaction_name": "interaction_06",
   "status": "completed",
   "script": "track_object_mesh_claude.py",
   "inputs": {
-    "cotracker_video_dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Optical_Flow/output_cotracker/video_06",
-    "aligned_mesh_video_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_06",
-    "segment_video_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Video/output/video_06",
-    "pag_file": "/my_workspace/4DHHOI/4DHOI/Generate_PAG/output/video_06/output_pag_deepseek_r1_32b.json",
-    "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_06/alignment_summary.json",
-    "frames_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Video/output/video_06/_frames"
+    "cotracker_video_dir": "/my_workspace/4DHHOI/4DHOI/09_Estimate_Optical_Flow/output_cotracker/interaction_06",
+    "aligned_mesh_video_dir": "/my_workspace/4DHHOI/4DHOI/07_Align_Meshes/output/interaction_06",
+    "segment_video_dir": "/my_workspace/4DHHOI/4DHOI/03_Segment_Video/output/interaction_06",
+    "pag_file": "/my_workspace/4DHHOI/4DHOI/01_Generate_PAG/output/interaction_06/output_pag_deepseek_r1_32b.json",
+    "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/07_Align_Meshes/output/interaction_06/alignment_summary.json",
+    "frames_dir": "/my_workspace/4DHHOI/4DHOI/03_Segment_Video/output/interaction_06/_frames"
   },
   "optimization_settings": {
     "huber_delta_px": 3.0,
@@ -42,7 +42,7 @@
     ]
   },
   "device": "cuda:6",
-  "output_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_06",
+  "output_dir": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_06",
   "objects_from_pag_states": [
     {
       "name": "boxing bag",
@@ -54,10 +54,10 @@
       "object_name": "boxing bag",
       "slug": "boxing_bag",
       "status": "processed",
-      "mesh_path": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_06/meshes/boxing_bag.ply",
-      "tracks_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Optical_Flow/output_cotracker/video_06/boxing_bag/tracks.npy",
-      "visibility_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Optical_Flow/output_cotracker/video_06/boxing_bag/visibility.npy",
-      "mask_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Video/output/video_06/objects/boxing_bag/object_segmentation/masks",
+      "mesh_path": "/my_workspace/4DHHOI/4DHOI/07_Align_Meshes/output/interaction_06/meshes/boxing_bag.ply",
+      "tracks_path": "/my_workspace/4DHHOI/4DHOI/09_Estimate_Optical_Flow/output_cotracker/interaction_06/boxing_bag/tracks.npy",
+      "visibility_path": "/my_workspace/4DHHOI/4DHOI/09_Estimate_Optical_Flow/output_cotracker/interaction_06/boxing_bag/visibility.npy",
+      "mask_dir": "/my_workspace/4DHHOI/4DHOI/03_Segment_Video/output/interaction_06/objects/boxing_bag/object_segmentation/masks",
       "num_input_tracks": 5000,
       "num_valid_seed_tracks": 4899,
       "num_dropped_invalid_face": 101,
@@ -96,13 +96,13 @@
       "final_mean_reproj_px": 1.251233696937561,
       "overlay_rendered": true,
       "overlay_message": "Rendered overlays (83212 faces, 81 frames, save_pngs=True).",
-      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_06/boxing_bag/debug/iter_metrics.csv",
-      "frame_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_06/boxing_bag/debug/frame_metrics.csv",
+      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_06/boxing_bag/debug/iter_metrics.csv",
+      "frame_metrics_csv": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_06/boxing_bag/debug/frame_metrics.csv",
       "loss_curve_pngs": {
-        "total": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_06/boxing_bag/debug/loss_total.png",
-        "e_img": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_06/boxing_bag/debug/loss_e_img.png",
-        "e_smooth": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_06/boxing_bag/debug/loss_e_smooth.png",
-        "e_vel": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_06/boxing_bag/debug/loss_e_vel.png"
+        "total": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_06/boxing_bag/debug/loss_total.png",
+        "e_img": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_06/boxing_bag/debug/loss_e_img.png",
+        "e_smooth": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_06/boxing_bag/debug/loss_e_smooth.png",
+        "e_vel": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_06/boxing_bag/debug/loss_e_vel.png"
       },
       "elapsed_seconds": 81.32466530799866,
       "convention_notes": {

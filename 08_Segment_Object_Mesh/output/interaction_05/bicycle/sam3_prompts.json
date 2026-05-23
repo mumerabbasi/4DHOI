@@ -1,0 +1,32 @@
+{
+  "object_name": "bicycle",
+  "parts": [
+    "handlebar",
+    "pedal",
+    "seat",
+    "frame tubes",
+    "wheels"
+  ],
+  "prompt_views": [
+    "az010_el+10.png",
+    "az100_el+10.png",
+    "az190_el+10.png"
+  ],
+  "prompts": {
+    "handlebar": {
+      "sam3_prompt": "The handlebar of the bicycle, including the curved steering bars and grips."
+    },
+    "pedal": {
+      "sam3_prompt": "The pedal of the bicycle, the flat platform attached to the crank arm."
+    },
+    "seat": {
+      "sam3_prompt": "The seat of the bicycle, the saddle positioned on top of the seat post."
+    },
+    "frame tubes": {
+      "sam3_prompt": "The frame tubes of the bicycle, the main structural bars connecting components."
+    },
+    "wheels": {
+      "sam3_prompt": "The wheels of the bicycle, including the tires, rims, and spokes."
+    }
+  }
+}

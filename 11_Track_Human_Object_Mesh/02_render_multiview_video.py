@@ -2,11 +2,11 @@
 
 Run this script with Blender in background mode:
 
-    blender --background --python render_multiview_video.py -- \
-        --video_name video_01
+    blender --background --python 02_render_multiview_video.py -- \
+        --interaction_name interaction_01
 
 It imports every `<sequence>/meshes/*.ply` under
-`Track_Human_Object_Mesh/output/<video_name>`, renders the four standard
+`11_Track_Human_Object_Mesh/output/<interaction_name>`, renders the four standard
 views, and stitches them into one MP4.
 """
 
@@ -59,18 +59,18 @@ def _extract_cli_args(argv: list[str] | None = None) -> list[str]:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Render Track_Human_Object_Mesh output/<video_name> into a stitched "
+            "Render 11_Track_Human_Object_Mesh output/<interaction_name> into a stitched "
             "four-view MP4 using Blender in background mode."
         )
     )
-    parser.add_argument("--video_name", type=str, default="video_01")
+    parser.add_argument("--interaction_name", type=str, default="interaction_01")
     parser.add_argument(
         "--track_output_dir",
         type=str,
         default=None,
         help=(
-            "Video directory containing per-sequence meshes "
-            "(default: ./output/<video_name>, relative to this script)."
+            "Interaction directory containing per-sequence meshes "
+            "(default: ./output/<interaction_name>, relative to this script)."
         ),
     )
     parser.add_argument(
@@ -196,7 +196,7 @@ def resolve_video_dir(args: argparse.Namespace, script_dir: Path) -> Path:
         video_dir = resolve_path(args.track_output_dir, script_dir)
     else:
         output_root = resolve_path(args.output_dir, script_dir)
-        video_dir = (output_root / args.video_name).resolve()
+        video_dir = (output_root / args.interaction_name).resolve()
 
     if not video_dir.is_dir():
         raise NotADirectoryError(f"Track output directory not found: {video_dir}")
@@ -249,9 +249,9 @@ def _load_intrinsics_payload(json_path: Path) -> dict | None:
 def _is_project_root(path: Path) -> bool:
     return (
         path.is_dir()
-        and (path / "Generate_Object_Mesh").is_dir()
-        and (path / "Estimate_Depth").is_dir()
-        and (path / "Blender_Scripts").is_dir()
+        and (path / "04_Generate_Object_Mesh").is_dir()
+        and (path / "05_Estimate_Depth").is_dir()
+        and (path / "12_Blender_Scripts").is_dir()
     )
 
 
@@ -264,21 +264,21 @@ def _discover_project_dir(video_dir: Path) -> Path | None:
 
 def _discover_intrinsics_path(video_dir: Path) -> Path | None:
     project_dir = _discover_project_dir(video_dir)
-    video_name = video_dir.name
+    interaction_name = video_dir.name
 
     candidates = [video_dir / "camera_intrinsics.json"]
     if project_dir is not None:
         candidates.extend(
             [
                 project_dir
-                / "Generate_Object_Mesh"
+                / "04_Generate_Object_Mesh"
                 / "output"
-                / video_name
+                / interaction_name
                 / "camera_intrinsics.json",
                 project_dir
-                / "Estimate_Depth"
+                / "05_Estimate_Depth"
                 / "output"
-                / video_name
+                / interaction_name
                 / "camera_intrinsics.json",
             ]
         )
@@ -355,7 +355,7 @@ def _probe_video_fps(video_path: Path, ffprobe_exe: str) -> float:
 
 def _discover_fps(video_dir: Path, ffprobe_exe: str) -> float:
     project_dir = _discover_project_dir(video_dir)
-    video_name = video_dir.name
+    interaction_name = video_dir.name
 
     candidates = [video_dir / "overlay.mp4"]
     candidates.extend(sorted(video_dir.glob("*.mp4")))
@@ -363,7 +363,7 @@ def _discover_fps(video_dir: Path, ffprobe_exe: str) -> float:
     if project_dir is not None:
         candidates.extend(
             sorted(
-                (project_dir / "Generate_Video" / "output" / video_name).glob(
+                (project_dir / "02_Generate_Video" / "output" / interaction_name).glob(
                     "*.mp4"
                 )
             )
@@ -372,9 +372,9 @@ def _discover_fps(video_dir: Path, ffprobe_exe: str) -> float:
             sorted(
                 (
                     project_dir
-                    / "Estimate_Human_Motion"
+                    / "06_Estimate_Human_Motion"
                     / "output"
-                    / video_name
+                    / interaction_name
                 ).glob("humans/*/0_input_video.mp4")
             )
         )
@@ -574,7 +574,7 @@ def _import_ply_video_hierarchies(
     root_name = root_collection_name.strip() or video_dir.name
     root_empty_name = f"{root_name}::root"
 
-    print(f"Video directory: {video_dir}")
+    print(f"Interaction directory: {video_dir}")
     print(f"Found {len(sequences)} sequences:")
     for sequence_name, ply_files in sequences:
         print(f"  - {sequence_name}: {len(ply_files)} frames")

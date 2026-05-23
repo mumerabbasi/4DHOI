@@ -52,12 +52,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Generate a Part Affordance Graph (PAG) using Ollama.",
     )
-    parser.add_argument("--video_name", default="video_01")
+    parser.add_argument("--interaction_name", default="interaction_01")
     parser.add_argument("--host", default="http://localhost:11434/v1")
-    parser.add_argument("--model", default="deepseek-r1:32b")
+    parser.add_argument("--model", default="qwen3.6:27b")
     parser.add_argument("--system-prompt", default=None)
     parser.add_argument("--input-dir", default=None)
-    parser.add_argument("--temperature", type=float, default=0.3)
+    parser.add_argument("--temperature", type=float, default=0.1)
     parser.add_argument(
         "--reasoning-effort",
         choices=["low", "medium", "high", "none"],
@@ -77,9 +77,9 @@ def main() -> None:
     input_dir = (
         Path(args.input_dir).resolve()
         if args.input_dir
-        else script_dir / "input_prompts" / args.video_name
+        else script_dir / "input_prompts" / args.interaction_name
     )
-    output_dir = script_dir / "output" / args.video_name
+    output_dir = script_dir / "output" / args.interaction_name
 
     system_prompt = system_prompt_path.read_text(encoding="utf-8")
     user_payload = json.loads(
@@ -93,7 +93,7 @@ def main() -> None:
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"Video name: {args.video_name}")
+    print(f"Interaction name: {args.interaction_name}")
     print(f"System prompt: {system_prompt_path}")
     print(f"Input directory: {input_dir}")
     print(f"Output directory: {output_dir}")

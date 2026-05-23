@@ -1,14 +1,14 @@
 {
-  "video_name": "video_01",
+  "interaction_name": "interaction_01",
   "status": "completed",
   "script": "track_object_mesh_claude.py",
   "inputs": {
-    "cotracker_video_dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Optical_Flow/output_cotracker/video_01",
-    "aligned_mesh_video_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01",
-    "segment_video_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Video/output/video_01",
-    "pag_file": "/my_workspace/4DHHOI/4DHOI/Generate_PAG/output/video_01/output_pag_deepseek_r1_32b.json",
-    "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/alignment_summary.json",
-    "frames_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Video/output/video_01/_frames"
+    "cotracker_video_dir": "/my_workspace/4DHHOI/4DHOI/09_Estimate_Optical_Flow/output_cotracker/interaction_01",
+    "aligned_mesh_video_dir": "/my_workspace/4DHHOI/4DHOI/07_Align_Meshes/output/interaction_01",
+    "segment_video_dir": "/my_workspace/4DHHOI/4DHOI/03_Segment_Video/output/interaction_01",
+    "pag_file": "/my_workspace/4DHHOI/4DHOI/01_Generate_PAG/output/interaction_01/output_pag_deepseek_r1_32b.json",
+    "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/07_Align_Meshes/output/interaction_01/alignment_summary.json",
+    "frames_dir": "/my_workspace/4DHHOI/4DHOI/03_Segment_Video/output/interaction_01/_frames"
   },
   "optimization_settings": {
     "huber_delta_px": 3.0,
@@ -42,7 +42,7 @@
     ]
   },
   "device": "cuda",
-  "output_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01",
+  "output_dir": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_01",
   "objects_from_pag_states": [
     {
       "name": "iron",
@@ -58,10 +58,10 @@
       "object_name": "iron",
       "slug": "iron",
       "status": "processed",
-      "mesh_path": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/meshes/iron.ply",
-      "tracks_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Optical_Flow/output_cotracker/video_01/iron/tracks.npy",
-      "visibility_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Optical_Flow/output_cotracker/video_01/iron/visibility.npy",
-      "mask_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Video/output/video_01/objects/iron/object_segmentation/masks",
+      "mesh_path": "/my_workspace/4DHHOI/4DHOI/07_Align_Meshes/output/interaction_01/meshes/iron.ply",
+      "tracks_path": "/my_workspace/4DHHOI/4DHOI/09_Estimate_Optical_Flow/output_cotracker/interaction_01/iron/tracks.npy",
+      "visibility_path": "/my_workspace/4DHHOI/4DHOI/09_Estimate_Optical_Flow/output_cotracker/interaction_01/iron/visibility.npy",
+      "mask_dir": "/my_workspace/4DHHOI/4DHOI/03_Segment_Video/output/interaction_01/objects/iron/object_segmentation/masks",
       "num_input_tracks": 2421,
       "num_valid_seed_tracks": 2257,
       "num_dropped_invalid_face": 164,
@@ -100,13 +100,13 @@
       "final_mean_reproj_px": 0.9036367535591125,
       "overlay_rendered": true,
       "overlay_message": "Rendered overlays (76655 faces, 81 frames, save_pngs=True).",
-      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/iron/debug/iter_metrics.csv",
-      "frame_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/iron/debug/frame_metrics.csv",
+      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_01/iron/debug/iter_metrics.csv",
+      "frame_metrics_csv": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_01/iron/debug/frame_metrics.csv",
       "loss_curve_pngs": {
-        "total": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/iron/debug/loss_total.png",
-        "e_img": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/iron/debug/loss_e_img.png",
-        "e_smooth": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/iron/debug/loss_e_smooth.png",
-        "e_vel": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/iron/debug/loss_e_vel.png"
+        "total": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_01/iron/debug/loss_total.png",
+        "e_img": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_01/iron/debug/loss_e_img.png",
+        "e_smooth": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_01/iron/debug/loss_e_smooth.png",
+        "e_vel": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_01/iron/debug/loss_e_vel.png"
       },
       "elapsed_seconds": 135.45289087295532,
       "convention_notes": {
@@ -119,10 +119,10 @@
       "object_name": "ironing board",
       "slug": "ironing_board",
       "status": "processed",
-      "mesh_path": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_01/meshes/ironing_board.ply",
-      "tracks_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Optical_Flow/output_cotracker/video_01/ironing_board/tracks.npy",
-      "visibility_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Optical_Flow/output_cotracker/video_01/ironing_board/visibility.npy",
-      "mask_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Video/output/video_01/objects/ironing_board/object_segmentation/masks",
+      "mesh_path": "/my_workspace/4DHHOI/4DHOI/07_Align_Meshes/output/interaction_01/meshes/ironing_board.ply",
+      "tracks_path": "/my_workspace/4DHHOI/4DHOI/09_Estimate_Optical_Flow/output_cotracker/interaction_01/ironing_board/tracks.npy",
+      "visibility_path": "/my_workspace/4DHHOI/4DHOI/09_Estimate_Optical_Flow/output_cotracker/interaction_01/ironing_board/visibility.npy",
+      "mask_dir": "/my_workspace/4DHHOI/4DHOI/03_Segment_Video/output/interaction_01/objects/ironing_board/object_segmentation/masks",
       "num_input_tracks": 5000,
       "num_valid_seed_tracks": 4118,
       "num_dropped_invalid_face": 882,
@@ -161,13 +161,13 @@
       "final_mean_reproj_px": 0.9127855896949768,
       "overlay_rendered": true,
       "overlay_message": "Rendered overlays (80498 faces, 81 frames, save_pngs=True).",
-      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/ironing_board/debug/iter_metrics.csv",
-      "frame_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/ironing_board/debug/frame_metrics.csv",
+      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_01/ironing_board/debug/iter_metrics.csv",
+      "frame_metrics_csv": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_01/ironing_board/debug/frame_metrics.csv",
       "loss_curve_pngs": {
-        "total": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/ironing_board/debug/loss_total.png",
-        "e_img": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/ironing_board/debug/loss_e_img.png",
-        "e_smooth": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/ironing_board/debug/loss_e_smooth.png",
-        "e_vel": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_01/ironing_board/debug/loss_e_vel.png"
+        "total": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_01/ironing_board/debug/loss_total.png",
+        "e_img": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_01/ironing_board/debug/loss_e_img.png",
+        "e_smooth": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_01/ironing_board/debug/loss_e_smooth.png",
+        "e_vel": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_01/ironing_board/debug/loss_e_vel.png"
       },
       "elapsed_seconds": 108.98191356658936,
       "convention_notes": {

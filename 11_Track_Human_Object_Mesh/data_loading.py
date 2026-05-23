@@ -63,6 +63,31 @@ BODY_PART_TO_SEG_KEYS: dict[str, list[str]] = {
     "spine": ["spine", "spine1", "spine2"],
 }
 
+PROJECT_BODY_PART_TO_SEGMENT_ID: dict[str, str] = {
+    "left hand": "left_hand",
+    "right hand": "right_hand",
+    "left arm": "left_arm",
+    "right arm": "right_arm",
+    "left shoulder": "left_shoulder",
+    "right shoulder": "right_shoulder",
+    "left leg": "left_leg",
+    "right leg": "right_leg",
+    "left hip": "left_leg",
+    "right hip": "right_leg",
+    "left foot": "left_foot",
+    "right foot": "right_foot",
+    "head": "head",
+    "hips": "hips",
+}
+
+PROJECT_BODY_PART_TO_CONTACT_SEGMENT_ID: dict[str, str] = {
+    "left hand": "left_hand_inner",
+    "right hand": "right_hand_inner",
+    "left foot": "left_foot_bottom",
+    "right foot": "right_foot_bottom",
+    "hips": "hips_contact",
+}
+
 MASK_SAMPLE_SEED = 2026
 SURFACE_SAMPLE_SEED = 7
 
@@ -139,18 +164,39 @@ def _is_human_node(node_str: str) -> bool:
     return node_str.lower().startswith("person")
 
 
-def _load_smpl_body_seg(seg_path: Path) -> dict[str, np.ndarray]:
+def _load_smpl_body_and_contact_seg(
+    seg_path: Path,
+) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
     with seg_path.open("r", encoding="utf-8") as f:
         raw = json.load(f)
 
-    result: dict[str, np.ndarray] = {}
+    if "segments" in raw:
+        segments = raw["segments"]
+        body_result: dict[str, np.ndarray] = {}
+        for pag_name, segment_id in PROJECT_BODY_PART_TO_SEGMENT_ID.items():
+            if segment_id in segments:
+                body_result[pag_name] = np.array(
+                    segments[segment_id],
+                    dtype=np.int64,
+                )
+
+        contact_result: dict[str, np.ndarray] = {}
+        for pag_name, segment_id in PROJECT_BODY_PART_TO_CONTACT_SEGMENT_ID.items():
+            if segment_id in segments:
+                contact_result[pag_name] = np.array(
+                    segments[segment_id],
+                    dtype=np.int64,
+                )
+        return body_result, contact_result
+
+    body_result: dict[str, np.ndarray] = {}
     for pag_name, seg_keys in BODY_PART_TO_SEG_KEYS.items():
         indices: list[int] = []
         for seg_key in seg_keys:
             indices.extend(raw.get(seg_key, []))
         if indices:
-            result[pag_name] = np.unique(np.array(indices, dtype=np.int64))
-    return result
+            body_result[pag_name] = np.unique(np.array(indices, dtype=np.int64))
+    return body_result, {}
 
 
 def _load_object_part_segments(
@@ -336,13 +382,31 @@ def _load_human_data(
     human_verts_np: np.ndarray,
     human_faces: np.ndarray,
     body_seg: dict[str, np.ndarray],
+    contact_seg: dict[str, np.ndarray],
     device: torch.device,
 ) -> HumanData:
+    vertex_count = human_verts_np.shape[1]
+    all_segment_ids = list(body_seg.values()) + list(contact_seg.values())
+    max_segment_id = max(
+        (int(ids.max()) for ids in all_segment_ids if ids.size > 0),
+        default=-1,
+    )
+    if max_segment_id >= vertex_count:
+        raise ValueError(
+            f"Human mesh '{human_slug}' has {vertex_count} vertices, but the "
+            f"SMPL segmentation references vertex {max_segment_id}. Rerun "
+            "06_Estimate_Human_Motion/02_export_human_motion_to_ply.py and "
+            "07_Align_Meshes with SMPL-X outputs before final optimization."
+        )
+
     base_verts = torch.from_numpy(human_verts_np).float().to(device)
     faces_torch = torch.from_numpy(human_faces.astype(np.int64)).to(device)
     part_points: dict[str, torch.Tensor] = {}
     for part_name, vert_ids in body_seg.items():
         part_points[part_name] = base_verts[:, vert_ids, :]
+    contact_part_points: dict[str, torch.Tensor] = {}
+    for part_name, vert_ids in contact_seg.items():
+        contact_part_points[part_name] = base_verts[:, vert_ids, :]
     return HumanData(
         name=human_name,
         slug=human_slug,
@@ -351,6 +415,8 @@ def _load_human_data(
         faces_torch=faces_torch,
         part_points=part_points,
         part_vert_ids=body_seg,
+        contact_part_points=contact_part_points,
+        contact_part_vert_ids=contact_seg,
     )
 
 
@@ -522,7 +588,10 @@ def load_problem_context(
 
     k, intr_path = _load_intrinsics_from_alignment_summary(dirs["aligned"])
     pag = _parse_pag(pag_path)
-    body_seg = _load_smpl_body_seg(smpl_seg_path)
+    body_seg, contact_seg = _load_smpl_body_and_contact_seg(smpl_seg_path)
+    if contact_seg:
+        contact_names = ", ".join(sorted(contact_seg))
+        print(f"Loaded SMPL-X contact regions for: {contact_names}")
     width, height = _infer_image_size(dirs)
     k_torch = torch.from_numpy(k).float().to(device)
 
@@ -577,6 +646,7 @@ def load_problem_context(
             human_verts_np=human_verts_np,
             human_faces=human_faces,
             body_seg=body_seg,
+            contact_seg=contact_seg,
             device=device,
         )
         human_keys.append(human_slug)

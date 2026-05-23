@@ -1,5 +1,5 @@
 {
-  "video_name": "video_03",
+  "interaction_name": "interaction_03",
   "status": "completed",
   "script": "track_human_object_mesh.py",
   "num_frames": 81,
@@ -10,12 +10,12 @@
   "optimisation_time_s": 366.2655454464257,
   "best_iter": 2156,
   "inputs": {
-    "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03",
-    "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_03",
-    "segment_object_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Object_Mesh/output/video_03",
-    "pag_file": "/my_workspace/4DHHOI/4DHOI/Generate_PAG/output/video_03/output_pag_deepseek_r1_32b.json",
+    "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/07_Align_Meshes/output/interaction_03",
+    "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_03",
+    "segment_object_dir": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_03",
+    "pag_file": "/my_workspace/4DHHOI/4DHOI/01_Generate_PAG/output/interaction_03/output_pag_deepseek_r1_32b.json",
     "smpl_seg_json": "/my_workspace/4DHHOI/GVHMR/hmr4d/utils/body_model/smpl_vert_segmentation.json",
-    "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_03/alignment_summary.json"
+    "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/07_Align_Meshes/output/interaction_03/alignment_summary.json"
   },
   "weights": {
     "tracking": {
@@ -68,13 +68,13 @@
   "debug_outputs": {
     "frame_loss_semantics": "diagnostic_local",
     "csv": {
-      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_03/debug/csv/iter_metrics.csv",
-      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_03/debug/csv/frame_loss_metrics.csv",
-      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_03/debug/csv/final_loss_summary.csv"
+      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_03/debug/csv/iter_metrics.csv",
+      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_03/debug/csv/frame_loss_metrics.csv",
+      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_03/debug/csv/final_loss_summary.csv"
     },
     "plots": {
-      "iter_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_03/debug/plots/iter",
-      "frame_dir": "/my_workspace/4DHHOI/4DHOI/Track_Human_Object_Mesh/output/video_03/debug/plots/frame"
+      "iter_dir": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_03/debug/plots/iter",
+      "frame_dir": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_03/debug/plots/frame"
     },
     "iter_columns": [
       "iter",

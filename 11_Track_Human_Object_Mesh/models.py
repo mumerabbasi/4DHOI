@@ -64,6 +64,8 @@ class HumanData:
     faces_torch: torch.Tensor
     part_points: dict[str, torch.Tensor]
     part_vert_ids: dict[str, np.ndarray]
+    contact_part_points: dict[str, torch.Tensor]
+    contact_part_vert_ids: dict[str, np.ndarray]
 
 
 @dataclass

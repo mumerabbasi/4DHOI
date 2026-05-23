@@ -1,0 +1,88 @@
+{
+  "object_name": "umbrella",
+  "image": "az155_el+10.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_05/umbrella/renders/face_id/az155_el+100001.exr",
+  "parts": {
+    "canopy": {
+      "sam3_prompt": "canopy of the umbrella",
+      "used_prompt": "canopy of the umbrella",
+      "prompt": "canopy of the umbrella",
+      "raw_candidates": [
+        {
+          "box": [
+            265.1464538574219,
+            349.6264343261719,
+            781.559814453125,
+            564.1290283203125
+          ],
+          "score": 0.8359375
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            265.1464538574219,
+            349.6264343261719,
+            781.559814453125,
+            564.1290283203125
+          ],
+          "score": 0.8359375,
+          "original_area": 67310,
+          "clipped_area": 67299,
+          "silhouette_overlap": 0.9998365770316446
+        }
+      ]
+    },
+    "shaft": {
+      "sam3_prompt": "shaft of the umbrella",
+      "used_prompt": "shaft of the umbrella",
+      "prompt": "shaft of the umbrella",
+      "raw_candidates": [
+        {
+          "box": [
+            478.9892883300781,
+            527.0361938476562,
+            507.4377136230469,
+            621.3794555664062
+          ],
+          "score": 0.765625
+        },
+        {
+          "box": [
+            537.5137939453125,
+            308.2641296386719,
+            559.1607666015625,
+            359.8763122558594
+          ],
+          "score": 0.6640625
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            478.9892883300781,
+            527.0361938476562,
+            507.4377136230469,
+            621.3794555664062
+          ],
+          "score": 0.765625,
+          "original_area": 800,
+          "clipped_area": 782,
+          "silhouette_overlap": 0.9775
+        },
+        {
+          "box": [
+            537.5137939453125,
+            308.2641296386719,
+            559.1607666015625,
+            359.8763122558594
+          ],
+          "score": 0.6640625,
+          "original_area": 528,
+          "clipped_area": 518,
+          "silhouette_overlap": 0.9810606060606061
+        }
+      ]
+    }
+  }
+}

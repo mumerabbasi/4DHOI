@@ -1,14 +1,14 @@
 {
-  "video_name": "video_02",
+  "interaction_name": "interaction_02",
   "status": "completed",
   "script": "track_object_mesh_claude.py",
   "inputs": {
-    "cotracker_video_dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Optical_Flow/output_cotracker/video_02",
-    "aligned_mesh_video_dir": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02",
-    "segment_video_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Video/output/video_02",
-    "pag_file": "/my_workspace/4DHHOI/4DHOI/Generate_PAG/output/video_02/output_pag_deepseek_r1_32b.json",
-    "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/alignment_summary.json",
-    "frames_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Video/output/video_02/_frames"
+    "cotracker_video_dir": "/my_workspace/4DHHOI/4DHOI/09_Estimate_Optical_Flow/output_cotracker/interaction_02",
+    "aligned_mesh_video_dir": "/my_workspace/4DHHOI/4DHOI/07_Align_Meshes/output/interaction_02",
+    "segment_video_dir": "/my_workspace/4DHHOI/4DHOI/03_Segment_Video/output/interaction_02",
+    "pag_file": "/my_workspace/4DHHOI/4DHOI/01_Generate_PAG/output/interaction_02/output_pag_deepseek_r1_32b.json",
+    "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/07_Align_Meshes/output/interaction_02/alignment_summary.json",
+    "frames_dir": "/my_workspace/4DHHOI/4DHOI/03_Segment_Video/output/interaction_02/_frames"
   },
   "optimization_settings": {
     "huber_delta_px": 3.0,
@@ -42,7 +42,7 @@
     ]
   },
   "device": "cuda:1",
-  "output_dir": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_02",
+  "output_dir": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_02",
   "objects_from_pag_states": [
     {
       "name": "dumbbell (left hand)",
@@ -58,10 +58,10 @@
       "object_name": "dumbbell (left hand)",
       "slug": "dumbbell_(left_hand)",
       "status": "processed",
-      "mesh_path": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/meshes/dumbbell_(left_hand).ply",
-      "tracks_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Optical_Flow/output_cotracker/video_02/dumbbell_(left_hand)/tracks.npy",
-      "visibility_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Optical_Flow/output_cotracker/video_02/dumbbell_(left_hand)/visibility.npy",
-      "mask_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Video/output/video_02/objects/dumbbell_(left_hand)/object_segmentation/masks",
+      "mesh_path": "/my_workspace/4DHHOI/4DHOI/07_Align_Meshes/output/interaction_02/meshes/dumbbell_(left_hand).ply",
+      "tracks_path": "/my_workspace/4DHHOI/4DHOI/09_Estimate_Optical_Flow/output_cotracker/interaction_02/dumbbell_(left_hand)/tracks.npy",
+      "visibility_path": "/my_workspace/4DHHOI/4DHOI/09_Estimate_Optical_Flow/output_cotracker/interaction_02/dumbbell_(left_hand)/visibility.npy",
+      "mask_dir": "/my_workspace/4DHHOI/4DHOI/03_Segment_Video/output/interaction_02/objects/dumbbell_(left_hand)/object_segmentation/masks",
       "num_input_tracks": 1290,
       "num_valid_seed_tracks": 1288,
       "num_dropped_invalid_face": 2,
@@ -100,13 +100,13 @@
       "final_mean_reproj_px": 0.618695080280304,
       "overlay_rendered": true,
       "overlay_message": "Rendered overlays (173272 faces, 81 frames, save_pngs=True).",
-      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_02/dumbbell_(left_hand)/debug/iter_metrics.csv",
-      "frame_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_02/dumbbell_(left_hand)/debug/frame_metrics.csv",
+      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_02/dumbbell_(left_hand)/debug/iter_metrics.csv",
+      "frame_metrics_csv": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_02/dumbbell_(left_hand)/debug/frame_metrics.csv",
       "loss_curve_pngs": {
-        "total": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_02/dumbbell_(left_hand)/debug/loss_total.png",
-        "e_img": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_02/dumbbell_(left_hand)/debug/loss_e_img.png",
-        "e_smooth": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_02/dumbbell_(left_hand)/debug/loss_e_smooth.png",
-        "e_vel": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_02/dumbbell_(left_hand)/debug/loss_e_vel.png"
+        "total": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_02/dumbbell_(left_hand)/debug/loss_total.png",
+        "e_img": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_02/dumbbell_(left_hand)/debug/loss_e_img.png",
+        "e_smooth": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_02/dumbbell_(left_hand)/debug/loss_e_smooth.png",
+        "e_vel": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_02/dumbbell_(left_hand)/debug/loss_e_vel.png"
       },
       "elapsed_seconds": 137.89801812171936,
       "convention_notes": {
@@ -119,10 +119,10 @@
       "object_name": "dumbbell (right hand)",
       "slug": "dumbbell_(right_hand)",
       "status": "processed",
-      "mesh_path": "/my_workspace/4DHHOI/4DHOI/Align_Meshes/output/video_02/meshes/dumbbell_(right_hand).ply",
-      "tracks_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Optical_Flow/output_cotracker/video_02/dumbbell_(right_hand)/tracks.npy",
-      "visibility_path": "/my_workspace/4DHHOI/4DHOI/Estimate_Optical_Flow/output_cotracker/video_02/dumbbell_(right_hand)/visibility.npy",
-      "mask_dir": "/my_workspace/4DHHOI/4DHOI/Segment_Video/output/video_02/objects/dumbbell_(right_hand)/object_segmentation/masks",
+      "mesh_path": "/my_workspace/4DHHOI/4DHOI/07_Align_Meshes/output/interaction_02/meshes/dumbbell_(right_hand).ply",
+      "tracks_path": "/my_workspace/4DHHOI/4DHOI/09_Estimate_Optical_Flow/output_cotracker/interaction_02/dumbbell_(right_hand)/tracks.npy",
+      "visibility_path": "/my_workspace/4DHHOI/4DHOI/09_Estimate_Optical_Flow/output_cotracker/interaction_02/dumbbell_(right_hand)/visibility.npy",
+      "mask_dir": "/my_workspace/4DHHOI/4DHOI/03_Segment_Video/output/interaction_02/objects/dumbbell_(right_hand)/object_segmentation/masks",
       "num_input_tracks": 1709,
       "num_valid_seed_tracks": 1693,
       "num_dropped_invalid_face": 16,
@@ -161,13 +161,13 @@
       "final_mean_reproj_px": 0.5221841931343079,
       "overlay_rendered": true,
       "overlay_message": "Rendered overlays (183958 faces, 81 frames, save_pngs=True).",
-      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_02/dumbbell_(right_hand)/debug/iter_metrics.csv",
-      "frame_metrics_csv": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_02/dumbbell_(right_hand)/debug/frame_metrics.csv",
+      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_02/dumbbell_(right_hand)/debug/iter_metrics.csv",
+      "frame_metrics_csv": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_02/dumbbell_(right_hand)/debug/frame_metrics.csv",
       "loss_curve_pngs": {
-        "total": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_02/dumbbell_(right_hand)/debug/loss_total.png",
-        "e_img": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_02/dumbbell_(right_hand)/debug/loss_e_img.png",
-        "e_smooth": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_02/dumbbell_(right_hand)/debug/loss_e_smooth.png",
-        "e_vel": "/my_workspace/4DHHOI/4DHOI/Track_Object_Mesh/output/video_02/dumbbell_(right_hand)/debug/loss_e_vel.png"
+        "total": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_02/dumbbell_(right_hand)/debug/loss_total.png",
+        "e_img": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_02/dumbbell_(right_hand)/debug/loss_e_img.png",
+        "e_smooth": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_02/dumbbell_(right_hand)/debug/loss_e_smooth.png",
+        "e_vel": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_02/dumbbell_(right_hand)/debug/loss_e_vel.png"
       },
       "elapsed_seconds": 115.76709771156311,
       "convention_notes": {

@@ -81,15 +81,15 @@ def find_metric_depth_path(
 
 
 def default_sam3d_output_dir(depth_output_dir: Path, script_dir: Path) -> Path:
-    """Infer SAM3D output dir from depth_output_dir's video_xx folder."""
+    """Infer SAM3D output dir from depth_output_dir's interaction_xx folder."""
     video_dir_name = depth_output_dir.name
-    return (script_dir.parent / "Generate_Object_Mesh" / "output" / video_dir_name).resolve()
+    return (script_dir.parent / "04_Generate_Object_Mesh" / "output" / video_dir_name).resolve()
 
 
-def build_default_paths(video_name: str, script_dir: Path) -> tuple[Path, Path]:
+def build_default_paths(interaction_name: str, script_dir: Path) -> tuple[Path, Path]:
     """Build default depth and SAM3D output directories for one video."""
-    depth_output_dir = script_dir / "output" / video_name
-    sam3d_output_dir = (script_dir.parent / "Generate_Object_Mesh" / "output" / video_name).resolve()
+    depth_output_dir = script_dir / "output" / interaction_name
+    sam3d_output_dir = (script_dir.parent / "04_Generate_Object_Mesh" / "output" / interaction_name).resolve()
     return depth_output_dir, sam3d_output_dir
 
 
@@ -213,19 +213,19 @@ def parse_args() -> argparse.Namespace:
         )
     )
     parser.add_argument(
-        "--video_name",
+        "--interaction_name",
         type=str,
-        default="video_01",
-        help="Video name used to build default paths for the other arguments.",
+        default="interaction_01",
+        help="Interaction name used to build default paths for the other arguments.",
     )
     parser.add_argument(
         "--depth_output_dir",
         type=str,
         default=None,
         help=(
-            "Depth output directory (Estimate_Depth/output/video_xx). "
+            "Depth output directory (05_Estimate_Depth/output/interaction_xx). "
             "Contains camera_intrinsics.json and depth subdirectories. "
-            "Defaults to Estimate_Depth/output/<video_name>/."
+            "Defaults to 05_Estimate_Depth/output/<interaction_name>/."
         ),
     )
     parser.add_argument(
@@ -240,7 +240,7 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help=(
             "Directory containing camera_intrinsics.json from SAM3D object generation. "
-            "Default: ../Generate_Object_Mesh/output/<video_xx inferred from depth_output_dir>."
+            "Default: ../04_Generate_Object_Mesh/output/<interaction_xx inferred from depth_output_dir>."
         ),
     )
     parser.add_argument(
@@ -293,7 +293,7 @@ def main() -> None:
     script_dir = Path(__file__).resolve().parent
 
     default_depth_output_dir, default_sam3d_output_dir_path = build_default_paths(
-        args.video_name, script_dir
+        args.interaction_name, script_dir
     )
     depth_output_dir = (
         resolve_path(args.depth_output_dir, script_dir)

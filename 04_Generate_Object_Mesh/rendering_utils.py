@@ -1,4 +1,4 @@
-"""Shared overlay rendering utilities for Generate_Object_Mesh scripts."""
+"""Shared overlay rendering utilities for 04_Generate_Object_Mesh scripts."""
 
 from __future__ import annotations
 
@@ -160,7 +160,7 @@ def add_overlay_legend(
     image_bgr: np.ndarray,
     legend_items: Sequence[Tuple[str, ColorBGR]],
 ) -> np.ndarray:
-    """Draw a Segment_Video-style legend onto an overlay image."""
+    """Draw a 03_Segment_Video-style legend onto an overlay image."""
     deduped_items: List[Tuple[str, ColorBGR]] = []
     seen_names: set[str] = set()
     for name, color in legend_items:

@@ -1,4 +1,4 @@
-"""Generate object meshes from first-frame Segment_Video masks."""
+"""Generate object meshes from first-frame 03_Segment_Video masks."""
 
 from dataclasses import dataclass
 import argparse
@@ -56,7 +56,7 @@ class ObjectMaskSpec:
 
 @dataclass
 class VideoGenerationContext:
-    video_name: str
+    interaction_name: str
     first_frame_stem: str
     image_rgb: np.ndarray
     camera_k_overlay: np.ndarray
@@ -87,9 +87,9 @@ def convert_mesh_p3d_to_cv(mesh_p3d: trimesh.Trimesh) -> trimesh.Trimesh:
     return mesh_cv
 
 
-def build_output_paths(mesh_output_root: Path, video_name: str) -> VideoOutputPaths:
+def build_output_paths(mesh_output_root: Path, interaction_name: str) -> VideoOutputPaths:
     """Create and return the output directory layout for one video."""
-    root = (mesh_output_root / video_name).resolve()
+    root = (mesh_output_root / interaction_name).resolve()
     meshes_dir = root / "meshes"
     overlays_dir = root / "overlays"
     root.mkdir(parents=True, exist_ok=True)
@@ -119,23 +119,23 @@ def load_binary_mask(mask_path: Path) -> np.ndarray:
     return (mask_gray > 127).astype("uint8")
 
 
-def build_default_paths(video_name: str) -> tuple[Path, Path]:
-    """Build default input/output roots for a given video name."""
+def build_default_paths(interaction_name: str) -> tuple[Path, Path]:
+    """Build default input/output roots for a given interaction name."""
     script_dir = Path(__file__).parent.resolve()
     project_dir = script_dir.parent
-    input_dir = project_dir / "Segment_Video" / "output" / video_name
+    input_dir = project_dir / "03_Segment_Video" / "output" / interaction_name
     output_dir = script_dir / "output"
     return input_dir, output_dir
 
 
 def build_video_context(
-    video_name: str,
+    interaction_name: str,
     input_dir: Path,
     sam3d: Any,
     mesh_output_root: Path,
 ) -> VideoGenerationContext:
     """Collect all per-video inputs and derived state needed for generation."""
-    output_paths = build_output_paths(mesh_output_root, video_name)
+    output_paths = build_output_paths(mesh_output_root, interaction_name)
 
     frames_dir = input_dir / "_frames"
     first_frame_stem = discover_first_frame_stem(input_dir)
@@ -151,7 +151,7 @@ def build_video_context(
         for name, mask_path in objects
     ]
 
-    print(f"Video: {video_name}")
+    print(f"Video: {interaction_name}")
     print(f"First frame: {first_frame_stem}")
     print(f"Objects: {[spec.name for spec in object_specs]}")
     print(f"Output: {output_paths.root}\n")
@@ -163,7 +163,7 @@ def build_video_context(
     print(f"Saved: {output_paths.camera_intrinsics_json}")
 
     return VideoGenerationContext(
-        video_name=video_name,
+        interaction_name=interaction_name,
         first_frame_stem=first_frame_stem,
         image_rgb=image_rgb,
         camera_k_overlay=camera_k_from_info(camera_info),
@@ -179,10 +179,11 @@ def generate_object_result(
     overlay_backend: QualityRenderBackend,
     overlay_device: str,
     simplify_ratio: float,
+    seed: int,
 ) -> GeneratedObjectResult:
     """Generate, pose, render, and save outputs for a single object."""
     mask = load_binary_mask(object_spec.mask_path)
-    output = generate_mesh(sam3d, context.image_rgb, mask)
+    output = generate_mesh(sam3d, context.image_rgb, mask, seed=seed)
     canonical_mesh_p3d = sam3d_mesh_to_trimesh(output["mesh"][0])
 
     rotation_quat, translation, scale = extract_pose_components(output)
@@ -266,16 +267,17 @@ def print_generation_summary(
 
 
 def process_video_directory(
-    video_name: str,
+    interaction_name: str,
     input_dir: Path,
     sam3d: Any,
     mesh_output_root: Path,
     overlay_backend: QualityRenderBackend,
     overlay_device: str,
     simplify_ratio: float,
+    seed: int,
 ) -> None:
     context = build_video_context(
-        video_name=video_name,
+        interaction_name=interaction_name,
         input_dir=input_dir,
         sam3d=sam3d,
         mesh_output_root=mesh_output_root,
@@ -295,6 +297,7 @@ def process_video_directory(
                 overlay_backend=overlay_backend,
                 overlay_device=overlay_device,
                 simplify_ratio=simplify_ratio,
+                seed=seed,
             )
             generated_objects.append(result)
             print(f"    Saved mesh (OpenCV camera coords): {result.mesh_path}")
@@ -319,27 +322,27 @@ def process_video_directory(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Generate first-frame object meshes from Segment_Video output"
+        description="Generate first-frame object meshes from 03_Segment_Video output"
         "(sam3d-objects env)."
     )
     parser.add_argument(
-        "--video_name",
+        "--interaction_name",
         type=str,
-        default="video_01",
-        help="Video name used to build default paths for the other arguments.",
+        default="interaction_01",
+        help="Interaction name used to build default paths for the other arguments.",
     )
     parser.add_argument(
         "--input_dir",
         type=str,
         default=None,
-        help="Segment_Video output dir with _frames/ and objects/. "
-        "Defaults to ../Segment_Video/output/<video_name>/.",
+        help="03_Segment_Video output dir with _frames/ and objects/. "
+        "Defaults to ../03_Segment_Video/output/<interaction_name>/.",
     )
     parser.add_argument(
         "--output_dir",
         type=str,
         default=None,
-        help="Mesh output root. Final outputs are written to <output_dir>/<video_name>/.",
+        help="Mesh output root. Final outputs are written to <output_dir>/<interaction_name>/.",
     )
     parser.add_argument(
         "--simplify_ratio",
@@ -350,12 +353,18 @@ def main() -> None:
             "(0 disables simplification, 0.75 removes about 75 percent of faces)."
         ),
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=62,
+        help="Seed passed to SAM3D mesh generation.",
+    )
     args = parser.parse_args()
 
     if not 0.0 <= args.simplify_ratio < 1.0:
         raise ValueError("--simplify_ratio must be in the range [0, 1).")
 
-    default_input_dir, default_output_dir = build_default_paths(args.video_name)
+    default_input_dir, default_output_dir = build_default_paths(args.interaction_name)
 
     input_dir = Path(args.input_dir).resolve() if args.input_dir else default_input_dir
 
@@ -373,15 +382,17 @@ def main() -> None:
     print("Loading SAM 3D Objects...")
     sam3d = load_sam3d()
     print("SAM 3D Objects loaded successfully\n")
+    print(f"Mesh generation seed: {args.seed}")
 
     process_video_directory(
-        video_name=args.video_name,
+        interaction_name=args.interaction_name,
         input_dir=input_dir,
         sam3d=sam3d,
         mesh_output_root=output_dir,
         overlay_backend=overlay_backend,
         overlay_device=overlay_device,
         simplify_ratio=args.simplify_ratio,
+        seed=args.seed,
     )
 
     print(f"\n{'=' * 50}")

@@ -11,42 +11,45 @@ def parse_args() -> argparse.Namespace:
         description="Human-object mesh refinement with Original_Code shared losses."
     )
 
-    p.add_argument("--video_name", type=str, default="video_01")
+    p.add_argument("--interaction_name", type=str, default="interaction_01")
     p.add_argument(
         "--aligned_mesh_dir",
         type=str,
         default=None,
-        help="Align_Meshes/output/<video> (auto-resolved).",
+        help="07_Align_Meshes/output/<interaction> (auto-resolved).",
     )
     p.add_argument(
         "--tracked_object_dir",
         type=str,
         default=None,
-        help="Track_Object_Mesh/output/<video> (auto-resolved).",
+        help="10_Track_Object_Mesh/output/<interaction> (auto-resolved).",
     )
     p.add_argument(
         "--segment_object_dir",
         type=str,
         default=None,
-        help="Segment_Object_Mesh/output/<video> (auto-resolved).",
+        help="08_Segment_Object_Mesh/output/<interaction> (auto-resolved).",
     )
     p.add_argument(
         "--segment_video_dir",
         type=str,
         default=None,
-        help="Segment_Video/output/<video> for frame images (auto-resolved).",
+        help="03_Segment_Video/output/<interaction> for frame images (auto-resolved).",
     )
     p.add_argument(
         "--pag_file",
         type=str,
         default=None,
-        help="PAG JSON. Auto-resolved from Generate_PAG/output/<video>.",
+        help="PAG JSON. Auto-resolved from 01_Generate_PAG/output/<interaction>.",
     )
     p.add_argument(
         "--smpl_seg_json",
         type=str,
         default=None,
-        help="SMPL vert segmentation JSON (auto-resolved from GVHMR).",
+        help=(
+            "SMPL-X contact segmentation JSON. Auto-resolved from "
+            "06_Estimate_Human_Motion/assets/smplx_vert_segmentation.json."
+        ),
     )
     p.add_argument(
         "--output_dir",

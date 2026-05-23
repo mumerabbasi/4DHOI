@@ -343,9 +343,9 @@ def save_run_outputs(
         print("  [WARN] No frames directory found — skipping overlay.")
 
     summary = {
-        "video_name": args.video_name,
+        "interaction_name": args.interaction_name,
         "status": "completed",
-        "script": "track_human_object_mesh.py",
+        "script": "01_track_human_object_mesh.py",
         "num_frames": context.num_frames,
         "num_humans": len(context.human_keys),
         "num_objects": len(context.obj_keys),

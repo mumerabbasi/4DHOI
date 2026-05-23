@@ -1,24 +1,30 @@
 """
-Segment rendered object parts using Qwen-VL detection + SAM3 box-prompt segmentation.
+Segment rendered object parts using Qwen prompt enrichment + SAM3 text prompting.
 
 Pipeline:
-1. Load PAG file to get objects and their parts.
-2. Stage 1: run Qwen-VL on all objects' rendered views first.
-   - Save per-view bbox visualizations and bbox cache JSON per object.
-   - On reruns, skip Qwen-VL for any object whose bbox cache JSON exists.
-3. Stage 2: run SAM3 on all objects using the cached Qwen bboxes as seeds.
-4. Save per-view masks and segmentation overlays.
+1. Load PAG file to get objects and part names.
+2. For each object, use a few representative renders to generate concise SAM3-ready
+   text prompts for each PAG part and cache them in sam3_prompts.json.
+3. For each render/view and part, run SAM3 text prompting.
+4. Filter SAM3 predictions by confidence, minimum size, and object silhouette
+   overlap derived from the face-ID EXR render.
+5. For missing part/view masks, ask Qwen-VL for a bbox and seed SAM3 with it.
+6. Merge the top valid masks per part, make part masks exclusive, and save
+   per-view masks/visualizations compatible with 04_segment_meshes.py.
 
 Usage:
-    python segment_renders.py --video_name video_01
+    python 02_segment_renders.py --interaction_name interaction_01
 """
 
 import argparse
 import base64
 import json
+import os
 import re
 import sys
 from pathlib import Path
+
+os.environ.setdefault("OPENCV_IO_ENABLE_OPENEXR", "1")
 
 import cv2
 import numpy as np
@@ -29,13 +35,12 @@ from PIL import Image
 
 OLLAMA_HOST = "http://127.0.0.1:11434/v1"
 OLLAMA_API_KEY = "ollama"
-QWEN_MODEL = "qwen3-vl:32b-thinking"
+QWEN_MODEL = "qwen3.6:27b"
 
 SAM3_CHECKPOINT = None  # None -> auto-download from HuggingFace
 SAM3_BPE_PATH = "/my_workspace/4DHHOI/sam3/sam3/assets/bpe_simple_vocab_16e6.txt.gz"
 
 MIN_MASK_PIXELS = 50  # minimum mask area to accept
-BBOX_CACHE_FILENAME = "part_bboxes.json"
 
 
 def _resolve_path(path_str: str, base_dir: Path) -> Path:
@@ -45,7 +50,7 @@ def _resolve_path(path_str: str, base_dir: Path) -> Path:
 
 def resolve_default_dirs(args, script_dir: Path) -> tuple[Path, Path]:
     output_root = _resolve_path(args.output_root, script_dir)
-    return output_root, (output_root / args.video_name).resolve()
+    return output_root, (output_root / args.interaction_name).resolve()
 
 
 def resolve_pag_path(args, script_dir: Path) -> Path:
@@ -55,13 +60,13 @@ def resolve_pag_path(args, script_dir: Path) -> Path:
             raise FileNotFoundError(f"PAG file not found: {pag}")
         return pag
     for subdir in ("output", "pags"):
-        d = (script_dir.parent / "Generate_PAG" / subdir / args.video_name).resolve()
+        d = (script_dir.parent / "01_Generate_PAG" / subdir / args.interaction_name).resolve()
         if d.exists():
             cands = sorted(d.glob("output_pag_*.json"))
             if cands:
                 return cands[0]
     raise FileNotFoundError(
-        f"No output_pag_*.json found for {args.video_name} under Generate_PAG/"
+        f"No output_pag_*.json found for {args.interaction_name} under 01_Generate_PAG/"
     )
 
 
@@ -114,7 +119,8 @@ def load_sam3(
 ) -> dict:
     print("Loading SAM3 image model ...")
     if device is None:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        device = _select_default_torch_device()
+    _set_current_cuda_device(device)
     build_fn, ProcessorCls = _import_sam3()
     model = build_fn(
         checkpoint_path=checkpoint_path,
@@ -130,6 +136,16 @@ def load_sam3(
     processor = ProcessorCls(model=model, device=device)
     print(f"SAM3 ready on {device}")
     return {"model": model, "processor": processor, "device": device}
+
+
+def _set_current_cuda_device(device: str) -> None:
+    if not device.startswith("cuda") or not torch.cuda.is_available():
+        return
+    torch.cuda.set_device(torch.device(device))
+
+
+def _select_default_torch_device() -> str:
+    return "cuda:0" if torch.cuda.is_available() else "cpu"
 
 
 def _encode_image_b64(path: str) -> str:
@@ -197,8 +213,10 @@ def detect_parts_qwen(
     b64 = _encode_image_b64(image_path)
     parts_list = "\n".join(f"- {p}" for p in parts)
     prompt = (
-        f"You are analyzing a rendered image of a {object_name}. "
+        f"You are analyzing an isolated synthetic render of a {object_name} on a plain background. "
         f"Detect bounding boxes for these parts:\n{parts_list}\n\n"
+        f"Only use the visible rendered object pixels. "
+        f"Make each box tightly enclose the visible region of that part.\n\n"
         f"For each part, output in this format:\n"
         f"<ref>part_name</ref><box>[[x1,y1,x2,y2]]</box>\n\n"
         f"Coordinates should be on a 0-1000 normalized scale (not pixels).\n"
@@ -391,6 +409,7 @@ def _write_view_masks(
         cv2.imwrite(str(mask_path), (mask.astype(np.uint8) * 255))
 
 
+
 def segment_with_box(
     sam3: dict,
     image_pil: Image.Image,
@@ -399,6 +418,7 @@ def segment_with_box(
     w: int,
 ) -> np.ndarray:
     """Run SAM3 box-prompt segmentation. Returns (H, W) uint8 binary mask."""
+    _set_current_cuda_device(sam3["device"])
     model = sam3["model"]
     processor = sam3["processor"]
 
@@ -522,23 +542,154 @@ def draw_masks(image: np.ndarray, masks: dict[str, np.ndarray | None]) -> np.nda
             )
     return out
 
+PROMPT_CACHE_FILENAME = "sam3_prompts.json"
+DEBUG_DIRNAME = "debug"
+RAW_PREDICTIONS_DIRNAME = "sam3_raw_predictions"
+FALLBACK_BBOX_DIRNAME = "bboxes_fallback"
+BBOX_CACHE_FILENAME = "part_bboxes.json"
+DEFAULT_PROMPT_VIEW_STEMS = ("az010_el+10", "az100_el+10", "az190_el+10")
+MIN_SILHOUETTE_OVERLAP = 0.5
+DEDUP_IOU_THRESHOLD = 0.95
 
-def _coerce_cached_bbox(raw_bbox) -> list[int] | None:
-    if raw_bbox is None:
-        return None
-    if not isinstance(raw_bbox, (list, tuple)) or len(raw_bbox) != 4:
+
+def _strip_thinking_and_fences(text: str) -> str:
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    text = re.sub(r"```json\s*", "", text, flags=re.IGNORECASE)
+    text = text.replace("```", "")
+    return text.strip()
+
+
+def _extract_json_object(text: str) -> dict | None:
+    cleaned = _strip_thinking_and_fences(text)
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start == -1 or end == -1 or end <= start:
         return None
     try:
-        return [int(raw_bbox[0]), int(raw_bbox[1]), int(raw_bbox[2]), int(raw_bbox[3])]
-    except (TypeError, ValueError):
+        payload = json.loads(cleaned[start: end + 1])
+    except json.JSONDecodeError:
         return None
+    return payload if isinstance(payload, dict) else None
 
 
-def _load_bbox_cache(
-    cache_path: Path,
+def _prompt_image_content(image_path: Path) -> dict:
+    image_ext = image_path.suffix.lower()
+    image_mime = "image/png" if image_ext == ".png" else "image/jpeg"
+    image_url = f"data:{image_mime};base64,{_encode_image_b64(str(image_path))}"
+    return {"type": "image_url", "image_url": {"url": image_url}}
+
+
+def _normalize_prompt_text(object_name: str, part_name: str, raw_text: str | None) -> str:
+    text = (raw_text or "").strip()
+    if not text:
+        return f"{part_name} of the {object_name}"
+
+    text = re.sub(r"\s+", " ", text)
+    if part_name.lower() not in text.lower():
+        text = f"{part_name} of the {object_name}"
+    elif object_name.lower() not in text.lower():
+        text = f"{text} on the {object_name}"
+
+    if len(text.split()) > 24:
+        text = f"{part_name} of the {object_name}"
+    return text
+
+
+def _build_default_prompts(object_name: str, parts: list[str]) -> dict[str, dict[str, str]]:
+    return {
+        part: {
+            "sam3_prompt": f"{part} of the {object_name}",
+        }
+        for part in parts
+    }
+
+
+def _select_prompt_views(image_files: list[Path], num_views: int) -> list[Path]:
+    by_stem = {path.stem: path for path in image_files}
+    selected: list[Path] = []
+
+    for stem in DEFAULT_PROMPT_VIEW_STEMS:
+        path = by_stem.get(stem)
+        if path is not None and path not in selected:
+            selected.append(path)
+        if len(selected) >= num_views:
+            return selected
+
+    for image_path in image_files:
+        if image_path not in selected:
+            selected.append(image_path)
+        if len(selected) >= num_views:
+            break
+    return selected
+
+
+def _generate_prompts_with_qwen(
+    client: OpenAI,
+    model: str,
+    object_name: str,
     parts: list[str],
-    image_files: list[Path],
-) -> dict[str, dict[str, list[int] | None]] | None:
+    prompt_images: list[Path],
+    reasoning_effort: str | None,
+) -> dict[str, dict[str, str]]:
+    parts_list = "\n".join(f"- {part}" for part in parts)
+    prompt = (
+        f"You are helping write concise segmentation prompts for SAM3.\n"
+        f"Object: {object_name}\n"
+        f"PAG parts:\n{parts_list}\n\n"
+        f"You will see a few renders of the same object. For each part, return a short text prompt "
+        f"that will help SAM3 segment that part across different views.\n"
+        f"Requirements:\n"
+        f"- Return JSON only.\n"
+        f"- Keep the exact part string unchanged inside the prompt.\n"
+        f"- Mention the object name.\n"
+        f"- Keep each prompt concise, ideally under 20 words.\n"
+        f"- Do not mention camera angles, colors, or background.\n"
+        f"- Focus on the physical region/shape of the part.\n\n"
+        f"Return this schema exactly:\n"
+        f'{{"prompts": {{"<part_name>": "<short prompt>"}}}}'
+    )
+
+    content = [{"type": "text", "text": prompt}]
+    for idx, image_path in enumerate(prompt_images, start=1):
+        content.append({"type": "text", "text": f"Reference render {idx}: {image_path.stem}"})
+        content.append(_prompt_image_content(image_path))
+
+    kwargs = {
+        "model": model,
+        "messages": [{"role": "user", "content": content}],
+        "temperature": 0.1,
+        "max_tokens": 1536,
+    }
+    if reasoning_effort is not None:
+        kwargs["reasoning_effort"] = reasoning_effort
+
+    try:
+        response = client.chat.completions.create(**kwargs)
+        text = _extract_text_content(response.choices[0].message.content)
+        payload = _extract_json_object(text) or {}
+        prompt_map = payload.get("prompts", payload)
+        if not isinstance(prompt_map, dict):
+            raise ValueError("Qwen response did not contain a prompt mapping")
+
+        prompts = {}
+        for part in parts:
+            prompts[part] = {
+                "sam3_prompt": _normalize_prompt_text(
+                    object_name, part, prompt_map.get(part)
+                ),
+            }
+        return prompts
+    except Exception as e:
+        print(f"  Qwen prompt-generation error for {object_name}: {e}")
+        print("  Using simple object+part prompts.")
+        return _build_default_prompts(object_name, parts)
+
+
+def _load_prompt_cache(
+    cache_path: Path,
+    object_name: str,
+    parts: list[str],
+) -> dict[str, dict[str, str]] | None:
     if not cache_path.exists():
         return None
 
@@ -546,164 +697,122 @@ def _load_bbox_cache(
         with cache_path.open("r", encoding="utf-8") as f:
             payload = json.load(f)
     except Exception as e:
-        print(f"  Failed to load bbox cache ({cache_path}): {e}")
+        print(f"  Failed to load prompt cache ({cache_path}): {e}")
         return None
 
     if not isinstance(payload, dict):
-        print(f"  Invalid bbox cache format in {cache_path}; expected JSON object.")
         return None
 
-    views = payload.get("views")
-    if not isinstance(views, list):
-        print(f"  Invalid bbox cache format in {cache_path}; expected 'views' list.")
+    prompt_map = payload.get("prompts")
+    if not isinstance(prompt_map, dict):
         return None
 
-    bboxes_by_image = {
-        img_path.name: {part: None for part in parts} for img_path in image_files
-    }
-
-    matched_views = 0
-    for view in views:
-        if not isinstance(view, dict):
-            continue
-        image_name = view.get("image")
-        if image_name not in bboxes_by_image:
-            continue
-        part_boxes = view.get("parts")
-        if not isinstance(part_boxes, dict):
-            continue
-        for part in parts:
-            bboxes_by_image[image_name][part] = _coerce_cached_bbox(part_boxes.get(part))
-        matched_views += 1
-
-    print(f"  Using cached Qwen bboxes: {cache_path}")
-    print(f"    matched views: {matched_views}/{len(image_files)}")
-    if matched_views < len(image_files):
-        print("    unmatched views will be treated as not detected.")
-    return bboxes_by_image
+    prompts: dict[str, dict[str, str]] = {}
+    for part in parts:
+        raw_entry = prompt_map.get(part)
+        if not isinstance(raw_entry, dict):
+            return None
+        sam3_prompt = _normalize_prompt_text(object_name, part, raw_entry.get("sam3_prompt"))
+        prompts[part] = {
+            "sam3_prompt": sam3_prompt,
+        }
+    return prompts
 
 
-def _save_bbox_cache(
+def _save_prompt_cache(
     cache_path: Path,
     object_name: str,
     parts: list[str],
-    image_files: list[Path],
-    image_sizes: dict[str, list[int]],
-    bboxes_by_image: dict[str, dict[str, list[int] | None]],
+    prompt_views: list[Path],
+    prompts: dict[str, dict[str, str]],
 ) -> None:
     payload = {
         "object_name": object_name,
         "parts": parts,
+        "prompt_views": [path.name for path in prompt_views],
+        "prompts": prompts,
+    }
+    with cache_path.open("w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+    print(f"  Saved SAM3 prompt cache -> {cache_path}")
+
+
+def _coerce_cached_bbox(raw_bbox) -> list[int] | None:
+    if raw_bbox is None or not isinstance(raw_bbox, (list, tuple)) or len(raw_bbox) != 4:
+        return None
+    try:
+        return [int(raw_bbox[0]), int(raw_bbox[1]), int(raw_bbox[2]), int(raw_bbox[3])]
+    except (TypeError, ValueError):
+        return None
+
+
+def _load_fallback_bbox_cache(cache_path: Path) -> dict[str, dict[str, list[int] | None]]:
+    if not cache_path.exists():
+        return {}
+
+    try:
+        with cache_path.open("r", encoding="utf-8") as f:
+            payload = json.load(f)
+    except Exception as e:
+        print(f"  Failed to load fallback bbox cache ({cache_path}): {e}")
+        return {}
+
+    views = payload.get("views") if isinstance(payload, dict) else None
+    if not isinstance(views, list):
+        print(f"  Invalid fallback bbox cache format in {cache_path}; ignoring it.")
+        return {}
+
+    cache: dict[str, dict[str, list[int] | None]] = {}
+    for view in views:
+        if not isinstance(view, dict):
+            continue
+        image_name = view.get("image")
+        part_boxes = view.get("parts")
+        if not isinstance(image_name, str) or not isinstance(part_boxes, dict):
+            continue
+        cache[image_name] = {
+            str(part): _coerce_cached_bbox(bbox)
+            for part, bbox in part_boxes.items()
+        }
+
+    print(f"  Using fallback bbox cache: {cache_path}")
+    return cache
+
+
+def _save_fallback_bbox_cache(
+    cache_path: Path,
+    object_name: str,
+    fallback_cache: dict[str, dict[str, list[int] | None]],
+    image_sizes: dict[str, list[int]],
+) -> None:
+    payload = {
+        "object_name": object_name,
         "views": [],
     }
-    for img_path in image_files:
-        image_name = img_path.name
-        view_parts = {
-            part: bboxes_by_image.get(image_name, {}).get(part)
-            for part in parts
-        }
+    for image_name in sorted(fallback_cache):
         payload["views"].append(
             {
                 "image": image_name,
                 "image_size": image_sizes.get(image_name, [0, 0]),
-                "parts": view_parts,
+                "parts": fallback_cache[image_name],
             }
         )
 
     with cache_path.open("w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)
-    print(f"  Saved combined bbox cache -> {cache_path}")
 
 
-def _run_qwen_bbox_pass(
-    image_files: list[Path],
-    object_name: str,
-    parts: list[str],
-    qwen_client: OpenAI,
-    qwen_model: str,
-    qwen_retries: int,
-    reasoning_effort: str | None,
-    bboxes_dir: Path | None = None,
-) -> tuple[dict[str, dict[str, list[int] | None]], dict[str, list[int]]]:
-    bboxes_by_image: dict[str, dict[str, list[int] | None]] = {}
-    image_sizes: dict[str, list[int]] = {}
-
-    qwen_retries = max(0, qwen_retries)
-    max_attempts = qwen_retries + 1
-
-    print("  Running Qwen-VL detection pass on all views ...")
-    for idx, img_path in enumerate(image_files, start=1):
-        print(f"\n    [Qwen {idx}/{len(image_files)}] {img_path.name}")
-        image_bgr = cv2.imread(str(img_path))
-        if image_bgr is None:
-            print(f"      Could not read {img_path}")
-            bboxes_by_image[img_path.name] = {p: None for p in parts}
-            image_sizes[img_path.name] = [0, 0]
-            continue
-
-        h, w = image_bgr.shape[:2]
-        image_sizes[img_path.name] = [w, h]
-
-        qwen_boxes = {p: None for p in parts}
-        for attempt in range(1, max_attempts + 1):
-            retry_idx = attempt - 1
-            if retry_idx == 0:
-                print("      Detecting parts with Qwen-VL ...")
-            else:
-                print(f"      Retrying Qwen-VL ({retry_idx}/{qwen_retries}) ...")
-
-            qwen_boxes = detect_parts_qwen(
-                qwen_client,
-                qwen_model,
-                str(img_path),
-                parts,
-                object_name,
-                w,
-                h,
-                reasoning_effort,
-            )
-            if any(_clamp_bbox(qwen_boxes.get(part), w, h) is not None for part in parts):
-                break
-            if attempt < max_attempts:
-                print("      No parts detected, retrying Qwen-VL ...")
-            else:
-                print("      No parts detected after Qwen-VL retries.")
-
-        bboxes_by_image[img_path.name] = {
-            part: _clamp_bbox(qwen_boxes.get(part), w, h)
-            for part in parts
-        }
-        for part, bbox in bboxes_by_image[img_path.name].items():
-            print(f"      {part}: {'not detected' if bbox is None else f'bbox={bbox}'}")
-
-        # Save bbox visualization during the Qwen pass as well.
-        if (
-            bboxes_dir is not None
-            and any(b is not None for b in bboxes_by_image[img_path.name].values())
-        ):
-            cv2.imwrite(
-                str(bboxes_dir / f"{img_path.stem}_bboxes.png"),
-                draw_bboxes(image_bgr, bboxes_by_image[img_path.name]),
-            )
-
-    return bboxes_by_image, image_sizes
-
-
-def ensure_object_bbox_cache(
+def ensure_object_prompt_cache(
     object_dir: Path,
     object_name: str,
     parts: list[str],
     qwen_client: OpenAI,
     qwen_model: str,
-    qwen_retries: int,
     reasoning_effort: str | None,
-) -> dict[str, dict[str, list[int] | None]] | None:
-    """Ensure per-object Qwen bbox cache exists. Returns loaded/generated bboxes."""
+    prompt_views_count: int,
+) -> dict[str, dict[str, str]] | None:
     renders_dir = object_dir / "renders"
     rgb_dir = renders_dir / "rgb"
-    bboxes_dir = object_dir / "bboxes"
-    bboxes_dir.mkdir(parents=True, exist_ok=True)
-
     image_files = sorted(rgb_dir.glob("*.png")) if rgb_dir.exists() else []
     if not image_files:
         image_files = sorted(renders_dir.glob("rgb_*.png"))
@@ -711,48 +820,355 @@ def ensure_object_bbox_cache(
         print(f"  No render images found for {object_name}")
         return None
 
-    print(f"\n  QWEN pass {object_name}: parts={parts}, views={len(image_files)}")
-    bbox_cache_path = bboxes_dir / BBOX_CACHE_FILENAME
-    qwen_bboxes = _load_bbox_cache(bbox_cache_path, parts, image_files)
-    if qwen_bboxes is not None:
-        print("  Skipping Qwen-VL pass because bbox cache already exists.")
-        return qwen_bboxes
+    cache_path = object_dir / PROMPT_CACHE_FILENAME
+    cached = _load_prompt_cache(cache_path, object_name, parts)
+    if cached is not None:
+        print(f"  Using cached SAM3 prompts: {cache_path}")
+        return cached
 
-    qwen_bboxes, image_sizes = _run_qwen_bbox_pass(
-        image_files=image_files,
-        object_name=object_name,
-        parts=parts,
-        qwen_client=qwen_client,
-        qwen_model=qwen_model,
-        qwen_retries=qwen_retries,
-        reasoning_effort=reasoning_effort,
-        bboxes_dir=bboxes_dir,
+    prompt_views = _select_prompt_views(image_files, max(1, prompt_views_count))
+    print(
+        f"  Generating SAM3 prompts for {object_name} from views: "
+        f"{', '.join(path.stem for path in prompt_views)}"
     )
-    _save_bbox_cache(
-        cache_path=bbox_cache_path,
-        object_name=object_name,
-        parts=parts,
-        image_files=image_files,
-        image_sizes=image_sizes,
-        bboxes_by_image=qwen_bboxes,
+    prompts = _generate_prompts_with_qwen(
+        qwen_client,
+        qwen_model,
+        object_name,
+        parts,
+        prompt_views,
+        reasoning_effort,
     )
-    return qwen_bboxes
+    _save_prompt_cache(cache_path, object_name, parts, prompt_views, prompts)
+    return prompts
+
+
+def _view_name_from_face_id_file(face_id_file: Path) -> str:
+    stem = face_id_file.stem
+    return stem[:-4] if stem.endswith("0001") else stem
+
+
+def _collect_face_id_files(face_id_dir: Path) -> dict[str, Path]:
+    return {
+        _view_name_from_face_id_file(face_id_file): face_id_file
+        for face_id_file in sorted(face_id_dir.glob("*.exr"))
+    }
+
+
+def _load_face_id_silhouette(exr_path: Path) -> np.ndarray:
+    image = cv2.imread(str(exr_path), cv2.IMREAD_UNCHANGED)
+    if image is None:
+        raise RuntimeError(
+            f"Failed to read face-id EXR: {exr_path}. "
+            "Ensure OpenCV has OpenEXR enabled in the current environment."
+        )
+
+    # Blender writes the face ID into the EXR R channel; OpenCV loads EXR images in BGR order.
+    channel = image[..., 2] if image.ndim == 3 else image
+    return np.isfinite(channel) & (channel > 1e-6)
+
+
+def _extract_candidates_from_state(state: dict) -> list[dict]:
+    masks = state.get("masks")
+    boxes = state.get("boxes")
+    scores = state.get("scores")
+    if masks is None or boxes is None or scores is None:
+        return []
+
+    if torch.is_tensor(masks):
+        masks_np = masks.detach().to(dtype=torch.float32).cpu().numpy()
+    else:
+        masks_np = np.asarray(masks)
+
+    if masks_np.ndim == 4:
+        masks_np = masks_np[:, 0]
+    elif masks_np.ndim == 2:
+        masks_np = masks_np[None, ...]
+
+    if torch.is_tensor(boxes):
+        boxes_np = boxes.detach().to(dtype=torch.float32).cpu().numpy()
+    else:
+        boxes_np = np.asarray(boxes)
+
+    if torch.is_tensor(scores):
+        scores_np = scores.detach().to(dtype=torch.float32).cpu().numpy()
+    else:
+        scores_np = np.asarray(scores)
+
+    candidates: list[dict] = []
+    for idx in range(min(len(masks_np), len(boxes_np), len(scores_np))):
+        candidates.append(
+            {
+                "mask": (masks_np[idx] > 0).astype(np.uint8),
+                "box": [float(v) for v in boxes_np[idx].tolist()],
+                "score": float(scores_np[idx]),
+            }
+        )
+    return candidates
+
+
+def _mask_iou(mask_a: np.ndarray, mask_b: np.ndarray) -> float:
+    a = mask_a.astype(bool)
+    b = mask_b.astype(bool)
+    union = int((a | b).sum())
+    if union == 0:
+        return 0.0
+    return float((a & b).sum()) / float(union)
+
+
+def _bbox_from_mask(mask: np.ndarray | None) -> list[int] | None:
+    if mask is None or not np.any(mask):
+        return None
+    ys, xs = np.where(mask.astype(bool))
+    if xs.size == 0 or ys.size == 0:
+        return None
+    return [int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1]
+
+
+def _resize_mask(mask: np.ndarray, h: int, w: int) -> np.ndarray:
+    if mask.shape == (h, w):
+        return mask
+    resized = cv2.resize(mask.astype(np.float32), (w, h), interpolation=cv2.INTER_NEAREST)
+    return (resized > 0).astype(np.uint8)
+
+
+def _filter_and_merge_candidates(
+    candidates: list[dict],
+    silhouette_mask: np.ndarray,
+    max_masks_per_part: int,
+) -> tuple[np.ndarray | None, list[dict]]:
+    kept: list[dict] = []
+    silhouette = silhouette_mask.astype(bool)
+
+    for candidate in sorted(candidates, key=lambda item: item["score"], reverse=True):
+        mask = candidate["mask"].astype(bool)
+        original_area = int(mask.sum())
+        if original_area < MIN_MASK_PIXELS:
+            continue
+
+        clipped = mask & silhouette
+        clipped_area = int(clipped.sum())
+        if clipped_area < MIN_MASK_PIXELS:
+            continue
+
+        overlap_ratio = clipped_area / max(1, original_area)
+        if overlap_ratio < MIN_SILHOUETTE_OVERLAP:
+            continue
+
+        clipped_mask = clipped.astype(np.uint8)
+        if any(_mask_iou(clipped_mask, prev["mask"]) >= DEDUP_IOU_THRESHOLD for prev in kept):
+            continue
+
+        kept.append(
+            {
+                "mask": clipped_mask,
+                "box": candidate["box"],
+                "score": candidate["score"],
+                "original_area": original_area,
+                "clipped_area": clipped_area,
+                "silhouette_overlap": overlap_ratio,
+            }
+        )
+        if len(kept) >= max_masks_per_part:
+            break
+
+    if not kept:
+        return None, []
+
+    merged = np.zeros_like(kept[0]["mask"], dtype=np.uint8)
+    for item in kept:
+        merged |= item["mask"]
+    return merged, kept
+
+
+def _serialize_candidates(candidates: list[dict]) -> list[dict]:
+    serialized = []
+    for item in candidates:
+        entry = {k: v for k, v in item.items() if k != "mask"}
+        serialized.append(entry)
+    return serialized
+
+
+def _run_sam3_text_prompt(
+    sam3: dict,
+    image_pil: Image.Image,
+    prompt: str,
+    confidence_threshold: float,
+) -> list[dict]:
+    processor = sam3["processor"]
+    processor.set_confidence_threshold(confidence_threshold)
+    state = processor.set_image(image_pil)
+    state = processor.set_text_prompt(prompt=prompt, state=state)
+    return _extract_candidates_from_state(state)
+
+
+def _segment_part_with_prompts(
+    sam3: dict,
+    image_pil: Image.Image,
+    silhouette_mask: np.ndarray,
+    prompt_info: dict[str, str],
+    confidence_threshold: float,
+    max_masks_per_part: int,
+) -> tuple[np.ndarray | None, dict]:
+    prompt_text = prompt_info["sam3_prompt"]
+    try:
+        raw_candidates = _run_sam3_text_prompt(
+            sam3, image_pil, prompt_text, confidence_threshold
+        )
+    except Exception as e:
+        return None, {
+            "used_prompt": None,
+            "prompt": prompt_text,
+            "error": str(e),
+            "raw_candidates": [],
+            "kept_candidates": [],
+        }
+
+    merged_mask, kept = _filter_and_merge_candidates(
+        raw_candidates, silhouette_mask, max_masks_per_part
+    )
+    debug_info = {
+        "used_prompt": prompt_text if merged_mask is not None and np.any(merged_mask) else None,
+        "prompt": prompt_text,
+        "raw_candidates": _serialize_candidates(raw_candidates),
+        "kept_candidates": _serialize_candidates(kept),
+    }
+    if merged_mask is not None and np.any(merged_mask):
+        return merged_mask, debug_info
+
+    return None, {
+        "used_prompt": None,
+        "prompt": prompt_text,
+        "raw_candidates": _serialize_candidates(raw_candidates),
+        "kept_candidates": _serialize_candidates(kept),
+    }
+
+
+def _detect_missing_bboxes_with_cache(
+    qwen_client: OpenAI,
+    qwen_model: str,
+    image_path: Path,
+    object_name: str,
+    missing_parts: list[str],
+    w: int,
+    h: int,
+    reasoning_effort: str | None,
+    qwen_retries: int,
+    fallback_cache: dict[str, dict[str, list[int] | None]],
+) -> tuple[dict[str, list[int] | None], dict[str, str | None], bool]:
+    image_cache = fallback_cache.setdefault(image_path.name, {})
+    boxes: dict[str, list[int] | None] = {}
+    errors: dict[str, str | None] = {}
+    uncached_parts = [part for part in missing_parts if part not in image_cache]
+
+    if uncached_parts:
+        max_attempts = max(0, qwen_retries) + 1
+        remaining = list(uncached_parts)
+        detected: dict[str, list[int] | None] = {part: None for part in uncached_parts}
+
+        for attempt in range(1, max_attempts + 1):
+            print(
+                f"        Qwen bbox fallback attempt {attempt}/{max_attempts}: "
+                f"{remaining}"
+            )
+            attempt_boxes = detect_parts_qwen(
+                qwen_client,
+                qwen_model,
+                str(image_path),
+                remaining,
+                object_name,
+                w,
+                h,
+                reasoning_effort,
+            )
+            for part in remaining:
+                bbox = _clamp_bbox(attempt_boxes.get(part), w, h)
+                if bbox is not None:
+                    detected[part] = bbox
+
+            remaining = [part for part in remaining if detected[part] is None]
+            if not remaining:
+                break
+
+        for part in uncached_parts:
+            image_cache[part] = detected[part]
+
+    for part in missing_parts:
+        bbox = image_cache.get(part)
+        boxes[part] = _clamp_bbox(bbox, w, h)
+        errors[part] = None if boxes[part] is not None else "no bbox from Qwen-VL"
+
+    return boxes, errors, bool(uncached_parts)
+
+
+def _segment_missing_parts_with_bboxes(
+    sam3: dict,
+    image_pil: Image.Image,
+    silhouette_mask: np.ndarray,
+    missing_parts: list[str],
+    fallback_bboxes: dict[str, list[int] | None],
+    h: int,
+    w: int,
+) -> tuple[dict[str, np.ndarray | None], dict[str, str | None]]:
+    masks: dict[str, np.ndarray | None] = {}
+    errors: dict[str, str | None] = {}
+    silhouette = silhouette_mask.astype(bool)
+
+    for part in missing_parts:
+        bbox = fallback_bboxes.get(part)
+        if bbox is None:
+            masks[part] = None
+            errors[part] = "missing bbox"
+            continue
+
+        try:
+            mask = segment_with_box(sam3, image_pil, bbox, h, w).astype(bool)
+        except Exception as e:
+            masks[part] = None
+            errors[part] = f"SAM3 box prompt failed: {e}"
+            continue
+
+        clipped = mask & silhouette
+        area = int(clipped.sum())
+        if area < MIN_MASK_PIXELS:
+            masks[part] = None
+            errors[part] = f"bbox mask too small after silhouette clip: {area}px"
+            continue
+
+        masks[part] = clipped.astype(np.uint8)
+        errors[part] = None
+
+    return masks, errors
 
 
 def process_object(
     object_dir: Path,
     object_name: str,
     parts: list[str],
+    prompts: dict[str, dict[str, str]],
     sam3: dict,
+    qwen_client: OpenAI,
+    qwen_model: str,
+    reasoning_effort: str | None,
+    qwen_retries: int,
+    confidence_threshold: float,
+    max_masks_per_part: int,
     make_masks_exclusive_flag: bool,
+    enable_bbox_fallback: bool,
 ) -> None:
     renders_dir = object_dir / "renders"
     rgb_dir = renders_dir / "rgb"
+    face_id_dir = renders_dir / "face_id"
     masks_dir = object_dir / "masks"
-    bboxes_dir = object_dir / "bboxes"
     viz_dir = object_dir / "visualizations"
-    for d in (masks_dir, bboxes_dir, viz_dir):
-        d.mkdir(parents=True, exist_ok=True)
+    raw_dir = object_dir.parent / DEBUG_DIRNAME / RAW_PREDICTIONS_DIRNAME / object_dir.name
+    bboxes_dir = object_dir / FALLBACK_BBOX_DIRNAME
+    for directory in (masks_dir, viz_dir, raw_dir):
+        directory.mkdir(parents=True, exist_ok=True)
+    if enable_bbox_fallback:
+        bboxes_dir.mkdir(parents=True, exist_ok=True)
+    for old_debug_json in raw_dir.glob("*.json"):
+        old_debug_json.unlink()
 
     image_files = sorted(rgb_dir.glob("*.png")) if rgb_dir.exists() else []
     if not image_files:
@@ -761,78 +1177,175 @@ def process_object(
         print(f"  No render images found for {object_name}")
         return
 
-    print(f"\n  Processing {object_name}: parts={parts}, views={len(image_files)}")
-    bbox_cache_path = bboxes_dir / BBOX_CACHE_FILENAME
-    qwen_bboxes = _load_bbox_cache(bbox_cache_path, parts, image_files)
-    if qwen_bboxes is None:
-        print(f"  Missing bbox cache for {object_name}: {bbox_cache_path}")
-        print("  Skip SAM3 pass for this object.")
-        return
+    face_id_files = _collect_face_id_files(face_id_dir) if face_id_dir.exists() else {}
+    fallback_cache_path = bboxes_dir / BBOX_CACHE_FILENAME
+    fallback_cache = (
+        _load_fallback_bbox_cache(fallback_cache_path)
+        if enable_bbox_fallback
+        else {}
+    )
+    fallback_image_sizes: dict[str, list[int]] = {}
 
-    print("\n  Running SAM3 segmentation pass using cached bboxes ...")
+    print(f"\n  Processing {object_name}: parts={parts}, views={len(image_files)}")
+    print(f"  Debug raw predictions: {raw_dir}")
+    if enable_bbox_fallback:
+        print(f"  BBox fallback cache: {fallback_cache_path}")
+    else:
+        print("  BBox fallback: disabled")
+    print("  Running SAM3 text segmentation using cached prompts ...")
     for idx, img_path in enumerate(image_files, start=1):
         print(f"\n    [SAM3 {idx}/{len(image_files)}] {img_path.name}")
         image_bgr = cv2.imread(str(img_path))
         if image_bgr is None:
             print(f"      Could not read {img_path}")
             continue
+
+        face_id_path = face_id_files.get(img_path.stem)
+        if face_id_path is None:
+            print(f"      Missing face-id EXR for {img_path.stem}; skipping view")
+            continue
+
+        silhouette_mask = _load_face_id_silhouette(face_id_path)
+        h, w = image_bgr.shape[:2]
+        if silhouette_mask.shape != (h, w):
+            silhouette_mask = _resize_mask(silhouette_mask.astype(np.uint8), h, w).astype(bool)
+        fallback_image_sizes[img_path.name] = [w, h]
+
         image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
         image_pil = Image.fromarray(image_rgb)
-        h, w = image_bgr.shape[:2]
 
         all_masks: dict[str, np.ndarray | None] = {}
         all_bboxes: dict[str, list[int] | None] = {}
-        view_qwen_boxes = qwen_bboxes.get(img_path.name, {})
+        fallback_viz_bboxes: dict[str, list[int] | None] = {}
+        raw_payload = {
+            "object_name": object_name,
+            "image": img_path.name,
+            "face_id_path": str(face_id_path),
+            "parts": {},
+        }
 
         for part in parts:
-            bbox = _clamp_bbox(view_qwen_boxes.get(part), w, h)
-            all_bboxes[part] = bbox
-
-            if bbox is None:
-                print(f"      {part}: not detected by Qwen-VL")
-                all_masks[part] = None
-                continue
-
-            print(f"      {part}: bbox={bbox}")
-            mask = segment_with_box(sam3, image_pil, bbox, h, w)
-            area = int(mask.sum())
-            print(f"        area={area}px")
-
-            if area >= MIN_MASK_PIXELS:
-                all_masks[part] = mask
+            prompt_info = prompts.get(part, {"sam3_prompt": part})
+            print(f"      {part}: {prompt_info['sam3_prompt']}")
+            merged_mask, debug_info = _segment_part_with_prompts(
+                sam3,
+                image_pil,
+                silhouette_mask,
+                prompt_info,
+                confidence_threshold,
+                max_masks_per_part,
+            )
+            if merged_mask is not None and int(merged_mask.sum()) >= MIN_MASK_PIXELS:
+                all_masks[part] = merged_mask
+                all_bboxes[part] = _bbox_from_mask(merged_mask)
+                text_mask_found = True
+                print(
+                    f"        kept area={int(merged_mask.sum())}px "
+                    f"via prompt"
+                )
             else:
-                print("        mask too small, discarding")
                 all_masks[part] = None
+                all_bboxes[part] = None
+                text_mask_found = False
+                print("        no valid mask")
+
+            raw_payload["parts"][part] = {
+                "sam3_prompt": prompt_info["sam3_prompt"],
+                **debug_info,
+                "text_mask_found": text_mask_found,
+                "fallback_used": False,
+                "fallback_bbox": None,
+                "fallback_error": None,
+                "final_source": "text" if text_mask_found else "missing",
+            }
+
+        missing_parts = [
+            part
+            for part in parts
+            if all_masks.get(part) is None or int(all_masks[part].sum()) < MIN_MASK_PIXELS
+        ]
+        if missing_parts and enable_bbox_fallback:
+            print(f"      Missing after text prompt, trying bbox fallback: {missing_parts}")
+            fallback_bboxes, bbox_errors, cache_changed = _detect_missing_bboxes_with_cache(
+                qwen_client,
+                qwen_model,
+                img_path,
+                object_name,
+                missing_parts,
+                w,
+                h,
+                reasoning_effort,
+                qwen_retries,
+                fallback_cache,
+            )
+            fallback_viz_bboxes = dict(fallback_bboxes)
+            if cache_changed:
+                _save_fallback_bbox_cache(
+                    fallback_cache_path,
+                    object_name,
+                    fallback_cache,
+                    fallback_image_sizes,
+                )
+
+            fallback_masks, mask_errors = _segment_missing_parts_with_bboxes(
+                sam3,
+                image_pil,
+                silhouette_mask,
+                missing_parts,
+                fallback_bboxes,
+                h,
+                w,
+            )
+            for part in missing_parts:
+                raw_payload["parts"][part]["fallback_bbox"] = fallback_bboxes.get(part)
+                fallback_mask = fallback_masks.get(part)
+                if fallback_mask is not None and int(fallback_mask.sum()) >= MIN_MASK_PIXELS:
+                    all_masks[part] = fallback_mask
+                    all_bboxes[part] = fallback_bboxes.get(part)
+                    raw_payload["parts"][part]["fallback_used"] = True
+                    raw_payload["parts"][part]["final_source"] = "bbox_fallback"
+                    print(
+                        f"        {part}: recovered area={int(fallback_mask.sum())}px "
+                        "via bbox fallback"
+                    )
+                else:
+                    error = mask_errors.get(part) or bbox_errors.get(part) or "bbox fallback failed"
+                    raw_payload["parts"][part]["fallback_error"] = error
+                    raw_payload["parts"][part]["final_source"] = "missing"
+                    print(f"        {part}: bbox fallback failed ({error})")
+
+            if any(bbox is not None for bbox in fallback_viz_bboxes.values()):
+                cv2.imwrite(
+                    str(bboxes_dir / f"{img_path.stem}_bboxes.png"),
+                    draw_bboxes(image_bgr, fallback_viz_bboxes),
+                )
+        elif missing_parts:
+            for part in missing_parts:
+                raw_payload["parts"][part]["fallback_error"] = "bbox fallback disabled"
 
         if make_masks_exclusive_flag:
             all_masks = make_masks_exclusive(parts, all_masks, all_bboxes)
-        _write_view_masks(masks_dir, img_path.stem, parts, all_masks)
 
-        # Save bbox visualization
-        if any(b is not None for b in all_bboxes.values()):
-            cv2.imwrite(
-                str(bboxes_dir / f"{img_path.stem}_bboxes.png"),
-                draw_bboxes(image_bgr, all_bboxes),
-            )
-        # Save mask overlay visualization
+        _write_view_masks(masks_dir, img_path.stem, parts, all_masks)
+        with (raw_dir / f"{img_path.stem}.json").open("w", encoding="utf-8") as f:
+            json.dump(raw_payload, f, indent=2)
+
         if any(m is not None and np.any(m) for m in all_masks.values()):
             cv2.imwrite(
                 str(viz_dir / f"{img_path.stem}_segmented.png"),
                 draw_masks(image_bgr, all_masks),
             )
 
-    print(f"\n  Results kept in bbox cache -> {bbox_cache_path}")
 
-
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Segment rendered object parts using Qwen-VL + SAM3."
+        description="Segment rendered object parts using Qwen-enriched SAM3 text prompts."
     )
     parser.add_argument(
-        "--video_name",
+        "--interaction_name",
         type=str,
-        default="video_01",
-        help="Video name used to resolve default input paths.",
+        default="interaction_01",
+        help="Interaction name used to resolve default input paths.",
     )
     parser.add_argument(
         "--pag_file",
@@ -840,8 +1353,8 @@ def main():
         default=None,
         help=(
             "PAG JSON path (default: first output_pag_*.json in "
-            "../Generate_PAG/output/<video_name>, with ../Generate_PAG/pags/<video_name> "
-            "as a fallback)."
+            "../01_Generate_PAG/output/<interaction_name>, with ../01_Generate_PAG/pags/<interaction_name> "
+            "checked if needed)."
         ),
     )
     parser.add_argument(
@@ -869,13 +1382,7 @@ def main():
         "--qwen_model",
         type=str,
         default=QWEN_MODEL,
-        help=f"Qwen-VL model name used for part detection (default: {QWEN_MODEL}).",
-    )
-    parser.add_argument(
-        "--qwen_retries",
-        type=int,
-        default=3,
-        help="Number of detection retries per view before giving up (default: 5).",
+        help=f"Qwen-VL model name used for prompt generation (default: {QWEN_MODEL}).",
     )
     parser.add_argument(
         "--reasoning-effort",
@@ -912,14 +1419,41 @@ def main():
         action="store_true",
         help="Disable post-processing that removes mask overlaps by prioritizing internal parts.",
     )
+    parser.add_argument(
+        "--sam3_confidence_threshold",
+        type=float,
+        default=0.5,
+        help="Confidence threshold applied inside SAM3 text prompting (default: 0.5).",
+    )
+    parser.add_argument(
+        "--max_masks_per_part",
+        type=int,
+        default=4,
+        help="Maximum number of valid SAM3 masks to union per part/view (default: 4).",
+    )
+    parser.add_argument(
+        "--prompt_views",
+        type=int,
+        default=3,
+        help="Number of representative renders used for Qwen prompt generation (default: 3).",
+    )
+    parser.add_argument(
+        "--qwen_retries",
+        type=int,
+        default=1,
+        help="Number of retries for Qwen-VL bbox fallback detection (default: 1).",
+    )
+    parser.add_argument(
+        "--disable_bbox_fallback",
+        action="store_true",
+        help="Disable Qwen-VL bbox fallback for missing SAM3 text masks.",
+    )
     args = parser.parse_args()
 
     script_dir = Path(__file__).resolve().parent
     _, objects_video_dir = resolve_default_dirs(args, script_dir)
     pag_path = resolve_pag_path(args, script_dir)
-    reasoning_effort = None
-    if args.reasoning_effort != "none":
-        reasoning_effort = args.reasoning_effort
+    reasoning_effort = None if args.reasoning_effort == "none" else args.reasoning_effort
 
     objects_parts = parse_pag_objects_and_parts(pag_path)
     if not objects_parts:
@@ -928,19 +1462,24 @@ def main():
     if not objects_video_dir.exists():
         raise NotADirectoryError(
             f"Objects directory not found: {objects_video_dir}. "
-            "Run render_object_views.py first."
+            "Run 01_render_mesh_views.py first."
         )
 
     print(f"\n{'=' * 60}")
-    print("segment_parts.py -- Qwen-VL + SAM3 part segmentation")
-    print(f"  video:   {args.video_name}")
+    print("02_segment_renders.py -- Qwen prompt enrichment + SAM3 text mode")
+    print(f"  video:   {args.interaction_name}")
     print(f"  pag:     {pag_path}")
     print(f"  ollama:  {args.ollama_host}")
     print(f"  model:   {args.qwen_model}")
-    print(f"  retries: {args.qwen_retries}")
     print(f"  reasoning effort: {args.reasoning_effort}")
     print(f"  device:  {args.device or ('cuda' if torch.cuda.is_available() else 'cpu')}")
+    print(f"  SAM3 confidence threshold: {args.sam3_confidence_threshold}")
+    print(f"  max masks per part: {args.max_masks_per_part}")
+    print(f"  prompt views: {args.prompt_views}")
     print(f"  exclusive masks: {'on' if not args.not_make_masks_exclusive else 'off'}")
+    print(f"  bbox fallback: {'off' if args.disable_bbox_fallback else 'on'}")
+    if not args.disable_bbox_fallback:
+        print(f"  qwen bbox retries: {max(0, args.qwen_retries)}")
     print(f"  objects: {objects_video_dir}")
     for name, parts in objects_parts.items():
         print(f"    {name}: {parts}")
@@ -952,12 +1491,10 @@ def main():
         obj_dir = objects_video_dir / slug
         renders = obj_dir / "renders"
         if not obj_dir.exists():
-            reason = f"directory not found: {obj_dir}"
-            print(f"[SKIP] {slug}: {reason}")
+            print(f"[SKIP] {slug}: directory not found: {obj_dir}")
             continue
         if not renders.exists():
-            reason = f"renders not found: {renders}"
-            print(f"[SKIP] {slug}: {reason}")
+            print(f"[SKIP] {slug}: renders not found: {renders}")
             continue
         valid_objects.append((obj_name, slug, parts, obj_dir))
 
@@ -966,28 +1503,36 @@ def main():
         return
 
     qwen_client = OpenAI(base_url=args.ollama_host, api_key=args.ollama_api_key)
+
     print(f"\n{'=' * 60}")
-    print("Stage 1/2: Qwen-VL bbox detection for all objects")
+    print("Stage 1/2: Qwen prompt generation for all objects")
     print(f"{'=' * 60}")
+    object_prompts: dict[Path, dict[str, dict[str, str]]] = {}
     for obj_name, slug, parts, obj_dir in valid_objects:
         print(f"\n{'=' * 60}")
         print(f"Object (Qwen): {obj_name} ({slug})  parts: {parts}")
         print(f"{'=' * 60}")
-        ensure_object_bbox_cache(
+        prompts = ensure_object_prompt_cache(
             obj_dir,
             obj_name,
             parts,
             qwen_client,
             args.qwen_model,
-            args.qwen_retries,
             reasoning_effort,
+            args.prompt_views,
         )
+        if prompts is not None:
+            object_prompts[obj_dir] = prompts
 
     sam3 = load_sam3(args.sam3_checkpoint, args.sam3_bpe_path, args.device)
     print(f"\n{'=' * 60}")
-    print("Stage 2/2: SAM3 segmentation for all objects")
+    print("Stage 2/2: SAM3 text segmentation for all objects")
     print(f"{'=' * 60}")
     for obj_name, slug, parts, obj_dir in valid_objects:
+        prompts = object_prompts.get(obj_dir)
+        if prompts is None:
+            print(f"[SKIP] {slug}: prompt generation failed")
+            continue
         print(f"\n{'=' * 60}")
         print(f"Object (SAM3): {obj_name} ({slug})  parts: {parts}")
         print(f"{'=' * 60}")
@@ -995,8 +1540,16 @@ def main():
             obj_dir,
             obj_name,
             parts,
+            prompts,
             sam3,
+            qwen_client,
+            args.qwen_model,
+            reasoning_effort,
+            args.qwen_retries,
+            confidence_threshold=args.sam3_confidence_threshold,
+            max_masks_per_part=max(1, args.max_masks_per_part),
             make_masks_exclusive_flag=not args.not_make_masks_exclusive,
+            enable_bbox_fallback=not args.disable_bbox_fallback,
         )
     print("Done!")
 

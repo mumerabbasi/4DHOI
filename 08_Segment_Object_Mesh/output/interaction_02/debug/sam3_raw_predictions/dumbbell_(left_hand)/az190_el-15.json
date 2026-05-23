@@ -1,0 +1,109 @@
+{
+  "object_name": "dumbbell (left hand)",
+  "image": "az190_el-15.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_02/dumbbell_(left_hand)/renders/face_id/az190_el-150001.exr",
+  "parts": {
+    "handle": {
+      "sam3_prompt": "The central cylindrical handle of the dumbbell. on the dumbbell (left hand)",
+      "used_prompt": "The central cylindrical handle of the dumbbell. on the dumbbell (left hand)",
+      "prompt": "The central cylindrical handle of the dumbbell. on the dumbbell (left hand)",
+      "raw_candidates": [
+        {
+          "box": [
+            345.701416015625,
+            433.1748352050781,
+            579.3162841796875,
+            578.8076171875
+          ],
+          "score": 0.85546875
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            345.701416015625,
+            433.1748352050781,
+            579.3162841796875,
+            578.8076171875
+          ],
+          "score": 0.85546875,
+          "original_area": 22783,
+          "clipped_area": 22783,
+          "silhouette_overlap": 1.0
+        }
+      ]
+    },
+    "weight plates": {
+      "sam3_prompt": "The circular weight plates on the ends of the dumbbell. on the dumbbell (left hand)",
+      "used_prompt": "The circular weight plates on the ends of the dumbbell. on the dumbbell (left hand)",
+      "prompt": "The circular weight plates on the ends of the dumbbell. on the dumbbell (left hand)",
+      "raw_candidates": [
+        {
+          "box": [
+            557.64306640625,
+            394.0111389160156,
+            817.2257080078125,
+            705.3218994140625
+          ],
+          "score": 0.671875
+        },
+        {
+          "box": [
+            231.5255584716797,
+            348.3020935058594,
+            474.1524658203125,
+            613.659423828125
+          ],
+          "score": 0.87890625
+        },
+        {
+          "box": [
+            663.8550415039062,
+            457.0675048828125,
+            797.6065063476562,
+            663.029052734375
+          ],
+          "score": 0.52734375
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            231.5255584716797,
+            348.3020935058594,
+            474.1524658203125,
+            613.659423828125
+          ],
+          "score": 0.87890625,
+          "original_area": 39520,
+          "clipped_area": 39520,
+          "silhouette_overlap": 1.0
+        },
+        {
+          "box": [
+            557.64306640625,
+            394.0111389160156,
+            817.2257080078125,
+            705.3218994140625
+          ],
+          "score": 0.671875,
+          "original_area": 44133,
+          "clipped_area": 44133,
+          "silhouette_overlap": 1.0
+        },
+        {
+          "box": [
+            663.8550415039062,
+            457.0675048828125,
+            797.6065063476562,
+            663.029052734375
+          ],
+          "score": 0.52734375,
+          "original_area": 12478,
+          "clipped_area": 12478,
+          "silhouette_overlap": 1.0
+        }
+      ]
+    }
+  }
+}

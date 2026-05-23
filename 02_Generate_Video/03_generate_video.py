@@ -11,14 +11,18 @@ from diffusers.utils import export_to_video
 # Always-on camera lock prompt additions
 CAMERA_LOCK_SUFFIX = (
     "Static locked-off camera on a tripod. "
-    "No camera movement. No pan, tilt, zoom, dolly, orbit, or roll. "
+    "No camera movement. No pan, tilt, zoom, dolly, orbit, roll, tracking, or subject-following. "
     "No handheld shake. Fixed framing and fixed perspective. "
+    "Keep the camera locked to the room, not to the moving person or object. "
+    "The subject may move within the frame and may become off-center. "
 )
 
 CAMERA_LOCK_NEGATIVE = (
     "camera movement, moving camera, pan, panning, tilt, tilting, zoom, zooming, "
-    "dolly, dolly-in, dolly-out, tracking shot, orbit, rotation, roll, "
-    "handheld, shaky cam, camera shake, jitter, parallax, perspective shift"
+    "dolly, dolly-in, dolly-out, tracking shot, subject tracking, follow shot, "
+    "camera follows person, camera follows object, camera follows bicycle, "
+    "re-centering subject, auto-framing, orbit, rotation, roll, handheld, shaky cam, "
+    "camera shake, jitter, parallax, perspective shift, background sliding"
 )
 
 
@@ -36,10 +40,10 @@ def load_pag_prompt(path: Path) -> str:
     return pag["interaction"]
 
 
-def resolve_pag_path(script_dir: Path, video_name: str, raw_pag: str | None) -> Path:
+def resolve_pag_path(script_dir: Path, interaction_name: str, raw_pag: str | None) -> Path:
     if raw_pag:
         return Path(raw_pag).resolve()
-    return next((script_dir.parent / "Generate_PAG" / "output" / video_name).glob("*.json"))
+    return next((script_dir.parent / "01_Generate_PAG" / "output" / interaction_name).glob("*.json"))
 
 
 def resolve_frame_path(
@@ -115,7 +119,7 @@ def main() -> None:
     script_dir = Path(__file__).resolve().parent
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--video_name", default="video_01")
+    parser.add_argument("--interaction_name", default="interaction_01")
     parser.add_argument("--frame", default=None)
     parser.add_argument("--selection-json", default=None)
     parser.add_argument("--pag", default=None)
@@ -126,22 +130,22 @@ def main() -> None:
     parser.add_argument("--height", type=int, default=720)
     parser.add_argument("--width", type=int, default=1280)
     parser.add_argument("--num_frames", type=int, default=81)
-    parser.add_argument("--steps", type=int, default=50)
-    parser.add_argument("--guidance_scale", type=float, default=6.0)
+    parser.add_argument("--steps", type=int, default=40)
+    parser.add_argument("--guidance_scale", type=float, default=3.5)
     parser.add_argument("--fps", type=int, default=24)
     args = parser.parse_args()
 
-    video_dir = script_dir / "output" / args.video_name
+    video_dir = script_dir / "output" / args.interaction_name
     frame_path, selection_path = resolve_frame_path(
         video_dir,
         args.frame,
         args.selection_json,
     )
-    pag_path = resolve_pag_path(script_dir, args.video_name, args.pag)
+    pag_path = resolve_pag_path(script_dir, args.interaction_name, args.pag)
     outdir = Path(args.outdir).resolve() if args.outdir else video_dir
     outdir.mkdir(parents=True, exist_ok=True)
 
-    print(f"Video name: {args.video_name}")
+    print(f"Interaction name: {args.interaction_name}")
     if selection_path is not None:
         print(f"Frame selection JSON: {selection_path}")
     print(f"Input frame: {frame_path}")

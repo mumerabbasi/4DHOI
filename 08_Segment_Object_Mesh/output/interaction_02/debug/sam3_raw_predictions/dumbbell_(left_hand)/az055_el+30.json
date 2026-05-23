@@ -1,0 +1,44 @@
+{
+  "object_name": "dumbbell (left hand)",
+  "image": "az055_el+30.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_02/dumbbell_(left_hand)/renders/face_id/az055_el+300001.exr",
+  "parts": {
+    "handle": {
+      "sam3_prompt": "The central cylindrical handle of the dumbbell. on the dumbbell (left hand)",
+      "used_prompt": null,
+      "prompt": "The central cylindrical handle of the dumbbell. on the dumbbell (left hand)",
+      "raw_candidates": [],
+      "kept_candidates": []
+    },
+    "weight plates": {
+      "sam3_prompt": "The circular weight plates on the ends of the dumbbell. on the dumbbell (left hand)",
+      "used_prompt": "The circular weight plates on the ends of the dumbbell. on the dumbbell (left hand)",
+      "prompt": "The circular weight plates on the ends of the dumbbell. on the dumbbell (left hand)",
+      "raw_candidates": [
+        {
+          "box": [
+            434.9255065917969,
+            459.8500061035156,
+            654.7451171875,
+            676.5217895507812
+          ],
+          "score": 0.625
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            434.9255065917969,
+            459.8500061035156,
+            654.7451171875,
+            676.5217895507812
+          ],
+          "score": 0.625,
+          "original_area": 24630,
+          "clipped_area": 24630,
+          "silhouette_overlap": 1.0
+        }
+      ]
+    }
+  }
+}

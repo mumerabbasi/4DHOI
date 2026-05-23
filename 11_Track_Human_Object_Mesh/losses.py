@@ -367,6 +367,7 @@ def _concat_all_human_points(
 def _build_human_part_getter(
     humans: dict[str, HumanData],
     device: torch.device,
+    prefer_contact_regions: bool = True,
 ):
     human_part_cache: dict[tuple[str, ...], torch.Tensor | None] = {}
 
@@ -380,16 +381,20 @@ def _build_human_part_getter(
         if isinstance(part_name, str):
             key = (human_slug, part_name)
             if key not in human_part_cache:
-                human_part_cache[key] = human_data.part_points.get(part_name)
+                if prefer_contact_regions and part_name in human_data.contact_part_points:
+                    human_part_cache[key] = human_data.contact_part_points[part_name]
+                else:
+                    human_part_cache[key] = human_data.part_points.get(part_name)
             return human_part_cache[key]
 
         key = tuple([human_slug] + sorted(part_name))
         if key not in human_part_cache:
-            part_ids = [
-                human_data.part_vert_ids[name]
-                for name in part_name
-                if name in human_data.part_vert_ids
-            ]
+            part_ids = []
+            for name in part_name:
+                if prefer_contact_regions and name in human_data.contact_part_vert_ids:
+                    part_ids.append(human_data.contact_part_vert_ids[name])
+                elif name in human_data.part_vert_ids:
+                    part_ids.append(human_data.part_vert_ids[name])
             if not part_ids:
                 human_part_cache[key] = None
             else:

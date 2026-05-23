@@ -10,6 +10,9 @@ from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
 
+import cv2
+import numpy as np
+
 from incam_stabilization import stabilize_result_file
 
 
@@ -37,7 +40,7 @@ def resolve_f_mm(video_dir_name: str, cli_f_mm: int | None | str) -> int | None:
 
     intrinsics_path = (
         Path(__file__).resolve().parents[1]
-        / "Generate_Object_Mesh"
+        / "04_Generate_Object_Mesh"
         / "output"
         / video_dir_name
         / "camera_intrinsics.json"
@@ -46,11 +49,11 @@ def resolve_f_mm(video_dir_name: str, cli_f_mm: int | None | str) -> int | None:
         return int(round(float(json.load(f)["blender_recommendation"]["lens_mm"])))
 
 
-def build_default_paths(video_name: str) -> tuple[Path, Path]:
-    """Build default video/input paths for a given video name."""
+def build_default_paths(interaction_name: str) -> tuple[Path, Path]:
+    """Build default video/input paths for a given interaction name."""
     script_dir = Path(__file__).parent.resolve()
     project_dir = script_dir.parent
-    video_dir = project_dir / "Generate_Video" / "output" / video_name
+    video_dir = project_dir / "02_Generate_Video" / "output" / interaction_name
     output_dir = script_dir / "output"
     return video_dir, output_dir
 
@@ -69,12 +72,12 @@ def discover_video_file(video_dir: Path) -> Path:
     return video_files[0]
 
 
-def discover_segment_humans(video_name: str) -> list[HumanTrackSpec]:
+def discover_segment_humans(interaction_name: str) -> list[HumanTrackSpec]:
     segment_humans_dir = (
         Path(__file__).resolve().parents[1]
-        / "Segment_Video"
+        / "03_Segment_Video"
         / "output"
-        / video_name
+        / interaction_name
         / "humans"
     )
     if not segment_humans_dir.exists():
@@ -98,49 +101,146 @@ def build_subprocess_env(gvhmr_path: Path) -> dict[str, str]:
     return env
 
 
-def create_masked_human_video(
+def _mask_to_bbox(mask: np.ndarray) -> tuple[int, int, int, int] | None:
+    ys, xs = np.where(mask > 0)
+    if len(xs) == 0 or len(ys) == 0:
+        return None
+    return int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1
+
+
+def _expand_bbox(
+    bbox: tuple[int, int, int, int],
+    width: int,
+    height: int,
+    margin_ratio: float,
+) -> tuple[int, int, int, int]:
+    x1, y1, x2, y2 = bbox
+    box_w = max(x2 - x1, 1)
+    box_h = max(y2 - y1, 1)
+    margin = int(round(max(box_w, box_h) * max(float(margin_ratio), 0.0)))
+    return (
+        max(0, x1 - margin),
+        max(0, y1 - margin),
+        min(width, x2 + margin),
+        min(height, y2 + margin),
+    )
+
+
+def _frame_bbox_from_mask(
+    human_spec: HumanTrackSpec,
+    frame_idx: int,
+    width: int,
+    height: int,
+    last_bbox: tuple[int, int, int, int] | None,
+    bbox_margin_ratio: float,
+) -> tuple[int, int, int, int]:
+    full_frame = (0, 0, width, height)
+
+    mask_path = human_spec.masks_dir / f"frame_{frame_idx:04d}.png"
+    mask = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
+    if mask is None:
+        bbox = last_bbox or full_frame
+    else:
+        if mask.shape != (height, width):
+            mask = cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
+        bbox = _mask_to_bbox(mask) or last_bbox or full_frame
+
+    return _expand_bbox(bbox, width, height, bbox_margin_ratio)
+
+
+def create_bbox_isolated_human_video(
     source_video_path: Path,
     human_spec: HumanTrackSpec,
     output_video_path: Path,
+    bbox_margin_ratio: float,
 ) -> None:
-    """Create a full-frame video where only one segmented human remains visible."""
+    """Create a full-frame video with black pixels outside the expanded target bbox."""
     if human_spec.masks_dir is None:
         raise ValueError(f"No masks available for human track: {human_spec.name}")
 
     fps = probe_video_fps(source_video_path)
     output_video_path.parent.mkdir(parents=True, exist_ok=True)
-    mask_pattern = human_spec.masks_dir / "frame_%04d.png"
+
+    cap = cv2.VideoCapture(str(source_video_path))
+    if not cap.isOpened():
+        raise RuntimeError(f"Could not open source video: {source_video_path}")
+
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    if width <= 0 or height <= 0:
+        cap.release()
+        raise RuntimeError(f"Could not read video size for: {source_video_path}")
+
+    ffmpeg = "/usr/bin/ffmpeg" if Path("/usr/bin/ffmpeg").exists() else "ffmpeg"
     cmd = [
-        "ffmpeg",
+        ffmpeg,
         "-y",
-        "-hide_banner",
         "-loglevel",
         "error",
-        "-i",
-        str(source_video_path),
-        "-framerate",
+        "-f",
+        "rawvideo",
+        "-vcodec",
+        "rawvideo",
+        "-pix_fmt",
+        "bgr24",
+        "-s",
+        f"{width}x{height}",
+        "-r",
         f"{fps:.6f}",
-        "-start_number",
-        "0",
         "-i",
-        str(mask_pattern),
-        "-filter_complex",
-        (
-            "[0:v]format=rgb24,split=2[main][base];"
-            "[base]lutrgb=r=0:g=0:b=0[black];"
-            "[1:v]format=gray[mask];"
-            "[black][main][mask]maskedmerge[outv]"
-        ),
-        "-map",
-        "[outv]",
+        "-",
         "-an",
-        "-c:v",
+        "-vcodec",
         "libx264",
+        "-preset",
+        "ultrafast",
+        "-crf",
+        "18",
         "-pix_fmt",
         "yuv420p",
+        "-movflags",
+        "+faststart",
         str(output_video_path),
     ]
-    subprocess.run(cmd, check=True)
+    writer = subprocess.Popen(
+        cmd,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+    )
+    assert writer.stdin is not None
+
+    frame_idx = 0
+    last_bbox: tuple[int, int, int, int] | None = None
+    try:
+        while True:
+            ok, frame = cap.read()
+            if not ok:
+                break
+
+            bbox = _frame_bbox_from_mask(
+                human_spec=human_spec,
+                frame_idx=frame_idx,
+                width=width,
+                height=height,
+                last_bbox=last_bbox,
+                bbox_margin_ratio=bbox_margin_ratio,
+            )
+            last_bbox = bbox
+            x1, y1, x2, y2 = bbox
+            composed = np.zeros_like(frame)
+            composed[y1:y2, x1:x2] = frame[y1:y2, x1:x2]
+            writer.stdin.write(composed.tobytes())
+            frame_idx += 1
+    finally:
+        cap.release()
+        writer.stdin.close()
+
+    stderr = writer.stderr.read() if writer.stderr is not None else b""
+    ret = writer.wait()
+    if ret != 0:
+        msg = stderr.decode("utf-8", errors="ignore")
+        raise RuntimeError(f"ffmpeg failed while writing {output_video_path}:\n{msg}")
 
 
 def create_passthrough_human_video(
@@ -270,20 +370,20 @@ def rerender_stabilized_incam_outputs(
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--video_name",
-        default="video_01",
-        help="Video name used to build default paths for the other arguments.",
+        "--interaction_name",
+        default="interaction_01",
+        help="Interaction name used to build default paths for the other arguments.",
     )
     parser.add_argument(
         "--video",
         default=None,
         help="Directory containing exactly one video file. "
-        "Defaults to ../Generate_Video/output/<video_name>/.",
+        "Defaults to ../02_Generate_Video/output/<interaction_name>/.",
     )
     parser.add_argument(
         "--outdir",
         default=None,
-        help="Root output directory. Final outputs are written to <outdir>/<video_name>/.",
+        help="Root output directory. Final outputs are written to <outdir>/<interaction_name>/.",
     )
     parser.add_argument(
         "--gvhmr_path",
@@ -294,7 +394,7 @@ def main() -> None:
     parser.add_argument(
         "--stabilize_incam",
         action=argparse.BooleanOptionalAction,
-        default=True,
+        default=False,
         help=(
             "Project GVHMR's post-processed global trajectory back into the static "
             "camera frame, overwrite smpl_params_incam with the stabilized motion, "
@@ -303,13 +403,19 @@ def main() -> None:
         ),
     )
     parser.add_argument(
+        "--bbox_margin_ratio",
+        type=float,
+        default=0.1,
+        help="Extra margin added around each detected human bbox as a fraction of the larger bbox side.",
+    )
+    parser.add_argument(
         "--f_mm",
         type=parse_f_mm_arg,
         default=F_MM_AUTO,
         help=(
             "Focal length in full-frame millimeters passed to GVHMR (--f_mm). "
             "Default: read blender_recommendation.lens_mm from "
-            "Generate_Object_Mesh/output/<video_dir>/camera_intrinsics.json and round to int. "
+            "04_Generate_Object_Mesh/output/<video_dir>/camera_intrinsics.json and round to int. "
             "You can also pass --f_mm auto explicitly. "
             "Use --f_mm None to omit --f_mm and let GVHMR infer intrinsics. "
             "Use --f_mm <int> to override."
@@ -317,36 +423,41 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    default_video_dir, default_outdir = build_default_paths(args.video_name)
+    default_video_dir, default_outdir = build_default_paths(args.interaction_name)
 
     video_dir = Path(args.video).resolve() if args.video else default_video_dir
     outdir = Path(args.outdir).resolve() if args.outdir else default_outdir
     gvhmr_path = Path(args.gvhmr_path).resolve()
 
     video_path = discover_video_file(video_dir)
-    resolved_f_mm = resolve_f_mm(args.video_name, args.f_mm)
-    human_specs = discover_segment_humans(args.video_name)
+    resolved_f_mm = resolve_f_mm(args.interaction_name, args.f_mm)
+    human_specs = discover_segment_humans(args.interaction_name)
     if human_specs:
         print(
-            f"Found {len(human_specs)} segmented humans for {args.video_name}: "
+            f"Found {len(human_specs)} segmented humans for {args.interaction_name}: "
             f"{[spec.name for spec in human_specs]}"
         )
     else:
         human_specs = [HumanTrackSpec(name="person_1", masks_dir=None)]
         print(
-            f"No segmented humans found for {args.video_name}. "
+            f"No segmented humans found for {args.interaction_name}. "
             "Falling back to the original video as person_1."
         )
 
-    multi_root = outdir / args.video_name / "humans"
-    masked_videos_dir = outdir / args.video_name / "_masked_videos"
+    multi_root = outdir / args.interaction_name / "humans"
+    masked_videos_dir = outdir / args.interaction_name / "_masked_videos"
     final_dirs: list[Path] = []
 
     for human_spec in human_specs:
         if human_spec.masks_dir is not None:
-            print(f"\nPreparing isolated video for {human_spec.name}...")
+            print(f"\nPreparing bbox-isolated video for {human_spec.name}...")
             masked_video_path = masked_videos_dir / f"{human_spec.name}.mp4"
-            create_masked_human_video(video_path, human_spec, masked_video_path)
+            create_bbox_isolated_human_video(
+                source_video_path=video_path,
+                human_spec=human_spec,
+                output_video_path=masked_video_path,
+                bbox_margin_ratio=args.bbox_margin_ratio,
+            )
             gvhmr_input_video = masked_video_path
         else:
             passthrough_video_path = masked_videos_dir / f"{human_spec.name}.mp4"

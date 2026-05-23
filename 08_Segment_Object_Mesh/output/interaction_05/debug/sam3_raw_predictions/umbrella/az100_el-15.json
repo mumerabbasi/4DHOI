@@ -1,0 +1,67 @@
+{
+  "object_name": "umbrella",
+  "image": "az100_el-15.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_05/umbrella/renders/face_id/az100_el-150001.exr",
+  "parts": {
+    "canopy": {
+      "sam3_prompt": "canopy of the umbrella",
+      "used_prompt": "canopy of the umbrella",
+      "prompt": "canopy of the umbrella",
+      "raw_candidates": [
+        {
+          "box": [
+            249.9149169921875,
+            329.4757080078125,
+            789.874755859375,
+            593.1990966796875
+          ],
+          "score": 0.69140625
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            249.9149169921875,
+            329.4757080078125,
+            789.874755859375,
+            593.1990966796875
+          ],
+          "score": 0.69140625,
+          "original_area": 91982,
+          "clipped_area": 91982,
+          "silhouette_overlap": 1.0
+        }
+      ]
+    },
+    "shaft": {
+      "sam3_prompt": "shaft of the umbrella",
+      "used_prompt": "shaft of the umbrella",
+      "prompt": "shaft of the umbrella",
+      "raw_candidates": [
+        {
+          "box": [
+            482.7012023925781,
+            455.87005615234375,
+            517.0634765625,
+            621.6004028320312
+          ],
+          "score": 0.703125
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            482.7012023925781,
+            455.87005615234375,
+            517.0634765625,
+            621.6004028320312
+          ],
+          "score": 0.703125,
+          "original_area": 1490,
+          "clipped_area": 1476,
+          "silhouette_overlap": 0.9906040268456375
+        }
+      ]
+    }
+  }
+}

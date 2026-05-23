@@ -8,7 +8,7 @@ A modular research pipeline that turns a text prompt into a temporally coherent 
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![Ollama](https://img.shields.io/badge/Ollama-LLM_%2B_VLM-000000?logo=ollama&logoColor=white)
-![FLUX](https://img.shields.io/badge/FLUX.1--dev-First_Frame-F97316)
+![FLUX](https://img.shields.io/badge/FLUX.2--klein-First_Frame-F97316)
 ![Wan 2.2](https://img.shields.io/badge/Wan_2.2-Image_to_Video-2563EB)
 ![Qwen-VL](https://img.shields.io/badge/Qwen_VL-Detection_%26_Selection-7C3AED)
 ![SAM3](https://img.shields.io/badge/SAM3-Video_%26_Part_Segmentation-0F766E)
@@ -26,7 +26,7 @@ A modular research pipeline that turns a text prompt into a temporally coherent 
 | Capability | Detail |
 |:-----------|:-------|
 | Structured interaction planning | A text prompt is first converted into a **Part Affordance Graph (PAG)** that describes the interaction, relevant objects, object parts, and state changes |
-| Video synthesis | **FLUX.1-dev** samples candidate first frames, a **Qwen-VL** tournament picks the strongest one, and **Wan 2.2** expands it into a locked-camera video |
+| Video synthesis | **FLUX.2 [klein]** samples candidate first frames, a **Qwen-VL** tournament picks the strongest one, and **Wan 2.2** expands it into a locked-camera video |
 | 4D scene recovery | **Qwen-VL + SAM3** segment humans, objects, and parts, **Depth Anything 3** estimates monocular depth, and **GVHMR** recovers human motion |
 | Object reasoning | **SAM3D** reconstructs first-frame object meshes, rendered-view segmentation labels semantic parts, and **CoTracker / WAFT** provides motion cues |
 | Final refinement | Human and object trajectories are jointly optimized with tracking, mask, part, smoothness, contact, and intersection-aware losses |
@@ -70,7 +70,7 @@ Text Prompt
              | structured PAG
              v
 +-----------------------------+
-|  First Frame Generation     |  FLUX.1-dev sampling + VLM tournament selection
+|  First Frame Generation     |  FLUX.2 [klein] sampling + VLM tournament selection
 +------------+----------------+
              | selected frame
              v
@@ -108,13 +108,13 @@ Text Prompt
 
 | Stage | Role | Main folders |
 |:------|:-----|:-------------|
-| PAG generation | Convert free-form language into a structured Part Affordance Graph (PAG) that describes the interaction, objects, parts, and state changes | `Generate_PAG/` |
-| Video generation | Sample candidate first frames, select the best one, and expand it into a fixed-camera interaction video | `Generate_Video/` |
-| Scene understanding | Segment humans/objects/parts, estimate monocular depth, and recover human motion | `Segment_Video/`, `Estimate_Depth/`, `Estimate_Human_Motion/` |
-| Object reconstruction | Reconstruct object meshes from the selected first frame and its masks | `Generate_Object_Mesh/` |
-| Alignment | Register human and object assets into one shared camera-centric 3D frame | `Align_Meshes/` |
-| Part labeling and motion cues | Render aligned meshes, label semantic parts, and estimate tracking cues from video | `Segment_Object_Mesh/`, `Estimate_Optical_Flow/` |
-| Final 4D refinement | Track object pose over time and jointly optimize the full human-object sequence | `Track_Object_Mesh/`, `Track_Human_Object_Mesh/` |
+| PAG generation | Convert free-form language into a structured Part Affordance Graph (PAG) that describes the interaction, objects, parts, and state changes | `01_Generate_PAG/` |
+| Video generation | Sample candidate first frames, select the best one, and expand it into a fixed-camera interaction video | `02_Generate_Video/` |
+| Scene understanding | Segment humans/objects/parts, estimate monocular depth, and recover human motion | `03_Segment_Video/`, `05_Estimate_Depth/`, `06_Estimate_Human_Motion/` |
+| Object reconstruction | Reconstruct object meshes from the selected first frame and its masks | `04_Generate_Object_Mesh/` |
+| Alignment | Register human and object assets into one shared camera-centric 3D frame | `07_Align_Meshes/` |
+| Part labeling and motion cues | Render aligned meshes, label semantic parts, and estimate tracking cues from video | `08_Segment_Object_Mesh/`, `09_Estimate_Optical_Flow/` |
+| Final 4D refinement | Track object pose over time and jointly optimize the full human-object sequence | `10_Track_Object_Mesh/`, `11_Track_Human_Object_Mesh/` |
 
 ---
 
@@ -122,19 +122,19 @@ Text Prompt
 
 ```text
 4DHOI/
-├── Generate_PAG/              # Prompt inputs + Part Affordance Graph generation
-├── Generate_Video/            # First-frame sampling, selection, and video generation
-├── Segment_Video/             # Human/object/part segmentation across the generated video
-├── Generate_Object_Mesh/      # First-frame object mesh reconstruction
-├── Estimate_Depth/            # Monocular depth estimation and point cloud export
-├── Estimate_Human_Motion/     # GVHMR-based human motion recovery and export
-├── Align_Meshes/              # Human/object alignment in a shared 3D frame
-├── Segment_Object_Mesh/       # Render-time semantic object-part segmentation
-├── Estimate_Optical_Flow/     # CoTracker / WAFT motion cues
-├── Track_Object_Mesh/         # Per-object SE(3) tracking
-├── Track_Human_Object_Mesh/   # Final joint human-object refinement
-├── Blender_Scripts/           # Visualization and import helpers
-└── Conda_Environments/        # Environment definitions
+├── 01_Generate_PAG/              # Prompt inputs + Part Affordance Graph generation
+├── 02_Generate_Video/            # First-frame sampling, selection, and video generation
+├── 03_Segment_Video/             # Human/object/part segmentation across the generated video
+├── 04_Generate_Object_Mesh/      # First-frame object mesh reconstruction
+├── 05_Estimate_Depth/            # Monocular depth estimation and point cloud export
+├── 06_Estimate_Human_Motion/     # GVHMR-based human motion recovery and export
+├── 07_Align_Meshes/              # Human/object alignment in a shared 3D frame
+├── 08_Segment_Object_Mesh/       # Render-time semantic object-part segmentation
+├── 09_Estimate_Optical_Flow/     # CoTracker / WAFT motion cues
+├── 10_Track_Object_Mesh/         # Per-object SE(3) tracking
+├── 11_Track_Human_Object_Mesh/   # Final joint human-object refinement
+├── 12_Blender_Scripts/           # Visualization and import helpers
+└── Conda_Environments/           # Environment definitions
 ```
 
 ---
@@ -173,23 +173,23 @@ workspace/
 ### Example Run Order
 
 ```bash
-python Generate_PAG/generate_pag.py --video_name video_01
-python Generate_Video/generate_first_frame.py --video_name video_01
-python Generate_Video/select_first_frame.py --video_name video_01
-python Generate_Video/generate_video.py --video_name video_01
-python Segment_Video/segment_video.py --video_name video_01
-python Generate_Object_Mesh/generate_objects_meshes.py --video_name video_01
-python Estimate_Depth/estimate_depth.py --video_name video_01
-python Estimate_Human_Motion/estimate_human_motion.py --video_name video_01
-python Align_Meshes/align_meshes.py --video_name video_01
-python Segment_Object_Mesh/render_mesh_views.py --video_name video_01
-python Segment_Object_Mesh/segment_renders_sam3.py --video_name video_01
-python Estimate_Optical_Flow/estimate_optical_flow_cotracker.py --video_name video_01
-python Track_Object_Mesh/track_object_mesh.py --video_name video_01
-python Track_Human_Object_Mesh/track_human_object_mesh.py --video_name video_01
+python 01_Generate_PAG/01_generate_pag.py --interaction_name interaction_01
+python 02_Generate_Video/01_generate_first_frame.py --interaction_name interaction_01
+python 02_Generate_Video/02_select_first_frame.py --interaction_name interaction_01
+python 02_Generate_Video/03_generate_video.py --interaction_name interaction_01
+python 03_Segment_Video/01_segment_video.py --interaction_name interaction_01
+python 04_Generate_Object_Mesh/01_generate_objects_meshes.py --interaction_name interaction_01
+python 05_Estimate_Depth/01_estimate_depth.py --interaction_name interaction_01
+python 06_Estimate_Human_Motion/01_estimate_human_motion.py --interaction_name interaction_01
+python 07_Align_Meshes/01_align_meshes.py --interaction_name interaction_01
+python 08_Segment_Object_Mesh/01_render_mesh_views.py --interaction_name interaction_01
+python 08_Segment_Object_Mesh/02_segment_renders.py --interaction_name interaction_01
+python 09_Estimate_Optical_Flow/01_estimate_optical_flow_cotracker.py --interaction_name interaction_01
+python 10_Track_Object_Mesh/01_track_object_mesh.py --interaction_name interaction_01
+python 11_Track_Human_Object_Mesh/01_track_human_object_mesh.py --interaction_name interaction_01
 ```
 
-Prompt inputs live in `Generate_PAG/input_prompts/<video_name>/`. Most stages write outputs to `<stage>/output/<video_name>/`, and the final refined sequence is saved under `Track_Human_Object_Mesh/output/<video_name>/`.
+Prompt inputs live in `01_Generate_PAG/input_prompts/<interaction_name>/`. Most stages write outputs to `<stage>/output/<interaction_name>/`, and the final refined sequence is saved under `11_Track_Human_Object_Mesh/output/<interaction_name>/`.
 
 The repository is intentionally modular, so individual stages can be swapped, rerun, or debugged without rebuilding the entire pipeline from scratch.
 

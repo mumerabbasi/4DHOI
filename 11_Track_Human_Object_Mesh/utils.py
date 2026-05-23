@@ -43,27 +43,27 @@ def resolve_dirs(
     script_dir: Path,
 ) -> dict[str, Path]:
     """Resolve the standard project directories for one video."""
-    vname = args.video_name
+    vname = args.interaction_name
     parent = script_dir.parent
     aligned = (
         Path(args.aligned_mesh_dir)
         if args.aligned_mesh_dir
-        else parent / "Align_Meshes" / "output" / vname
+        else parent / "07_Align_Meshes" / "output" / vname
     )
     tracked = (
         Path(args.tracked_object_dir)
         if args.tracked_object_dir
-        else parent / "Track_Object_Mesh" / "output" / vname
+        else parent / "10_Track_Object_Mesh" / "output" / vname
     )
     seg_obj = (
         Path(args.segment_object_dir)
         if args.segment_object_dir
-        else parent / "Segment_Object_Mesh" / "output" / vname
+        else parent / "08_Segment_Object_Mesh" / "output" / vname
     )
     seg_vid = (
         Path(args.segment_video_dir)
         if args.segment_video_dir
-        else parent / "Segment_Video" / "output" / vname
+        else parent / "03_Segment_Video" / "output" / vname
     )
     output_root = Path(args.output_dir)
     if not output_root.is_absolute():
@@ -85,28 +85,38 @@ def resolve_pag_path(args: argparse.Namespace, script_dir: Path) -> Path:
         return Path(args.pag_file)
 
     for subdir in ("output", "pags"):
-        pag_dir = script_dir.parent / "Generate_PAG" / subdir / args.video_name
+        pag_dir = script_dir.parent / "01_Generate_PAG" / subdir / args.interaction_name
         if pag_dir.exists():
             candidates = sorted(pag_dir.glob("output_pag_*.json"))
             if candidates:
                 return candidates[0]
 
     raise FileNotFoundError(
-        f"No output_pag_*.json found for {args.video_name} under Generate_PAG/"
+        f"No output_pag_*.json found for {args.interaction_name} under 01_Generate_PAG/"
     )
 
 
 def resolve_smpl_seg(args: argparse.Namespace, script_dir: Path) -> Path:
-    """Return the SMPL vertex segmentation path."""
+    """Return the module-06 SMPL-X contact segmentation path."""
     if args.smpl_seg_json is not None:
-        return Path(args.smpl_seg_json)
-    return (
-        script_dir.parent.parent
-        / "GVHMR"
-        / "hmr4d"
-        / "utils"
-        / "body_model"
-        / "smpl_vert_segmentation.json"
+        seg_path = Path(args.smpl_seg_json)
+        if not seg_path.exists():
+            raise FileNotFoundError(f"SMPL-X contact segmentation not found: {seg_path}")
+        return seg_path
+
+    smplx_contact_seg = (
+        script_dir.parent
+        / "06_Estimate_Human_Motion"
+        / "assets"
+        / "smplx_vert_segmentation.json"
+    )
+    if smplx_contact_seg.exists():
+        return smplx_contact_seg
+
+    raise FileNotFoundError(
+        "SMPL-X contact segmentation not found. Run "
+        "06_Estimate_Human_Motion/00_create_smplx_contact_regions.py first. "
+        f"Expected: {smplx_contact_seg}"
     )
 
 

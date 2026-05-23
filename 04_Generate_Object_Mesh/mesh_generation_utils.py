@@ -1,4 +1,4 @@
-"""Shared mesh-generation helpers for Generate_Object_Mesh scripts."""
+"""Shared mesh-generation helpers for 04_Generate_Object_Mesh scripts."""
 
 from __future__ import annotations
 
@@ -274,7 +274,7 @@ def discover_objects_with_first_frame_masks(
     input_dir: Path,
     first_frame_stem: str,
 ) -> List[Tuple[str, Path]]:
-    """Discover object first-frame masks from Segment_Video fixed structure."""
+    """Discover object first-frame masks from 03_Segment_Video fixed structure."""
     objects_root = input_dir / "objects"
     if not objects_root.is_dir():
         raise FileNotFoundError(f"Missing objects directory: {objects_root}")

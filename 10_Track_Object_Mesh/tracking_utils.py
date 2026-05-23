@@ -105,7 +105,7 @@ def list_images(frames_dir: Path) -> list[Path]:
 
 
 def _sanitize_object_name(name: str) -> str:
-    """Segment_Video object folder name convention."""
+    """03_Segment_Video object folder name convention."""
     return name.strip().replace(" ", "_").replace("-", "_")
 
 
@@ -113,25 +113,25 @@ def _resolve_default_dirs(
     args: argparse.Namespace,
     script_dir: Path,
 ) -> tuple[Path, Path, Path, Path]:
-    video_name = args.video_name
+    interaction_name = args.interaction_name
 
     if args.cotracker_video_dir is None:
         cotracker_video_dir = (
-            script_dir.parent / "Estimate_Optical_Flow" / "output_cotracker" / video_name
+            script_dir.parent / "09_Estimate_Optical_Flow" / "output_cotracker" / interaction_name
         ).resolve()
     else:
         cotracker_video_dir = resolve_path(args.cotracker_video_dir, script_dir)
 
     if args.aligned_mesh_video_dir is None:
         aligned_mesh_video_dir = (
-            script_dir.parent / "Align_Meshes" / "output" / video_name
+            script_dir.parent / "07_Align_Meshes" / "output" / interaction_name
         ).resolve()
     else:
         aligned_mesh_video_dir = resolve_path(args.aligned_mesh_video_dir, script_dir)
 
     if args.segment_video_dir is None:
         segment_video_dir = (
-            script_dir.parent / "Segment_Video" / "output" / video_name
+            script_dir.parent / "03_Segment_Video" / "output" / interaction_name
         ).resolve()
     else:
         segment_video_dir = resolve_path(args.segment_video_dir, script_dir)
@@ -147,7 +147,7 @@ def _resolve_pag_path(args: argparse.Namespace, script_dir: Path) -> Path:
             raise FileNotFoundError(f"PAG file not found: {pag_path}")
         return pag_path
 
-    pag_dir = (script_dir.parent / "Generate_PAG" / "output" / args.video_name).resolve()
+    pag_dir = (script_dir.parent / "01_Generate_PAG" / "output" / args.interaction_name).resolve()
     if not pag_dir.exists():
         raise FileNotFoundError(f"PAG directory not found: {pag_dir}")
     pag_candidates = sorted(pag_dir.glob("output_pag_*.json"))

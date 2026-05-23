@@ -27,10 +27,10 @@ def write_ascii_ply(path: Path, vertices, faces) -> None:
             f.write(f"3 {int(face[0])} {int(face[1])} {int(face[2])}\n")
 
 
-def build_default_paths(video_name: str) -> tuple[Path, Path]:
+def build_default_paths(interaction_name: str) -> tuple[Path, Path]:
     """Build default GVHMR input/output roots for one video."""
     script_dir = Path(__file__).parent.resolve()
-    human_motion_dir = script_dir / "output" / video_name / "humans"
+    human_motion_dir = script_dir / "output" / interaction_name / "humans"
     return human_motion_dir, human_motion_dir
 
 
@@ -47,8 +47,7 @@ def export_one_human(
     result_dir: Path,
     output_dir: Path,
     smplx_layer,
-    smplx2smpl,
-    faces_smpl,
+    faces_smplx,
     gvhmr_path: Path,
     stabilize_incam: bool,
 ) -> None:
@@ -90,11 +89,10 @@ def export_one_human(
         )
 
         smplx_verts = output.vertices[0]
-        smpl_verts = torch.matmul(smplx2smpl, smplx_verts)
-        vertices = smpl_verts.detach().cpu().numpy()
+        vertices = smplx_verts.detach().cpu().numpy()
 
         filename = output_dir / f"frame_{i:04d}.ply"
-        write_ascii_ply(filename, vertices, faces_smpl)
+        write_ascii_ply(filename, vertices, faces_smplx)
 
     print(f"Saved {result_dir.name} PLYs to: {output_dir}")
 
@@ -102,10 +100,10 @@ def export_one_human(
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--video_name",
+        "--interaction_name",
         type=str,
-        default="video_01",
-        help="Video name used to build default paths for the other arguments.",
+        default="interaction_01",
+        help="Interaction name used to build default paths for the other arguments.",
     )
     parser.add_argument(
         "--video_dir",
@@ -124,14 +122,9 @@ def main() -> None:
         default=None,
         help=(
             "Directory to save exported PLY files. If not provided, defaults to "
-            "Estimate_Human_Motion/output/<video_name>/humans/<person_name>/human_plys/."
+            "06_Estimate_Human_Motion/output/<interaction_name>/humans/<person_name>/human_plys/. "
+            "Meshes are exported as SMPL-X topology."
         ),
-    )
-    parser.add_argument(
-        "--smplx2smpl_path",
-        type=str,
-        default="../../GVHMR/hmr4d/utils/body_model/smplx2smpl_sparse.pt",
-        help="Path to the smplx2smpl sparse matrix from GVHMR.",
     )
     parser.add_argument(
         "--gvhmr_path",
@@ -142,7 +135,7 @@ def main() -> None:
     parser.add_argument(
         "--stabilize_incam",
         action=argparse.BooleanOptionalAction,
-        default=True,
+        default=False,
         help=(
             "Export a stabilized camera-frame motion derived from GVHMR's "
             "post-processed global trajectory. Use --no-stabilize_incam to export "
@@ -151,16 +144,15 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    default_video_dir, default_output_dir = build_default_paths(args.video_name)
+    default_video_dir, default_output_dir = build_default_paths(args.interaction_name)
     default_gvhmr_path = Path(__file__).resolve().parents[2] / "GVHMR"
 
     video_dir = Path(args.video_dir).resolve() if args.video_dir else default_video_dir
     smpl_folder = Path(args.smpl_folder).resolve()
-    smplx2smpl_path = Path(args.smplx2smpl_path).resolve()
     gvhmr_path = Path(args.gvhmr_path).resolve() if args.gvhmr_path else default_gvhmr_path
 
     if not video_dir.exists() or not video_dir.is_dir():
-        raise NotADirectoryError(f"Video directory not found: {video_dir}")
+        raise NotADirectoryError(f"Interaction directory not found: {video_dir}")
 
     if args.output_dir is None:
         output_dir = default_output_dir
@@ -181,17 +173,6 @@ def main() -> None:
         create_transl=False,
     )
 
-    # Load the SMPL-X to SMPL vertex conversion matrix (6890 x 10475)
-    print(f"Loading smplx2smpl matrix from {smplx2smpl_path}...")
-    smplx2smpl = torch.load(smplx2smpl_path)
-
-    smpl_layer_for_faces = smplx.create(
-        str(smpl_folder),
-        model_type="smpl",
-        gender="neutral",
-    )
-    faces_smpl = smpl_layer_for_faces.faces
-
     human_result_dirs = discover_human_result_dirs(video_dir)
     if not human_result_dirs:
         raise FileNotFoundError(
@@ -203,8 +184,7 @@ def main() -> None:
             result_dir=result_dir,
             output_dir=output_dir / result_dir.name / "human_plys",
             smplx_layer=smplx_layer,
-            smplx2smpl=smplx2smpl,
-            faces_smpl=faces_smpl,
+            faces_smplx=smplx_layer.faces,
             gvhmr_path=gvhmr_path,
             stabilize_incam=bool(args.stabilize_incam),
         )

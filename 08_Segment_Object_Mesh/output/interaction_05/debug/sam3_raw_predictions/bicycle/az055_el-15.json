@@ -1,0 +1,143 @@
+{
+  "object_name": "bicycle",
+  "image": "az055_el-15.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_05/bicycle/renders/face_id/az055_el-150001.exr",
+  "parts": {
+    "handlebar": {
+      "sam3_prompt": "The handlebar of the bicycle, including the curved steering bars and grips.",
+      "used_prompt": "The handlebar of the bicycle, including the curved steering bars and grips.",
+      "prompt": "The handlebar of the bicycle, including the curved steering bars and grips.",
+      "raw_candidates": [
+        {
+          "box": [
+            518.4398803710938,
+            311.2882080078125,
+            722.7255249023438,
+            393.31866455078125
+          ],
+          "score": 0.76953125
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            518.4398803710938,
+            311.2882080078125,
+            722.7255249023438,
+            393.31866455078125
+          ],
+          "score": 0.76953125,
+          "original_area": 3292,
+          "clipped_area": 3229,
+          "silhouette_overlap": 0.9808626974483596
+        }
+      ]
+    },
+    "pedal": {
+      "sam3_prompt": "The pedal of the bicycle, the flat platform attached to the crank arm.",
+      "used_prompt": null,
+      "prompt": "The pedal of the bicycle, the flat platform attached to the crank arm.",
+      "raw_candidates": [],
+      "kept_candidates": []
+    },
+    "seat": {
+      "sam3_prompt": "The seat of the bicycle, the saddle positioned on top of the seat post.",
+      "used_prompt": "The seat of the bicycle, the saddle positioned on top of the seat post.",
+      "prompt": "The seat of the bicycle, the saddle positioned on top of the seat post.",
+      "raw_candidates": [
+        {
+          "box": [
+            362.35150146484375,
+            300.6014709472656,
+            487.0238037109375,
+            369.8288879394531
+          ],
+          "score": 0.95703125
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            362.35150146484375,
+            300.6014709472656,
+            487.0238037109375,
+            369.8288879394531
+          ],
+          "score": 0.95703125,
+          "original_area": 4896,
+          "clipped_area": 4889,
+          "silhouette_overlap": 0.9985702614379085
+        }
+      ]
+    },
+    "frame tubes": {
+      "sam3_prompt": "The frame tubes of the bicycle, the main structural bars connecting components.",
+      "used_prompt": "The frame tubes of the bicycle, the main structural bars connecting components.",
+      "prompt": "The frame tubes of the bicycle, the main structural bars connecting components.",
+      "raw_candidates": [
+        {
+          "box": [
+            448.68365478515625,
+            390.24237060546875,
+            619.4542846679688,
+            546.1964721679688
+          ],
+          "score": 0.67578125
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            448.68365478515625,
+            390.24237060546875,
+            619.4542846679688,
+            546.1964721679688
+          ],
+          "score": 0.67578125,
+          "original_area": 6462,
+          "clipped_area": 6382,
+          "silhouette_overlap": 0.9876199319096255
+        }
+      ]
+    },
+    "wheels": {
+      "sam3_prompt": "The wheels of the bicycle, including the tires, rims, and spokes.",
+      "used_prompt": "The wheels of the bicycle, including the tires, rims, and spokes.",
+      "prompt": "The wheels of the bicycle, including the tires, rims, and spokes.",
+      "raw_candidates": [
+        {
+          "box": [
+            582.0899658203125,
+            462.34027099609375,
+            774.8514404296875,
+            739.7300415039062
+          ],
+          "score": 0.95703125
+        },
+        {
+          "box": [
+            198.95533752441406,
+            375.27349853515625,
+            458.44122314453125,
+            695.0043334960938
+          ],
+          "score": 0.9375
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            198.95533752441406,
+            375.27349853515625,
+            458.44122314453125,
+            695.0043334960938
+          ],
+          "score": 0.9375,
+          "original_area": 53286,
+          "clipped_area": 28490,
+          "silhouette_overlap": 0.5346620125361258
+        }
+      ]
+    }
+  }
+}

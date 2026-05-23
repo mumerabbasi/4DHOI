@@ -1,0 +1,44 @@
+{
+  "object_name": "iron",
+  "image": "az155_el-15.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_01/iron/renders/face_id/az155_el-150001.exr",
+  "parts": {
+    "handle": {
+      "sam3_prompt": "The handle of the iron, the looped grip structure at the top.",
+      "used_prompt": null,
+      "prompt": "The handle of the iron, the looped grip structure at the top.",
+      "raw_candidates": [],
+      "kept_candidates": []
+    },
+    "soleplate": {
+      "sam3_prompt": "The soleplate of the iron, the flat bottom surface extending to the tip.",
+      "used_prompt": "The soleplate of the iron, the flat bottom surface extending to the tip.",
+      "prompt": "The soleplate of the iron, the flat bottom surface extending to the tip.",
+      "raw_candidates": [
+        {
+          "box": [
+            356.5173034667969,
+            622.69921875,
+            697.72509765625,
+            766.5986328125
+          ],
+          "score": 0.875
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            356.5173034667969,
+            622.69921875,
+            697.72509765625,
+            766.5986328125
+          ],
+          "score": 0.875,
+          "original_area": 33525,
+          "clipped_area": 33525,
+          "silhouette_overlap": 1.0
+        }
+      ]
+    }
+  }
+}

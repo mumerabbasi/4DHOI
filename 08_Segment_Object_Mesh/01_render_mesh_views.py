@@ -1,11 +1,11 @@
 """
-Blender 4.2 script to render multiple views for PAG objects from aligned meshes.
+Blender 4.2 script to render multiple views for PAG objects from generated meshes.
 
 Renders RGB images and per-pixel face ID maps from multiple viewpoints.
 Face IDs are stored as raw float values in EXR format for exact integer recovery.
 
 Usage:
-    blender --background --python render_mesh_views.py -- --video_name video_01
+    blender --background --python 01_render_mesh_views.py -- --interaction_name interaction_01
 """
 
 import argparse
@@ -22,8 +22,9 @@ from mathutils import Matrix, Vector
 # Camera configuration
 ORBIT_ANGLES_DEG = [10, 55, 100, 155, 190, 235, 280]  # horizontal orbit around object (Z-up)
 HEIGHT_ANGLES_DEG = [10, 30, -15]  # level orbit, then up orbit, then down orbit
-DEFAULT_CAMERA_DISTANCE = 1
+DEFAULT_CAMERA_DISTANCE = 0.05
 DEFAULT_RESOLUTION = 1024
+CAMERA_FRAME_MARGIN = 1.15
 
 # Face ID attribute/AOV names
 FACE_ID_ATTR = "face_id"
@@ -39,19 +40,25 @@ def parse_arguments() -> argparse.Namespace:
         argv = []
 
     parser = argparse.ArgumentParser(
-        description="Render all PAG objects from Align_Meshes/*.ply into Segment_Object_Mesh objects/"
+        description=(
+            "Render all PAG objects from 04_Generate_Object_Mesh meshes into "
+            "08_Segment_Object_Mesh objects/"
+        )
     )
     parser.add_argument(
-        "--video_name",
+        "--interaction_name",
         type=str,
-        default="video_01",
-        help="Video name used to resolve default input paths.",
+        default="interaction_01",
+        help="Interaction name used to resolve default input paths.",
     )
     parser.add_argument(
-        "--aligned_mesh_video_dir",
+        "--object_mesh_video_dir",
         type=str,
         default=None,
-        help="Aligned-mesh dir (default: ../Align_Meshes/output/<video_name>).",
+        help=(
+            "Generated object-mesh interaction dir "
+            "(default: ../04_Generate_Object_Mesh/output/<interaction_name>)."
+        ),
     )
     parser.add_argument(
         "--pag_file",
@@ -59,7 +66,7 @@ def parse_arguments() -> argparse.Namespace:
         default=None,
         help=(
             "PAG JSON path (default: first output_pag_*.json in "
-            "../Generate_PAG/output/<video_name>)."
+            "../01_Generate_PAG/output/<interaction_name>)."
         ),
     )
     parser.add_argument(
@@ -106,17 +113,17 @@ def resolve_path(path_str: str, base_dir: Path) -> Path:
 def resolve_default_dirs(
     args: argparse.Namespace, script_dir: Path
 ) -> tuple[Path, Path]:
-    """Resolve aligned-mesh input dir and output video dir."""
-    if args.aligned_mesh_video_dir is None:
-        aligned_mesh_video_dir = (
-            script_dir.parent / "Align_Meshes" / "output" / args.video_name
+    """Resolve generated object-mesh input dir and output interaction dir."""
+    if args.object_mesh_video_dir is None:
+        object_mesh_video_dir = (
+            script_dir.parent / "04_Generate_Object_Mesh" / "output" / args.interaction_name
         ).resolve()
     else:
-        aligned_mesh_video_dir = resolve_path(args.aligned_mesh_video_dir, script_dir)
+        object_mesh_video_dir = resolve_path(args.object_mesh_video_dir, script_dir)
 
     output_root = resolve_path(args.output_root, script_dir)
-    output_video_dir = (output_root / args.video_name).resolve()
-    return aligned_mesh_video_dir, output_video_dir
+    output_video_dir = (output_root / args.interaction_name).resolve()
+    return object_mesh_video_dir, output_video_dir
 
 
 def resolve_pag_path(args: argparse.Namespace, script_dir: Path) -> Path:
@@ -127,7 +134,7 @@ def resolve_pag_path(args: argparse.Namespace, script_dir: Path) -> Path:
             raise FileNotFoundError(f"PAG file not found: {pag_path}")
         return pag_path
 
-    pag_dir = (script_dir.parent / "Generate_PAG" / "output" / args.video_name).resolve()
+    pag_dir = (script_dir.parent / "01_Generate_PAG" / "output" / args.interaction_name).resolve()
     if not pag_dir.exists():
         raise FileNotFoundError(f"PAG directory not found: {pag_dir}")
 
@@ -176,85 +183,14 @@ def load_pag_objects_from_states_only(pag_path: Path) -> list[tuple[str, str]]:
     return objects
 
 
-def _resolve_mesh_path(raw_path: str, base_dir: Path) -> Path:
-    path = Path(raw_path)
-    if not path.is_absolute():
-        path = base_dir / path
-    return path.resolve()
-
-
-def build_aligned_mesh_index(aligned_dir: Path) -> tuple[dict[str, Path], dict[str, Path]]:
-    """Index aligned mesh paths by object name and slug from transforms.json."""
-    by_name: dict[str, Path] = {}
-    by_slug: dict[str, Path] = {}
-
-    transforms_path = (aligned_dir / "meshes" / "transforms.json").resolve()
-    if not transforms_path.exists():
-        return by_name, by_slug
-
-    with transforms_path.open("r", encoding="utf-8") as f:
-        payload = json.load(f)
-
-    transforms = payload.get("transforms")
-    if not isinstance(transforms, list):
-        return by_name, by_slug
-
-    for item in transforms:
-        if not isinstance(item, dict):
-            continue
-        if item.get("kind") == "human":
-            continue
-
-        name = item.get("name")
-        slug = item.get("slug")
-        raw_mesh_path = item.get("aligned_mesh_ply")
-        mesh_path: Path | None = None
-        if isinstance(raw_mesh_path, str) and raw_mesh_path.strip():
-            mesh_path = _resolve_mesh_path(raw_mesh_path, transforms_path.parent)
-        elif isinstance(slug, str) and slug.strip():
-            mesh_path = (aligned_dir / "meshes" / f"{slug}.ply").resolve()
-
-        if mesh_path is None or not mesh_path.exists():
-            continue
-
-        if isinstance(name, str) and name.strip():
-            by_name[name.strip()] = mesh_path
-        if isinstance(slug, str) and slug.strip():
-            by_slug[slug.strip()] = mesh_path
-
-    return by_name, by_slug
-
-
 def resolve_object_mesh_path(
-    object_name: str,
     object_slug: str,
-    aligned_dir: Path,
-    meshes_by_name: dict[str, Path],
-    meshes_by_slug: dict[str, Path],
+    meshes_dir: Path,
 ) -> Path | None:
-    """Resolve aligned mesh path for an object using metadata + filename fallbacks."""
-    candidates: list[Path] = []
-
-    if object_name in meshes_by_name:
-        candidates.append(meshes_by_name[object_name])
-
-    slug_candidates = [
-        object_slug,
-        _sanitize_object_name(object_name),
-    ]
-    for slug in slug_candidates:
-        if slug in meshes_by_slug:
-            candidates.append(meshes_by_slug[slug])
-        candidates.append((aligned_dir / "meshes" / f"{slug}.ply").resolve())
-
-    seen = set()
-    for path in candidates:
-        key = str(path)
-        if key in seen:
-            continue
-        seen.add(key)
-        if path.exists():
-            return path
+    """Resolve generated object mesh path for an object."""
+    mesh_path = (meshes_dir / f"{object_slug}.ply").resolve()
+    if mesh_path.exists():
+        return mesh_path
     return None
 
 
@@ -570,7 +506,11 @@ def calculate_camera_params(
     min_corner, max_corner = get_scene_bounds(objects)
     center = (min_corner + max_corner) / 2
     diagonal = (max_corner - min_corner).length
-    distance = max(diagonal * 1.5, DEFAULT_CAMERA_DISTANCE)
+    radius = max(diagonal * 0.5, DEFAULT_CAMERA_DISTANCE)
+    sensor_width_mm = 36.0
+    lens_mm = 70.0
+    fov = 2.0 * math.atan(sensor_width_mm / (2.0 * lens_mm))
+    distance = max(radius * CAMERA_FRAME_MARGIN / math.tan(fov * 0.5), DEFAULT_CAMERA_DISTANCE)
     return distance, tuple(center)
 
 
@@ -596,6 +536,9 @@ def orbit_angles_to_cartesian(
 def create_camera() -> bpy.types.Object:
     """Create and register the render camera."""
     camera_data = bpy.data.cameras.new(name="RenderCamera")
+    camera_data.lens = 70.0
+    camera_data.clip_start = 0.001
+    camera_data.clip_end = 1000.0
     camera_obj = bpy.data.objects.new("RenderCamera", camera_data)
     bpy.context.scene.collection.objects.link(camera_obj)
     bpy.context.scene.camera = camera_obj
@@ -891,7 +834,7 @@ def render_single_object(
         raise RuntimeError(f"No mesh objects imported from: {mesh_path}")
 
     if mesh_path.suffix.lower() == ".ply":
-        # Aligned PLY meshes are in OpenCV camera coordinates; convert once to Blender axes.
+        # Generated PLY meshes are in OpenCV camera coordinates; convert once to Blender axes.
         apply_opencv_to_blender_transform(mesh_objects)
 
     print(f"Imported {len(imported)} objects ({len(mesh_objects)} meshes)")
@@ -951,23 +894,22 @@ def main() -> None:
     args = parse_arguments()
     script_dir = Path(__file__).resolve().parent
 
-    aligned_dir, output_video_dir = resolve_default_dirs(args, script_dir)
+    object_mesh_dir, output_video_dir = resolve_default_dirs(args, script_dir)
     pag_path = resolve_pag_path(args, script_dir)
     output_video_dir.mkdir(parents=True, exist_ok=True)
 
-    if not aligned_dir.exists():
-        raise NotADirectoryError(f"Aligned mesh dir not found: {aligned_dir}")
-    meshes_dir = (aligned_dir / "meshes").resolve()
+    if not object_mesh_dir.exists():
+        raise NotADirectoryError(f"Generated object mesh dir not found: {object_mesh_dir}")
+    meshes_dir = (object_mesh_dir / "meshes").resolve()
     if not meshes_dir.exists():
-        raise NotADirectoryError(f"Aligned meshes dir not found: {meshes_dir}")
+        raise NotADirectoryError(f"Generated object meshes dir not found: {meshes_dir}")
 
     pag_objects = load_pag_objects_from_states_only(pag_path)
-    meshes_by_name, meshes_by_slug = build_aligned_mesh_index(aligned_dir)
 
     print(f"\n{'=' * 60}")
     print("render_object_views.py — PAG object batch renderer")
-    print(f"  video:     {args.video_name}")
-    print(f"  aligned:   {aligned_dir}")
+    print(f"  video:     {args.interaction_name}")
+    print(f"  meshes:    {object_mesh_dir}")
     print(f"  pag:       {pag_path.name} ({len(pag_objects)} objects)")
     print(f"  out_root:  {output_video_dir}")
     print(f"  resolution:{args.resolution}x{args.resolution}")
@@ -980,15 +922,12 @@ def main() -> None:
 
     for object_name, object_slug in pag_objects:
         mesh_path = resolve_object_mesh_path(
-            object_name=object_name,
             object_slug=object_slug,
-            aligned_dir=aligned_dir,
-            meshes_by_name=meshes_by_name,
-            meshes_by_slug=meshes_by_slug,
+            meshes_dir=meshes_dir,
         )
 
         if mesh_path is None:
-            reason = f"No aligned mesh found in {meshes_dir} for object '{object_name}' ({object_slug})"
+            reason = f"No generated object mesh found in {meshes_dir} for object '{object_name}' ({object_slug})"
             print(f"\n[SKIP] {object_slug}: {reason}")
             skipped_count += 1
             continue

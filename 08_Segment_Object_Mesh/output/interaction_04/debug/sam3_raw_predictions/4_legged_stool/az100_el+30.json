@@ -1,0 +1,54 @@
+{
+  "object_name": "4-legged stool",
+  "image": "az100_el+30.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_04/4_legged_stool/renders/face_id/az100_el+300001.exr",
+  "parts": {
+    "seat": {
+      "sam3_prompt": "The flat oval seat of the 4-legged stool.",
+      "used_prompt": "The flat oval seat of the 4-legged stool.",
+      "prompt": "The flat oval seat of the 4-legged stool.",
+      "raw_candidates": [
+        {
+          "box": [
+            277.3734436035156,
+            200.4571533203125,
+            735.2158203125,
+            459.93023681640625
+          ],
+          "score": 0.92578125
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            277.3734436035156,
+            200.4571533203125,
+            735.2158203125,
+            459.93023681640625
+          ],
+          "score": 0.92578125,
+          "original_area": 90421,
+          "clipped_area": 90419,
+          "silhouette_overlap": 0.9999778812444012
+        }
+      ],
+      "text_mask_found": true,
+      "fallback_used": false,
+      "fallback_bbox": null,
+      "fallback_error": null,
+      "final_source": "text"
+    },
+    "legs": {
+      "sam3_prompt": "The four legs and connecting stretchers of the 4-legged stool.",
+      "used_prompt": null,
+      "prompt": "The four legs and connecting stretchers of the 4-legged stool.",
+      "raw_candidates": [],
+      "kept_candidates": [],
+      "text_mask_found": false,
+      "fallback_used": false,
+      "fallback_bbox": null,
+      "fallback_error": "missing bbox",
+      "final_source": "missing"
+    }
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "object_name": "umbrella",
+  "image": "az010_el+30.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_03/umbrella/renders/face_id/az010_el+300001.exr",
+  "parts": {
+    "canopy": {
+      "sam3_prompt": "The fabric canopy of the umbrella.",
+      "used_prompt": "The fabric canopy of the umbrella.",
+      "prompt": "The fabric canopy of the umbrella.",
+      "raw_candidates": [
+        {
+          "box": [
+            210.47213745117188,
+            263.90130615234375,
+            808.93603515625,
+            769.0159301757812
+          ],
+          "score": 0.83984375
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            210.47213745117188,
+            263.90130615234375,
+            808.93603515625,
+            769.0159301757812
+          ],
+          "score": 0.83984375,
+          "original_area": 188756,
+          "clipped_area": 188532,
+          "silhouette_overlap": 0.9988132827565747
+        }
+      ]
+    },
+    "shaft": {
+      "sam3_prompt": "The central shaft of the umbrella.",
+      "used_prompt": "The central shaft of the umbrella.",
+      "prompt": "The central shaft of the umbrella.",
+      "raw_candidates": [
+        {
+          "box": [
+            524.8527221679688,
+            358.3678894042969,
+            543.5717163085938,
+            401.2179870605469
+          ],
+          "score": 0.84765625
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            524.8527221679688,
+            358.3678894042969,
+            543.5717163085938,
+            401.2179870605469
+          ],
+          "score": 0.84765625,
+          "original_area": 615,
+          "clipped_area": 615,
+          "silhouette_overlap": 1.0
+        }
+      ]
+    },
+    "handle": {
+      "sam3_prompt": "The curved handle of the umbrella.",
+      "used_prompt": "The curved handle of the umbrella.",
+      "prompt": "The curved handle of the umbrella.",
+      "raw_candidates": [
+        {
+          "box": [
+            314.1603698730469,
+            679.7567138671875,
+            343.6799011230469,
+            729.45556640625
+          ],
+          "score": 0.73828125
+        },
+        {
+          "box": [
+            553.73583984375,
+            744.8872680664062,
+            566.4786376953125,
+            774.5768432617188
+          ],
+          "score": 0.62109375
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            314.1603698730469,
+            679.7567138671875,
+            343.6799011230469,
+            729.45556640625
+          ],
+          "score": 0.73828125,
+          "original_area": 666,
+          "clipped_area": 652,
+          "silhouette_overlap": 0.978978978978979
+        },
+        {
+          "box": [
+            553.73583984375,
+            744.8872680664062,
+            566.4786376953125,
+            774.5768432617188
+          ],
+          "score": 0.62109375,
+          "original_area": 276,
+          "clipped_area": 271,
+          "silhouette_overlap": 0.9818840579710145
+        }
+      ]
+    }
+  }
+}

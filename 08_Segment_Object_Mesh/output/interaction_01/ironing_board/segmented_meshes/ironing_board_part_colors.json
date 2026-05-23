@@ -1,15 +1,15 @@
 {
   "label_map": {
-    "support": 0,
-    "surface": 1
+    "legs": 0,
+    "top_flat_panel": 1
   },
   "part_colors_rgb_255": {
-    "support": [
+    "legs": [
       204,
       71,
       71
     ],
-    "surface": [
+    "top_flat_panel": [
       41,
       88,
       204

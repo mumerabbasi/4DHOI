@@ -56,28 +56,28 @@ def parse_args() -> argparse.Namespace:
         description="Track aligned object meshes with corrected SE(3) optimizer."
     )
     p.add_argument(
-        "--video_name",
+        "--interaction_name",
         type=str,
-        default="video_01",
-        help="Video name used to resolve default input paths.",
+        default="interaction_01",
+        help="Interaction name used to resolve default input paths.",
     )
     p.add_argument(
         "--cotracker_video_dir",
         type=str,
         default=None,
-        help="CoTracker dir (default: ../Estimate_Optical_Flow/output_cotracker/<video_name>).",
+        help="CoTracker dir (default: ../09_Estimate_Optical_Flow/output_cotracker/<interaction_name>).",
     )
     p.add_argument(
         "--aligned_mesh_video_dir",
         type=str,
         default=None,
-        help="Aligned-mesh dir (default: ../Align_Meshes/output/<video_name>).",
+        help="Aligned-mesh dir (default: ../07_Align_Meshes/output/<interaction_name>).",
     )
     p.add_argument(
         "--segment_video_dir",
         type=str,
         default=None,
-        help="Segmentation dir (default: ../Segment_Video/output/<video_name>).",
+        help="Segmentation dir (default: ../03_Segment_Video/output/<interaction_name>).",
     )
     p.add_argument(
         "--pag_file",
@@ -85,7 +85,7 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help=(
             "PAG JSON path (default: first output_pag_*.json in "
-            "../Generate_PAG/output/<video_name>)."
+            "../01_Generate_PAG/output/<interaction_name>)."
         ),
     )
     p.add_argument(
@@ -1344,7 +1344,7 @@ def main() -> None:
     cotracker_dir, aligned_dir, segment_dir, output_root = _resolve_default_dirs(args, script_dir)
     pag_path = _resolve_pag_path(args, script_dir)
     k, intr_path = _load_intrinsics_from_alignment_summary(aligned_dir)
-    out_video_dir = (output_root / args.video_name).resolve()
+    out_video_dir = (output_root / args.interaction_name).resolve()
     ensure_dir(out_video_dir)
 
     for label, d in [
@@ -1366,7 +1366,7 @@ def main() -> None:
     # --- Print important info ---
     print("=" * 60)
     print("track_object_mesh_claude.py — corrected SE(3) tracker")
-    print(f"  video:  {args.video_name}")
+    print(f"  video:  {args.interaction_name}")
     print(f"  device: {device}")
     print(f"  K:      fx={k[0,0]:.1f}  fy={k[1,1]:.1f}  cx={k[0,2]:.1f}  cy={k[1,2]:.1f}")
     print(f"  pag:    {pag_path.name} ({len(pag_objects)} objects)")
@@ -1374,7 +1374,7 @@ def main() -> None:
     print("=" * 60)
 
     summary: dict[str, Any] = {
-        "video_name": args.video_name,
+        "interaction_name": args.interaction_name,
         "status": "completed",
         "script": "track_object_mesh_claude.py",
         "inputs": {

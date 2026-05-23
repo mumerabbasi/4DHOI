@@ -1,10 +1,10 @@
 {
-  "pointcloud_output_dir": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02/pointclouds",
+  "pointcloud_output_dir": "/my_workspace/4DHHOI/4DHOI/05_Estimate_Depth/output/interaction_02/pointclouds",
   "inputs": {
-    "metric_depth_npy": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02/metric_depth/metric_depth.npy",
-    "da3_intrinsics_json": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02/camera_intrinsics.json",
-    "sam3d_intrinsics_json": "/my_workspace/4DHHOI/4DHOI/Generate_Object_Mesh/output/video_02/camera_intrinsics.json",
-    "color_image": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02/frame_00.png"
+    "metric_depth_npy": "/my_workspace/4DHHOI/4DHOI/05_Estimate_Depth/output/interaction_02/metric_depth/metric_depth.npy",
+    "da3_intrinsics_json": "/my_workspace/4DHHOI/4DHOI/05_Estimate_Depth/output/interaction_02/camera_intrinsics.json",
+    "sam3d_intrinsics_json": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_02/camera_intrinsics.json",
+    "color_image": "/my_workspace/4DHHOI/4DHOI/05_Estimate_Depth/output/interaction_02/frame_00.png"
   },
   "depth_shape_hw": [
     720,
@@ -12,33 +12,33 @@
   ],
   "outputs": {
     "da3_intrinsics_pointcloud": {
-      "ply": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02/pointclouds/metric_depth_pointcloud_da3_intrinsics.ply",
+      "ply": "/my_workspace/4DHHOI/4DHOI/05_Estimate_Depth/output/interaction_02/pointclouds/metric_depth_pointcloud_da3_intrinsics.ply",
       "has_color": true,
       "num_points": 921600,
       "bounds_min_xyz": [
-        -2.0686147212982178,
-        -1.3123887777328491,
-        3.398935079574585
+        -2.6141605377197266,
+        -1.618191123008728,
+        4.33441686630249
       ],
       "bounds_max_xyz": [
-        1.9136958122253418,
-        1.1491563320159912,
-        4.61372709274292
+        2.5792839527130127,
+        1.0241615772247314,
+        7.436852931976318
       ]
     },
     "sam3d_intrinsics_pointcloud": {
-      "ply": "/my_workspace/4DHHOI/4DHOI/Estimate_Depth/output/video_02/pointclouds/metric_depth_pointcloud_sam3d_intrinsics.ply",
+      "ply": "/my_workspace/4DHHOI/4DHOI/05_Estimate_Depth/output/interaction_02/pointclouds/metric_depth_pointcloud_sam3d_intrinsics.ply",
       "has_color": true,
       "num_points": 921600,
       "bounds_min_xyz": [
-        -2.7386178970336914,
-        -1.7430834770202637,
-        3.398935079574585
+        -3.724182367324829,
+        -2.3167383670806885,
+        4.33441686630249
       ],
       "bounds_max_xyz": [
-        2.5098445415496826,
-        1.500985026359558,
-        4.61372709274292
+        3.6401822566986084,
+        1.441973090171814,
+        7.436852931976318
       ]
     }
   }

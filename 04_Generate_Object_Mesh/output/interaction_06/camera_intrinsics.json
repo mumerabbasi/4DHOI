@@ -2,13 +2,13 @@
   "source": "moge_from_sam3d_depth_model",
   "intrinsics_pixels_3x3": [
     [
-      968.4086608886719,
+      1015.7936096191406,
       0.0,
       640.0
     ],
     [
       0.0,
-      968.4086894989014,
+      1015.7935810089111,
       360.0
     ],
     [
@@ -19,7 +19,7 @@
   ],
   "blender_recommendation": {
     "sensor_fit": "HORIZONTAL",
-    "lens_mm": 27.236493587493896,
+    "lens_mm": 28.56919527053833,
     "sensor_width_mm": 36.0,
     "sensor_height_mm": 24.0,
     "note": "Lens uses fx with full-frame horizontal fit."

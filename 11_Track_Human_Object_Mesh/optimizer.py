@@ -27,7 +27,7 @@ def _print_optimization_header(
 ) -> None:
     print("=" * 60)
     print("Human-Object Mesh Refinement")
-    print(f"  video:    {args.video_name}")
+    print(f"  video:    {args.interaction_name}")
     print(f"  device:   {context.device}")
     print(f"  frames:   {context.num_frames}")
     print(f"  humans:   {', '.join(context.human_keys)}")
