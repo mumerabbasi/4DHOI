@@ -1,0 +1,16 @@
+{
+  "slug": "dumbbell_(right_hand)",
+  "state_type": "absolute_object_trajectory_from_module12",
+  "frame0_fixed_identity": true,
+  "max_rot_deg": 10.229272084057325,
+  "mean_rot_deg": 5.896674345861728,
+  "max_trans_m": 0.8480365872383118,
+  "mean_trans_m": 0.42153939604759216,
+  "global_scale": 0.9116513133049011,
+  "num_input_tracks": 2526,
+  "num_valid_seed_tracks": 2435,
+  "num_dropped_invalid_face": 91,
+  "num_dropped_outside_mask0": 0,
+  "num_dropped_nonfinite_seed": 0,
+  "active_track_frame_pairs": 143753
+}

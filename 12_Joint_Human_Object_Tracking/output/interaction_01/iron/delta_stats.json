@@ -1,0 +1,16 @@
+{
+  "slug": "iron",
+  "state_type": "absolute_object_trajectory_from_module12",
+  "frame0_fixed_identity": true,
+  "max_rot_deg": 27.32960006747888,
+  "mean_rot_deg": 13.841710470979232,
+  "max_trans_m": 1.7915204763412476,
+  "mean_trans_m": 0.8185142874717712,
+  "global_scale": 0.9965705275535583,
+  "num_input_tracks": 3085,
+  "num_valid_seed_tracks": 2937,
+  "num_dropped_invalid_face": 148,
+  "num_dropped_outside_mask0": 0,
+  "num_dropped_nonfinite_seed": 0,
+  "active_track_frame_pairs": 153349
+}

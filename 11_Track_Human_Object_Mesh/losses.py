@@ -314,8 +314,11 @@ def _compute_tracking_per_frame(
 
 def _get_reduction(nodes: tuple) -> str:
     for node in nodes:
-        if node.is_human and node.part_name.split(" ")[-1] in ("hand", "foot"):
-            # if node.is_human and node.part_name.split(" ")[-1] in ("hand", "foot", "hips"):
+        if node.is_human and node.part_name.split(" ")[-1] in (
+            "hand",
+            "foot",
+            "hips",
+        ):
             return "mean"
     return "min"
 

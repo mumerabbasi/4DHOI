@@ -1,0 +1,199 @@
+{
+  "interaction_name": "interaction_02",
+  "status": "completed",
+  "script": "01_track_human_object_joint.py",
+  "num_frames": 81,
+  "num_objects": 2,
+  "num_humans": 1,
+  "elapsed_seconds": 1450.5140474196523,
+  "inputs": {
+    "object_point_tracks_dir": "/my_workspace/4DHHOI/4DHOI/07_Track_Object_Points/output/interaction_02",
+    "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_02",
+    "human_motion_dir": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/output/interaction_02",
+    "segment_video_dir": "/my_workspace/4DHHOI/4DHOI/03_Segment_Video/output/interaction_02",
+    "segment_object_dir": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_02",
+    "pag_file": "/my_workspace/4DHHOI/4DHOI/01_Generate_PAG/output/interaction_02/output_pag_qwen3_6_27b.json",
+    "smpl_seg_json": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/assets/smplx_vert_segmentation.json",
+    "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_02/alignment_summary.json"
+  },
+  "settings": {
+    "stage1_iters": 4000,
+    "stage1_lr": 0.01,
+    "stage2_iters": 5000,
+    "stage2_lr": 0.001,
+    "huber_delta_px": 3.0,
+    "lambda_track_reproj": 1.0,
+    "lambda_smooth_trans": 300.0,
+    "lambda_smooth_rot": 80.0,
+    "lambda_scale": 1.0,
+    "max_log_scale_delta": 0.22,
+    "retrim_interval": 1000,
+    "retrim_percentile": 90.0,
+    "stage2_contact_weights": {
+      "object_cd2d_weight": 0.0001,
+      "object_part_cd2d_weight": 0.0001,
+      "object_smooth_trans_weight": 1000.0,
+      "object_smooth_rot_weight": 1000.0,
+      "object_scale_weight": 1.0,
+      "intersect_weight_start": 0.0,
+      "intersect_weight_end": 10.0,
+      "nocontact_weight": 1000.0,
+      "contact_drift_weight_start": 10.0,
+      "contact_drift_weight_end": 1000.0
+    }
+  },
+  "objects": {
+    "dumbbell_(left_hand)": {
+      "name": "dumbbell (left hand)",
+      "num_verts": 62727,
+      "num_faces": 125503,
+      "final_scale": 0.9704440236091614,
+      "delta_stats": {
+        "slug": "dumbbell_(left_hand)",
+        "state_type": "absolute_object_trajectory_from_module12",
+        "frame0_fixed_identity": true,
+        "max_rot_deg": 16.697133378979238,
+        "mean_rot_deg": 10.72247662892936,
+        "max_trans_m": 1.2242777347564697,
+        "mean_trans_m": 0.6705809235572815,
+        "global_scale": 0.9704440236091614,
+        "num_input_tracks": 2348,
+        "num_valid_seed_tracks": 2322,
+        "num_dropped_invalid_face": 26,
+        "num_dropped_outside_mask0": 0,
+        "num_dropped_nonfinite_seed": 0,
+        "active_track_frame_pairs": 136476
+      }
+    },
+    "dumbbell_(right_hand)": {
+      "name": "dumbbell (right hand)",
+      "num_verts": 49296,
+      "num_faces": 98592,
+      "final_scale": 0.9116513133049011,
+      "delta_stats": {
+        "slug": "dumbbell_(right_hand)",
+        "state_type": "absolute_object_trajectory_from_module12",
+        "frame0_fixed_identity": true,
+        "max_rot_deg": 10.229272084057325,
+        "mean_rot_deg": 5.896674345861728,
+        "max_trans_m": 0.8480365872383118,
+        "mean_trans_m": 0.42153939604759216,
+        "global_scale": 0.9116513133049011,
+        "num_input_tracks": 2526,
+        "num_valid_seed_tracks": 2435,
+        "num_dropped_invalid_face": 91,
+        "num_dropped_outside_mask0": 0,
+        "num_dropped_nonfinite_seed": 0,
+        "active_track_frame_pairs": 143753
+      }
+    }
+  },
+  "humans": {
+    "person_1": {
+      "status": "fixed_smplx_sequence",
+      "name": "person 1",
+      "slug": "person_1",
+      "num_frames": 81,
+      "num_verts": 10475,
+      "num_faces": 20908,
+      "source_metadata": {
+        "source": "module_06_gvhmr_smpl_params_incam",
+        "hmr4d_results": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/output/interaction_02/humans/person_1/hmr4d_results.pt",
+        "module09_transform": [
+          [
+            1.503814458847046,
+            0.0,
+            0.0,
+            0.01095390785485506
+          ],
+          [
+            0.0,
+            1.503814458847046,
+            0.0,
+            0.0084763178601861
+          ],
+          [
+            0.0,
+            0.0,
+            1.503814458847046,
+            0.36418068408966064
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "num_frames": 81,
+        "num_verts": 10475,
+        "num_faces": 20908,
+        "future_human_optimization_hooks": {
+          "root_translation_delta": false,
+          "root_rotation_delta": false,
+          "body_pose_delta": false,
+          "gvhmr_root_orient_prior": false,
+          "gvhmr_body_pose_prior": false,
+          "human_temporal_smoothness": false
+        }
+      }
+    }
+  },
+  "final_contact_diagnostic": {
+    "total": 5.342617034912109,
+    "terms": {
+      "tracking": {
+        "weight": 0.0,
+        "raw": 0.07032454013824463,
+        "scaled": 0.0
+      },
+      "object_cd2d": {
+        "weight": 0.0001,
+        "raw": 3.519672393798828,
+        "scaled": 0.00035196723183616996
+      },
+      "object_part_cd2d": {
+        "weight": 0.0001,
+        "raw": 23513.56640625,
+        "scaled": 2.3513565063476562
+      },
+      "object_smooth_trans": {
+        "weight": 1000.0,
+        "raw": 6.652662705164403e-06,
+        "scaled": 0.00665266253054142
+      },
+      "object_smooth_rot": {
+        "weight": 1000.0,
+        "raw": 0.0004988658474758267,
+        "scaled": 0.49886584281921387
+      },
+      "object_scale": {
+        "weight": 1.0,
+        "raw": 0.0,
+        "scaled": 0.0
+      },
+      "intersect": {
+        "weight": 10.0,
+        "raw": 0.0009089388186112046,
+        "scaled": 0.009089387953281403
+      },
+      "nocontact": {
+        "weight": 1000.0,
+        "raw": 0.0023863697424530983,
+        "scaled": 2.3863697052001953
+      },
+      "contact_drift": {
+        "weight": 1000.0,
+        "raw": 8.993100345833227e-05,
+        "scaled": 0.08993100374937057
+      }
+    }
+  },
+  "conventions": {
+    "coordinate_system": "OpenCV (X-right, Y-down, Z-forward)",
+    "object_T_4x4": "standard column-vector [[R,t],[0,1]], p'=R@p+t",
+    "object_scale": "bounded global scale applied before object T_4x4",
+    "frame0_object_pose": "identity relative to module-09 aligned mesh",
+    "human": "frozen GVHMR SMPL-X sequence transformed by module-09 similarity"
+  }
+}

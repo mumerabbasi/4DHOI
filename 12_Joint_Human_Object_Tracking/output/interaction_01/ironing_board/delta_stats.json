@@ -1,0 +1,16 @@
+{
+  "slug": "ironing_board",
+  "state_type": "absolute_object_trajectory_from_module12",
+  "frame0_fixed_identity": true,
+  "max_rot_deg": 2.236790690200561,
+  "mean_rot_deg": 1.379836203508151,
+  "max_trans_m": 0.11551503092050552,
+  "mean_trans_m": 0.07331163436174393,
+  "global_scale": 0.9425100088119507,
+  "num_input_tracks": 5000,
+  "num_valid_seed_tracks": 4796,
+  "num_dropped_invalid_face": 204,
+  "num_dropped_outside_mask0": 0,
+  "num_dropped_nonfinite_seed": 0,
+  "active_track_frame_pairs": 232135
+}
