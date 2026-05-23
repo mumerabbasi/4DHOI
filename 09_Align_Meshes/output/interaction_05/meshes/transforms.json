@@ -11,44 +11,44 @@
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_init": -0.05026544060103461,
-        "scale_init": 0.9509769630987882,
-        "log_scale_alpha": -0.09604023396968842,
-        "scale_exp_alpha": 0.908427465690309,
+        "log_scale_init": -0.06766051920674232,
+        "scale_init": 0.9345776909054414,
+        "log_scale_alpha": -0.1183246299624443,
+        "scale_exp_alpha": 0.8884076020708105,
         "tx_init_m": 0.0,
         "ty_init_m": 0.0,
-        "tz_init_m": -0.09802714161398907,
-        "delta_tx_m": 0.004171643406152725,
-        "delta_ty_m": 0.00035943000693805516,
-        "delta_tz_m": 0.2266053706407547,
-        "tx_total_m": 0.004171643406152725,
-        "ty_total_m": 0.00035943000693805516,
-        "tz_total_m": 0.12857822902676563,
+        "tz_init_m": -0.04344920943294106,
+        "delta_tx_m": 0.004927954636514187,
+        "delta_ty_m": 0.0024481171276420355,
+        "delta_tz_m": 0.2459396868944168,
+        "tx_total_m": 0.004927954636514187,
+        "ty_total_m": 0.0024481171276420355,
+        "tz_total_m": 0.20249047746147575,
         "obs_3d_count": 6000,
         "obs_2d_count": 6000,
-        "model_sample_count": 3075,
+        "model_sample_count": 3053,
         "model_sample_count_total": 6000,
-        "model_sample_count_visible_fixed": 3075,
-        "model_sample_visible_ratio": 0.5125
+        "model_sample_count_visible_fixed": 3053,
+        "model_sample_visible_ratio": 0.5088333333333334
       },
       "source_to_output_matrix_4x4": [
         [
-          0.9084274768829346,
+          0.8884075880050659,
           0.0,
           0.0,
-          0.004171643406152725
+          0.004927954636514187
         ],
         [
           0.0,
-          0.9084274768829346,
+          0.8884075880050659,
           0.0,
-          0.00035943000693805516
+          0.0024481171276420355
         ],
         [
           0.0,
           0.0,
-          0.9084274768829346,
-          0.12857823073863983
+          0.8884075880050659,
+          0.20249047875404358
         ],
         [
           0.0,
@@ -69,44 +69,44 @@
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_init": 1.1129717482667363,
-        "scale_init": 3.043389155663406,
-        "log_scale_alpha": 1.3787018060684204,
-        "scale_exp_alpha": 3.969744782340091,
+        "log_scale_init": 1.030627875734963,
+        "scale_init": 2.8028251082134994,
+        "log_scale_alpha": 1.2482497692108154,
+        "scale_exp_alpha": 3.4842393946327626,
         "tx_init_m": 0.0,
         "ty_init_m": 0.0,
-        "tz_init_m": 0.5539736080832043,
-        "delta_tx_m": -0.019416017457842827,
-        "delta_ty_m": 0.06502896547317505,
-        "delta_tz_m": -1.0584452152252197,
-        "tx_total_m": -0.019416017457842827,
-        "ty_total_m": 0.06502896547317505,
-        "tz_total_m": -0.5044716071420154,
+        "tz_init_m": 0.7504853041462987,
+        "delta_tx_m": -0.017689667642116547,
+        "delta_ty_m": 0.06612325459718704,
+        "delta_tz_m": -0.7767598032951355,
+        "tx_total_m": -0.017689667642116547,
+        "ty_total_m": 0.06612325459718704,
+        "tz_total_m": -0.02627449914883684,
         "obs_3d_count": 6000,
         "obs_2d_count": 6000,
-        "model_sample_count": 4406,
+        "model_sample_count": 4917,
         "model_sample_count_total": 6000,
-        "model_sample_count_visible_fixed": 4406,
-        "model_sample_visible_ratio": 0.7343333333333333
+        "model_sample_count_visible_fixed": 4917,
+        "model_sample_visible_ratio": 0.8195
       },
       "source_to_output_matrix_4x4": [
         [
-          3.9697446823120117,
+          3.484239339828491,
           0.0,
           0.0,
-          -0.019416017457842827
+          -0.017689667642116547
         ],
         [
           0.0,
-          3.9697446823120117,
+          3.484239339828491,
           0.0,
-          0.06502896547317505
+          0.06612325459718704
         ],
         [
           0.0,
           0.0,
-          3.9697446823120117,
-          -0.5044716000556946
+          3.484239339828491,
+          -0.02627449855208397
         ],
         [
           0.0,
@@ -127,44 +127,44 @@
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_init": 0.40385199724171983,
-        "scale_init": 1.497582284246377,
-        "log_scale_alpha": 1.3283103704452515,
-        "scale_exp_alpha": 3.7746602190270497,
+        "log_scale_init": 0.27942339934361865,
+        "scale_init": 1.3223671147262681,
+        "log_scale_alpha": 1.0664259195327759,
+        "scale_exp_alpha": 2.904978297491026,
         "tx_init_m": 0.0,
         "ty_init_m": 0.0,
-        "tz_init_m": 2.2993536174448064,
-        "delta_tx_m": -0.02237284742295742,
-        "delta_ty_m": 0.17351940274238586,
-        "delta_tz_m": -2.6457014083862305,
-        "tx_total_m": -0.02237284742295742,
-        "ty_total_m": 0.17351940274238586,
-        "tz_total_m": -0.3463477909414241,
+        "tz_init_m": 2.5040667159742105,
+        "delta_tx_m": -0.09583456069231033,
+        "delta_ty_m": -0.08744033426046371,
+        "delta_tz_m": -2.0872676372528076,
+        "tx_total_m": -0.09583456069231033,
+        "ty_total_m": -0.08744033426046371,
+        "tz_total_m": 0.41679907872140287,
         "obs_3d_count": 6000,
         "obs_2d_count": 6000,
-        "model_sample_count": 3321,
+        "model_sample_count": 2985,
         "model_sample_count_total": 6000,
-        "model_sample_count_visible_fixed": 3321,
-        "model_sample_visible_ratio": 0.5535
+        "model_sample_count_visible_fixed": 2985,
+        "model_sample_visible_ratio": 0.4975
       },
       "source_to_output_matrix_4x4": [
         [
-          3.774660110473633,
+          2.9049782752990723,
           0.0,
           0.0,
-          -0.02237284742295742
+          -0.09583456069231033
         ],
         [
           0.0,
-          3.774660110473633,
+          2.9049782752990723,
           0.0,
-          0.17351940274238586
+          -0.08744033426046371
         ],
         [
           0.0,
           0.0,
-          3.774660110473633,
-          -0.34634777903556824
+          2.9049782752990723,
+          0.41679906845092773
         ],
         [
           0.0,

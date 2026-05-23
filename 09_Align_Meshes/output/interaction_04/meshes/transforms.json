@@ -11,44 +11,44 @@
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_init": 0.17809046119259908,
-        "scale_init": 1.1949334114472183,
-        "log_scale_alpha": 0.129952535033226,
-        "scale_exp_alpha": 1.1387743301560722,
+        "log_scale_init": 0.1649547662158817,
+        "scale_init": 1.1793397715042253,
+        "log_scale_alpha": 0.11886486411094666,
+        "scale_exp_alpha": 1.1262177155722983,
         "tx_init_m": 0.0,
         "ty_init_m": 0.0,
-        "tz_init_m": 0.007741906364728379,
-        "delta_tx_m": -0.02711930125951767,
-        "delta_ty_m": 0.0039033815264701843,
-        "delta_tz_m": 0.28670865297317505,
-        "tx_total_m": -0.02711930125951767,
-        "ty_total_m": 0.0039033815264701843,
-        "tz_total_m": 0.29445055933790343,
+        "tz_init_m": 0.042978961812984995,
+        "delta_tx_m": -0.025237951427698135,
+        "delta_ty_m": 0.005303948651999235,
+        "delta_tz_m": 0.2653958201408386,
+        "tx_total_m": -0.025237951427698135,
+        "ty_total_m": 0.005303948651999235,
+        "tz_total_m": 0.3083747819538236,
         "obs_3d_count": 6000,
         "obs_2d_count": 6000,
-        "model_sample_count": 2837,
+        "model_sample_count": 2901,
         "model_sample_count_total": 6000,
-        "model_sample_count_visible_fixed": 2837,
-        "model_sample_visible_ratio": 0.4728333333333333
+        "model_sample_count_visible_fixed": 2901,
+        "model_sample_visible_ratio": 0.4835
       },
       "source_to_output_matrix_4x4": [
         [
-          1.1387742757797241,
+          1.1262177228927612,
           0.0,
           0.0,
-          -0.02711930125951767
+          -0.025237951427698135
         ],
         [
           0.0,
-          1.1387742757797241,
+          1.1262177228927612,
           0.0,
-          0.0039033815264701843
+          0.005303948651999235
         ],
         [
           0.0,
           0.0,
-          1.1387742757797241,
-          0.2944505512714386
+          1.1262177228927612,
+          0.3083747923374176
         ],
         [
           0.0,
@@ -69,44 +69,44 @@
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_init": 0.9913736221394615,
-        "scale_init": 2.694933751727328,
-        "log_scale_alpha": 0.9383124113082886,
-        "scale_exp_alpha": 2.55566486594365,
+        "log_scale_init": 0.9569079473283435,
+        "scale_init": 2.6036334424472267,
+        "log_scale_alpha": 0.883895218372345,
+        "scale_exp_alpha": 2.420309000979,
         "tx_init_m": 0.0,
         "ty_init_m": 0.0,
-        "tz_init_m": -0.172783094640919,
-        "delta_tx_m": -0.056909579783678055,
-        "delta_ty_m": 0.06185710057616234,
-        "delta_tz_m": 0.27141231298446655,
-        "tx_total_m": -0.056909579783678055,
-        "ty_total_m": 0.06185710057616234,
-        "tz_total_m": 0.09862921834354754,
+        "tz_init_m": -0.07149847138215915,
+        "delta_tx_m": -0.07688989490270615,
+        "delta_ty_m": 0.08154147118330002,
+        "delta_tz_m": 0.3280944526195526,
+        "tx_total_m": -0.07688989490270615,
+        "ty_total_m": 0.08154147118330002,
+        "tz_total_m": 0.25659598123739347,
         "obs_3d_count": 6000,
         "obs_2d_count": 6000,
-        "model_sample_count": 2995,
+        "model_sample_count": 3303,
         "model_sample_count_total": 6000,
-        "model_sample_count_visible_fixed": 2995,
-        "model_sample_visible_ratio": 0.49916666666666665
+        "model_sample_count_visible_fixed": 3303,
+        "model_sample_visible_ratio": 0.5505
       },
       "source_to_output_matrix_4x4": [
         [
-          2.5556647777557373,
+          2.420309066772461,
           0.0,
           0.0,
-          -0.056909579783678055
+          -0.07688989490270615
         ],
         [
           0.0,
-          2.5556647777557373,
+          2.420309066772461,
           0.0,
-          0.06185710057616234
+          0.08154147118330002
         ],
         [
           0.0,
           0.0,
-          2.5556647777557373,
-          0.09862922132015228
+          2.420309066772461,
+          0.2565959692001343
         ],
         [
           0.0,
@@ -127,44 +127,44 @@
       "optimized_parameters": {
         "status": "optimized",
         "message": null,
-        "log_scale_init": 0.8798646567606967,
-        "scale_init": 2.410573429521492,
-        "log_scale_alpha": 0.9321289658546448,
-        "scale_exp_alpha": 2.5399108090194544,
+        "log_scale_init": 0.8724433198237692,
+        "scale_init": 2.3927499706406956,
+        "log_scale_alpha": 0.865963339805603,
+        "scale_exp_alpha": 2.3772951262630717,
         "tx_init_m": 0.0,
         "ty_init_m": 0.0,
-        "tz_init_m": 0.3444629205882981,
-        "delta_tx_m": -0.044043347239494324,
-        "delta_ty_m": -0.15837711095809937,
-        "delta_tz_m": -0.06490281969308853,
-        "tx_total_m": -0.044043347239494324,
-        "ty_total_m": -0.15837711095809937,
-        "tz_total_m": 0.27956010089520955,
+        "tz_init_m": 0.31809848227957804,
+        "delta_tx_m": -0.04045676440000534,
+        "delta_ty_m": -0.1055687740445137,
+        "delta_tz_m": 0.06678345799446106,
+        "tx_total_m": -0.04045676440000534,
+        "ty_total_m": -0.1055687740445137,
+        "tz_total_m": 0.3848819402740391,
         "obs_3d_count": 6000,
         "obs_2d_count": 6000,
-        "model_sample_count": 3737,
+        "model_sample_count": 4342,
         "model_sample_count_total": 6000,
-        "model_sample_count_visible_fixed": 3737,
-        "model_sample_visible_ratio": 0.6228333333333333
+        "model_sample_count_visible_fixed": 4342,
+        "model_sample_visible_ratio": 0.7236666666666667
       },
       "source_to_output_matrix_4x4": [
         [
-          2.5399107933044434,
+          2.3772950172424316,
           0.0,
           0.0,
-          -0.044043347239494324
+          -0.04045676440000534
         ],
         [
           0.0,
-          2.5399107933044434,
+          2.3772950172424316,
           0.0,
-          -0.15837711095809937
+          -0.1055687740445137
         ],
         [
           0.0,
           0.0,
-          2.5399107933044434,
-          0.2795600891113281
+          2.3772950172424316,
+          0.3848819434642792
         ],
         [
           0.0,

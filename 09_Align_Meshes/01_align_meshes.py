@@ -1,22 +1,4 @@
-"""Mesh-to-depth alignment using chamfer losses on a fixed visible subset.
-
-Overview
---------
-This script aligns frame-0 human/object meshes to frame_00 depth in camera
-coordinates. Humans are loaded directly from GVHMR SMPL-X parameters; objects are
-loaded from SAM3DObjects meshes. Each mesh gets its own similarity transform:
-
-    p' = exp(alpha) * p + [tx, ty, tz]
-
-The transform is optimized with bidirectional chamfer terms in 3D and 2D:
-- 3D: observed depth points <-> transformed mesh surface samples
-- 2D: observed mask pixels <-> projected transformed mesh surface samples
-
-Visibility is computed once at initialization:
-1. Sample mesh points on surface (triangle-area weighted).
-2. Render once at init pose and keep only visible sampled points as fixed subset.
-3. Optimize on that fixed subset for all subsequent iterations.
-"""
+"""Mesh-to-depth alignment using chamfer losses on a fixed visible subset."""
 
 from __future__ import annotations
 
@@ -31,7 +13,7 @@ from typing import Any
 import cv2
 import numpy as np
 import torch
-import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.pyplot as plt
 from pytorch3d.renderer import MeshRasterizer, RasterizationSettings
 from pytorch3d.structures import Meshes
 
@@ -45,13 +27,11 @@ from utils_align_meshes import (
     build_cameras,
     colorize_points_by_xyz,
     erode_mask,
-    ensure_3x3_intrinsics,
     add_overlay_legend,
     load_binary_mask,
     load_json,
     load_mesh,
     load_object_intrinsics,
-    maybe_resize_for_optimization,
     parse_device,
     render_quality_overlay_from_cv_meshes,
     resolve_frame_0000_mask,
@@ -100,41 +80,12 @@ class OptimizationResultChamfer:
     final_total_loss: float | None
     final_cd3d_loss: float | None
     final_cd2d_loss: float | None
-    resumed: bool
-    resume_source: str
-    start_iter: int
     end_iter: int
     iters_executed_this_run: int
     early_stopped: bool
     early_stop_iter: int | None
     best_iter: int | None
     best_total: float | None
-    checkpoint_path: str | None
-
-
-@dataclass
-class ResumeStateChamfer:
-    signature: dict[str, Any]
-    start_iter: int
-    history: dict[str, list[float]]
-    log_scale: float
-    delta_tx: float
-    delta_ty: float
-    delta_tz: float
-    tx_init: float
-    ty_init: float
-    tz_init: float
-    best_total: float | None
-    best_iter: int | None
-    best_log_scale: float | None
-    best_delta_tx: float | None
-    best_delta_ty: float | None
-    best_delta_tz: float | None
-    visible_subset_indices: np.ndarray
-    visible_subset_z_abs_tol_m: float
-    visible_subset_z_rel_tol: float
-    visible_subset_focal_scale: float
-    optimizer_state_dict: dict[str, Any] | None
 
 
 def geman_mcclure_func(residual: torch.Tensor, rho: float) -> torch.Tensor:
@@ -770,220 +721,6 @@ def append_history_chamfer(
     history["tz"].append(float(losses["tz"].detach().cpu().item()))
 
 
-def normalize_history_chamfer(
-    history: dict[str, list[Any]],
-) -> dict[str, list[float]]:
-    out = new_history_dict_chamfer()
-    for key in out:
-        vals = history.get(key, [])
-        if not isinstance(vals, list):
-            raise ValueError(f"History key '{key}' must be a list.")
-        if key == "iter":
-            out[key] = [int(v) for v in vals]
-        else:
-            out[key] = [float(v) for v in vals]
-
-    n = len(out["iter"])
-    for key, vals in out.items():
-        if len(vals) != n:
-            raise ValueError(f"History length mismatch for key '{key}'.")
-    return out
-
-
-def build_resume_signature(
-    *,
-    interaction_name: str,
-    mesh_slug: str,
-    mesh_name: str,
-    mesh_kind: str,
-    intrinsics_source: str,
-    opt_max_side: int,
-    sam3_mask_erode_iters: int,
-    seed: int,
-    lr: float,
-    w_cd3d: float,
-    w_cd2d: float,
-    rho_geman_3d: float,
-    mesh_sample_points: int,
-    max_obs_3d_points_per_mesh: int,
-    max_obs_2d_points_per_mesh: int,
-    nn_chunk_size: int,
-    visible_subset_z_abs_tol_m: float,
-    visible_subset_z_rel_tol: float,
-    visible_subset_focal_scale: float,
-) -> dict[str, Any]:
-    return {
-        "interaction_name": interaction_name,
-        "mesh_slug": mesh_slug,
-        "mesh_name": mesh_name,
-        "mesh_kind": mesh_kind,
-        "mask_observation_mode": "raw_2d_eroded_3d",
-        "scale_parameterization": "unbounded_log_scale_with_height_init",
-        "intrinsics_source": intrinsics_source,
-        "opt_max_side": int(opt_max_side),
-        "sam3_mask_erode_iters": int(sam3_mask_erode_iters),
-        "seed": int(seed),
-        "lr": float(lr),
-        "w_cd3d": float(w_cd3d),
-        "w_cd2d": float(w_cd2d),
-        "rho_geman_3d": float(rho_geman_3d),
-        "mesh_sample_points": int(mesh_sample_points),
-        "max_obs_3d_points_per_mesh": int(max_obs_3d_points_per_mesh),
-        "max_obs_2d_points_per_mesh": int(max_obs_2d_points_per_mesh),
-        "nn_chunk_size": int(nn_chunk_size),
-        "visible_subset_z_abs_tol_m": float(visible_subset_z_abs_tol_m),
-        "visible_subset_z_rel_tol": float(visible_subset_z_rel_tol),
-        "visible_subset_focal_scale": float(visible_subset_focal_scale),
-    }
-
-
-def compare_resume_signature_strict(
-    saved_signature: dict[str, Any],
-    current_signature: dict[str, Any],
-) -> list[str]:
-    mismatches: list[str] = []
-    all_keys = sorted(set(saved_signature.keys()) | set(current_signature.keys()))
-    for key in all_keys:
-        if key not in saved_signature:
-            mismatches.append(f"{key}: missing in checkpoint")
-            continue
-        if key not in current_signature:
-            mismatches.append(f"{key}: missing in current config")
-            continue
-
-        a = saved_signature[key]
-        b = current_signature[key]
-        if isinstance(a, (int, float)) and isinstance(b, (int, float)):
-            if not math.isclose(float(a), float(b), rel_tol=0.0, abs_tol=1e-12):
-                mismatches.append(f"{key}: checkpoint={a} current={b}")
-        else:
-            if a != b:
-                mismatches.append(f"{key}: checkpoint={a!r} current={b!r}")
-    return mismatches
-
-
-def optimizer_state_to_device(optimizer: torch.optim.Optimizer, device: torch.device) -> None:
-    for state in optimizer.state.values():
-        for key, value in state.items():
-            if torch.is_tensor(value):
-                state[key] = value.to(device=device)
-
-
-def save_resume_checkpoint(
-    checkpoint_path: Path,
-    *,
-    signature: dict[str, Any],
-    start_iter: int,
-    history: dict[str, list[float]],
-    log_scale: torch.nn.Parameter,
-    delta_tx: torch.nn.Parameter,
-    delta_ty: torch.nn.Parameter,
-    delta_tz: torch.nn.Parameter,
-    tx_init: float,
-    ty_init: float,
-    tz_init: float,
-    optimizer: torch.optim.Optimizer,
-    best_total: float | None,
-    best_iter: int | None,
-    best_log_scale: float | None,
-    best_delta_tx: float | None,
-    best_delta_ty: float | None,
-    best_delta_tz: float | None,
-    visible_subset_indices: np.ndarray,
-    visible_subset_z_abs_tol_m: float,
-    visible_subset_z_rel_tol: float,
-    visible_subset_focal_scale: float,
-) -> None:
-    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "version": 2,
-        "signature": signature,
-        "start_iter": int(start_iter),
-        "history": normalize_history_chamfer(history),
-        "log_scale": float(log_scale.detach().cpu().item()),
-        "delta_tx": float(delta_tx.detach().cpu().item()),
-        "delta_ty": float(delta_ty.detach().cpu().item()),
-        "delta_tz": float(delta_tz.detach().cpu().item()),
-        "tx_init": float(tx_init),
-        "ty_init": float(ty_init),
-        "tz_init": float(tz_init),
-        "optimizer_state_dict": optimizer.state_dict(),
-        "best_total": None if best_total is None else float(best_total),
-        "best_iter": None if best_iter is None else int(best_iter),
-        "best_log_scale": None if best_log_scale is None else float(best_log_scale),
-        "best_delta_tx": None if best_delta_tx is None else float(best_delta_tx),
-        "best_delta_ty": None if best_delta_ty is None else float(best_delta_ty),
-        "best_delta_tz": None if best_delta_tz is None else float(best_delta_tz),
-        "visible_subset_indices": visible_subset_indices.astype(np.int64).tolist(),
-        "visible_subset_z_abs_tol_m": float(visible_subset_z_abs_tol_m),
-        "visible_subset_z_rel_tol": float(visible_subset_z_rel_tol),
-        "visible_subset_focal_scale": float(visible_subset_focal_scale),
-    }
-    torch.save(payload, str(checkpoint_path))
-
-
-def load_resume_checkpoint(
-    checkpoint_path: Path,
-    *,
-    device: torch.device,
-) -> ResumeStateChamfer:
-    payload = torch.load(str(checkpoint_path), map_location=device)
-    if not isinstance(payload, dict):
-        raise ValueError(f"Invalid checkpoint format: {checkpoint_path}")
-    if int(payload.get("version", -1)) != 2:
-        raise ValueError(
-            f"Unsupported checkpoint version for {checkpoint_path}: {payload.get('version')}"
-        )
-
-    history_raw = payload.get("history")
-    if not isinstance(history_raw, dict):
-        raise ValueError(f"Checkpoint missing history: {checkpoint_path}")
-
-    signature = payload.get("signature")
-    if not isinstance(signature, dict):
-        raise ValueError(f"Checkpoint missing signature: {checkpoint_path}")
-    visible_subset_raw = payload.get("visible_subset_indices")
-    if not isinstance(visible_subset_raw, list):
-        raise ValueError(f"Checkpoint missing visible_subset_indices: {checkpoint_path}")
-    visible_subset_indices = np.asarray(visible_subset_raw, dtype=np.int64)
-
-    return ResumeStateChamfer(
-        signature=signature,
-        start_iter=int(payload.get("start_iter", 0)),
-        history=normalize_history_chamfer(history_raw),
-        log_scale=float(payload.get("log_scale", 0.0)),
-        delta_tx=float(payload.get("delta_tx", 0.0)),
-        delta_ty=float(payload.get("delta_ty", 0.0)),
-        delta_tz=float(payload.get("delta_tz", 0.0)),
-        tx_init=float(payload.get("tx_init", 0.0)),
-        ty_init=float(payload.get("ty_init", 0.0)),
-        tz_init=float(payload.get("tz_init", 0.0)),
-        best_total=(
-            None if payload.get("best_total") is None else float(payload["best_total"])
-        ),
-        best_iter=None if payload.get("best_iter") is None else int(payload["best_iter"]),
-        best_log_scale=(
-            None
-            if payload.get("best_log_scale") is None
-            else float(payload["best_log_scale"])
-        ),
-        best_delta_tx=(
-            None if payload.get("best_delta_tx") is None else float(payload["best_delta_tx"])
-        ),
-        best_delta_ty=(
-            None if payload.get("best_delta_ty") is None else float(payload["best_delta_ty"])
-        ),
-        best_delta_tz=(
-            None if payload.get("best_delta_tz") is None else float(payload["best_delta_tz"])
-        ),
-        visible_subset_indices=visible_subset_indices,
-        visible_subset_z_abs_tol_m=float(payload.get("visible_subset_z_abs_tol_m", 0.02)),
-        visible_subset_z_rel_tol=float(payload.get("visible_subset_z_rel_tol", 0.01)),
-        visible_subset_focal_scale=float(payload.get("visible_subset_focal_scale", 0.6)),
-        optimizer_state_dict=payload.get("optimizer_state_dict"),
-    )
-
-
 def save_loss_history_csv_chamfer(
     history: dict[str, list[float]],
     out_path: Path,
@@ -1211,10 +948,6 @@ def optimize_scale_txyz_chamfer(
     debug_max_points_vis: int,
     debug_max_nn_lines: int,
     debug_seed: int,
-    checkpoint_path: Path,
-    resume_signature: dict[str, Any],
-    resume_state: ResumeStateChamfer | None,
-    checkpoint_every: int,
     early_stop_patience: int,
     early_stop_rel_min_delta: float,
     early_stop_min_iter: int,
@@ -1225,59 +958,53 @@ def optimize_scale_txyz_chamfer(
     n_obs3d = int(obs.obs_points_3d.shape[0])
     n_obs2d = int(obs.obs_pixels_2d.shape[0])
     n_model_total = int(model_points_base_np.shape[0])
-    resumed = resume_state is not None
-    resume_source = "checkpoint" if resumed else "fresh"
-    start_iter = 0 if resume_state is None else int(resume_state.start_iter)
 
     obs3d_t = torch.from_numpy(obs.obs_points_3d).to(device=device, dtype=torch.float32)
     obs2d_t = torch.from_numpy(obs.obs_pixels_2d).to(device=device, dtype=torch.float32)
 
-    if resumed:
-        tx_init_val = float(resume_state.tx_init)
-        ty_init_val = float(resume_state.ty_init)
-        tz_init_val = float(resume_state.tz_init)
-    else:
-        tx_init_val = 0.0
-        ty_init_val = 0.0
-        tz_init_val = 0.0
+    tx_init_val = 0.0
+    ty_init_val = 0.0
+    tz_init_val = 0.0
+
+    visible_subset_indices = build_fixed_visible_subset(
+        verts_cv=verts_cv_np,
+        faces=faces_np,
+        sampled_points_base=model_points_base_np,
+        intrinsics=intrinsics,
+        image_h=int(frame_bgr_for_debug.shape[0]),
+        image_w=int(frame_bgr_for_debug.shape[1]),
+        device=device,
+        scale_init=1.0,
+        tx_init=0.0,
+        ty_init=0.0,
+        tz_init=0.0,
+        z_abs_tol_m=float(visible_subset_z_abs_tol_m),
+        z_rel_tol=float(visible_subset_z_rel_tol),
+        focal_scale_for_visibility=float(visible_subset_focal_scale),
+    )
 
     mesh_height_init_m = compute_height_y_percentile_m(verts_cv_np)
-    if resume_state is None:
-        scale_init_val = float(obs.observed_height_3d_m) / float(mesh_height_init_m)
-        log_scale_init = math.log(scale_init_val)
-        print(
-            f"[{mesh_name}] height scale init: "
-            f"mesh_height={mesh_height_init_m:.4f}m "
-            f"depth_height={obs.observed_height_3d_m:.4f}m "
-            f"scale={scale_init_val:.6f}"
-        )
-    else:
-        log_scale_init = float(resume_state.log_scale)
-        scale_init_val = float(math.exp(log_scale_init))
+    scale_init_val = float(obs.observed_height_3d_m) / float(mesh_height_init_m)
+    log_scale_init = math.log(scale_init_val)
+    mesh_centroid_z = float(np.mean(verts_cv_np[:, 2]))
+    depth_centroid_z = float(np.mean(obs.obs_points_3d[:, 2]))
+    tz_init_val = depth_centroid_z - scale_init_val * mesh_centroid_z
+    print(
+        f"[{mesh_name}] height scale init: "
+        f"mesh_height={mesh_height_init_m:.4f}m "
+        f"depth_height={obs.observed_height_3d_m:.4f}m "
+        f"scale={scale_init_val:.6f}"
+    )
+    print(
+        f"[{mesh_name}] tz init after original-pose visibility: "
+        f"mesh_z={mesh_centroid_z:.4f}m "
+        f"depth_z={depth_centroid_z:.4f}m "
+        f"tz={tz_init_val:.6f}m"
+    )
 
-    delta_tx_init = 0.0 if resume_state is None else float(resume_state.delta_tx)
-    delta_ty_init = 0.0 if resume_state is None else float(resume_state.delta_ty)
-    delta_tz_init = 0.0 if resume_state is None else float(resume_state.delta_tz)
-
-    if resumed:
-        visible_subset_indices = resume_state.visible_subset_indices.astype(np.int64)
-    else:
-        visible_subset_indices = build_fixed_visible_subset(
-            verts_cv=verts_cv_np,
-            faces=faces_np,
-            sampled_points_base=model_points_base_np,
-            intrinsics=intrinsics,
-            image_h=int(frame_bgr_for_debug.shape[0]),
-            image_w=int(frame_bgr_for_debug.shape[1]),
-            device=device,
-            scale_init=float(math.exp(log_scale_init)),
-            tx_init=float(tx_init_val + delta_tx_init),
-            ty_init=float(ty_init_val + delta_ty_init),
-            tz_init=float(tz_init_val + delta_tz_init),
-            z_abs_tol_m=float(visible_subset_z_abs_tol_m),
-            z_rel_tol=float(visible_subset_z_rel_tol),
-            focal_scale_for_visibility=float(visible_subset_focal_scale),
-        )
+    delta_tx_init = 0.0
+    delta_ty_init = 0.0
+    delta_tz_init = 0.0
 
     n_model_visible = int(visible_subset_indices.shape[0])
     visible_ratio = float(n_model_visible) / float(max(1, n_model_total))
@@ -1311,14 +1038,8 @@ def optimize_scale_txyz_chamfer(
         torch.tensor(delta_tz_init, device=device, dtype=torch.float32)
     )
     optimizer = torch.optim.Adam([log_scale, delta_tx, delta_ty, delta_tz], lr=float(lr))
-    if resumed and resume_state.optimizer_state_dict is not None:
-        optimizer.load_state_dict(resume_state.optimizer_state_dict)
-        optimizer_state_to_device(optimizer, device)
 
-    if resumed:
-        history = normalize_history_chamfer(resume_state.history)
-    else:
-        history = new_history_dict_chamfer()
+    history = new_history_dict_chamfer()
     obs3d_anchor_colors = colorize_points_by_xyz(obs.obs_points_3d)
     obs2d_anchor_colors = colorize_points_by_xy(obs.obs_pixels_2d)
     gray_rgb = np.array([160, 160, 160], dtype=np.uint8)
@@ -1428,53 +1149,33 @@ def optimize_scale_txyz_chamfer(
     best_delta_ty: float | None = None
     best_delta_tz: float | None = None
 
-    if resumed:
-        best_total = (
-            None if resume_state.best_total is None else float(resume_state.best_total)
+    with torch.no_grad():
+        init_losses = compute_losses_chamfer_torch(
+            model_points_base_visible=model_base_visible_t,
+            obs3d=obs3d_t,
+            obs2d=obs2d_t,
+            intrinsics=k_t,
+            log_scale=log_scale,
+            delta_tx=delta_tx,
+            delta_ty=delta_ty,
+            delta_tz=delta_tz,
+            tx_init=tx_init_t,
+            ty_init=ty_init_t,
+            tz_init=tz_init_t,
+            w_cd3d=w_cd3d,
+            w_cd2d=w_cd2d,
+            rho_geman_3d=rho_geman_3d,
+            nn_chunk_size=nn_chunk_size,
         )
-        best_iter = None if resume_state.best_iter is None else int(resume_state.best_iter)
-        best_log_scale = (
-            None
-            if resume_state.best_log_scale is None
-            else float(resume_state.best_log_scale)
-        )
-        best_delta_tx = (
-            None if resume_state.best_delta_tx is None else float(resume_state.best_delta_tx)
-        )
-        best_delta_ty = (
-            None if resume_state.best_delta_ty is None else float(resume_state.best_delta_ty)
-        )
-        best_delta_tz = (
-            None if resume_state.best_delta_tz is None else float(resume_state.best_delta_tz)
-        )
-    else:
-        with torch.no_grad():
-            init_losses = compute_losses_chamfer_torch(
-                model_points_base_visible=model_base_visible_t,
-                obs3d=obs3d_t,
-                obs2d=obs2d_t,
-                intrinsics=k_t,
-                log_scale=log_scale,
-                delta_tx=delta_tx,
-                delta_ty=delta_ty,
-                delta_tz=delta_tz,
-                tx_init=tx_init_t,
-                ty_init=ty_init_t,
-                tz_init=tz_init_t,
-                w_cd3d=w_cd3d,
-                w_cd2d=w_cd2d,
-                rho_geman_3d=rho_geman_3d,
-                nn_chunk_size=nn_chunk_size,
-            )
-            append_history_chamfer(history, 0, init_losses)
-            _save_debug(iter_idx=0, losses_eval=init_losses, save_fixed=True)
+        append_history_chamfer(history, 0, init_losses)
+        _save_debug(iter_idx=0, losses_eval=init_losses, save_fixed=True)
 
-            best_total = float(init_losses["total"].detach().cpu().item())
-            best_iter = 0
-            best_log_scale = float(log_scale.detach().cpu().item())
-            best_delta_tx = float(delta_tx.detach().cpu().item())
-            best_delta_ty = float(delta_ty.detach().cpu().item())
-            best_delta_tz = float(delta_tz.detach().cpu().item())
+        best_total = float(init_losses["total"].detach().cpu().item())
+        best_iter = 0
+        best_log_scale = float(log_scale.detach().cpu().item())
+        best_delta_tx = float(delta_tx.detach().cpu().item())
+        best_delta_ty = float(delta_ty.detach().cpu().item())
+        best_delta_tz = float(delta_tz.detach().cpu().item())
 
     if best_total is None:
         if len(history["total"]) > 0:
@@ -1493,42 +1194,14 @@ def optimize_scale_txyz_chamfer(
     if best_delta_tz is None:
         best_delta_tz = float(delta_tz.detach().cpu().item())
 
-    def _save_checkpoint(iter_done: int) -> None:
-        save_resume_checkpoint(
-            checkpoint_path=checkpoint_path,
-            signature=resume_signature,
-            start_iter=int(iter_done),
-            history=history,
-            log_scale=log_scale,
-            delta_tx=delta_tx,
-            delta_ty=delta_ty,
-            delta_tz=delta_tz,
-            tx_init=tx_init_val,
-            ty_init=ty_init_val,
-            tz_init=tz_init_val,
-            optimizer=optimizer,
-            best_total=best_total,
-            best_iter=best_iter,
-            best_log_scale=best_log_scale,
-            best_delta_tx=best_delta_tx,
-            best_delta_ty=best_delta_ty,
-            best_delta_tz=best_delta_tz,
-            visible_subset_indices=visible_subset_indices,
-            visible_subset_z_abs_tol_m=float(visible_subset_z_abs_tol_m),
-            visible_subset_z_rel_tol=float(visible_subset_z_rel_tol),
-            visible_subset_focal_scale=float(visible_subset_focal_scale),
-        )
-
-    _save_checkpoint(iter_done=start_iter)
-
     target_additional_iters = int(iters)
     early_stopped = False
     early_stop_iter: int | None = None
     executed_iters = 0
-    end_iter = start_iter
+    end_iter = 0
 
     for local_iter in range(1, target_additional_iters + 1):
-        global_iter = start_iter + local_iter
+        global_iter = local_iter
         optimizer.zero_grad(set_to_none=True)
         losses = compute_losses_chamfer_torch(
             model_points_base_visible=model_base_visible_t,
@@ -1595,7 +1268,9 @@ def optimize_scale_txyz_chamfer(
                 cd2d_w = float(w_cd2d) * history["cd2d"][-1]
                 print(
                     f"iter={global_iter:05d} total={history['total'][-1]:.6f} "
+                    f"cd3d={history['cd3d'][-1]:.8f} "
                     f"cd3d_w={cd3d_w:.6f} "
+                    f"cd2d={history['cd2d'][-1]:.6f} "
                     f"cd2d_w={cd2d_w:.6f} "
                     f"scale={history['scale'][-1]:.6f} "
                     f"tx={history['tx'][-1]:.6f} "
@@ -1608,9 +1283,6 @@ def optimize_scale_txyz_chamfer(
                 or local_iter == int(target_additional_iters)
             ):
                 _save_debug(iter_idx=global_iter, losses_eval=eval_losses, save_fixed=False)
-
-            if checkpoint_every > 0 and global_iter % int(checkpoint_every) == 0:
-                _save_checkpoint(iter_done=global_iter)
 
             if (
                 int(early_stop_patience) > 0
@@ -1665,8 +1337,6 @@ def optimize_scale_txyz_chamfer(
     ty_final = float(ty_init_val + delta_ty_final)
     tz_final = float(tz_init_val + delta_tz_final)
 
-    _save_checkpoint(iter_done=end_iter)
-
     return OptimizationResultChamfer(
         status="optimized",
         message=None,
@@ -1693,16 +1363,12 @@ def optimize_scale_txyz_chamfer(
         final_total_loss=float(final_losses["total"].detach().cpu().item()),
         final_cd3d_loss=float(final_losses["cd3d"].detach().cpu().item()),
         final_cd2d_loss=float(final_losses["cd2d"].detach().cpu().item()),
-        resumed=resumed,
-        resume_source=resume_source,
-        start_iter=start_iter,
         end_iter=end_iter,
         iters_executed_this_run=int(executed_iters),
         early_stopped=early_stopped,
         early_stop_iter=early_stop_iter,
         best_iter=best_iter,
         best_total=best_total,
-        checkpoint_path=str(checkpoint_path),
     )
 
 
@@ -1755,26 +1421,7 @@ def parse_args() -> argparse.Namespace:
         help="Root output directory; results are written to output_root/interaction_name.",
     )
 
-    parser.add_argument(
-        "--output_coord",
-        type=str,
-        choices=["opencv", "pytorch3d"],
-        default="opencv",
-        help="Coordinate frame for exported aligned .ply meshes.",
-    )
-    parser.add_argument(
-        "--intrinsics_source",
-        type=str,
-        choices=["object", "depth"],
-        default="object",
-        help=(
-            "'object': camera_intrinsics.json intrinsics_pixels_3x3. "
-            "'depth': camera_intrinsics.json intrinsics_pixels_3x3 (DA3 side)."
-        ),
-    )
-
     parser.add_argument("--device", type=str, default="cuda:0")
-    parser.add_argument("--opt_max_side", type=int, default=1280)
 
     parser.add_argument("--iters", type=int, default=4000)
     parser.add_argument("--lr", type=float, default=5e-3)
@@ -1808,17 +1455,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--log_every", type=int, default=100)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
-        "--no_resume",
-        action="store_true",
-        help="Disable automatic checkpoint resume and start fresh optimization.",
-    )
-    parser.add_argument(
-        "--checkpoint_every",
-        type=int,
-        default=250,
-        help="Save per-mesh optimization checkpoint every N global iterations.",
-    )
-    parser.add_argument(
         "--early_stop_patience",
         type=int,
         default=500,
@@ -1833,13 +1469,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--early_stop_min_iter",
         type=int,
-        default=2000,
+        default=1000,
         help="Earliest global iteration to start applying early stopping checks.",
     )
     parser.add_argument(
         "--sam3_mask_erode_iters",
         type=int,
-        default=1,
+        default=3,
         help=(
             "Number of 3x3 erosion iterations applied to SAM3 masks "
             "(objects + human) for 3D/depth observation extraction only. "
@@ -1884,17 +1520,12 @@ def main() -> None:
     if not human_video_dir.exists():
         raise FileNotFoundError(f"Human dir not found: {human_video_dir}")
 
-    depth_intrinsics_json_path = depth_video_dir / "camera_intrinsics.json"
     run_summary_path = depth_video_dir / "run_summary.json"
     object_intrinsics_json_path = object_video_dir / "camera_intrinsics.json"
     depth_npy_path = depth_video_dir / "metric_depth" / "metric_depth.npy"
 
     if not run_summary_path.exists():
         raise FileNotFoundError(f"run_summary.json not found: {run_summary_path}")
-    if not depth_intrinsics_json_path.exists():
-        raise FileNotFoundError(
-            f"camera_intrinsics.json not found: {depth_intrinsics_json_path}"
-        )
     if not depth_npy_path.exists():
         raise FileNotFoundError(f"metric_depth.npy not found: {depth_npy_path}")
 
@@ -1925,16 +1556,7 @@ def main() -> None:
     depth_obs = np.load(depth_npy_path).astype(np.float32)
     depth_h, depth_w = depth_obs.shape
 
-    depth_intr = load_json(depth_intrinsics_json_path)
-    k_object_full = load_object_intrinsics(object_intrinsics_json_path)
-    k_depth_full = ensure_3x3_intrinsics(depth_intr.get("intrinsics_pixels_3x3"))
-    if args.intrinsics_source == "object":
-        k_full = k_object_full
-    else:
-        k_full = k_depth_full
-
-    k_diff = np.abs(k_object_full - k_depth_full)
-    max_k_diff = float(np.max(k_diff))
+    k_full = load_object_intrinsics(object_intrinsics_json_path)
 
     assets: list[MeshAsset] = []
     object_mesh_specs: list[tuple[str, Path, str]] = []
@@ -2073,17 +1695,10 @@ def main() -> None:
     names = [a.name for a in assets]
     print(f"Loaded meshes: {names}")
 
-    masks_full = [a.mask for a in assets]
-    depth_opt, masks_opt, frame_opt, k_opt, resize_scale = maybe_resize_for_optimization(
-        depth=depth_obs,
-        masks=masks_full,
-        frame=frame_bgr,
-        k=k_full,
-        opt_max_side=int(args.opt_max_side),
-    )
-
-    for asset, m in zip(assets, masks_opt):
-        asset.mask = m
+    depth_opt = depth_obs
+    frame_opt = frame_bgr
+    k_opt = k_full
+    resize_scale = 1.0
 
     print(
         f"Optimization resolution: {depth_opt.shape[1]}x{depth_opt.shape[0]} "
@@ -2166,8 +1781,6 @@ def main() -> None:
 
     losses_dir = output_dir / "loss_curves"
     debug_root = output_dir / "debug"
-    checkpoints_dir = output_dir / "checkpoints"
-    checkpoints_dir.mkdir(parents=True, exist_ok=True)
 
     optimization_results: list[OptimizationResultChamfer] = []
     loss_plot_paths_by_slug: dict[str, dict[str, str]] = {}
@@ -2176,47 +1789,7 @@ def main() -> None:
         zip(assets, observations, model_samples_list, verts_base_cv_np)
     ):
         debug_dir = debug_root / asset.slug
-        checkpoint_path = checkpoints_dir / f"{asset.slug}_resume.pt"
-        resume_signature = build_resume_signature(
-            interaction_name=args.interaction_name,
-            mesh_slug=asset.slug,
-            mesh_name=asset.name,
-            mesh_kind=asset.kind,
-            intrinsics_source=args.intrinsics_source,
-            opt_max_side=int(args.opt_max_side),
-            sam3_mask_erode_iters=int(args.sam3_mask_erode_iters),
-            seed=int(args.seed),
-            lr=float(args.lr),
-            w_cd3d=float(args.w_cd3d),
-            w_cd2d=float(args.w_cd2d),
-            rho_geman_3d=float(args.rho_geman_3d),
-            mesh_sample_points=int(args.mesh_sample_points),
-            max_obs_3d_points_per_mesh=int(args.max_obs_3d_points_per_mesh),
-            max_obs_2d_points_per_mesh=int(args.max_obs_2d_points_per_mesh),
-            nn_chunk_size=int(args.nn_chunk_size),
-            visible_subset_z_abs_tol_m=float(args.visible_subset_z_abs_tol_m),
-            visible_subset_z_rel_tol=float(args.visible_subset_z_rel_tol),
-            visible_subset_focal_scale=float(args.visible_subset_focal_scale),
-        )
-
-        resume_state: ResumeStateChamfer | None = None
-        if not args.no_resume and checkpoint_path.exists():
-            resume_state = load_resume_checkpoint(checkpoint_path, device=device)
-            mismatches = compare_resume_signature_strict(
-                saved_signature=resume_state.signature,
-                current_signature=resume_signature,
-            )
-            if len(mismatches) > 0:
-                details = "\n  - ".join([""] + mismatches)
-                raise RuntimeError(
-                    f"[{asset.name}] checkpoint signature mismatch for {checkpoint_path}:{details}"
-                )
-            print(
-                f"[{asset.name}] resuming from iter {resume_state.start_iter} "
-                f"for +{int(args.iters)} iterations ..."
-            )
-        else:
-            print(f"[{asset.name}] optimizing from scratch for {int(args.iters)} iterations ...")
+        print(f"[{asset.name}] optimizing from scratch for {int(args.iters)} iterations ...")
 
         result = optimize_scale_txyz_chamfer(
             mesh_name=asset.name,
@@ -2241,10 +1814,6 @@ def main() -> None:
             debug_max_points_vis=int(args.debug_max_points_vis),
             debug_max_nn_lines=int(args.debug_max_nn_lines),
             debug_seed=int(args.seed + 2029 * (idx + 1)),
-            checkpoint_path=checkpoint_path,
-            resume_signature=resume_signature,
-            resume_state=resume_state,
-            checkpoint_every=int(args.checkpoint_every),
             early_stop_patience=int(args.early_stop_patience),
             early_stop_rel_min_delta=float(args.early_stop_rel_min_delta),
             early_stop_min_iter=int(args.early_stop_min_iter),
@@ -2272,12 +1841,6 @@ def main() -> None:
     transforms_out: list[dict[str, Any]] = []
     verts_after_np: list[np.ndarray] = []
 
-    cv_to_output = (
-        np.eye(3, dtype=np.float32)
-        if args.output_coord == "opencv"
-        else F_CV_TO_P3D.copy()
-    )
-
     for asset, verts_cv, result in zip(assets, verts_base_cv_np, optimization_results):
         scale = float(result.scale)
         tx = float(result.tx)
@@ -2290,23 +1853,18 @@ def main() -> None:
         verts_aligned_cv[:, 2] += tz
         verts_after_np.append(verts_aligned_cv)
 
-        verts_aligned_out = (verts_aligned_cv @ cv_to_output.transpose(0, 1)).astype(
-            np.float32
-        )
         out_mesh_path = meshes_out_dir / f"{asset.slug}.ply"
         save_mesh_ply(
             out_mesh_path,
-            verts_aligned_out,
+            verts_aligned_cv,
             asset.faces,
             vertex_colors=asset.vertex_colors,
         )
 
         source_to_output_4x4 = np.eye(4, dtype=np.float32)
-        source_to_output_4x4[:3, :3] = (
-            scale * (cv_to_output @ asset.source_to_cv.astype(np.float32))
-        )
+        source_to_output_4x4[:3, :3] = scale * asset.source_to_cv.astype(np.float32)
         t_cv = np.array([tx, ty, tz], dtype=np.float32)
-        source_to_output_4x4[:3, 3] = t_cv @ cv_to_output.transpose(0, 1)
+        source_to_output_4x4[:3, 3] = t_cv
 
         transforms_out.append(
             {
@@ -2315,7 +1873,7 @@ def main() -> None:
                 "kind": asset.kind,
                 "source_mesh_path": str(asset.source_mesh_path),
                 "source_coordinate": asset.source_coord,
-                "output_coordinate": args.output_coord,
+                "output_coordinate": "opencv",
                 "aligned_mesh_ply": str(out_mesh_path),
                 "optimized_parameters": {
                     "status": result.status,
@@ -2370,17 +1928,14 @@ def main() -> None:
             "human_smplx_params": "smpl_params_incam",
             "smpl_folder": str(smpl_folder),
             "depth_npy": str(depth_npy_path),
-            "depth_intrinsics_json": str(depth_intrinsics_json_path),
             "frame_00": str(frame_path),
         },
         "camera": {
-            "intrinsics_source": args.intrinsics_source,
+            "intrinsics_source": "object",
             "intrinsics_3x3": k_full.tolist(),
-            "max_abs_object_depth_intrinsics_diff_px": max_k_diff,
         },
         "optimization_settings": {
             "iters": int(args.iters),
-            "iters_semantics_with_resume": "additive",
             "lr": float(args.lr),
             "w_cd3d": float(args.w_cd3d),
             "w_cd2d": float(args.w_cd2d),
@@ -2392,8 +1947,6 @@ def main() -> None:
             "visible_subset_z_abs_tol_m": float(args.visible_subset_z_abs_tol_m),
             "visible_subset_z_rel_tol": float(args.visible_subset_z_rel_tol),
             "visible_subset_focal_scale": float(args.visible_subset_focal_scale),
-            "no_resume": bool(args.no_resume),
-            "checkpoint_every": int(args.checkpoint_every),
             "early_stop_patience": int(args.early_stop_patience),
             "early_stop_rel_min_delta": float(args.early_stop_rel_min_delta),
             "early_stop_min_iter": int(args.early_stop_min_iter),
@@ -2401,9 +1954,8 @@ def main() -> None:
             "debug_point_radius": int(args.debug_point_radius),
             "debug_max_points_vis": int(args.debug_max_points_vis),
             "debug_max_nn_lines": int(args.debug_max_nn_lines),
-            "opt_max_side": int(args.opt_max_side),
             "resize_scale_for_optimization": float(resize_scale),
-            "output_coordinate": args.output_coord,
+            "output_coordinate": "opencv",
             "sam3_mask_erode_iters": int(args.sam3_mask_erode_iters),
         },
         "observation_stats": observation_stats,
@@ -2442,16 +1994,12 @@ def main() -> None:
                 "final_cd2d_bwd_loss": None
                 if len(result.history["cd2d_bwd"]) == 0
                 else float(result.history["cd2d_bwd"][-1]),
-                "resumed": bool(result.resumed),
-                "resume_source": result.resume_source,
-                "start_iter": int(result.start_iter),
                 "end_iter": int(result.end_iter),
                 "iters_executed_this_run": int(result.iters_executed_this_run),
                 "early_stopped": bool(result.early_stopped),
                 "early_stop_iter": result.early_stop_iter,
                 "best_iter": result.best_iter,
                 "best_total": result.best_total,
-                "checkpoint_path": result.checkpoint_path,
                 "loss_curve_png": (
                     loss_plot_paths_by_slug.get(asset.slug, {}).get("total")
                     if len(result.history["iter"]) > 0
@@ -2473,11 +2021,10 @@ def main() -> None:
             "output_dir": str(output_dir),
             "meshes_dir": str(meshes_out_dir),
             "mesh_format": "ply",
-            "output_coordinate": args.output_coord,
+            "output_coordinate": "opencv",
             "overlay_before": str(output_dir / "overlay_before.png"),
             "overlay_after": str(output_dir / "overlay_after.png"),
             "debug_root": str(debug_root),
-            "checkpoints_dir": str(checkpoints_dir),
         },
     }
 
