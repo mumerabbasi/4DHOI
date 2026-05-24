@@ -281,7 +281,7 @@ def save_run_outputs(
         )
         human_stats = {
             "status": "fixed_copy",
-            "source": "aligned_human_input",
+            "source": "module_06_smplx_with_module_09_transform",
             "name": context.humans[human_slug].name,
             "slug": human_slug,
             "num_frames": int(result.final_human_verts_np_by_slug[human_slug].shape[0]),
@@ -355,6 +355,7 @@ def save_run_outputs(
         "best_iter": result.best_iter,
         "inputs": {
             "aligned_mesh_dir": str(context.dirs["aligned"]),
+            "human_motion_dir": str(context.dirs["human_motion"]),
             "tracked_object_dir": str(context.dirs["tracked"]),
             "segment_object_dir": str(context.dirs["seg_obj"]),
             "pag_file": str(context.pag_path),

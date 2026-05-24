@@ -16,7 +16,31 @@ def parse_args() -> argparse.Namespace:
         "--aligned_mesh_dir",
         type=str,
         default=None,
-        help="09_Align_Meshes/output/<interaction> (auto-resolved).",
+        help=(
+            "09_Align_Meshes/output/<interaction> containing meshes/transforms.json "
+            "(auto-resolved)."
+        ),
+    )
+    p.add_argument(
+        "--human_motion_dir",
+        type=str,
+        default=None,
+        help=(
+            "06_Estimate_Human_Motion/output/<interaction> containing "
+            "humans/<person>/hmr4d_results.pt (auto-resolved)."
+        ),
+    )
+    p.add_argument(
+        "--smpl_folder",
+        type=str,
+        default="../../GVHMR/inputs/checkpoints/body_models/",
+        help="SMPL-X body model folder used to reconstruct module-06 GVHMR output.",
+    )
+    p.add_argument(
+        "--smplx_batch_size",
+        type=int,
+        default=32,
+        help="Batch size for reconstructing SMPL-X vertices from module-06 params.",
     )
     p.add_argument(
         "--tracked_object_dir",
@@ -66,12 +90,12 @@ def parse_args() -> argparse.Namespace:
         help="Voxel resolution for SDF grids.",
     )
 
-    p.add_argument("--adam_iters", type=int, default=5000)
+    p.add_argument("--adam_iters", type=int, default=1500)
     p.add_argument("--adam_lr", type=float, default=1e-3)
     p.add_argument(
         "--early_stop_start",
         type=int,
-        default=500,
+        default=1500,
         help="Iteration at which to begin checking early stopping.",
     )
     p.add_argument(

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
@@ -197,6 +198,200 @@ def _load_smpl_body_and_contact_seg(
         if indices:
             body_result[pag_name] = np.unique(np.array(indices, dtype=np.int64))
     return body_result, {}
+
+
+def _resolve_smpl_folder(args: argparse.Namespace, script_dir: Path) -> Path:
+    smpl_folder = Path(args.smpl_folder)
+    if not smpl_folder.is_absolute():
+        smpl_folder = (script_dir / smpl_folder).resolve()
+    if not smpl_folder.exists():
+        raise FileNotFoundError(f"SMPL-X body model folder not found: {smpl_folder}")
+    return smpl_folder
+
+
+def _load_alignment_transforms(
+    aligned_dir: Path,
+) -> tuple[dict[str, dict[str, Any]], Path]:
+    transforms_path = aligned_dir / "meshes" / "transforms.json"
+    if not transforms_path.exists():
+        raise FileNotFoundError(
+            f"Module-09 transforms JSON not found: {transforms_path}"
+        )
+    with transforms_path.open("r", encoding="utf-8") as f:
+        payload = json.load(f)
+    transforms = payload.get("transforms")
+    if not isinstance(transforms, list):
+        raise ValueError(f"Invalid transforms payload in {transforms_path}")
+    rows_by_slug: dict[str, dict[str, Any]] = {}
+    for row in transforms:
+        if not isinstance(row, dict) or "slug" not in row:
+            continue
+        rows_by_slug[str(row["slug"])] = row
+    return rows_by_slug, transforms_path
+
+
+def _as_4x4(matrix_like: Any, key_name: str, source_path: Path) -> np.ndarray:
+    matrix = np.asarray(matrix_like, dtype=np.float32)
+    if matrix.shape != (4, 4):
+        raise ValueError(
+            f"Expected {key_name} in {source_path} to be shape (4, 4), "
+            f"got {matrix.shape}"
+        )
+    return matrix
+
+
+def _apply_transform_np(verts: np.ndarray, matrix: np.ndarray) -> np.ndarray:
+    rot_scale = matrix[:3, :3].astype(np.float32)
+    trans = matrix[:3, 3].astype(np.float32)
+    return (verts.astype(np.float32) @ rot_scale.T + trans[None, None, :]).astype(
+        np.float32
+    )
+
+
+def _load_smplx_human_sequence(
+    result_path: Path,
+    smplx_layer: Any,
+    alignment_matrix: np.ndarray,
+    num_frames: int,
+    batch_size: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    data = torch.load(str(result_path), map_location="cpu")
+    params = data["smpl_params_incam"]
+
+    body_pose = params["body_pose"].detach().clone().float()[:num_frames]
+    global_orient = params["global_orient"].detach().clone().float()[:num_frames]
+    transl = params["transl"].detach().clone().float()[:num_frames]
+    betas_raw = params["betas"].detach().clone().float()
+    beta0 = betas_raw[:1] if betas_raw.ndim > 1 else betas_raw.view(1, -1)
+
+    verts_batches: list[np.ndarray] = []
+    for start in range(0, body_pose.shape[0], batch_size):
+        end = min(start + batch_size, body_pose.shape[0])
+        count = end - start
+        zeros_3 = torch.zeros(count, 3, dtype=torch.float32)
+        num_pca_comps = int(getattr(smplx_layer, "num_pca_comps", None) or 12)
+        num_expression_coeffs = int(
+            getattr(smplx_layer, "num_expression_coeffs", None) or 10
+        )
+        zeros_hand = torch.zeros(count, num_pca_comps, dtype=torch.float32)
+        zeros_expr = torch.zeros(count, num_expression_coeffs, dtype=torch.float32)
+        with torch.no_grad():
+            output = smplx_layer(
+                betas=beta0.repeat(count, 1),
+                body_pose=body_pose[start:end],
+                global_orient=global_orient[start:end],
+                transl=transl[start:end],
+                left_hand_pose=zeros_hand,
+                right_hand_pose=zeros_hand,
+                jaw_pose=zeros_3,
+                leye_pose=zeros_3,
+                reye_pose=zeros_3,
+                expression=zeros_expr,
+            )
+        verts_batches.append(output.vertices.detach().cpu().numpy().astype(np.float32))
+
+    verts = np.concatenate(verts_batches, axis=0)
+    verts = _apply_transform_np(verts, alignment_matrix)
+    faces = np.asarray(smplx_layer.faces, dtype=np.int32)
+    return verts, faces
+
+
+def _load_module06_smplx_humans(
+    args: argparse.Namespace,
+    script_dir: Path,
+    dirs: dict[str, Path],
+    body_seg: dict[str, np.ndarray],
+    contact_seg: dict[str, np.ndarray],
+    device: torch.device,
+) -> tuple[dict[str, HumanData], list[str], int]:
+    import smplx
+
+    transforms_by_slug, transforms_path = _load_alignment_transforms(dirs["aligned"])
+    human_rows = [
+        row
+        for row in transforms_by_slug.values()
+        if row.get("kind") == "human" or str(row.get("slug", "")).startswith("person_")
+    ]
+    if not human_rows:
+        raise RuntimeError(f"No human transform rows found in {transforms_path}")
+
+    smpl_folder = _resolve_smpl_folder(args, script_dir)
+    print(f"Loading SMPL-X humans from module 06 using: {smpl_folder}")
+    print(f"Applying human transforms from module 09: {transforms_path}")
+    smplx_layer = smplx.create(
+        str(smpl_folder),
+        model_type="smplx",
+        gender="neutral",
+        num_pca_comps=12,
+        flat_hand_mean=False,
+        create_body_pose=False,
+        create_betas=False,
+        create_global_orient=False,
+        create_transl=False,
+    )
+    smplx_layer.eval()
+
+    human_motion_root = dirs["human_motion"] / "humans"
+    if not human_motion_root.exists():
+        raise FileNotFoundError(
+            f"Module-06 human motion dir not found: {human_motion_root}"
+        )
+
+    human_keys: list[str] = []
+    humans: dict[str, HumanData] = {}
+    num_frames: int | None = None
+
+    for row in sorted(human_rows, key=lambda item: str(item["slug"])):
+        human_slug = str(row["slug"])
+        result_path = human_motion_root / human_slug / "hmr4d_results.pt"
+        if not result_path.exists():
+            raise FileNotFoundError(
+                f"Module-06 GVHMR result file not found for {human_slug}: {result_path}"
+            )
+        data = torch.load(str(result_path), map_location="cpu")
+        available_frames = int(data["smpl_params_incam"]["body_pose"].shape[0])
+        num_frames = (
+            available_frames
+            if num_frames is None
+            else min(num_frames, available_frames)
+        )
+
+    if num_frames is None or num_frames <= 0:
+        raise RuntimeError("No module-06 SMPL-X human frames loaded.")
+
+    for row in sorted(human_rows, key=lambda item: str(item["slug"])):
+        human_slug = str(row["slug"])
+        human_name = str(row.get("name", human_slug)).replace("_", " ")
+        result_path = human_motion_root / human_slug / "hmr4d_results.pt"
+        matrix = _as_4x4(
+            row.get("source_to_output_matrix_4x4"),
+            "source_to_output_matrix_4x4",
+            transforms_path,
+        )
+        human_verts_np, human_faces = _load_smplx_human_sequence(
+            result_path=result_path,
+            smplx_layer=smplx_layer,
+            alignment_matrix=matrix,
+            num_frames=num_frames,
+            batch_size=max(1, int(args.smplx_batch_size)),
+        )
+
+        humans[human_slug] = _load_human_data(
+            human_name=human_name,
+            human_slug=human_slug,
+            human_verts_np=human_verts_np,
+            human_faces=human_faces,
+            body_seg=body_seg,
+            contact_seg=contact_seg,
+            device=device,
+        )
+        human_keys.append(human_slug)
+        print(
+            f"  Human {human_slug}: {human_verts_np.shape[0]} frames, "
+            f"{human_verts_np.shape[1]} verts, {human_faces.shape[0]} faces"
+        )
+
+    return humans, human_keys, int(num_frames)
 
 
 def _load_object_part_segments(
@@ -395,8 +590,8 @@ def _load_human_data(
         raise ValueError(
             f"Human mesh '{human_slug}' has {vertex_count} vertices, but the "
             f"SMPL segmentation references vertex {max_segment_id}. Rerun "
-            "06_Estimate_Human_Motion/02_export_human_motion_to_ply.py and "
-            "09_Align_Meshes with SMPL-X outputs before final optimization."
+            "06_Estimate_Human_Motion and 09_Align_Meshes with SMPL-X outputs "
+            "before final optimization."
         )
 
     base_verts = torch.from_numpy(human_verts_np).float().to(device)
@@ -595,68 +790,14 @@ def load_problem_context(
     width, height = _infer_image_size(dirs)
     k_torch = torch.from_numpy(k).float().to(device)
 
-    human_aligned_dir = dirs["aligned"] / "human_motion_aligned"
-    if not human_aligned_dir.exists():
-        raise FileNotFoundError(
-            f"Human motion aligned dir missing: {human_aligned_dir}"
-        )
-    human_dirs = sorted(
-        path for path in human_aligned_dir.iterdir()
-        if path.is_dir() and path.name.startswith("person_")
+    humans, human_keys, num_frames = _load_module06_smplx_humans(
+        args=args,
+        script_dir=script_dir,
+        dirs=dirs,
+        body_seg=body_seg,
+        contact_seg=contact_seg,
+        device=device,
     )
-    if not human_dirs:
-        raise FileNotFoundError(
-            f"No per-person human directories found in {human_aligned_dir}"
-        )
-
-    humans: dict[str, HumanData] = {}
-    human_keys: list[str] = []
-    num_frames: int | None = None
-    for human_dir in human_dirs:
-        human_slug = human_dir.name
-        human_name = human_slug.replace("_", " ")
-        human_ply_paths = sorted(
-            human_dir.glob("frame_*.ply"),
-            key=lambda path: int(path.stem.split("_")[-1]),
-        )
-        if not human_ply_paths:
-            raise FileNotFoundError(f"No frame_*.ply in {human_dir}")
-
-        print(
-            f"Loading {len(human_ply_paths)} human mesh frames for {human_slug}..."
-        )
-        human_meshes = [
-            trimesh.load(str(path), process=False) for path in human_ply_paths
-        ]
-        human_verts_np = np.stack(
-            [np.asarray(mesh.vertices, dtype=np.float32) for mesh in human_meshes]
-        )
-        human_faces = np.asarray(human_meshes[0].faces, dtype=np.int32)
-        if num_frames is None:
-            num_frames = human_verts_np.shape[0]
-        elif human_verts_np.shape[0] != num_frames:
-            raise ValueError(
-                f"Human '{human_slug}' has {human_verts_np.shape[0]} frames, "
-                f"expected {num_frames}"
-            )
-
-        humans[human_slug] = _load_human_data(
-            human_name=human_name,
-            human_slug=human_slug,
-            human_verts_np=human_verts_np,
-            human_faces=human_faces,
-            body_seg=body_seg,
-            contact_seg=contact_seg,
-            device=device,
-        )
-        human_keys.append(human_slug)
-        print(
-            f"  Human {human_slug}: {human_verts_np.shape[0]} frames, "
-            f"{human_verts_np.shape[1]} verts, {human_faces.shape[0]} faces"
-        )
-
-    if num_frames is None:
-        raise RuntimeError("No human sequences loaded.")
 
     objects: dict[str, ObjectData] = {}
     obj_keys: list[str] = []

@@ -1,21 +1,22 @@
 {
   "interaction_name": "interaction_01",
   "status": "completed",
-  "script": "track_human_object_mesh.py",
+  "script": "01_track_human_object_mesh.py",
   "num_frames": 81,
   "num_humans": 1,
   "num_objects": 2,
   "num_edges": 2,
-  "best_total_loss": 0.27860429883003235,
-  "optimisation_time_s": 363.1003585550934,
-  "best_iter": 903,
+  "best_total_loss": 0.32000869512557983,
+  "optimisation_time_s": 453.77191093564034,
+  "best_iter": 1035,
   "inputs": {
-    "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/07_Align_Meshes/output/interaction_01",
+    "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01",
+    "human_motion_dir": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/output/interaction_01",
     "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_01",
     "segment_object_dir": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_01",
-    "pag_file": "/my_workspace/4DHHOI/4DHOI/01_Generate_PAG/output/interaction_01/output_pag_deepseek_r1_32b.json",
-    "smpl_seg_json": "/my_workspace/4DHHOI/GVHMR/hmr4d/utils/body_model/smpl_vert_segmentation.json",
-    "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/07_Align_Meshes/output/interaction_01/alignment_summary.json"
+    "pag_file": "/my_workspace/4DHHOI/4DHOI/01_Generate_PAG/output/interaction_01/output_pag_qwen3_6_27b.json",
+    "smpl_seg_json": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/assets/smplx_vert_segmentation.json",
+    "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/alignment_summary.json"
   },
   "weights": {
     "tracking": {
@@ -55,15 +56,15 @@
     }
   },
   "optimisation": {
-    "adam_iters": 5000,
+    "adam_iters": 1500,
     "adam_lr": 0.001,
     "sdf_resolution": 128,
     "optimize_object_scale": true,
     "max_log_scale_delta": 0.22,
-    "early_stop_start": 500,
+    "early_stop_start": 1500,
     "early_stop_patience": 300,
     "early_stop_rel_improve": 0.0001,
-    "early_stop_triggered": true
+    "early_stop_triggered": false
   },
   "debug_outputs": {
     "frame_loss_semantics": "diagnostic_local",
@@ -176,8 +177,8 @@
   "objects": {
     "iron": {
       "name": "iron",
-      "num_verts": 38328,
-      "num_faces": 76655,
+      "num_verts": 46843,
+      "num_faces": 93661,
       "num_parts": 2,
       "parts": [
         "handle",
@@ -185,43 +186,43 @@
       ],
       "is_translational": true,
       "is_rotational": true,
-      "final_scale": 0.9987800717353821
+      "final_scale": 0.9876925945281982
     },
     "ironing_board": {
       "name": "ironing board",
-      "num_verts": 40249,
-      "num_faces": 80498,
+      "num_verts": 20009,
+      "num_faces": 40025,
       "num_parts": 2,
       "parts": [
-        "support",
-        "surface"
+        "legs",
+        "top_flat_panel"
       ],
       "is_translational": false,
       "is_rotational": false,
-      "final_scale": 0.9999682903289795
+      "final_scale": 0.9676592946052551
     }
   },
   "humans": {
     "person_1": {
       "status": "fixed_copy",
-      "source": "aligned_human_input",
+      "source": "module_06_smplx_with_module_09_transform",
       "name": "person 1",
       "slug": "person_1",
       "num_frames": 81,
-      "num_verts": 6890,
-      "num_faces": 13776
+      "num_verts": 10475,
+      "num_faces": 20908
     }
   },
   "edges": [
     {
       "node_a": "iron, handle",
-      "node_b": "person 1, left hand",
+      "node_b": "person 1, right hand",
       "is_continuous": true,
       "is_rel_static": true
     },
     {
       "node_a": "iron, soleplate",
-      "node_b": "ironing board, surface",
+      "node_b": "ironing board, top flat panel",
       "is_continuous": true,
       "is_rel_static": false
     }

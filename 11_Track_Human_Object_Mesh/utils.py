@@ -50,6 +50,11 @@ def resolve_dirs(
         if args.aligned_mesh_dir
         else parent / "09_Align_Meshes" / "output" / vname
     )
+    human_motion = (
+        Path(args.human_motion_dir)
+        if args.human_motion_dir
+        else parent / "06_Estimate_Human_Motion" / "output" / vname
+    )
     tracked = (
         Path(args.tracked_object_dir)
         if args.tracked_object_dir
@@ -72,6 +77,7 @@ def resolve_dirs(
 
     return {
         "aligned": aligned,
+        "human_motion": human_motion,
         "tracked": tracked,
         "seg_obj": seg_obj,
         "seg_vid": seg_vid,
