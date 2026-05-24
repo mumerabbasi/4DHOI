@@ -14,10 +14,11 @@ matrix.  Only object SE(3) trajectories and bounded object scales are optimized.
 from __future__ import annotations
 
 import argparse
-import importlib.util
+import csv
 import json
 import math
-import sys
+import re
+import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,72 +26,74 @@ from typing import Any
 
 import cv2
 import numpy as np
+import roma
 import torch
 import torch.nn.functional as F
 import trimesh
+from pytorch3d.ops import knn_points
+from pytorch3d.renderer import MeshRasterizer, PerspectiveCameras, RasterizationSettings
+from pytorch3d.structures import Meshes
+from pytorch3d.transforms import axis_angle_to_matrix
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
-MODULE10_DIR = PROJECT_DIR / "10_Track_Object_Mesh"
-MODULE11_DIR = PROJECT_DIR / "11_Track_Human_Object_Mesh"
-
-for _path in (str(MODULE10_DIR), str(MODULE11_DIR)):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
-
-import tracking_utils as track_utils  # noqa: E402
-from data_loading import (  # noqa: E402
-    OBJECT_COLORS_BGR,
-    SURFACE_SAMPLE_SEED,
-    _build_sdf_grid,
-    _extract_vertex_colors,
-    _infer_image_size,
-    _load_human_data,
-    _load_object_mask_targets,
-    _load_object_part_segments,
-    _load_smpl_body_and_contact_seg,
-    _parse_pag,
-    _resolve_interaction_node,
-    _sample_surface_points,
-)
-from geometry import bounded_log_scale_delta  # noqa: E402
-from losses import (  # noqa: E402
-    compute_all_losses,
-    compute_final_loss_diagnostics,
-    get_scaled_loss_terms,
-    rotation_smoothness_loss,
-    rotation_static_loss,
-    simple_smoothness_loss,
-    simple_static_loss,
-)
-from models import (  # noqa: E402
-    DiagnosticLossResult,
-    HumanData,
-    InteractionEdge,
-    ObjectData,
-    ObjectPartSegments,
-    OptimizationResult,
-    ProblemContext,
-)
-from utils import (  # noqa: E402
-    close_ffmpeg,
-    draw_overlay,
-    ensure_dir,
-    list_images,
-    start_ffmpeg_writer,
-)
 
 
-_MODULE10_SPEC = importlib.util.spec_from_file_location(
-    "module10_object_tracker",
-    MODULE10_DIR / "01_track_object_mesh.py",
-)
-if _MODULE10_SPEC is None or _MODULE10_SPEC.loader is None:
-    raise ImportError("Could not load module-10 object tracker helpers.")
-module10 = importlib.util.module_from_spec(_MODULE10_SPEC)
-sys.modules[_MODULE10_SPEC.name] = module10
-_MODULE10_SPEC.loader.exec_module(module10)
+OBJECT_COLORS_BGR: list[tuple[int, int, int]] = [
+    (0, 255, 255),
+    (255, 128, 0),
+    (0, 255, 0),
+    (255, 0, 255),
+    (128, 255, 128),
+    (0, 128, 255),
+]
+
+BODY_PART_TO_SEG_KEYS: dict[str, list[str]] = {
+    "left hand": ["leftHand", "leftHandIndex1"],
+    "right hand": ["rightHand", "rightHandIndex1"],
+    "left foot": ["leftFoot", "leftToeBase"],
+    "right foot": ["rightFoot", "rightToeBase"],
+    "left shoulder": ["leftShoulder"],
+    "right shoulder": ["rightShoulder"],
+    "left arm": ["leftArm", "leftForeArm"],
+    "right arm": ["rightArm", "rightForeArm"],
+    "left leg": ["leftUpLeg", "leftLeg"],
+    "right leg": ["rightUpLeg", "rightLeg"],
+    "left hip": ["leftUpLeg"],
+    "right hip": ["rightUpLeg"],
+    "hips": ["hips"],
+    "head": ["head"],
+    "neck": ["neck"],
+    "spine": ["spine", "spine1", "spine2"],
+}
+
+PROJECT_BODY_PART_TO_SEGMENT_ID: dict[str, str] = {
+    "left hand": "left_hand",
+    "right hand": "right_hand",
+    "left arm": "left_arm",
+    "right arm": "right_arm",
+    "left shoulder": "left_shoulder",
+    "right shoulder": "right_shoulder",
+    "left leg": "left_leg",
+    "right leg": "right_leg",
+    "left hip": "left_leg",
+    "right hip": "right_leg",
+    "left foot": "left_foot",
+    "right foot": "right_foot",
+    "head": "head",
+    "hips": "hips",
+}
+
+PROJECT_BODY_PART_TO_CONTACT_SEGMENT_ID: dict[str, str] = {
+    "left hand": "left_hand_inner",
+    "right hand": "right_hand_inner",
+    "left foot": "left_foot_bottom",
+    "right foot": "right_foot_bottom",
+    "hips": "hips_contact",
+}
+
+SURFACE_SAMPLE_SEED = 7
 
 
 LOSS_KEYS_STAGE2 = (
@@ -104,6 +107,161 @@ LOSS_KEYS_STAGE2 = (
     "nocontact",
     "contact_drift",
 )
+
+LOSS_TERM_KEYS = (
+    "tracking",
+    "object_cd2d",
+    "object_part_cd2d",
+    "object_smooth_trans",
+    "object_smooth_rot",
+    "object_scale",
+    "intersect",
+    "nocontact",
+    "contact_drift",
+)
+FRAME_DIAGNOSTIC_TERM_KEYS = tuple(key for key in LOSS_TERM_KEYS if key != "object_scale")
+
+
+@dataclass
+class PAGObjectState:
+    name: str
+    slug: str
+    is_translational: bool
+    is_rotational: bool
+
+
+@dataclass
+class PAGEdge:
+    node_a: str
+    node_b: str
+    is_continuous: bool
+    is_rel_static: bool
+
+
+@dataclass
+class PAG:
+    object_states: list[PAGObjectState]
+    body_part_nodes: list[str]
+    object_part_nodes: list[str]
+    edges: list[PAGEdge]
+
+
+@dataclass
+class PackedPointCloud2D:
+    points: torch.Tensor
+    lengths: torch.Tensor
+
+
+@dataclass
+class ObjectPartSegments:
+    vert_ids: dict[str, np.ndarray]
+    face_ids: dict[str, np.ndarray]
+
+
+@dataclass
+class SDFGrid:
+    sdf_volume: torch.Tensor
+    bbox_min: torch.Tensor
+    bbox_max: torch.Tensor
+
+
+@dataclass
+class HumanData:
+    name: str
+    slug: str
+    base_verts: torch.Tensor
+    faces: np.ndarray
+    faces_torch: torch.Tensor
+    part_points: dict[str, torch.Tensor]
+    part_vert_ids: dict[str, np.ndarray]
+    contact_part_points: dict[str, torch.Tensor]
+    contact_part_vert_ids: dict[str, np.ndarray]
+
+
+@dataclass
+class ObjectData:
+    name: str
+    slug: str
+    state: PAGObjectState
+    template_verts: torch.Tensor
+    faces: np.ndarray
+    vertex_colors: np.ndarray | None
+    faces_torch: torch.Tensor
+    tracked_poses: np.ndarray
+    tracked_poses_torch: torch.Tensor
+    tracked_rotvecs: torch.Tensor
+    tracked_trans: torch.Tensor
+    part_vert_ids: dict[str, np.ndarray]
+    part_face_ids: dict[str, np.ndarray]
+    sampled_points: torch.Tensor
+    part_sampled_points: dict[str, torch.Tensor]
+    mask_points_2d: PackedPointCloud2D | None
+    part_mask_points_2d: dict[str, PackedPointCloud2D]
+    sdf_grid: SDFGrid | None
+    color_bgr: tuple[int, int, int]
+
+
+@dataclass
+class InteractionNode:
+    raw_node: str
+    entity_name: str
+    part_name: str
+    is_human: bool
+    human_slug: str | None
+    object_slug: str | None
+    resolved_part_name: str | None
+    vert_ids: np.ndarray
+
+
+@dataclass
+class InteractionEdge:
+    node_a: InteractionNode
+    node_b: InteractionNode
+    is_continuous: bool
+    is_rel_static: bool
+
+
+@dataclass
+class LossResult:
+    total: torch.Tensor
+    tracking: torch.Tensor
+    object_cd2d: torch.Tensor
+    object_part_cd2d: torch.Tensor
+    object_smooth_trans: torch.Tensor
+    object_smooth_rot: torch.Tensor
+    object_scale: torch.Tensor
+    intersect: torch.Tensor
+    nocontact: torch.Tensor
+    contact_drift: torch.Tensor
+    weights: dict[str, float]
+
+
+@dataclass
+class DiagnosticLossResult:
+    sequence: LossResult
+    per_frame_raw: dict[str, torch.Tensor]
+    global_raw: dict[str, torch.Tensor]
+
+
+@dataclass
+class ProblemContext:
+    dirs: dict[str, Path]
+    out_dir: Path
+    pag_path: Path
+    smpl_seg_path: Path
+    intr_path: Path
+    device: torch.device
+    k: np.ndarray
+    k_torch: torch.Tensor
+    width: int
+    height: int
+    num_frames: int
+    pag: PAG
+    humans: dict[str, HumanData]
+    human_keys: list[str]
+    objects: dict[str, ObjectData]
+    obj_keys: list[str]
+    interaction_edges: list[InteractionEdge]
 
 
 @dataclass
@@ -161,6 +319,177 @@ def _sanitize(name: str) -> str:
     return name.strip().replace(" ", "_").replace("-", "_")
 
 
+def _extract_index(path: Path) -> int:
+    match = re.search(r"(\d+)", path.stem)
+    return int(match.group(1)) if match else 10**18
+
+
+def ensure_dir(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+
+
+def list_images(frames_dir: Path) -> list[Path]:
+    exts = (".png", ".jpg", ".jpeg", ".bmp")
+    files = [path for path in frames_dir.iterdir() if path.suffix.lower() in exts]
+    return sorted(files, key=_extract_index)
+
+
+def start_ffmpeg_writer(out_path: Path, fps: float, size_hw: tuple[int, int]) -> subprocess.Popen:
+    h, w = size_hw
+    ffmpeg = "/usr/bin/ffmpeg" if Path("/usr/bin/ffmpeg").exists() else "ffmpeg"
+    cmd = [
+        ffmpeg,
+        "-y",
+        "-loglevel",
+        "error",
+        "-f",
+        "rawvideo",
+        "-vcodec",
+        "rawvideo",
+        "-pix_fmt",
+        "bgr24",
+        "-s",
+        f"{w}x{h}",
+        "-r",
+        str(fps),
+        "-i",
+        "-",
+        "-an",
+        "-vcodec",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-crf",
+        "18",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+        str(out_path),
+    ]
+    return subprocess.Popen(
+        cmd,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+    )
+
+
+def close_ffmpeg(writer: subprocess.Popen | None) -> None:
+    if writer is None:
+        return
+    if writer.stdin is not None:
+        writer.stdin.close()
+    stderr = writer.stderr.read() if writer.stderr is not None else b""
+    ret = writer.wait()
+    if ret != 0:
+        msg = stderr.decode("utf-8", errors="ignore")
+        raise RuntimeError(f"ffmpeg failed with code {ret}. stderr:\n{msg}")
+
+
+def _project_points_cv(points_cv: np.ndarray, k: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    points = np.asarray(points_cv, dtype=np.float32)
+    z = points[:, 2]
+    valid = np.isfinite(points).all(axis=1) & (z > 1e-6)
+    uv = np.zeros((points.shape[0], 2), dtype=np.float32)
+    if np.any(valid):
+        pts = points[valid]
+        z_valid = pts[:, 2]
+        uv_valid = np.empty((pts.shape[0], 2), dtype=np.float32)
+        uv_valid[:, 0] = (pts[:, 0] * float(k[0, 0])) / z_valid + float(k[0, 2])
+        uv_valid[:, 1] = (pts[:, 1] * float(k[1, 1])) / z_valid + float(k[1, 2])
+        uv[valid] = uv_valid
+    return uv, valid
+
+
+def _rasterize_mask_from_projected_triangles(
+    uv: np.ndarray,
+    valid_vertices: np.ndarray,
+    faces: np.ndarray,
+    width: int,
+    height: int,
+) -> np.ndarray:
+    mask = np.zeros((height, width), dtype=np.uint8)
+    if uv.shape[0] == 0 or faces.shape[0] == 0:
+        return mask
+    faces_i32 = np.ascontiguousarray(faces.astype(np.int32, copy=False))
+    face_valid = valid_vertices[faces_i32].all(axis=1)
+    if not np.any(face_valid):
+        return mask
+    tri = uv[faces_i32[face_valid]]
+    tri_min = np.min(tri, axis=1)
+    tri_max = np.max(tri, axis=1)
+    in_frame = (
+        (tri_max[:, 0] >= 0.0)
+        & (tri_min[:, 0] <= float(width - 1))
+        & (tri_max[:, 1] >= 0.0)
+        & (tri_min[:, 1] <= float(height - 1))
+    )
+    tri = tri[in_frame]
+    if tri.shape[0] == 0:
+        return mask
+    tri_i32 = np.round(tri).astype(np.int32)
+    try:
+        cv2.fillPoly(mask, tri_i32, 255, lineType=cv2.LINE_8)
+    except cv2.error:
+        cv2.fillPoly(mask, [poly for poly in tri_i32], 255, lineType=cv2.LINE_8)
+    return mask
+
+
+def _draw_mask_outline_overlay(
+    image_bgr: np.ndarray,
+    mask: np.ndarray,
+    color_bgr: tuple[int, int, int],
+    fill_alpha: float = 0.35,
+    contour_thickness: int = 2,
+) -> np.ndarray:
+    mask_bool = mask.astype(bool)
+    if not np.any(mask_bool):
+        return image_bgr.copy()
+    out = image_bgr.astype(np.float32).copy()
+    color_arr = np.array(color_bgr, dtype=np.float32)
+    alpha = float(np.clip(fill_alpha, 0.0, 1.0))
+    out[mask_bool] = (1.0 - alpha) * out[mask_bool] + alpha * color_arr
+    out_u8 = np.clip(out, 0.0, 255.0).astype(np.uint8)
+    mask_u8 = mask_bool.astype(np.uint8) * 255
+    contours_info = cv2.findContours(mask_u8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours = contours_info[0] if len(contours_info) == 2 else contours_info[1]
+    if int(contour_thickness) > 0:
+        outline = tuple(int(np.clip(c + 48, 0, 255)) for c in color_bgr)
+        cv2.drawContours(
+            out_u8,
+            contours,
+            contourIdx=-1,
+            color=outline,
+            thickness=int(contour_thickness),
+            lineType=cv2.LINE_AA,
+        )
+    return out_u8
+
+
+def draw_overlay(
+    frame_bgr: np.ndarray,
+    verts_cv: np.ndarray,
+    faces: np.ndarray,
+    k: np.ndarray,
+    fill_alpha: float = 0.35,
+    contour_thickness: int = 2,
+    color_bgr: tuple[int, int, int] = (0, 255, 255),
+) -> np.ndarray:
+    h, w = frame_bgr.shape[:2]
+    if verts_cv.size == 0 or faces.size == 0:
+        return frame_bgr.copy()
+    uv, valid = _project_points_cv(verts_cv, k)
+    mask = _rasterize_mask_from_projected_triangles(uv, valid, faces, w, h)
+    return _draw_mask_outline_overlay(
+        frame_bgr,
+        mask,
+        color_bgr=color_bgr,
+        fill_alpha=fill_alpha,
+        contour_thickness=contour_thickness,
+    )
+
+
 def _save_json(path: Path, payload: Any) -> None:
     ensure_dir(path.parent)
     with path.open("w", encoding="utf-8") as f:
@@ -170,7 +499,13 @@ def _save_json(path: Path, payload: Any) -> None:
 def _save_csv(path: Path, rows: list[dict[str, Any]]) -> None:
     if not rows:
         return
-    track_utils._save_csv(path, rows)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    keys = list(rows[0].keys())
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=keys)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
 
 
 def _load_json(path: Path) -> Any:
@@ -236,7 +571,488 @@ def _resolve_dirs(args: argparse.Namespace) -> dict[str, Path]:
 
 
 def _to_device(device_name: str) -> torch.device:
-    return track_utils._to_device(device_name)
+    try:
+        dev = torch.device(device_name)
+    except (RuntimeError, ValueError, TypeError) as exc:
+        raise ValueError(f"Invalid --device value: {device_name}") from exc
+    if dev.type == "cuda" and not torch.cuda.is_available():
+        return torch.device("cpu")
+    if dev.type == "cuda" and dev.index is not None and dev.index >= torch.cuda.device_count():
+        raise ValueError(
+            f"Requested {device_name}, but only {torch.cuda.device_count()} CUDA device(s) available."
+        )
+    return dev
+
+
+def _resolve_frames_dir(object_point_tracks_dir: Path, segment_video_dir: Path) -> Path | None:
+    for cand in (object_point_tracks_dir / "_frames", segment_video_dir / "_frames"):
+        if cand.exists() and cand.is_dir():
+            return cand.resolve()
+    return None
+
+
+def _resolve_object_mask_dir(segment_video_dir: Path, object_slug: str) -> Path:
+    return (
+        segment_video_dir
+        / "objects"
+        / object_slug
+        / "object_segmentation"
+        / "masks"
+    ).resolve()
+
+
+def _list_mask_files(mask_dir: Path) -> list[Path]:
+    mask_paths = sorted(mask_dir.glob("frame_*.png"), key=_extract_index)
+    if not mask_paths:
+        mask_paths = sorted(mask_dir.glob("*.png"), key=_extract_index)
+    return mask_paths
+
+
+def _load_mask_stack(mask_paths: list[Path], mask_threshold: int) -> tuple[np.ndarray, int, int]:
+    if not mask_paths:
+        raise RuntimeError("mask_paths is empty")
+    masks = []
+    h_ref, w_ref = -1, -1
+    for idx, path in enumerate(mask_paths):
+        mask = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+        if mask is None:
+            raise FileNotFoundError(f"Failed to read mask: {path}")
+        if idx == 0:
+            h_ref, w_ref = mask.shape[:2]
+        if mask.shape[:2] != (h_ref, w_ref):
+            mask = cv2.resize(mask, (w_ref, h_ref), interpolation=cv2.INTER_NEAREST)
+        masks.append((mask > int(mask_threshold)).astype(np.float32))
+    return np.stack(masks, axis=0).astype(np.float32), h_ref, w_ref
+
+
+def _normalize_tracks_vis_with_mask_length(
+    tracks_raw: np.ndarray,
+    vis_raw: np.ndarray,
+    expected_t: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    tracks = np.asarray(tracks_raw)
+    vis = np.asarray(vis_raw)
+    if tracks.ndim != 3 or tracks.shape[2] != 2:
+        raise ValueError(f"Expected tracks shape [*, *, 2], got {tracks.shape}")
+    if vis.ndim == 3 and vis.shape[-1] == 1:
+        vis = vis[..., 0]
+    if vis.ndim != 2:
+        raise ValueError(f"Expected visibility shape [*, *], got {vis.shape}")
+
+    candidates: list[tuple[np.ndarray, np.ndarray]] = []
+    if tracks.shape[0] == expected_t:
+        t, n = tracks.shape[0], tracks.shape[1]
+        if vis.shape == (t, n):
+            candidates.append((tracks.transpose(1, 0, 2), vis.transpose(1, 0)))
+        elif vis.shape == (n, t):
+            candidates.append((tracks.transpose(1, 0, 2), vis))
+    if tracks.shape[1] == expected_t:
+        n, t = tracks.shape[0], tracks.shape[1]
+        if vis.shape == (n, t):
+            candidates.append((tracks, vis))
+        elif vis.shape == (t, n):
+            candidates.append((tracks, vis.transpose(1, 0)))
+    if not candidates:
+        if vis.shape == tracks.shape[:2]:
+            if tracks.shape[0] < tracks.shape[1]:
+                candidates.append((tracks.transpose(1, 0, 2), vis.transpose(1, 0)))
+            else:
+                candidates.append((tracks, vis))
+        elif vis.shape == (tracks.shape[1], tracks.shape[0]):
+            if tracks.shape[0] < tracks.shape[1]:
+                candidates.append((tracks.transpose(1, 0, 2), vis))
+            else:
+                candidates.append((tracks, vis.transpose(1, 0)))
+    if not candidates:
+        raise ValueError(
+            "Could not infer tracks/visibility orientation. "
+            f"tracks={tracks.shape}, vis={vis.shape}, expected_t={expected_t}"
+        )
+    tracks_nt2, vis_nt = candidates[0]
+    return tracks_nt2.astype(np.float32), vis_nt.astype(np.float32)
+
+
+def _load_intrinsics_from_alignment_summary(aligned_mesh_video_dir: Path) -> tuple[np.ndarray, Path]:
+    summary_path = (aligned_mesh_video_dir / "alignment_summary.json").resolve()
+    if not summary_path.exists():
+        raise FileNotFoundError(f"alignment_summary.json not found: {summary_path}")
+    with summary_path.open("r", encoding="utf-8") as f:
+        payload = json.load(f)
+    camera = payload.get("camera")
+    if not isinstance(camera, dict):
+        raise KeyError(f"Missing 'camera' dictionary in alignment summary: {summary_path}")
+    k_raw = camera.get("intrinsics_3x3")
+    if k_raw is None:
+        raise KeyError(f"Missing 'camera.intrinsics_3x3' in alignment summary: {summary_path}")
+    k = np.array(k_raw, dtype=np.float32)
+    while k.ndim > 2:
+        k = k[0]
+    if k.shape != (3, 3):
+        raise ValueError(f"Expected intrinsics shape (3, 3), got {k.shape} in {summary_path}")
+    return k.astype(np.float32), summary_path
+
+
+def _human_entity_to_slug(entity_name: str) -> str:
+    return _sanitize(entity_name).lower()
+
+
+def _object_part_to_slug(part_name: str) -> str:
+    return _sanitize(part_name).lower()
+
+
+def _parse_pag(pag_path: Path) -> PAG:
+    with pag_path.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    obj_states: list[PAGObjectState] = []
+    for item in data.get("object states", []):
+        name = item["name"].strip()
+        obj_states.append(
+            PAGObjectState(
+                name=name,
+                slug=_sanitize(name),
+                is_translational=bool(item.get("is_translational", True)),
+                is_rotational=bool(item.get("is_rotational", True)),
+            )
+        )
+
+    edges: list[PAGEdge] = []
+    for edge in data.get("interaction edges", []):
+        nodes = edge["nodes"]
+        edges.append(
+            PAGEdge(
+                node_a=nodes[0].strip(),
+                node_b=nodes[1].strip(),
+                is_continuous=bool(edge.get("is_continuous", True)),
+                is_rel_static=bool(edge.get("is_rel_static", False)),
+            )
+        )
+
+    return PAG(
+        object_states=obj_states,
+        body_part_nodes=[s.strip() for s in data.get("body part nodes", [])],
+        object_part_nodes=[s.strip() for s in data.get("object part nodes", [])],
+        edges=edges,
+    )
+
+
+def _parse_node(node_str: str) -> tuple[str, str]:
+    parts = node_str.split(",", 1)
+    if len(parts) != 2:
+        raise ValueError(f"Cannot parse PAG node: '{node_str}'")
+    return parts[0].strip(), parts[1].strip()
+
+
+def _is_human_node(node_str: str) -> bool:
+    return node_str.lower().startswith("person")
+
+
+def _load_smpl_body_and_contact_seg(
+    seg_path: Path,
+) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
+    with seg_path.open("r", encoding="utf-8") as f:
+        raw = json.load(f)
+
+    if "segments" in raw:
+        segments = raw["segments"]
+        body_result: dict[str, np.ndarray] = {}
+        for pag_name, segment_id in PROJECT_BODY_PART_TO_SEGMENT_ID.items():
+            if segment_id in segments:
+                body_result[pag_name] = np.array(segments[segment_id], dtype=np.int64)
+
+        contact_result: dict[str, np.ndarray] = {}
+        for pag_name, segment_id in PROJECT_BODY_PART_TO_CONTACT_SEGMENT_ID.items():
+            if segment_id in segments:
+                contact_result[pag_name] = np.array(segments[segment_id], dtype=np.int64)
+        return body_result, contact_result
+
+    body_result: dict[str, np.ndarray] = {}
+    for pag_name, seg_keys in BODY_PART_TO_SEG_KEYS.items():
+        indices: list[int] = []
+        for seg_key in seg_keys:
+            indices.extend(raw.get(seg_key, []))
+        if indices:
+            body_result[pag_name] = np.unique(np.array(indices, dtype=np.int64))
+    return body_result, {}
+
+
+def _load_object_part_segments(
+    seg_obj_dir: Path,
+    obj_slug: str,
+    mesh_faces: np.ndarray,
+) -> ObjectPartSegments:
+    labels_path = (
+        seg_obj_dir
+        / obj_slug
+        / "segmented_meshes"
+        / f"{obj_slug}_triangle_labels.json"
+    )
+    if not labels_path.exists():
+        raise FileNotFoundError(f"Triangle labels not found: {labels_path}")
+    with labels_path.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    label_map: dict[str, int] = data["label_map"]
+    tri_labels = np.array(data["triangle_labels"], dtype=np.int32)
+    part_vert_ids: dict[str, np.ndarray] = {}
+    part_face_ids: dict[str, np.ndarray] = {}
+    for part_name, label_id in label_map.items():
+        tri_mask = tri_labels == label_id
+        face_subset = mesh_faces[tri_mask]
+        vert_ids = np.unique(face_subset.ravel())
+        if vert_ids.size > 0:
+            part_vert_ids[part_name] = vert_ids
+            part_face_ids[part_name] = np.flatnonzero(tri_mask).astype(np.int64)
+    return ObjectPartSegments(vert_ids=part_vert_ids, face_ids=part_face_ids)
+
+
+def _subsample_indices(n: int, max_pts: int) -> np.ndarray:
+    if n <= max_pts:
+        return np.arange(n, dtype=np.int64)
+    return np.linspace(0, n - 1, max_pts).astype(np.int64)
+
+
+def _sample_surface_points(vertices: np.ndarray, faces: np.ndarray, count: int, seed: int) -> np.ndarray:
+    if count <= 0 or faces.size == 0:
+        return np.zeros((0, 3), dtype=np.float32)
+    tri = vertices[faces]
+    edge_1 = tri[:, 1] - tri[:, 0]
+    edge_2 = tri[:, 2] - tri[:, 0]
+    areas = np.linalg.norm(np.cross(edge_1, edge_2), axis=1) * 0.5
+    positive = areas > 1e-12
+    if not np.any(positive):
+        return vertices[_subsample_indices(vertices.shape[0], count)]
+    valid_tri = tri[positive]
+    weights = areas[positive]
+    weights = weights / weights.sum()
+    rng = np.random.default_rng(seed)
+    face_ids = rng.choice(valid_tri.shape[0], size=count, replace=True, p=weights)
+    r1 = rng.random(count, dtype=np.float32)
+    r2 = rng.random(count, dtype=np.float32)
+    sqrt_r1 = np.sqrt(r1)
+    bary = np.stack([1.0 - sqrt_r1, sqrt_r1 * (1.0 - r2), sqrt_r1 * r2], axis=1)
+    sampled_tri = valid_tri[face_ids]
+    return np.sum(sampled_tri * bary[:, :, None], axis=1).astype(np.float32)
+
+
+def _mask_to_point_cloud(mask: np.ndarray, max_points: int) -> np.ndarray:
+    ys, xs = np.nonzero(mask > 0)
+    if xs.size == 0:
+        return np.zeros((0, 2), dtype=np.float32)
+    pts = np.stack([xs.astype(np.float32) + 0.5, ys.astype(np.float32) + 0.5], axis=1)
+    return pts[_subsample_indices(len(pts), max_points)].astype(np.float32)
+
+
+def _pack_2d_point_clouds(point_arrays: list[np.ndarray], device: torch.device) -> PackedPointCloud2D:
+    max_len = max((arr.shape[0] for arr in point_arrays), default=0)
+    max_len = max(max_len, 1)
+    packed = np.zeros((len(point_arrays), max_len, 2), dtype=np.float32)
+    lengths = np.zeros((len(point_arrays),), dtype=np.int64)
+    for i, arr in enumerate(point_arrays):
+        lengths[i] = arr.shape[0]
+        if arr.shape[0] > 0:
+            packed[i, : arr.shape[0]] = arr
+    return PackedPointCloud2D(
+        points=torch.from_numpy(packed).to(device),
+        lengths=torch.from_numpy(lengths).to(device),
+    )
+
+
+def _load_mask_point_clouds(
+    masks_dir: Path,
+    num_frames: int,
+    width: int,
+    height: int,
+    max_points: int,
+    device: torch.device,
+) -> PackedPointCloud2D | None:
+    if not masks_dir.exists():
+        return None
+    arrays: list[np.ndarray] = []
+    for frame_idx in range(num_frames):
+        mask_path = masks_dir / f"frame_{frame_idx:04d}.png"
+        if not mask_path.exists():
+            arrays.append(np.zeros((0, 2), dtype=np.float32))
+            continue
+        mask = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
+        if mask is None:
+            arrays.append(np.zeros((0, 2), dtype=np.float32))
+            continue
+        if mask.shape != (height, width):
+            mask = cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
+        arrays.append(_mask_to_point_cloud(mask, max_points))
+    return _pack_2d_point_clouds(arrays, device)
+
+
+def _infer_image_size(dirs: dict[str, Path]) -> tuple[int, int]:
+    frames_dir = _resolve_frames_dir(dirs["object_tracks"], dirs["seg_vid"])
+    if frames_dir is not None:
+        frame_paths = list_images(frames_dir)
+        if frame_paths:
+            frame = cv2.imread(str(frame_paths[0]), cv2.IMREAD_COLOR)
+            if frame is not None:
+                height, width = frame.shape[:2]
+                return width, height
+    sample_candidates = sorted(dirs["seg_vid"].glob("humans/*/masks/frame_0000.png"))
+    sample_candidates.extend(
+        sorted(dirs["seg_vid"].glob("objects/*/object_segmentation/masks/frame_0000.png"))
+    )
+    for sample_path in sample_candidates:
+        mask = cv2.imread(str(sample_path), cv2.IMREAD_GRAYSCALE)
+        if mask is not None:
+            height, width = mask.shape[:2]
+            return width, height
+    raise FileNotFoundError("Could not infer image size from frames or masks.")
+
+
+def _load_human_data(
+    human_name: str,
+    human_slug: str,
+    human_verts_np: np.ndarray,
+    human_faces: np.ndarray,
+    body_seg: dict[str, np.ndarray],
+    contact_seg: dict[str, np.ndarray],
+    device: torch.device,
+) -> HumanData:
+    vertex_count = human_verts_np.shape[1]
+    all_segment_ids = list(body_seg.values()) + list(contact_seg.values())
+    max_segment_id = max((int(ids.max()) for ids in all_segment_ids if ids.size > 0), default=-1)
+    if max_segment_id >= vertex_count:
+        raise ValueError(
+            f"Human mesh '{human_slug}' has {vertex_count} vertices, but the "
+            f"SMPL segmentation references vertex {max_segment_id}."
+        )
+    base_verts = torch.from_numpy(human_verts_np).float().to(device)
+    faces_torch = torch.from_numpy(human_faces.astype(np.int64)).to(device)
+    return HumanData(
+        name=human_name,
+        slug=human_slug,
+        base_verts=base_verts,
+        faces=human_faces,
+        faces_torch=faces_torch,
+        part_points={part_name: base_verts[:, vert_ids, :] for part_name, vert_ids in body_seg.items()},
+        part_vert_ids=body_seg,
+        contact_part_points={
+            part_name: base_verts[:, vert_ids, :] for part_name, vert_ids in contact_seg.items()
+        },
+        contact_part_vert_ids=contact_seg,
+    )
+
+
+def _load_object_mask_targets(
+    seg_vid_dir: Path,
+    slug: str,
+    part_names: list[str],
+    num_frames: int,
+    width: int,
+    height: int,
+    device: torch.device,
+    max_points: int,
+) -> tuple[PackedPointCloud2D | None, dict[str, PackedPointCloud2D]]:
+    object_mask_dir = seg_vid_dir / "objects" / slug / "object_segmentation" / "masks"
+    object_mask_points = _load_mask_point_clouds(
+        object_mask_dir,
+        num_frames,
+        width,
+        height,
+        max_points,
+        device,
+    )
+    part_mask_points: dict[str, PackedPointCloud2D] = {}
+    for part_name in part_names:
+        part_mask_dir = seg_vid_dir / "objects" / slug / "parts_segmentation" / "masks" / part_name
+        packed = _load_mask_point_clouds(part_mask_dir, num_frames, width, height, max_points, device)
+        if packed is not None:
+            part_mask_points[part_name] = packed
+    return object_mask_points, part_mask_points
+
+
+def _build_sdf_grid(
+    vertices: np.ndarray,
+    faces: np.ndarray,
+    resolution: int,
+    device: torch.device,
+    padding: float = 0.05,
+) -> SDFGrid:
+    from pysdf import SDF as PySDF
+
+    sdf_func = PySDF(vertices.astype(np.float32), faces.astype(np.uint32))
+    vmin = vertices.min(axis=0) - padding
+    vmax = vertices.max(axis=0) + padding
+    lin = [np.linspace(vmin[i], vmax[i], resolution) for i in range(3)]
+    gx, gy, gz = np.meshgrid(lin[0], lin[1], lin[2], indexing="ij")
+    query_pts = np.stack([gx.ravel(), gy.ravel(), gz.ravel()], axis=1).astype(np.float32)
+    sdf_vals = -sdf_func(query_pts)
+    sdf_vol = sdf_vals.reshape(1, 1, resolution, resolution, resolution)
+    return SDFGrid(
+        sdf_volume=torch.from_numpy(sdf_vol.astype(np.float32)).to(device),
+        bbox_min=torch.tensor(vmin.reshape(1, 1, 3), dtype=torch.float32, device=device),
+        bbox_max=torch.tensor(vmax.reshape(1, 1, 3), dtype=torch.float32, device=device),
+    )
+
+
+def _extract_vertex_colors(mesh: trimesh.Trimesh) -> np.ndarray | None:
+    visual = getattr(mesh, "visual", None)
+    if visual is None:
+        return None
+    raw_colors = getattr(visual, "vertex_colors", None)
+    if raw_colors is None:
+        return None
+    colors = np.asarray(raw_colors)
+    if colors.shape[0] != len(mesh.vertices):
+        return None
+    return colors.copy()
+
+
+def _resolve_interaction_node(
+    node_str: str,
+    humans: dict[str, HumanData],
+    objects: dict[str, ObjectData],
+    body_seg: dict[str, np.ndarray],
+) -> InteractionNode:
+    entity_name, part_name = _parse_node(node_str)
+    part_name_norm = part_name.lower().strip()
+    if _is_human_node(node_str):
+        human_slug = _human_entity_to_slug(entity_name)
+        if human_slug not in humans:
+            raise KeyError(f"Human '{human_slug}' not loaded")
+        if part_name_norm not in body_seg:
+            raise KeyError(f"Body part '{part_name_norm}' not in segmentation")
+        return InteractionNode(
+            raw_node=node_str,
+            entity_name=entity_name,
+            part_name=part_name_norm,
+            is_human=True,
+            human_slug=human_slug,
+            object_slug=None,
+            resolved_part_name=part_name_norm,
+            vert_ids=body_seg[part_name_norm],
+        )
+
+    obj_slug = _sanitize(entity_name)
+    if obj_slug not in objects:
+        raise KeyError(f"Object '{obj_slug}' not loaded")
+
+    resolved_part_name = None
+    vert_ids = np.arange(objects[obj_slug].template_verts.shape[0], dtype=np.int64)
+    part_slug = _object_part_to_slug(part_name)
+    for candidate_name, candidate_vids in objects[obj_slug].part_vert_ids.items():
+        if _object_part_to_slug(candidate_name) == part_slug:
+            resolved_part_name = candidate_name
+            vert_ids = candidate_vids
+            break
+    if resolved_part_name is None:
+        print(f"  [WARN] Part '{part_name}' not found in {obj_slug}, using whole mesh.")
+    return InteractionNode(
+        raw_node=node_str,
+        entity_name=entity_name,
+        part_name=part_name_norm,
+        is_human=False,
+        human_slug=None,
+        object_slug=obj_slug,
+        resolved_part_name=resolved_part_name,
+        vert_ids=vert_ids,
+    )
 
 
 def _load_alignment_transforms(aligned_dir: Path) -> dict[str, dict[str, Any]]:
@@ -424,6 +1240,259 @@ def _load_frozen_humans(
     return humans, human_keys, human_metadata, int(num_frames)
 
 
+def _cv_to_p3d_torch(pts: torch.Tensor) -> torch.Tensor:
+    out = pts.clone()
+    out[..., 0] *= -1.0
+    out[..., 1] *= -1.0
+    return out
+
+
+def _build_rasterizer(
+    device: torch.device,
+    fx: float,
+    fy: float,
+    cx: float,
+    cy: float,
+    h: int,
+    w: int,
+    bin_size: int,
+) -> MeshRasterizer:
+    cameras = PerspectiveCameras(
+        focal_length=torch.tensor([[fx, fy]], device=device, dtype=torch.float32),
+        principal_point=torch.tensor([[cx, cy]], device=device, dtype=torch.float32),
+        image_size=torch.tensor([[h, w]], device=device, dtype=torch.float32),
+        in_ndc=False,
+        device=device,
+    )
+    raster_settings = RasterizationSettings(
+        image_size=(h, w),
+        blur_radius=0.0,
+        faces_per_pixel=1,
+        bin_size=int(bin_size),
+        max_faces_per_bin=300_000,
+    )
+    return MeshRasterizer(cameras=cameras, raster_settings=raster_settings)
+
+
+def _sample_mask_bilinear_single(mask_hw: torch.Tensor, uv: torch.Tensor) -> torch.Tensor:
+    if uv.numel() == 0:
+        return torch.zeros(0, dtype=torch.float32, device=mask_hw.device)
+    h, w = mask_hw.shape
+    grid_x = (2.0 * uv[:, 0] / max(w - 1, 1)) - 1.0
+    grid_y = (2.0 * uv[:, 1] / max(h - 1, 1)) - 1.0
+    grid = torch.stack([grid_x, grid_y], dim=-1).view(1, -1, 1, 2)
+    sampled = F.grid_sample(
+        mask_hw.view(1, 1, h, w),
+        grid,
+        mode="bilinear",
+        padding_mode="zeros",
+        align_corners=True,
+    )
+    return sampled.view(-1)
+
+
+def _sample_masks_bilinear_seq(masks: torch.Tensor, uv: torch.Tensor) -> torch.Tensor:
+    if uv.numel() == 0:
+        return torch.zeros(masks.shape[0], 0, dtype=torch.float32, device=masks.device)
+    _, h, w = masks.shape
+    grid_x = (2.0 * uv[..., 0] / max(w - 1, 1)) - 1.0
+    grid_y = (2.0 * uv[..., 1] / max(h - 1, 1)) - 1.0
+    grid = torch.stack([grid_x, grid_y], dim=-1).unsqueeze(2)
+    sampled = F.grid_sample(
+        masks.unsqueeze(1),
+        grid,
+        mode="bilinear",
+        padding_mode="zeros",
+        align_corners=True,
+    )
+    return sampled.squeeze(1).squeeze(-1)
+
+
+@dataclass
+class SeedMappingResult:
+    points_cv: torch.Tensor
+    valid_seed_mask: np.ndarray
+    invalid_face_count: int
+    outside_mask0_count: int
+    nonfinite_seed_count: int
+
+
+def _map_seed_points_to_mesh(
+    seed_uv: np.ndarray,
+    verts_cv: np.ndarray,
+    faces: np.ndarray,
+    mask0: np.ndarray,
+    fx: float,
+    fy: float,
+    cx: float,
+    cy: float,
+    h: int,
+    w: int,
+    device: torch.device,
+    bin_size: int,
+    mask_gate_threshold: float,
+) -> SeedMappingResult:
+    rasterizer = _build_rasterizer(device, fx, fy, cx, cy, h, w, bin_size)
+    verts_cv_t = torch.from_numpy(verts_cv).to(device=device, dtype=torch.float32)
+    verts_p3d = _cv_to_p3d_torch(verts_cv_t)
+    faces_t = torch.from_numpy(faces.astype(np.int64)).to(device)
+    mesh = Meshes(verts=[verts_p3d], faces=[faces_t])
+    with torch.no_grad():
+        fragments = rasterizer(mesh)
+    pix_to_face = fragments.pix_to_face[0, ..., 0]
+    bary_coords = fragments.bary_coords[0, ..., 0, :]
+
+    seed_t = torch.from_numpy(seed_uv).to(device=device, dtype=torch.float32)
+    finite = torch.isfinite(seed_t).all(dim=1)
+    x_idx = torch.clamp(torch.round(seed_t[:, 0]).long(), 0, w - 1)
+    y_idx = torch.clamp(torch.round(seed_t[:, 1]).long(), 0, h - 1)
+    face_id = pix_to_face[y_idx, x_idx]
+    bary_seed = bary_coords[y_idx, x_idx]
+    mask0_t = torch.from_numpy(mask0.astype(np.float32)).to(device)
+    mask_vals = _sample_mask_bilinear_single(mask0_t, seed_t)
+    valid = finite & (face_id >= 0) & (mask_vals >= mask_gate_threshold)
+
+    points_all = torch.zeros(seed_t.shape[0], 3, dtype=torch.float32, device=device)
+    idx = torch.nonzero(valid, as_tuple=False).view(-1)
+    if idx.numel() > 0:
+        tri_verts = verts_cv_t[faces_t[face_id[idx].long()]]
+        points_all[idx] = (bary_seed[idx].unsqueeze(-1) * tri_verts).sum(dim=1)
+
+    return SeedMappingResult(
+        points_cv=points_all[idx],
+        valid_seed_mask=valid.cpu().numpy().astype(bool),
+        invalid_face_count=int(((face_id < 0) & finite).sum().item()),
+        outside_mask0_count=int(
+            ((mask_vals < mask_gate_threshold) & (face_id >= 0) & finite).sum().item()
+        ),
+        nonfinite_seed_count=int((~finite).sum().item()),
+    )
+
+
+def _build_T_matrices(
+    rotvecs: torch.Tensor,
+    trans: torch.Tensor,
+    t_frames: int,
+    device: torch.device,
+) -> torch.Tensor:
+    eye = torch.eye(4, device=device, dtype=rotvecs.dtype if rotvecs.numel() else torch.float32).unsqueeze(0)
+    if t_frames <= 1:
+        return eye
+    R = axis_angle_to_matrix(rotvecs)
+    T = torch.zeros(t_frames - 1, 4, 4, device=device, dtype=R.dtype)
+    T[:, :3, :3] = R
+    T[:, :3, 3] = trans
+    T[:, 3, 3] = 1.0
+    return torch.cat([eye.to(dtype=T.dtype), T], dim=0)
+
+
+def _huber_on_squared(s: torch.Tensor, delta: float) -> torch.Tensor:
+    d2 = delta * delta
+    sqrt_s = torch.sqrt(s.clamp(min=1e-12))
+    return torch.where(s <= d2, s, 2.0 * delta * sqrt_s - d2)
+
+
+def _pnp_sequential_init(
+    x0_cv: np.ndarray,
+    obs_uv: np.ndarray,
+    vis: np.ndarray,
+    k: np.ndarray,
+    ransac_thresh: float,
+) -> tuple[np.ndarray, np.ndarray, list[dict[str, Any]]]:
+    t_total, _ = obs_uv.shape[:2]
+    rotvecs_out = np.zeros((t_total - 1, 3), dtype=np.float32)
+    trans_out = np.zeros((t_total - 1, 3), dtype=np.float32)
+    info: list[dict[str, Any]] = []
+    prev_rvec = np.zeros((3, 1), dtype=np.float64)
+    prev_tvec = np.zeros((3, 1), dtype=np.float64)
+    dist_coeffs = np.zeros(4, dtype=np.float64)
+    k64 = k.astype(np.float64)
+
+    for frame_idx in range(1, t_total):
+        valid = vis[frame_idx] > 0.5
+        n_valid = int(valid.sum())
+        if n_valid < 6:
+            rotvecs_out[frame_idx - 1] = prev_rvec.ravel().astype(np.float32)
+            trans_out[frame_idx - 1] = prev_tvec.ravel().astype(np.float32)
+            info.append({"frame": frame_idx, "n_valid": n_valid, "n_inliers": 0, "pnp_ok": False})
+            continue
+
+        pts3d = x0_cv[valid].astype(np.float64)
+        pts2d = obs_uv[frame_idx, valid].astype(np.float64)
+        success, rvec, tvec, inliers = cv2.solvePnPRansac(
+            pts3d,
+            pts2d,
+            k64,
+            dist_coeffs,
+            rvec=prev_rvec.copy(),
+            tvec=prev_tvec.copy(),
+            useExtrinsicGuess=(frame_idx > 1),
+            iterationsCount=200,
+            reprojectionError=ransac_thresh,
+            flags=cv2.SOLVEPNP_ITERATIVE,
+        )
+        n_inliers = len(inliers) if (success and inliers is not None) else 0
+        if success and n_inliers >= 6:
+            try:
+                rvec, tvec = cv2.solvePnPRefineLM(
+                    pts3d[inliers.ravel()],
+                    pts2d[inliers.ravel()],
+                    k64,
+                    dist_coeffs,
+                    rvec,
+                    tvec,
+                )
+            except cv2.error:
+                pass
+        if success:
+            rotvecs_out[frame_idx - 1] = rvec.ravel().astype(np.float32)
+            trans_out[frame_idx - 1] = tvec.ravel().astype(np.float32)
+            prev_rvec = rvec.copy()
+            prev_tvec = tvec.copy()
+        else:
+            rotvecs_out[frame_idx - 1] = prev_rvec.ravel().astype(np.float32)
+            trans_out[frame_idx - 1] = prev_tvec.ravel().astype(np.float32)
+        info.append(
+            {"frame": frame_idx, "n_valid": n_valid, "n_inliers": n_inliers, "pnp_ok": bool(success)}
+        )
+    return rotvecs_out, trans_out, info
+
+
+def _identify_outlier_tracks(
+    x0: torch.Tensor,
+    obs_uv: torch.Tensor,
+    vis: torch.Tensor,
+    rotvecs: torch.Tensor,
+    trans: torch.Tensor,
+    fx: float,
+    fy: float,
+    cx: float,
+    cy: float,
+    threshold_px: float,
+    max_fraction: float,
+) -> torch.Tensor:
+    with torch.no_grad():
+        num_frames = obs_uv.shape[0]
+        num_tracks = x0.shape[0]
+        T_mats = _build_T_matrices(rotvecs, trans, num_frames, x0.device)
+        R_all = T_mats[:, :3, :3]
+        t_all = T_mats[:, :3, 3]
+        xt = torch.einsum("tij,mj->tmi", R_all, x0) + t_all.unsqueeze(1)
+        z = xt[..., 2].clamp(min=1e-6)
+        pred_uv = torch.stack([fx * xt[..., 0] / z + cx, fy * xt[..., 1] / z + cy], dim=-1)
+        err = torch.sqrt(((obs_uv - pred_uv) ** 2).sum(dim=-1).clamp(min=1e-12))
+        vis_binary = (vis > 0.5).float()
+        mean_err = (err * vis_binary).sum(dim=0) / vis_binary.sum(dim=0).clamp(min=1.0)
+        outlier = mean_err > threshold_px
+        n_outlier = int(outlier.sum().item())
+        max_reject = int(num_tracks * max_fraction)
+        if n_outlier > max_reject and max_reject > 0:
+            _, sorted_idx = mean_err.sort(descending=True)
+            outlier = torch.zeros(num_tracks, dtype=torch.bool, device=x0.device)
+            outlier[sorted_idx[:max_reject]] = True
+    return outlier
+
+
 def _tracks_total_frames(
     tracks_path: Path,
     vis_path: Path,
@@ -431,7 +1500,7 @@ def _tracks_total_frames(
 ) -> tuple[np.ndarray, np.ndarray, int]:
     tracks_raw = np.load(str(tracks_path))
     vis_raw = np.load(str(vis_path))
-    tracks_nt2, vis_nt = track_utils._normalize_tracks_vis_with_mask_length(
+    tracks_nt2, vis_nt = _normalize_tracks_vis_with_mask_length(
         tracks_raw,
         vis_raw,
         mask_count,
@@ -449,8 +1518,8 @@ def _discover_num_frames(
     num_frames = human_num_frames
     for state in pag.object_states:
         slug = state.slug
-        mask_dir = track_utils._resolve_object_mask_dir(dirs["seg_vid"], slug)
-        mask_paths = track_utils._list_mask_files(mask_dir)
+        mask_dir = _resolve_object_mask_dir(dirs["seg_vid"], slug)
+        mask_paths = _list_mask_files(mask_dir)
         tracks_path = dirs["object_tracks"] / slug / "tracks.npy"
         vis_path = dirs["object_tracks"] / slug / "visibility.npy"
         if not tracks_path.exists() or not vis_path.exists() or not mask_paths:
@@ -483,7 +1552,7 @@ def _initial_object_params(
 
     obs_uv_tm = tracks_valid.transpose(1, 0, 2)
     vis_tm = vis_valid.transpose(1, 0)
-    rv_init, tr_init, pnp_info = module10._pnp_sequential_init(
+    rv_init, tr_init, pnp_info = _pnp_sequential_init(
         x0.cpu().numpy(),
         obs_uv_tm,
         vis_tm,
@@ -509,7 +1578,7 @@ def _load_track_object_state(
     mesh_path = dirs["aligned"] / "meshes" / f"{slug}.ply"
     tracks_path = dirs["object_tracks"] / slug / "tracks.npy"
     vis_path = dirs["object_tracks"] / slug / "visibility.npy"
-    mask_dir = track_utils._resolve_object_mask_dir(dirs["seg_vid"], slug)
+    mask_dir = _resolve_object_mask_dir(dirs["seg_vid"], slug)
 
     missing = [
         str(path)
@@ -527,8 +1596,8 @@ def _load_track_object_state(
     faces = np.asarray(mesh.faces, dtype=np.int64)
     vertex_colors = _extract_vertex_colors(mesh)
 
-    mask_paths = track_utils._list_mask_files(mask_dir)
-    masks_np, h_mask, w_mask = track_utils._load_mask_stack(
+    mask_paths = _list_mask_files(mask_dir)
+    masks_np, h_mask, w_mask = _load_mask_stack(
         mask_paths[:num_frames],
         int(args.mask_threshold),
     )
@@ -542,7 +1611,7 @@ def _load_track_object_state(
 
     fx, fy = float(k[0, 0]), float(k[1, 1])
     cx, cy = float(k[0, 2]), float(k[1, 2])
-    mapping = module10._map_seed_points_to_mesh(
+    mapping = _map_seed_points_to_mesh(
         tracks_nt2[:, 0, :],
         verts,
         faces,
@@ -583,7 +1652,7 @@ def _load_track_object_state(
         print(f"  {slug}: PnP init {pnp_ok}/{len(pnp_info)} frames OK")
 
     if float(args.outlier_reproj_thresh_px) > 0.0 and rv_init.numel() > 0:
-        outlier_mask = module10._identify_outlier_tracks(
+        outlier_mask = _identify_outlier_tracks(
             mapping.points_cv,
             obs_uv,
             vis_tm,
@@ -626,8 +1695,71 @@ def _load_track_object_state(
     )
 
 
+def bounded_log_scale_delta(raw_value: torch.Tensor, max_log_scale_delta: float) -> torch.Tensor:
+    return math.fabs(max_log_scale_delta) * torch.tanh(raw_value.squeeze())
+
+
 def _scale_from_raw(raw_scale_delta: torch.Tensor, max_log_scale_delta: float) -> torch.Tensor:
     return torch.exp(bounded_log_scale_delta(raw_scale_delta, max_log_scale_delta))
+
+
+def _l2_loss(x: torch.Tensor, y: torch.Tensor, dim: int = -1) -> torch.Tensor:
+    return ((x - y) ** 2).sum(dim).mean()
+
+
+def simple_static_loss(x: torch.Tensor) -> torch.Tensor:
+    if x.shape[-2] < 2:
+        return x.new_tensor(0.0)
+    return _l2_loss(x[..., 1:, :], x[..., :-1, :])
+
+
+def simple_smoothness_loss(x: torch.Tensor) -> torch.Tensor:
+    if x.shape[-2] < 3:
+        return x.new_tensor(0.0)
+    return _l2_loss(x[..., 1:-1, :], 0.5 * (x[..., :-2, :] + x[..., 2:, :]))
+
+
+def rotation_static_loss(x: torch.Tensor) -> torch.Tensor:
+    if x.shape[0] < 2:
+        return x.new_tensor(0.0)
+    return simple_static_loss(roma.rotmat_to_rotvec(x))
+
+
+def rotation_smoothness_loss(x: torch.Tensor) -> torch.Tensor:
+    if x.shape[0] < 3:
+        return x.new_tensor(0.0)
+    interp = roma.rotmat_slerp(
+        x[:-2],
+        x[2:],
+        torch.tensor(0.5, device=x.device, dtype=x.dtype),
+    )
+    diff = roma.rotmat_geodesic_distance(interp, x[1:-1])
+    return (diff**2).mean()
+
+
+def _shared_object_motion_losses(
+    trans: torch.Tensor,
+    rot_mats: torch.Tensor,
+    scale: torch.Tensor,
+    is_translational: bool,
+    is_rotational: bool,
+) -> dict[str, torch.Tensor]:
+    if is_translational:
+        smooth_trans = simple_smoothness_loss(trans)
+    else:
+        smooth_trans = simple_static_loss(trans) * 10.0
+
+    if is_rotational:
+        smooth_rot = rotation_smoothness_loss(rot_mats)
+    else:
+        smooth_rot = rotation_static_loss(rot_mats) * 10.0
+
+    scale_prior = F.relu(torch.abs(scale - 1.0) - 0.1).reshape(())
+    return {
+        "smooth_trans": smooth_trans,
+        "smooth_rot": smooth_rot,
+        "scale_prior": scale_prior,
+    }
 
 
 def _full_T(
@@ -636,7 +1768,7 @@ def _full_T(
     num_frames: int,
     device: torch.device,
 ) -> torch.Tensor:
-    return module10._build_T_matrices(rotvecs, trans, num_frames, device)
+    return _build_T_matrices(rotvecs, trans, num_frames, device)
 
 
 def _tracking_object_loss(
@@ -662,7 +1794,7 @@ def _tracking_object_loss(
     pred_uv = torch.stack([pred_u, pred_v], dim=-1)
 
     finite_obs = torch.isfinite(obj.obs_uv).all(dim=-1)
-    mask_vals = module10._sample_masks_bilinear_seq(obj.masks, obj.obs_uv)
+    mask_vals = _sample_masks_bilinear_seq(obj.masks, obj.obs_uv)
     mask_gate = mask_vals >= float(args.mask_gate_threshold)
     vis_w = (
         obj.vis
@@ -675,26 +1807,22 @@ def _tracking_object_loss(
     )
     weights = vis_w * mask_gate.float() * finite_obs.float() * z_valid.float()
     r2 = ((obj.obs_uv - pred_uv) ** 2).sum(dim=-1)
-    robust = module10._huber_on_squared(r2, float(huber_delta))
+    robust = _huber_on_squared(r2, float(huber_delta))
     reproj = (weights * robust).sum() / weights.sum().clamp(min=1.0)
 
-    if obj.is_translational:
-        smooth_trans = simple_smoothness_loss(trans)
-    else:
-        smooth_trans = simple_static_loss(trans) * 10.0
-
-    if obj.is_rotational:
-        smooth_rot = rotation_smoothness_loss(rot)
-    else:
-        smooth_rot = rotation_static_loss(rot) * 10.0
-
-    scale_prior = F.relu(torch.abs(scale - 1.0) - 0.1)
+    shared = _shared_object_motion_losses(
+        trans,
+        rot,
+        scale,
+        obj.is_translational,
+        obj.is_rotational,
+    )
 
     return {
         "reproj": reproj,
-        "smooth_trans": smooth_trans,
-        "smooth_rot": smooth_rot,
-        "scale_prior": scale_prior.reshape(()),
+        "smooth_trans": shared["smooth_trans"],
+        "smooth_rot": shared["smooth_rot"],
+        "scale_prior": shared["scale_prior"],
         "r2": r2,
         "weights": weights,
         "pred_uv": pred_uv,
@@ -917,27 +2045,473 @@ def _full_delta_vars(
     return full_rot, full_trans, raw_scales
 
 
-def _stage2_args(args: argparse.Namespace) -> argparse.Namespace:
-    return argparse.Namespace(
-        tracking_weight=0.0,
-        object_cd2d_weight_start=float(args.object_cd2d_weight),
-        object_cd2d_weight_end=float(args.object_cd2d_weight),
-        object_part_cd2d_weight_start=float(args.object_part_cd2d_weight),
-        object_part_cd2d_weight_end=float(args.object_part_cd2d_weight),
-        object_smooth_trans_weight_start=float(args.object_smooth_trans_weight),
-        object_smooth_trans_weight_end=float(args.object_smooth_trans_weight),
-        object_smooth_rot_weight_start=float(args.object_smooth_rot_weight),
-        object_smooth_rot_weight_end=float(args.object_smooth_rot_weight),
-        object_scale_weight_start=float(args.object_scale_weight),
-        object_scale_weight_end=float(args.object_scale_weight),
-        intersect_weight_start=float(args.intersect_weight_start),
-        intersect_weight_end=float(args.intersect_weight_end),
-        nocontact_weight_start=float(args.nocontact_weight),
-        nocontact_weight_end=float(args.nocontact_weight),
-        contact_drift_weight_start=float(args.contact_drift_weight_start),
-        contact_drift_weight_end=float(args.contact_drift_weight_end),
-        optimize_object_scale=True,
-        max_log_scale_delta=float(args.max_log_scale_delta),
+def _linear_weight(start: float, end: float, step_id: int, n_steps: int) -> float:
+    if n_steps <= 0:
+        return float(start)
+    return float(start) + (float(end) - float(start)) * float(step_id) / float(n_steps)
+
+
+def _stage2_weights(args: argparse.Namespace, iteration: int) -> dict[str, float]:
+    total_iters = max(int(args.stage2_iters), 1)
+    return {
+        "tracking": 0.0,
+        "object_cd2d": float(args.object_cd2d_weight),
+        "object_part_cd2d": float(args.object_part_cd2d_weight),
+        "object_smooth_trans": float(args.object_smooth_trans_weight),
+        "object_smooth_rot": float(args.object_smooth_rot_weight),
+        "object_scale": float(args.object_scale_weight),
+        "intersect": _linear_weight(
+            float(args.intersect_weight_start),
+            float(args.intersect_weight_end),
+            iteration,
+            total_iters,
+        ),
+        "nocontact": float(args.nocontact_weight),
+        "contact_drift": _linear_weight(
+            float(args.contact_drift_weight_start),
+            float(args.contact_drift_weight_end),
+            iteration,
+            total_iters,
+        ),
+    }
+
+
+def get_scaled_loss_terms(result: LossResult) -> dict[str, torch.Tensor]:
+    return {
+        key: getattr(result, key) * float(result.weights[key])
+        for key in LOSS_TERM_KEYS
+    }
+
+
+def compose_T_sequence(rotvecs: torch.Tensor, trans: torch.Tensor) -> torch.Tensor:
+    R = axis_angle_to_matrix(rotvecs)
+    T = torch.zeros((rotvecs.shape[0], 4, 4), dtype=rotvecs.dtype, device=rotvecs.device)
+    T[:, :3, :3] = R
+    T[:, :3, 3] = trans
+    T[:, 3, 3] = 1.0
+    return T
+
+
+def apply_similarity_sequence(points: torch.Tensor, T_seq: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
+    scaled = points * scale
+    R = T_seq[:, :3, :3]
+    t = T_seq[:, :3, 3]
+    return torch.matmul(scaled.unsqueeze(0), R.transpose(1, 2)) + t[:, None, :]
+
+
+def apply_inverse_similarity_sequence(
+    points_seq: torch.Tensor,
+    T_seq: torch.Tensor,
+    scale: torch.Tensor,
+) -> torch.Tensor:
+    R = T_seq[:, :3, :3]
+    t = T_seq[:, :3, 3]
+    return torch.matmul(points_seq - t[:, None, :], R) / scale
+
+
+def project_points_with_intrinsics(points: torch.Tensor, intrinsics: torch.Tensor) -> torch.Tensor:
+    fx = intrinsics[0, 0]
+    fy = intrinsics[1, 1]
+    cx = intrinsics[0, 2]
+    cy = intrinsics[1, 2]
+    px = points[..., 0] * fx / points[..., 2] + cx
+    py = points[..., 1] * fy / points[..., 2] + cy
+    return torch.stack([px, py, points[..., 2]], dim=-1)
+
+
+def query_sdf(sdf_grid: SDFGrid, points: torch.Tensor) -> torch.Tensor:
+    shape = points.shape[:-1]
+    pts = points.reshape(1, -1, 3)
+    normalised = (
+        (pts - sdf_grid.bbox_min)
+        / (sdf_grid.bbox_max - sdf_grid.bbox_min)
+        * 2.0
+        - 1.0
+    )
+    grid = normalised[:, :, [2, 1, 0]].view(1, -1, 1, 1, 3)
+    sampled = F.grid_sample(
+        sdf_grid.sdf_volume,
+        grid,
+        padding_mode="border",
+        align_corners=True,
+    )
+    return sampled.reshape(*shape)
+
+
+def pcd_distance(
+    p1: torch.Tensor | None,
+    p2: torch.Tensor | None,
+    reduction: str = "min",
+    error_func=None,
+) -> torch.Tensor | None:
+    if p1 is None or p2 is None:
+        return None
+    nnres = knn_points(p1=p1, p2=p2, norm=2, K=1)
+    nndists = nnres.dists[..., 0]
+    if error_func is not None:
+        nndists = error_func(nndists)
+    if reduction == "min":
+        return torch.min(nndists, dim=1)[0]
+    if reduction == "mean":
+        return torch.mean(nndists, dim=1)
+    raise RuntimeError(f"Unknown reduction: {reduction}")
+
+
+def _get_human_device_and_num_frames(humans: dict[str, HumanData]) -> tuple[torch.device, int]:
+    if not humans:
+        raise RuntimeError("No humans loaded for optimisation.")
+    first_human = humans[next(iter(humans))]
+    return first_human.base_verts.device, first_human.base_verts.shape[0]
+
+
+def _concat_all_human_points(humans: dict[str, HumanData]) -> torch.Tensor:
+    return torch.cat([humans[slug].base_verts for slug in sorted(humans)], dim=1)
+
+
+def _build_effective_object_state(
+    delta_rotvecs: dict[str, torch.Tensor],
+    delta_trans: dict[str, torch.Tensor],
+    raw_scale_deltas: dict[str, torch.Tensor],
+    objects: dict[str, ObjectData],
+    obj_keys: list[str],
+    args: argparse.Namespace,
+    device: torch.device,
+) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor], dict[str, torch.Tensor], dict[str, torch.Tensor]]:
+    eff_T: dict[str, torch.Tensor] = {}
+    eff_rot_mats: dict[str, torch.Tensor] = {}
+    eff_trans: dict[str, torch.Tensor] = {}
+    eff_scales: dict[str, torch.Tensor] = {}
+    for slug in obj_keys:
+        delta_T = compose_T_sequence(delta_rotvecs[slug], delta_trans[slug])
+        T_eff = torch.matmul(objects[slug].tracked_poses_torch, delta_T)
+        eff_T[slug] = T_eff
+        eff_rot_mats[slug] = T_eff[:, :3, :3]
+        eff_trans[slug] = T_eff[:, :3, 3]
+        eff_scales[slug] = _scale_from_raw(raw_scale_deltas[slug], float(args.max_log_scale_delta))
+    return eff_T, eff_rot_mats, eff_trans, eff_scales
+
+
+def _get_reduction(nodes: tuple) -> str:
+    for node in nodes:
+        if node.is_human and node.part_name.split(" ")[-1] in ("hand", "foot", "hips"):
+            return "mean"
+    return "min"
+
+
+def _has_interaction(
+    interaction_edges: list[InteractionEdge],
+    human_name: str,
+    human_part: str,
+    object_name: str,
+    object_part: str,
+) -> bool:
+    for edge in interaction_edges:
+        nodes = (edge.node_a, edge.node_b)
+        has_human = any(
+            node.is_human and node.entity_name == human_name and node.part_name == human_part
+            for node in nodes
+        )
+        has_object = any(
+            (not node.is_human)
+            and node.entity_name == object_name
+            and node.part_name == object_part
+            for node in nodes
+        )
+        if has_human and has_object:
+            return True
+    return False
+
+
+def _build_human_part_getter(
+    humans: dict[str, HumanData],
+    device: torch.device,
+    prefer_contact_regions: bool = True,
+):
+    human_part_cache: dict[tuple[str, ...], torch.Tensor | None] = {}
+
+    def get_human_part_points(human_slug: str | None, part_name: str | list[str]) -> torch.Tensor | None:
+        if human_slug is None or human_slug not in humans:
+            return None
+        human_data = humans[human_slug]
+        if isinstance(part_name, str):
+            key = (human_slug, part_name)
+            if key not in human_part_cache:
+                if prefer_contact_regions and part_name in human_data.contact_part_points:
+                    human_part_cache[key] = human_data.contact_part_points[part_name]
+                else:
+                    human_part_cache[key] = human_data.part_points.get(part_name)
+            return human_part_cache[key]
+
+        key = tuple([human_slug] + sorted(part_name))
+        if key not in human_part_cache:
+            part_ids = []
+            for name in part_name:
+                if prefer_contact_regions and name in human_data.contact_part_vert_ids:
+                    part_ids.append(human_data.contact_part_vert_ids[name])
+                elif name in human_data.part_vert_ids:
+                    part_ids.append(human_data.part_vert_ids[name])
+            if not part_ids:
+                human_part_cache[key] = None
+            else:
+                merged = np.unique(np.concatenate(part_ids, axis=0))
+                index = torch.from_numpy(merged.astype(np.int64)).to(device)
+                human_part_cache[key] = human_data.base_verts.index_select(1, index)
+        return human_part_cache[key]
+
+    return get_human_part_points
+
+
+def _one_way_2d_chamfer_diagnostic(
+    observed_points,
+    model_points_world: torch.Tensor,
+    k: torch.Tensor,
+) -> tuple[torch.Tensor | None, torch.Tensor]:
+    num_frames = model_points_world.shape[0]
+    per_frame = torch.zeros(num_frames, device=model_points_world.device)
+    if observed_points is None:
+        return None, per_frame
+    projected = project_points_with_intrinsics(model_points_world, k)
+    frame_losses: list[torch.Tensor] = []
+    for frame_idx in range(num_frames):
+        obs_len = int(observed_points.lengths[frame_idx].item())
+        if obs_len == 0:
+            continue
+        obs_pts = observed_points.points[frame_idx, :obs_len, :].unsqueeze(0)
+        model_pts = projected[frame_idx, :, :2].unsqueeze(0)
+        cdist = pcd_distance(obs_pts, model_pts, reduction="mean")
+        if cdist is None:
+            continue
+        frame_loss = cdist.squeeze(0)
+        per_frame[frame_idx] = frame_loss
+        frame_losses.append(frame_loss)
+    if not frame_losses:
+        return None, per_frame
+    return torch.stack(frame_losses, dim=0).mean(), per_frame
+
+
+def _compute_intersect_diagnostic(
+    world_points: torch.Tensor,
+    obj_data: ObjectData,
+    obj_T_seq: torch.Tensor,
+    obj_scale: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    num_frames = world_points.shape[0]
+    per_frame = torch.zeros(num_frames, device=world_points.device)
+    if obj_data.sdf_grid is None:
+        return world_points.new_tensor(0.0), per_frame
+    pts_canon = apply_inverse_similarity_sequence(world_points, obj_T_seq, obj_scale)
+    sdf_vals = query_sdf(obj_data.sdf_grid, pts_canon)
+    intersects = F.relu(-sdf_vals)
+    icount = (intersects > 0).sum()
+    if icount.item() == 0:
+        return world_points.new_tensor(0.0), per_frame
+    flat = intersects.reshape(num_frames, -1)
+    frame_counts = (flat > 0).sum(dim=1)
+    valid = frame_counts > 0
+    per_frame[valid] = flat[valid].sum(dim=1) / frame_counts[valid].to(flat.dtype)
+    return intersects.sum() / icount, per_frame
+
+
+def _compute_contact_losses(
+    context: ProblemContext,
+    args: argparse.Namespace,
+    iteration: int,
+    shared_losses: TrackingLossBundle,
+) -> LossResult:
+    device, _ = _get_human_device_and_num_frames(context.humans)
+    weights = _stage2_weights(args, iteration)
+    eff_T = {
+        slug: shared_losses.per_object[slug]["T_mats"]
+        for slug in context.obj_keys
+    }
+    eff_scales = {
+        slug: shared_losses.per_object[slug]["scale"]
+        for slug in context.obj_keys
+    }
+
+    object_points_cache: dict[tuple[str, str | None], torch.Tensor] = {}
+
+    def get_object_points(slug: str, part_name: str | None = None) -> torch.Tensor:
+        key = (slug, part_name)
+        if key not in object_points_cache:
+            od = context.objects[slug]
+            base_points = od.part_sampled_points.get(part_name, od.sampled_points) if part_name else od.sampled_points
+            object_points_cache[key] = apply_similarity_sequence(base_points, eff_T[slug], eff_scales[slug])
+        return object_points_cache[key]
+
+    object_cd2d_values: list[torch.Tensor] = []
+    for slug in context.obj_keys:
+        scalar, _ = _one_way_2d_chamfer_diagnostic(
+            context.objects[slug].mask_points_2d,
+            get_object_points(slug),
+            context.k_torch,
+        )
+        if scalar is not None:
+            object_cd2d_values.append(scalar)
+    loss_object_cd2d = (
+        torch.stack(object_cd2d_values, dim=0).mean()
+        if object_cd2d_values
+        else torch.tensor(0.0, device=device)
+    )
+
+    object_part_cd2d_values: list[torch.Tensor] = []
+    for slug in context.obj_keys:
+        object_frame_values: list[torch.Tensor] = []
+        for part_name, packed_points in context.objects[slug].part_mask_points_2d.items():
+            scalar, _ = _one_way_2d_chamfer_diagnostic(
+                packed_points,
+                get_object_points(slug, part_name),
+                context.k_torch,
+            )
+            if scalar is not None:
+                object_frame_values.append(scalar)
+        if object_frame_values:
+            object_part_cd2d_values.append(torch.stack(object_frame_values, dim=0).mean())
+    loss_object_part_cd2d = (
+        torch.stack(object_part_cd2d_values, dim=0).mean()
+        if object_part_cd2d_values
+        else torch.tensor(0.0, device=device)
+    )
+
+    all_human_points = _concat_all_human_points(context.humans)
+    intersect_values: list[torch.Tensor] = []
+    for slug in context.obj_keys:
+        scalar, _ = _compute_intersect_diagnostic(
+            all_human_points,
+            context.objects[slug],
+            eff_T[slug],
+            eff_scales[slug],
+        )
+        if scalar.item() > 0.0:
+            intersect_values.append(scalar)
+    loss_intersect = (
+        torch.stack(intersect_values, dim=0).mean()
+        if intersect_values
+        else torch.tensor(0.0, device=device)
+    )
+
+    get_human_part_points = _build_human_part_getter(context.humans, device)
+
+    def to_canonical(slug: str, points_world: torch.Tensor) -> torch.Tensor:
+        return apply_inverse_similarity_sequence(points_world, eff_T[slug], eff_scales[slug])
+
+    nocontact_values: list[torch.Tensor] = []
+    contact_drift_values: list[torch.Tensor] = []
+    visited: set[tuple[str, str, str, str]] = set()
+    for edge in context.interaction_edges:
+        nodes = [edge.node_a, edge.node_b]
+        has_hpart = nodes[0].is_human or nodes[1].is_human
+        if has_hpart and not nodes[0].is_human:
+            nodes = [nodes[1], nodes[0]]
+        reduction = _get_reduction((nodes[0], nodes[1]))
+        dedup_key = (nodes[0].entity_name, nodes[0].part_name, nodes[1].entity_name, nodes[1].part_name)
+        if dedup_key in visited:
+            continue
+
+        pdists = None
+        pcano = None
+        if has_hpart:
+            human_node = nodes[0]
+            object_node = nodes[1]
+            hname = human_node.entity_name
+            hpart = human_node.part_name.split(" ")[-1]
+            oname = object_node.entity_name
+            opart = object_node.part_name
+            object_points = get_object_points(object_node.object_slug, object_node.resolved_part_name)
+            if hpart in ("head", "hips"):
+                visited.add((hname, hpart, oname, opart))
+                visited.add((oname, opart, hname, hpart))
+                human_points = get_human_part_points(human_node.human_slug, hpart)
+                pdists = pcd_distance(human_points, object_points, reduction=reduction)
+                if human_points is not None:
+                    pcano = to_canonical(object_node.object_slug, human_points)
+            else:
+                visited.add((hname, f"left {hpart}", oname, opart))
+                visited.add((hname, f"right {hpart}", oname, opart))
+                visited.add((oname, opart, hname, f"left {hpart}"))
+                visited.add((oname, opart, hname, f"right {hpart}"))
+                has_left = _has_interaction(context.interaction_edges, hname, f"left {hpart}", oname, opart)
+                has_right = _has_interaction(context.interaction_edges, hname, f"right {hpart}", oname, opart)
+                if has_left and has_right:
+                    human_points = get_human_part_points(human_node.human_slug, [f"left {hpart}", f"right {hpart}"])
+                    pdists = pcd_distance(human_points, object_points, reduction=reduction)
+                    if human_points is not None:
+                        pcano = to_canonical(object_node.object_slug, human_points)
+                else:
+                    human_points_left = get_human_part_points(human_node.human_slug, f"left {hpart}")
+                    human_points_right = get_human_part_points(human_node.human_slug, f"right {hpart}")
+                    pdists_left = pcd_distance(human_points_left, object_points, reduction=reduction)
+                    pdists_right = pcd_distance(human_points_right, object_points, reduction=reduction)
+                    if pdists_left is None or pdists_right is None:
+                        continue
+                    if edge.is_continuous:
+                        sel_left = pdists_left.mean().item() < pdists_right.mean().item()
+                    else:
+                        sel_left = pdists_left.min().item() < pdists_right.min().item()
+                    if sel_left:
+                        pdists = pdists_left
+                        pcano = to_canonical(object_node.object_slug, human_points_left)
+                    else:
+                        pdists = pdists_right
+                        pcano = to_canonical(object_node.object_slug, human_points_right)
+        else:
+            visited.add((nodes[0].entity_name, nodes[0].part_name, nodes[1].entity_name, nodes[1].part_name))
+            visited.add((nodes[1].entity_name, nodes[1].part_name, nodes[0].entity_name, nodes[0].part_name))
+            part_pcds = [
+                get_object_points(nodes[0].object_slug, nodes[0].resolved_part_name),
+                get_object_points(nodes[1].object_slug, nodes[1].resolved_part_name),
+            ]
+            part_diags = [
+                torch.linalg.norm(ppcd[0, :, :].max(dim=0)[0] - ppcd[0, :, :].min(dim=0)[0]).item()
+                for ppcd in part_pcds
+            ]
+            if part_diags[0] < part_diags[1]:
+                pdists = pcd_distance(part_pcds[0], part_pcds[1], reduction=reduction)
+            else:
+                pdists = pcd_distance(part_pcds[1], part_pcds[0], reduction=reduction)
+            pcano = to_canonical(nodes[0].object_slug, part_pcds[1])
+
+        if pdists is None or pcano is None:
+            continue
+        nocontact_values.append(pdists.mean() if edge.is_continuous else pdists.min())
+        pcano_seq = pcano.permute(1, 0, 2).contiguous()
+        contact_drift_values.append(
+            simple_static_loss(pcano_seq) if edge.is_rel_static else simple_smoothness_loss(pcano_seq)
+        )
+
+    loss_nocontact = (
+        torch.stack(nocontact_values, dim=0).mean()
+        if nocontact_values
+        else torch.tensor(0.0, device=device)
+    )
+    loss_contact_drift = (
+        torch.stack(contact_drift_values, dim=0).mean()
+        if contact_drift_values
+        else torch.tensor(0.0, device=device)
+    )
+    zero = torch.tensor(0.0, device=device)
+    total = (
+        loss_object_cd2d * weights["object_cd2d"]
+        + loss_object_part_cd2d * weights["object_part_cd2d"]
+        + shared_losses.smooth_trans * weights["object_smooth_trans"]
+        + shared_losses.smooth_rot * weights["object_smooth_rot"]
+        + shared_losses.scale_prior * weights["object_scale"]
+        + loss_intersect * weights["intersect"]
+        + loss_nocontact * weights["nocontact"]
+        + loss_contact_drift * weights["contact_drift"]
+    )
+    return LossResult(
+        total=total,
+        tracking=zero,
+        object_cd2d=loss_object_cd2d,
+        object_part_cd2d=loss_object_part_cd2d,
+        object_smooth_trans=shared_losses.smooth_trans,
+        object_smooth_rot=shared_losses.smooth_rot,
+        object_scale=shared_losses.scale_prior,
+        intersect=loss_intersect,
+        nocontact=loss_nocontact,
+        contact_drift=loss_contact_drift,
+        weights=weights,
     )
 
 
@@ -953,22 +2527,7 @@ def _compute_stage2_loss(
         context.k,
         float(args.huber_delta_px),
     )
-    full_rot, full_trans, raw_scales = _full_delta_vars(objects)
-    contact_result = compute_all_losses(
-        full_rot,
-        full_trans,
-        raw_scales,
-        context.objects,
-        context.humans,
-        context.interaction_edges,
-        context.obj_keys,
-        _stage2_args(args),
-        iteration=iteration,
-        total_iters=max(int(args.stage2_iters), 1),
-        k=context.k_torch,
-        width=context.width,
-        height=context.height,
-    )
+    contact_result = _compute_contact_losses(context, args, iteration, track_bundle)
     total = float(args.lambda_track_reproj) * track_bundle.track_reproj
     total = total + contact_result.total
     return Stage2LossBundle(
@@ -1003,6 +2562,82 @@ def _stage2_row(iteration: int, bundle: Stage2LossBundle, args: argparse.Namespa
         row[f"{key}_raw"] = float(getattr(bundle.contact_result, key).detach().item())
         row[f"{key}_scaled"] = float(scaled_terms[key].detach().item())
     return row
+
+
+def compute_final_loss_diagnostics(
+    delta_rotvecs: dict[str, torch.Tensor],
+    delta_trans: dict[str, torch.Tensor],
+    raw_scale_deltas: dict[str, torch.Tensor],
+    objects: dict[str, ObjectData],
+    humans: dict[str, HumanData],
+    interaction_edges: list[InteractionEdge],
+    obj_keys: list[str],
+    args: argparse.Namespace,
+    iteration: int,
+    total_iters: int,
+    k: torch.Tensor,
+    width: int,
+    height: int,
+) -> DiagnosticLossResult:
+    del total_iters, width, height
+    device, num_frames = _get_human_device_and_num_frames(humans)
+    per_object: dict[str, dict[str, torch.Tensor]] = {}
+    smooth_trans_values: list[torch.Tensor] = []
+    smooth_rot_values: list[torch.Tensor] = []
+    scale_values: list[torch.Tensor] = []
+    for slug in obj_keys:
+        T_mats = compose_T_sequence(delta_rotvecs[slug], delta_trans[slug])
+        scale = _scale_from_raw(raw_scale_deltas[slug], float(args.max_log_scale_delta)).reshape(())
+        shared = _shared_object_motion_losses(
+            T_mats[:, :3, 3],
+            T_mats[:, :3, :3],
+            scale,
+            objects[slug].state.is_translational,
+            objects[slug].state.is_rotational,
+        )
+        per_object[slug] = {"T_mats": T_mats, "scale": scale, **shared}
+        smooth_trans_values.append(shared["smooth_trans"])
+        smooth_rot_values.append(shared["smooth_rot"])
+        scale_values.append(shared["scale_prior"])
+
+    zero = torch.tensor(0.0, device=device)
+    shared_bundle = TrackingLossBundle(
+        total=zero,
+        track_reproj=zero,
+        smooth_trans=torch.stack(smooth_trans_values).mean() if smooth_trans_values else zero,
+        smooth_rot=torch.stack(smooth_rot_values).mean() if smooth_rot_values else zero,
+        scale_prior=torch.stack(scale_values).mean() if scale_values else zero,
+        per_object=per_object,
+    )
+    context = ProblemContext(
+        dirs={},
+        out_dir=Path("."),
+        pag_path=Path("."),
+        smpl_seg_path=Path("."),
+        intr_path=Path("."),
+        device=device,
+        k=np.eye(3, dtype=np.float32),
+        k_torch=k,
+        width=0,
+        height=0,
+        num_frames=num_frames,
+        pag=PAG([], [], [], []),
+        humans=humans,
+        human_keys=list(humans),
+        objects=objects,
+        obj_keys=obj_keys,
+        interaction_edges=interaction_edges,
+    )
+    sequence = _compute_contact_losses(context, args, iteration, shared_bundle)
+    per_frame_raw = {
+        key: torch.zeros(num_frames, device=device)
+        for key in FRAME_DIAGNOSTIC_TERM_KEYS
+    }
+    return DiagnosticLossResult(
+        sequence=sequence,
+        per_frame_raw=per_frame_raw,
+        global_raw={"object_scale": sequence.object_scale.detach().clone()},
+    )
 
 
 def _run_stage2(
@@ -1526,7 +3161,7 @@ def _save_outputs(
                 context.humans,
                 context.interaction_edges,
                 context.obj_keys,
-                _stage2_args(args),
+                args,
                 iteration=max(int(args.stage2_iters), 1),
                 total_iters=max(int(args.stage2_iters), 1),
                 k=context.k_torch,
@@ -1549,7 +3184,7 @@ def _save_outputs(
         "Stage 2 Loss",
     )
 
-    frames_dir = track_utils._resolve_frames_dir(dirs["object_tracks"], dirs["seg_vid"])
+    frames_dir = _resolve_frames_dir(dirs["object_tracks"], dirs["seg_vid"])
     frame_paths = list_images(frames_dir) if frames_dir and frames_dir.exists() else []
     if frame_paths:
         print("  Rendering joint overlay...")
@@ -1745,7 +3380,7 @@ def main() -> None:
         if not path.exists():
             raise FileNotFoundError(f"{label} dir not found: {path}")
 
-    k, intr_path = track_utils._load_intrinsics_from_alignment_summary(dirs["aligned"])
+    k, intr_path = _load_intrinsics_from_alignment_summary(dirs["aligned"])
     transforms_by_slug = _load_alignment_transforms(dirs["aligned"])
     body_seg, contact_seg = _load_smpl_body_and_contact_seg(smpl_seg_path)
     pag = _parse_pag(pag_path)

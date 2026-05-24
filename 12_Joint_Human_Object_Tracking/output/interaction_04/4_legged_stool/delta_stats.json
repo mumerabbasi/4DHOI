@@ -1,0 +1,16 @@
+{
+  "slug": "4_legged_stool",
+  "state_type": "absolute_object_trajectory_from_module12",
+  "frame0_fixed_identity": true,
+  "max_rot_deg": 0.5704187128611192,
+  "mean_rot_deg": 0.4948870659245332,
+  "max_trans_m": 0.03776979446411133,
+  "mean_trans_m": 0.03251209110021591,
+  "global_scale": 0.9672881960868835,
+  "num_input_tracks": 5000,
+  "num_valid_seed_tracks": 3019,
+  "num_dropped_invalid_face": 1981,
+  "num_dropped_outside_mask0": 0,
+  "num_dropped_nonfinite_seed": 0,
+  "active_track_frame_pairs": 178999
+}

@@ -1,0 +1,16 @@
+{
+  "slug": "harp",
+  "state_type": "absolute_object_trajectory_from_module12",
+  "frame0_fixed_identity": true,
+  "max_rot_deg": 1.1216128978078854,
+  "mean_rot_deg": 0.8924132536859725,
+  "max_trans_m": 0.06248849630355835,
+  "mean_trans_m": 0.05060620233416557,
+  "global_scale": 0.967443585395813,
+  "num_input_tracks": 5000,
+  "num_valid_seed_tracks": 4025,
+  "num_dropped_invalid_face": 975,
+  "num_dropped_outside_mask0": 0,
+  "num_dropped_nonfinite_seed": 0,
+  "active_track_frame_pairs": 237685
+}
