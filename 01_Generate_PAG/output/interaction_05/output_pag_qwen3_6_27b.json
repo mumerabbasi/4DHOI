@@ -26,7 +26,7 @@
     {
       "nodes": [
         "bicycle, handlebar",
-        "person 1, right hand"
+        "person 1, left hand"
       ],
       "is_rel_static": true,
       "is_continuous": true
@@ -58,13 +58,13 @@
     {
       "nodes": [
         "umbrella, shaft",
-        "person 1, left hand"
+        "person 1, right hand"
       ],
       "is_rel_static": true,
       "is_continuous": true
     }
   ],
-  "interaction": "A person rides a bicycle at an extremely slow pace to the left while holding an open umbrella above their head. Their right hand grips the handlebar steadily, and their left hand holds the umbrella shaft firmly. The hips rest continuously on the seat, while both feet remain securely on the pedals. The free arms swing gently to maintain balance, and the legs pedal in a smooth, slow rhythm. The rider has short brown hair and a calm facial expression. They wear a light blue jacket, dark trousers, and gray sneakers. The bicycle features a sleek black frame. The umbrella has a dark canopy. The scene unfolds in a clean, spacious indoor area with white walls and a polished wooden floor.",
+  "interaction": "A person rides a bicycle at an extremely slow pace to the left while holding an open umbrella above their head. Their left hand grips the handlebar steadily, and their right hand holds the umbrella shaft firmly. The hips rest continuously on the seat, while both feet remain securely on the pedals. The free arms swing gently to maintain balance, and the legs pedal in a smooth, slow rhythm. The rider has short brown hair and a calm facial expression. They wear a light blue jacket, dark trousers, and gray sneakers. The bicycle features a sleek black frame. The umbrella has a dark canopy. The scene unfolds in a clean, spacious indoor area with white walls and a polished wooden floor.",
   "object states": [
     {
       "name": "bicycle",
