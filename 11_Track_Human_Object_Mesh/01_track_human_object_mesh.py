@@ -131,7 +131,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--optimize_object_scale",
         action=argparse.BooleanOptionalAction,
-        default=True,
+        default=False,
         help="Optimise one global uniform scale per object.",
     )
     p.add_argument(
