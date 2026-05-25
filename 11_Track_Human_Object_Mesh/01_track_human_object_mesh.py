@@ -82,7 +82,12 @@ def parse_args() -> argparse.Namespace:
         help="Root output directory.",
     )
 
-    p.add_argument("--device", type=str, default="cuda:0")
+    p.add_argument(
+        "--device",
+        type=str,
+        default="cuda:0",
+        help="PyTorch device to use, e.g. cuda:0, cuda:1, or cpu.",
+    )
     p.add_argument(
         "--sdf_resolution",
         type=int,
@@ -160,8 +165,8 @@ def parse_args() -> argparse.Namespace:
             "objects (non-translational/non-rotational)."
         ),
     )
-    p.add_argument("--human_pose_weight_start", type=float, default=15)
-    p.add_argument("--human_pose_weight_end", type=float, default=15)
+    p.add_argument("--human_pose_weight_start", type=float, default=50)
+    p.add_argument("--human_pose_weight_end", type=float, default=100)
     p.add_argument("--human_pose_smooth_weight_start", type=float, default=100)
     p.add_argument("--human_pose_smooth_weight_end", type=float, default=100)
     p.add_argument("--object_scale_weight_start", type=float, default=0)
@@ -210,8 +215,18 @@ def main() -> None:
     from optimizer import run_joint_optimization
     from outputs import save_run_outputs
 
-    script_dir = Path(__file__).resolve().parent
     device = torch.device(args.device)
+    if device.type == "cuda":
+        if not torch.cuda.is_available():
+            raise RuntimeError(f"Requested {args.device}, but CUDA is not available.")
+        if device.index is not None and device.index >= torch.cuda.device_count():
+            raise ValueError(
+                f"Requested {args.device}, but only "
+                f"{torch.cuda.device_count()} CUDA device(s) are available."
+            )
+        torch.cuda.set_device(device)
+
+    script_dir = Path(__file__).resolve().parent
     context = load_problem_context(args, script_dir, device)
     result = run_joint_optimization(context, args)
     save_run_outputs(context, result, args)
