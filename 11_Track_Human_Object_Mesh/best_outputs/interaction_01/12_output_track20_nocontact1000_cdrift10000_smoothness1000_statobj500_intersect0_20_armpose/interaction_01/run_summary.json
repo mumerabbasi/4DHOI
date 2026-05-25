@@ -6,9 +6,9 @@
   "num_humans": 1,
   "num_objects": 2,
   "num_edges": 2,
-  "best_total_loss": 0.3381788432598114,
-  "optimisation_time_s": 516.6170832458884,
-  "best_iter": 9802,
+  "best_total_loss": 0.32549065351486206,
+  "optimisation_time_s": 508.2544542066753,
+  "best_iter": 8950,
   "inputs": {
     "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01",
     "human_motion_dir": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/output/interaction_01",
@@ -46,16 +46,12 @@
       "start": 100.0,
       "end": 100.0
     },
-    "object_scale": {
-      "start": 0.0,
-      "end": 0.0
-    },
     "object_intersect": {
       "start": 0.0,
       "end": 0.0
     },
     "intersect": {
-      "start": 20.0,
+      "start": 0.0,
       "end": 20.0
     },
     "nocontact": {
@@ -72,8 +68,6 @@
     "adam_lr": 0.0001,
     "sdf_resolution": 128,
     "optimize_arm_pose": true,
-    "optimize_object_scale": false,
-    "max_object_scale_delta": 0.1,
     "active_human_pose_chains": {
       "person_1": [
         "right"
@@ -88,13 +82,13 @@
   "debug_outputs": {
     "frame_loss_semantics": "diagnostic_local",
     "csv": {
-      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_01/debug/csv/iter_metrics.csv",
-      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_01/debug/csv/frame_loss_metrics.csv",
-      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_01/debug/csv/final_loss_summary.csv"
+      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/12_output_track20_nocontact1000_cdrift10000_smoothness1000_statobj500_intersect0_20_objintersect0_armpose/interaction_01/debug/csv/iter_metrics.csv",
+      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/12_output_track20_nocontact1000_cdrift10000_smoothness1000_statobj500_intersect0_20_objintersect0_armpose/interaction_01/debug/csv/frame_loss_metrics.csv",
+      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/12_output_track20_nocontact1000_cdrift10000_smoothness1000_statobj500_intersect0_20_objintersect0_armpose/interaction_01/debug/csv/final_loss_summary.csv"
     },
     "plots": {
-      "iter_dir": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_01/debug/plots/iter",
-      "frame_dir": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_01/debug/plots/frame"
+      "iter_dir": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/12_output_track20_nocontact1000_cdrift10000_smoothness1000_statobj500_intersect0_20_objintersect0_armpose/interaction_01/debug/plots/iter",
+      "frame_dir": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/12_output_track20_nocontact1000_cdrift10000_smoothness1000_statobj500_intersect0_20_objintersect0_armpose/interaction_01/debug/plots/frame"
     },
     "iter_columns": [
       "iter",
@@ -120,9 +114,6 @@
       "human_pose_smooth_weight",
       "human_pose_smooth_raw",
       "human_pose_smooth_scaled",
-      "object_scale_weight",
-      "object_scale_raw",
-      "object_scale_scaled",
       "object_intersect_weight",
       "object_intersect_raw",
       "object_intersect_scaled",
@@ -194,9 +185,6 @@
       "human_pose_smooth_weight",
       "human_pose_smooth_raw",
       "human_pose_smooth_scaled",
-      "object_scale_weight",
-      "object_scale_raw",
-      "object_scale_scaled",
       "object_intersect_weight",
       "object_intersect_raw",
       "object_intersect_scaled",
@@ -212,8 +200,7 @@
     ],
     "global_only_terms": [
       "human_pose",
-      "human_pose_smooth",
-      "object_scale"
+      "human_pose_smooth"
     ]
   },
   "objects": {
@@ -262,8 +249,8 @@
         18,
         20
       ],
-      "max_delta_pose_deg": 6.777728194545175,
-      "mean_delta_pose_deg": 2.2266525550381466,
+      "max_delta_pose_deg": 5.047323247097717,
+      "mean_delta_pose_deg": 2.1738411054887847,
       "global_scale": 1.0
     }
   },
@@ -283,6 +270,6 @@
   ],
   "conventions": {
     "coordinate_system": "OpenCV (X-right, Y-down, Z-forward)",
-    "T_4x4": "rigid object transform; true object transform also uses global_scale"
+    "T_4x4": "rigid object transform; global_scale is fixed to 1.0"
   }
 }

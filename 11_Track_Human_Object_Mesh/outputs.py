@@ -218,9 +218,21 @@ def _scheduled_weights_summary(args: argparse.Namespace) -> dict[str, dict[str, 
             "start": float(args.object_smooth_rot_weight_start),
             "end": float(args.object_smooth_rot_weight_end),
         },
+        "human_pose": {
+            "start": float(args.human_pose_weight_start),
+            "end": float(args.human_pose_weight_end),
+        },
+        "human_pose_smooth": {
+            "start": float(args.human_pose_smooth_weight_start),
+            "end": float(args.human_pose_smooth_weight_end),
+        },
         "object_scale": {
             "start": float(args.object_scale_weight_start),
             "end": float(args.object_scale_weight_end),
+        },
+        "object_intersect": {
+            "start": float(args.object_intersect_weight_start),
+            "end": float(args.object_intersect_weight_end),
         },
         "intersect": {
             "start": float(args.intersect_weight_start),
@@ -280,13 +292,28 @@ def save_run_outputs(
             human_mesh_dir,
         )
         human_stats = {
-            "status": "fixed_copy",
+            "status": "arm_pose_optimized"
+            if result.human_delta_stats[human_slug]["active_chains"]
+            else "fixed_copy",
             "source": "module_06_smplx_with_module_09_transform",
             "name": context.humans[human_slug].name,
             "slug": human_slug,
             "num_frames": int(result.final_human_verts_np_by_slug[human_slug].shape[0]),
             "num_verts": int(result.final_human_verts_np_by_slug[human_slug].shape[1]),
             "num_faces": int(context.humans[human_slug].faces.shape[0]),
+            "active_chains": result.human_delta_stats[human_slug][
+                "active_chains"
+            ],
+            "active_body_pose_ids": result.human_delta_stats[human_slug][
+                "active_body_pose_ids"
+            ],
+            "max_delta_pose_deg": result.human_delta_stats[human_slug][
+                "max_delta_pose_deg"
+            ],
+            "mean_delta_pose_deg": result.human_delta_stats[human_slug][
+                "mean_delta_pose_deg"
+            ],
+            "global_scale": 1.0,
         }
         with (human_dir / "fixed_input_stats.json").open(
             "w",
@@ -367,8 +394,13 @@ def save_run_outputs(
             "adam_iters": args.adam_iters,
             "adam_lr": args.adam_lr,
             "sdf_resolution": args.sdf_resolution,
+            "optimize_arm_pose": bool(args.optimize_arm_pose),
             "optimize_object_scale": bool(args.optimize_object_scale),
-            "max_log_scale_delta": args.max_log_scale_delta,
+            "max_object_scale_delta": float(args.max_object_scale_delta),
+            "active_human_pose_chains": result.active_human_pose_chains,
+            "static_object_smooth_multiplier": float(
+                getattr(args, "static_object_smooth_multiplier", 10.0)
+            ),
             "early_stop_start": args.early_stop_start,
             "early_stop_patience": args.early_stop_patience,
             "early_stop_rel_improve": args.early_stop_rel_improve,
@@ -432,7 +464,7 @@ def save_run_outputs(
         "conventions": {
             "coordinate_system": "OpenCV (X-right, Y-down, Z-forward)",
             "T_4x4": (
-                "rigid component only; true object transform also uses "
+                "rigid object transform; true object transform also uses "
                 "global_scale"
             ),
         },
@@ -454,5 +486,10 @@ def save_run_outputs(
     for slug in context.obj_keys:
         print(f"  {slug}:  transform_refined.json, meshes/")
     for human_slug in context.human_keys:
-        print(f"  {human_slug}:  meshes/ (fixed copy)")
+        label = (
+            "arm pose optimized"
+            if result.human_delta_stats[human_slug]["active_chains"]
+            else "fixed copy"
+        )
+        print(f"  {human_slug}:  meshes/ ({label})")
     print(f"{'=' * 60}")

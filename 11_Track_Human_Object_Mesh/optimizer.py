@@ -16,9 +16,58 @@ from debug_utils import (
     build_loss_row,
     format_loss_log,
 )
-from geometry import bounded_log_scale_delta, compose_T_sequence
-from losses import compute_all_losses, compute_final_loss_diagnostics
+from geometry import bounded_object_scale, compose_T_sequence
+from losses import (
+    LEFT_ARM_BODY_POSE_IDS,
+    RIGHT_ARM_BODY_POSE_IDS,
+    _build_effective_human_verts,
+    compute_all_losses,
+    compute_final_loss_diagnostics,
+)
 from models import OptimizationResult, ProblemContext
+
+
+ARM_CHAIN_NAMES = {
+    "left": ["left_collar", "left_shoulder", "left_elbow", "left_wrist"],
+    "right": ["right_collar", "right_shoulder", "right_elbow", "right_wrist"],
+}
+ARM_CHAIN_POSE_IDS = {
+    "left": list(LEFT_ARM_BODY_POSE_IDS),
+    "right": list(RIGHT_ARM_BODY_POSE_IDS),
+}
+ARM_NODE_TOKENS = ("hand", "arm", "wrist", "elbow", "shoulder")
+
+
+def _infer_active_arm_pose_chains(
+    context: ProblemContext,
+    args: argparse.Namespace,
+) -> tuple[dict[str, list[int]], dict[str, list[str]]]:
+    active_ids = {slug: [] for slug in context.human_keys}
+    active_chains = {slug: [] for slug in context.human_keys}
+    if not getattr(args, "optimize_arm_pose", True):
+        return active_ids, active_chains
+
+    for edge in context.interaction_edges:
+        for node in (edge.node_a, edge.node_b):
+            if not node.is_human or node.human_slug not in active_ids:
+                continue
+            text = f"{node.raw_node} {node.part_name}".lower()
+            if not any(token in text for token in ARM_NODE_TOKENS):
+                continue
+            side = None
+            if "left" in text:
+                side = "left"
+            elif "right" in text:
+                side = "right"
+            if side is None or side in active_chains[node.human_slug]:
+                continue
+            active_chains[node.human_slug].append(side)
+            active_ids[node.human_slug].extend(ARM_CHAIN_POSE_IDS[side])
+
+    for slug in active_ids:
+        active_ids[slug] = sorted(set(active_ids[slug]))
+        active_chains[slug] = sorted(active_chains[slug])
+    return active_ids, active_chains
 
 
 def _print_optimization_header(
@@ -34,8 +83,8 @@ def _print_optimization_header(
     print(f"  objects:  {', '.join(context.obj_keys)}")
     print(f"  edges:    {len(context.interaction_edges)}")
     print(
-        f"  humans:   fixed  object_scale: "
-        f"{'on' if args.optimize_object_scale else 'off'}"
+        f"  humans:   arm_pose {'on' if args.optimize_arm_pose else 'off'}  "
+        f"object_scale: {'on' if args.optimize_object_scale else 'fixed'}"
     )
     print(
         f"  K: fx={context.k[0, 0]:.1f}  fy={context.k[1, 1]:.1f}  "
@@ -51,7 +100,10 @@ def _print_optimization_header(
     )
     print(
         "             "
-        f"scale=({args.object_scale_weight_start},{args.object_scale_weight_end})"
+        f"human_pose=({args.human_pose_weight_start},{args.human_pose_weight_end})"
+        f" human_pose_smooth=({args.human_pose_smooth_weight_start},{args.human_pose_smooth_weight_end})"
+        f" object_scale=({args.object_scale_weight_start},{args.object_scale_weight_end})"
+        f" object_intersect=({args.object_intersect_weight_start},{args.object_intersect_weight_end})"
         f" intersect=({args.intersect_weight_start},{args.intersect_weight_end})"
         f" nocontact=({args.nocontact_weight_start},{args.nocontact_weight_end})"
         f" drift=({args.contact_drift_weight_start},{args.contact_drift_weight_end})"
@@ -70,7 +122,22 @@ def run_joint_optimization(
     delta_rotvecs: dict[str, torch.Tensor] = {}
     delta_trans: dict[str, torch.Tensor] = {}
     raw_scale_deltas: dict[str, torch.Tensor] = {}
+    delta_human_pose: dict[str, torch.Tensor] = {}
     params: list[torch.Tensor] = []
+    active_pose_ids, active_pose_chains = _infer_active_arm_pose_chains(context, args)
+
+    for slug in context.human_keys:
+        joint_ids = active_pose_ids.get(slug, [])
+        dp = torch.zeros(
+            num_frames,
+            len(joint_ids),
+            3,
+            device=device,
+            requires_grad=bool(joint_ids) and args.optimize_arm_pose,
+        )
+        delta_human_pose[slug] = dp
+        if dp.requires_grad:
+            params.append(dp)
 
     for slug in context.obj_keys:
         dr = torch.zeros(num_frames, 3, device=device, requires_grad=True)
@@ -106,6 +173,8 @@ def run_joint_optimization(
             delta_rotvecs,
             delta_trans,
             raw_scale_deltas,
+            delta_human_pose,
+            active_pose_ids,
             context.objects,
             context.humans,
             context.interaction_edges,
@@ -128,6 +197,10 @@ def run_joint_optimization(
                     delta_rotvecs[slug].data.copy_(best_state[slug]["dr"])
                     delta_trans[slug].data.copy_(best_state[slug]["dt"])
                     raw_scale_deltas[slug].data.copy_(best_state[slug]["ds"])
+                for slug in context.human_keys:
+                    delta_human_pose[slug].data.copy_(
+                        best_state["_humans"][slug]["dp"]
+                    )
                 for param_group in optimizer.param_groups:
                     param_group["lr"] *= 0.5
                 print(
@@ -151,6 +224,12 @@ def run_joint_optimization(
                     "ds": raw_scale_deltas[slug].detach().clone(),
                 }
                 for slug in context.obj_keys
+            }
+            best_state["_humans"] = {
+                slug: {
+                    "dp": delta_human_pose[slug].detach().clone(),
+                }
+                for slug in context.human_keys
             }
             if rel_improve > args.early_stop_rel_improve:
                 no_improve_iters = 0
@@ -186,12 +265,16 @@ def run_joint_optimization(
         delta_rotvecs[slug].data.copy_(best_state[slug]["dr"])
         delta_trans[slug].data.copy_(best_state[slug]["dt"])
         raw_scale_deltas[slug].data.copy_(best_state[slug]["ds"])
+    for slug in context.human_keys:
+        delta_human_pose[slug].data.copy_(best_state["_humans"][slug]["dp"])
 
     with torch.no_grad():
         final_diagnostic = compute_final_loss_diagnostics(
             delta_rotvecs,
             delta_trans,
             raw_scale_deltas,
+            delta_human_pose,
+            active_pose_ids,
             context.objects,
             context.humans,
             context.interaction_edges,
@@ -218,6 +301,7 @@ def run_joint_optimization(
 
     final_T_mats: dict[str, np.ndarray] = {}
     final_scales: dict[str, float] = {}
+    final_human_verts_np_by_slug: dict[str, np.ndarray] = {}
     object_delta_stats: dict[str, dict[str, Any]] = {}
     for slug in context.obj_keys:
         od = context.objects[slug]
@@ -228,20 +312,12 @@ def run_joint_optimization(
         T_out = torch.matmul(od.tracked_poses_torch, delta_T).cpu().numpy()
         final_T_mats[slug] = T_out
         final_scales[slug] = float(
-            torch.exp(
-                bounded_log_scale_delta(
-                    raw_scale_deltas[slug].detach(),
-                    args.max_log_scale_delta,
-                )
-            ).item()
-        )
-
-        delta_log_scale = float(
-            bounded_log_scale_delta(
+            bounded_object_scale(
                 raw_scale_deltas[slug].detach(),
-                args.max_log_scale_delta,
+                args.max_object_scale_delta,
             ).item()
         )
+        delta_scale = final_scales[slug] - 1.0
         object_delta_stats[slug] = {
             "slug": slug,
             "max_delta_rot_deg": float(
@@ -260,8 +336,37 @@ def run_joint_optimization(
             "mean_delta_trans_m": float(
                 delta_trans[slug].detach().norm(dim=-1).mean().item()
             ),
-            "delta_log_scale": delta_log_scale,
+            "delta_scale": delta_scale,
             "global_scale": final_scales[slug],
+        }
+
+    human_delta_stats: dict[str, dict[str, Any]] = {}
+    with torch.no_grad():
+        final_human_verts = _build_effective_human_verts(
+            delta_human_pose,
+            active_pose_ids,
+            context.humans,
+            args,
+        )
+    for slug in context.human_keys:
+        delta = delta_human_pose[slug].detach()
+        if delta.numel() > 0:
+            delta_norm = delta.norm(dim=-1)
+            max_delta_deg = float(delta_norm.max().item() * 180.0 / math.pi)
+            mean_delta_deg = float(delta_norm.mean().item() * 180.0 / math.pi)
+        else:
+            max_delta_deg = 0.0
+            mean_delta_deg = 0.0
+        final_human_verts_np_by_slug[slug] = (
+            final_human_verts[slug].detach().cpu().numpy().copy()
+        )
+        human_delta_stats[slug] = {
+            "slug": slug,
+            "active_chains": active_pose_chains.get(slug, []),
+            "active_body_pose_ids": active_pose_ids.get(slug, []),
+            "max_delta_pose_deg": max_delta_deg,
+            "mean_delta_pose_deg": mean_delta_deg,
+            "global_scale": 1.0,
         }
 
     return OptimizationResult(
@@ -275,9 +380,8 @@ def run_joint_optimization(
         final_diagnostic=final_diagnostic,
         final_T_mats=final_T_mats,
         final_scales=final_scales,
-        final_human_verts_np_by_slug={
-            slug: context.humans[slug].base_verts.detach().cpu().numpy().copy()
-            for slug in context.human_keys
-        },
+        final_human_verts_np_by_slug=final_human_verts_np_by_slug,
         object_delta_stats=object_delta_stats,
+        human_delta_stats=human_delta_stats,
+        active_human_pose_chains=active_pose_chains,
     )

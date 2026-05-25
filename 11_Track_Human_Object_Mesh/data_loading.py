@@ -254,30 +254,44 @@ def _load_smplx_human_sequence(
     alignment_matrix: np.ndarray,
     num_frames: int,
     batch_size: int,
-) -> tuple[np.ndarray, np.ndarray]:
+    device: torch.device,
+) -> tuple[np.ndarray, np.ndarray, dict[str, torch.Tensor]]:
     data = torch.load(str(result_path), map_location="cpu")
     params = data["smpl_params_incam"]
 
-    body_pose = params["body_pose"].detach().clone().float()[:num_frames]
-    global_orient = params["global_orient"].detach().clone().float()[:num_frames]
-    transl = params["transl"].detach().clone().float()[:num_frames]
+    body_pose = params["body_pose"].detach().clone().float()[:num_frames].to(device)
+    global_orient = (
+        params["global_orient"].detach().clone().float()[:num_frames].to(device)
+    )
+    transl = params["transl"].detach().clone().float()[:num_frames].to(device)
     betas_raw = params["betas"].detach().clone().float()
     beta0 = betas_raw[:1] if betas_raw.ndim > 1 else betas_raw.view(1, -1)
+    betas = beta0.repeat(num_frames, 1).to(device)
 
     verts_batches: list[np.ndarray] = []
     for start in range(0, body_pose.shape[0], batch_size):
         end = min(start + batch_size, body_pose.shape[0])
         count = end - start
-        zeros_3 = torch.zeros(count, 3, dtype=torch.float32)
+        zeros_3 = torch.zeros(count, 3, dtype=torch.float32, device=device)
         num_pca_comps = int(getattr(smplx_layer, "num_pca_comps", None) or 12)
         num_expression_coeffs = int(
             getattr(smplx_layer, "num_expression_coeffs", None) or 10
         )
-        zeros_hand = torch.zeros(count, num_pca_comps, dtype=torch.float32)
-        zeros_expr = torch.zeros(count, num_expression_coeffs, dtype=torch.float32)
+        zeros_hand = torch.zeros(
+            count,
+            num_pca_comps,
+            dtype=torch.float32,
+            device=device,
+        )
+        zeros_expr = torch.zeros(
+            count,
+            num_expression_coeffs,
+            dtype=torch.float32,
+            device=device,
+        )
         with torch.no_grad():
             output = smplx_layer(
-                betas=beta0.repeat(count, 1),
+                betas=betas[start:end],
                 body_pose=body_pose[start:end],
                 global_orient=global_orient[start:end],
                 transl=transl[start:end],
@@ -293,7 +307,13 @@ def _load_smplx_human_sequence(
     verts = np.concatenate(verts_batches, axis=0)
     verts = _apply_transform_np(verts, alignment_matrix)
     faces = np.asarray(smplx_layer.faces, dtype=np.int32)
-    return verts, faces
+    smpl_params = {
+        "body_pose": body_pose.detach().clone(),
+        "global_orient": global_orient.detach().clone(),
+        "transl": transl.detach().clone(),
+        "betas": betas.detach().clone(),
+    }
+    return verts, faces, smpl_params
 
 
 def _load_module06_smplx_humans(
@@ -329,6 +349,7 @@ def _load_module06_smplx_humans(
         create_global_orient=False,
         create_transl=False,
     )
+    smplx_layer = smplx_layer.to(device)
     smplx_layer.eval()
 
     human_motion_root = dirs["human_motion"] / "humans"
@@ -368,12 +389,13 @@ def _load_module06_smplx_humans(
             "source_to_output_matrix_4x4",
             transforms_path,
         )
-        human_verts_np, human_faces = _load_smplx_human_sequence(
+        human_verts_np, human_faces, smpl_params = _load_smplx_human_sequence(
             result_path=result_path,
             smplx_layer=smplx_layer,
             alignment_matrix=matrix,
             num_frames=num_frames,
             batch_size=max(1, int(args.smplx_batch_size)),
+            device=device,
         )
 
         humans[human_slug] = _load_human_data(
@@ -383,6 +405,9 @@ def _load_module06_smplx_humans(
             human_faces=human_faces,
             body_seg=body_seg,
             contact_seg=contact_seg,
+            smplx_layer=smplx_layer,
+            smpl_params=smpl_params,
+            alignment_matrix=matrix,
             device=device,
         )
         human_keys.append(human_slug)
@@ -578,6 +603,9 @@ def _load_human_data(
     human_faces: np.ndarray,
     body_seg: dict[str, np.ndarray],
     contact_seg: dict[str, np.ndarray],
+    smplx_layer: Any,
+    smpl_params: dict[str, torch.Tensor],
+    alignment_matrix: np.ndarray,
     device: torch.device,
 ) -> HumanData:
     vertex_count = human_verts_np.shape[1]
@@ -612,6 +640,12 @@ def _load_human_data(
         part_vert_ids=body_seg,
         contact_part_points=contact_part_points,
         contact_part_vert_ids=contact_seg,
+        smplx_layer=smplx_layer,
+        body_pose=smpl_params["body_pose"],
+        global_orient=smpl_params["global_orient"],
+        transl=smpl_params["transl"],
+        betas=smpl_params["betas"],
+        alignment_matrix=torch.from_numpy(alignment_matrix).float().to(device),
     )
 
 

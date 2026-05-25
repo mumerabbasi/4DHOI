@@ -90,12 +90,12 @@ def parse_args() -> argparse.Namespace:
         help="Voxel resolution for SDF grids.",
     )
 
-    p.add_argument("--adam_iters", type=int, default=1500)
-    p.add_argument("--adam_lr", type=float, default=1e-3)
+    p.add_argument("--adam_iters", type=int, default=10000)
+    p.add_argument("--adam_lr", type=float, default=1e-4)
     p.add_argument(
         "--early_stop_start",
         type=int,
-        default=1500,
+        default=15000,
         help="Iteration at which to begin checking early stopping.",
     )
     p.add_argument(
@@ -118,16 +118,22 @@ def parse_args() -> argparse.Namespace:
     )
 
     p.add_argument(
-        "--optimize_object_scale",
+        "--optimize_arm_pose",
         action=argparse.BooleanOptionalAction,
         default=True,
+        help="Optimise PAG-selected SMPL-X arm-chain pose corrections.",
+    )
+    p.add_argument(
+        "--optimize_object_scale",
+        action=argparse.BooleanOptionalAction,
+        default=False,
         help="Optimise one global uniform scale per object.",
     )
     p.add_argument(
-        "--max_log_scale_delta",
+        "--max_object_scale_delta",
         type=float,
-        default=0.22,
-        help="Maximum absolute log-scale correction per object.",
+        default=0.1,
+        help="Maximum fractional object scale change around 1.0.",
     )
 
     p.add_argument(
@@ -137,22 +143,37 @@ def parse_args() -> argparse.Namespace:
         help="Fixed weight for the custom tracked-pose anchor term.",
     )
 
-    p.add_argument("--object_cd2d_weight_start", type=float, default=1e-4)
-    p.add_argument("--object_cd2d_weight_end", type=float, default=1e-4)
-    p.add_argument("--object_part_cd2d_weight_start", type=float, default=1e-4)
-    p.add_argument("--object_part_cd2d_weight_end", type=float, default=1e-4)
+    p.add_argument("--object_cd2d_weight_start", type=float, default=0)
+    p.add_argument("--object_cd2d_weight_end", type=float, default=0)
+    p.add_argument("--object_part_cd2d_weight_start", type=float, default=0)
+    p.add_argument("--object_part_cd2d_weight_end", type=float, default=0)
     p.add_argument("--object_smooth_trans_weight_start", type=float, default=1e3)
     p.add_argument("--object_smooth_trans_weight_end", type=float, default=1e3)
     p.add_argument("--object_smooth_rot_weight_start", type=float, default=1e3)
     p.add_argument("--object_smooth_rot_weight_end", type=float, default=1e3)
-    p.add_argument("--object_scale_weight_start", type=float, default=1.0)
-    p.add_argument("--object_scale_weight_end", type=float, default=1.0)
-    p.add_argument("--intersect_weight_start", type=float, default=0.0)
-    p.add_argument("--intersect_weight_end", type=float, default=10.0)
+    p.add_argument(
+        "--static_object_smooth_multiplier",
+        type=float,
+        default=500.0,
+        help=(
+            "Extra multiplier applied to smoothness terms for PAG-static "
+            "objects (non-translational/non-rotational)."
+        ),
+    )
+    p.add_argument("--human_pose_weight_start", type=float, default=10)
+    p.add_argument("--human_pose_weight_end", type=float, default=10)
+    p.add_argument("--human_pose_smooth_weight_start", type=float, default=100)
+    p.add_argument("--human_pose_smooth_weight_end", type=float, default=100)
+    p.add_argument("--object_scale_weight_start", type=float, default=0)
+    p.add_argument("--object_scale_weight_end", type=float, default=0)
+    p.add_argument("--object_intersect_weight_start", type=float, default=0)
+    p.add_argument("--object_intersect_weight_end", type=float, default=0)
+    p.add_argument("--intersect_weight_start", type=float, default=20)
+    p.add_argument("--intersect_weight_end", type=float, default=20)
     p.add_argument("--nocontact_weight_start", type=float, default=1e3)
     p.add_argument("--nocontact_weight_end", type=float, default=1e3)
-    p.add_argument("--contact_drift_weight_start", type=float, default=10.0)
-    p.add_argument("--contact_drift_weight_end", type=float, default=1e3)
+    p.add_argument("--contact_drift_weight_start", type=float, default=1e4)
+    p.add_argument("--contact_drift_weight_end", type=float, default=1e4)
 
     p.add_argument(
         "--num_mask_points_2d",

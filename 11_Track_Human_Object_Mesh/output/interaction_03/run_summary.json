@@ -1,22 +1,22 @@
 {
-  "interaction_name": "interaction_01",
+  "interaction_name": "interaction_03",
   "status": "completed",
   "script": "01_track_human_object_mesh.py",
   "num_frames": 81,
   "num_humans": 1,
-  "num_objects": 2,
-  "num_edges": 2,
-  "best_total_loss": 0.3381788432598114,
-  "optimisation_time_s": 516.6170832458884,
-  "best_iter": 9802,
+  "num_objects": 1,
+  "num_edges": 1,
+  "best_total_loss": 0.6741880774497986,
+  "optimisation_time_s": 411.91656192578375,
+  "best_iter": 8191,
   "inputs": {
-    "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01",
-    "human_motion_dir": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/output/interaction_01",
-    "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_01",
-    "segment_object_dir": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_01",
-    "pag_file": "/my_workspace/4DHHOI/4DHOI/01_Generate_PAG/output/interaction_01/output_pag_qwen3_6_27b.json",
+    "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_03",
+    "human_motion_dir": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/output/interaction_03",
+    "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_03",
+    "segment_object_dir": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_03",
+    "pag_file": "/my_workspace/4DHHOI/4DHOI/01_Generate_PAG/output/interaction_03/output_pag_qwen3_6_27b.json",
     "smpl_seg_json": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/assets/smplx_vert_segmentation.json",
-    "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/alignment_summary.json"
+    "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_03/alignment_summary.json"
   },
   "weights": {
     "tracking": {
@@ -88,13 +88,13 @@
   "debug_outputs": {
     "frame_loss_semantics": "diagnostic_local",
     "csv": {
-      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_01/debug/csv/iter_metrics.csv",
-      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_01/debug/csv/frame_loss_metrics.csv",
-      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_01/debug/csv/final_loss_summary.csv"
+      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_03/debug/csv/iter_metrics.csv",
+      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_03/debug/csv/frame_loss_metrics.csv",
+      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_03/debug/csv/final_loss_summary.csv"
     },
     "plots": {
-      "iter_dir": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_01/debug/plots/iter",
-      "frame_dir": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_01/debug/plots/frame"
+      "iter_dir": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_03/debug/plots/iter",
+      "frame_dir": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_03/debug/plots/frame"
     },
     "iter_columns": [
       "iter",
@@ -217,30 +217,18 @@
     ]
   },
   "objects": {
-    "iron": {
-      "name": "iron",
-      "num_verts": 46843,
-      "num_faces": 93661,
-      "num_parts": 2,
+    "umbrella": {
+      "name": "umbrella",
+      "num_verts": 45513,
+      "num_faces": 90938,
+      "num_parts": 3,
       "parts": [
+        "canopy",
         "handle",
-        "soleplate"
+        "shaft"
       ],
       "is_translational": true,
       "is_rotational": true,
-      "final_scale": 1.0
-    },
-    "ironing_board": {
-      "name": "ironing board",
-      "num_verts": 20009,
-      "num_faces": 40025,
-      "num_parts": 2,
-      "parts": [
-        "legs",
-        "top_flat_panel"
-      ],
-      "is_translational": false,
-      "is_rotational": false,
       "final_scale": 1.0
     }
   },
@@ -262,23 +250,17 @@
         18,
         20
       ],
-      "max_delta_pose_deg": 6.777728194545175,
-      "mean_delta_pose_deg": 2.2266525550381466,
+      "max_delta_pose_deg": 6.868343460490088,
+      "mean_delta_pose_deg": 4.49399126630159,
       "global_scale": 1.0
     }
   },
   "edges": [
     {
-      "node_a": "iron, handle",
+      "node_a": "umbrella, handle",
       "node_b": "person 1, right hand",
       "is_continuous": true,
       "is_rel_static": true
-    },
-    {
-      "node_a": "iron, soleplate",
-      "node_b": "ironing board, top flat panel",
-      "is_continuous": true,
-      "is_rel_static": false
     }
   ],
   "conventions": {

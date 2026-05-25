@@ -66,6 +66,12 @@ class HumanData:
     part_vert_ids: dict[str, np.ndarray]
     contact_part_points: dict[str, torch.Tensor]
     contact_part_vert_ids: dict[str, np.ndarray]
+    smplx_layer: Any
+    body_pose: torch.Tensor
+    global_orient: torch.Tensor
+    transl: torch.Tensor
+    betas: torch.Tensor
+    alignment_matrix: torch.Tensor
 
 
 @dataclass
@@ -121,7 +127,10 @@ class LossResult:
     object_part_cd2d: torch.Tensor
     object_smooth_trans: torch.Tensor
     object_smooth_rot: torch.Tensor
+    human_pose: torch.Tensor
+    human_pose_smooth: torch.Tensor
     object_scale: torch.Tensor
+    object_intersect: torch.Tensor
     intersect: torch.Tensor
     nocontact: torch.Tensor
     contact_drift: torch.Tensor
@@ -156,9 +165,21 @@ SCHEDULED_LOSS_WEIGHT_ATTRS = {
         "object_smooth_rot_weight_start",
         "object_smooth_rot_weight_end",
     ),
+    "human_pose": (
+        "human_pose_weight_start",
+        "human_pose_weight_end",
+    ),
+    "human_pose_smooth": (
+        "human_pose_smooth_weight_start",
+        "human_pose_smooth_weight_end",
+    ),
     "object_scale": (
         "object_scale_weight_start",
         "object_scale_weight_end",
+    ),
+    "object_intersect": (
+        "object_intersect_weight_start",
+        "object_intersect_weight_end",
     ),
     "intersect": (
         "intersect_weight_start",
@@ -179,7 +200,8 @@ LOSS_TERM_KEYS = tuple(
     + list(SCHEDULED_LOSS_WEIGHT_ATTRS.keys())
 )
 FRAME_DIAGNOSTIC_TERM_KEYS = tuple(
-    key for key in LOSS_TERM_KEYS if key != "object_scale"
+    key for key in LOSS_TERM_KEYS if key in FIXED_LOSS_WEIGHT_ATTRS
+    or key not in ("human_pose", "human_pose_smooth", "object_scale")
 )
 
 
@@ -218,3 +240,5 @@ class OptimizationResult:
     final_scales: dict[str, float]
     final_human_verts_np_by_slug: dict[str, np.ndarray]
     object_delta_stats: dict[str, dict[str, Any]]
+    human_delta_stats: dict[str, dict[str, Any]]
+    active_human_pose_chains: dict[str, list[str]]

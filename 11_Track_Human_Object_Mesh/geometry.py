@@ -59,6 +59,14 @@ def apply_inverse_similarity_sequence(
     return torch.matmul(points_seq - t[:, None, :], R) / scale
 
 
+def bounded_object_scale(
+    raw_value: torch.Tensor,
+    max_scale_delta: float,
+) -> torch.Tensor:
+    delta = math.fabs(max_scale_delta) * torch.tanh(raw_value.squeeze())
+    return 1.0 + delta
+
+
 def project_points_with_intrinsics(
     points: torch.Tensor,
     intrinsics: torch.Tensor,
@@ -96,10 +104,3 @@ def query_sdf(
         align_corners=True,
     )
     return sampled.reshape(*shape)
-
-
-def bounded_log_scale_delta(
-    raw_value: torch.Tensor,
-    max_log_scale_delta: float,
-) -> torch.Tensor:
-    return math.fabs(max_log_scale_delta) * torch.tanh(raw_value.squeeze())
