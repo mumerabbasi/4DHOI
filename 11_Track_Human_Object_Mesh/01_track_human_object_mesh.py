@@ -160,8 +160,8 @@ def parse_args() -> argparse.Namespace:
             "objects (non-translational/non-rotational)."
         ),
     )
-    p.add_argument("--human_pose_weight_start", type=float, default=10)
-    p.add_argument("--human_pose_weight_end", type=float, default=10)
+    p.add_argument("--human_pose_weight_start", type=float, default=15)
+    p.add_argument("--human_pose_weight_end", type=float, default=15)
     p.add_argument("--human_pose_smooth_weight_start", type=float, default=100)
     p.add_argument("--human_pose_smooth_weight_end", type=float, default=100)
     p.add_argument("--object_scale_weight_start", type=float, default=0)

@@ -6,15 +6,15 @@
   "num_humans": 1,
   "num_objects": 2,
   "num_edges": 2,
-  "best_total_loss": 0.3381788432598114,
-  "optimisation_time_s": 516.6170832458884,
-  "best_iter": 9802,
+  "best_total_loss": 0.39787557721138,
+  "optimisation_time_s": 787.1591049488634,
+  "best_iter": 6847,
   "inputs": {
     "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01",
     "human_motion_dir": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/output/interaction_01",
     "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_01",
     "segment_object_dir": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_01",
-    "pag_file": "/my_workspace/4DHHOI/4DHOI/01_Generate_PAG/output/interaction_01/output_pag_qwen3_6_27b.json",
+    "pag_file": "/my_workspace/4DHHOI/4DHOI/01_Generate_PAG/output/interaction_01/output_pag_deepseek_r1_32b.json",
     "smpl_seg_json": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/assets/smplx_vert_segmentation.json",
     "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/alignment_summary.json"
   },
@@ -39,8 +39,8 @@
       "end": 1000.0
     },
     "human_pose": {
-      "start": 10.0,
-      "end": 10.0
+      "start": 15.0,
+      "end": 15.0
     },
     "human_pose_smooth": {
       "start": 100.0,
@@ -76,7 +76,7 @@
     "max_object_scale_delta": 0.1,
     "active_human_pose_chains": {
       "person_1": [
-        "right"
+        "left"
       ]
     },
     "static_object_smooth_multiplier": 500.0,
@@ -254,29 +254,29 @@
       "num_verts": 10475,
       "num_faces": 20908,
       "active_chains": [
-        "right"
+        "left"
       ],
       "active_body_pose_ids": [
-        13,
-        16,
-        18,
-        20
+        12,
+        15,
+        17,
+        19
       ],
-      "max_delta_pose_deg": 6.777728194545175,
-      "mean_delta_pose_deg": 2.2266525550381466,
+      "max_delta_pose_deg": 10.461513029989744,
+      "mean_delta_pose_deg": 3.6488590900105313,
       "global_scale": 1.0
     }
   },
   "edges": [
     {
       "node_a": "iron, handle",
-      "node_b": "person 1, right hand",
+      "node_b": "person 1, left hand",
       "is_continuous": true,
       "is_rel_static": true
     },
     {
       "node_a": "iron, soleplate",
-      "node_b": "ironing board, top flat panel",
+      "node_b": "ironing board, surface",
       "is_continuous": true,
       "is_rel_static": false
     }

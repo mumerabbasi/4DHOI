@@ -7,15 +7,20 @@
   "num_verts": 10475,
   "num_faces": 20908,
   "active_chains": [
+    "left",
     "right"
   ],
   "active_body_pose_ids": [
+    12,
     13,
+    15,
     16,
+    17,
     18,
+    19,
     20
   ],
-  "max_delta_pose_deg": 6.868343460490088,
-  "mean_delta_pose_deg": 4.49399126630159,
+  "max_delta_pose_deg": 15.675420748962663,
+  "mean_delta_pose_deg": 8.228740412011854,
   "global_scale": 1.0
 }

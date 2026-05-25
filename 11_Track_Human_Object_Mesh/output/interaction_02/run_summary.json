@@ -1,22 +1,22 @@
 {
-  "interaction_name": "interaction_03",
+  "interaction_name": "interaction_02",
   "status": "completed",
   "script": "01_track_human_object_mesh.py",
   "num_frames": 81,
   "num_humans": 1,
-  "num_objects": 1,
-  "num_edges": 1,
-  "best_total_loss": 0.6741880774497986,
-  "optimisation_time_s": 411.91656192578375,
-  "best_iter": 8191,
+  "num_objects": 2,
+  "num_edges": 2,
+  "best_total_loss": 1.8893367052078247,
+  "optimisation_time_s": 883.2500199619681,
+  "best_iter": 9955,
   "inputs": {
-    "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_03",
-    "human_motion_dir": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/output/interaction_03",
-    "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_03",
-    "segment_object_dir": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_03",
-    "pag_file": "/my_workspace/4DHHOI/4DHOI/01_Generate_PAG/output/interaction_03/output_pag_qwen3_6_27b.json",
+    "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_02",
+    "human_motion_dir": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/output/interaction_02",
+    "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_02",
+    "segment_object_dir": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_02",
+    "pag_file": "/my_workspace/4DHHOI/4DHOI/01_Generate_PAG/output/interaction_02/output_pag_deepseek_r1_32b.json",
     "smpl_seg_json": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/assets/smplx_vert_segmentation.json",
-    "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_03/alignment_summary.json"
+    "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_02/alignment_summary.json"
   },
   "weights": {
     "tracking": {
@@ -39,8 +39,8 @@
       "end": 1000.0
     },
     "human_pose": {
-      "start": 10.0,
-      "end": 10.0
+      "start": 15.0,
+      "end": 15.0
     },
     "human_pose_smooth": {
       "start": 100.0,
@@ -76,6 +76,7 @@
     "max_object_scale_delta": 0.1,
     "active_human_pose_chains": {
       "person_1": [
+        "left",
         "right"
       ]
     },
@@ -88,13 +89,13 @@
   "debug_outputs": {
     "frame_loss_semantics": "diagnostic_local",
     "csv": {
-      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_03/debug/csv/iter_metrics.csv",
-      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_03/debug/csv/frame_loss_metrics.csv",
-      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_03/debug/csv/final_loss_summary.csv"
+      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_02/debug/csv/iter_metrics.csv",
+      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_02/debug/csv/frame_loss_metrics.csv",
+      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_02/debug/csv/final_loss_summary.csv"
     },
     "plots": {
-      "iter_dir": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_03/debug/plots/iter",
-      "frame_dir": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_03/debug/plots/frame"
+      "iter_dir": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_02/debug/plots/iter",
+      "frame_dir": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_02/debug/plots/frame"
     },
     "iter_columns": [
       "iter",
@@ -217,15 +218,27 @@
     ]
   },
   "objects": {
-    "umbrella": {
-      "name": "umbrella",
-      "num_verts": 45513,
-      "num_faces": 90938,
-      "num_parts": 3,
+    "dumbbell_(left_hand)": {
+      "name": "dumbbell (left hand)",
+      "num_verts": 62727,
+      "num_faces": 125503,
+      "num_parts": 2,
       "parts": [
-        "canopy",
         "handle",
-        "shaft"
+        "weight_plates"
+      ],
+      "is_translational": true,
+      "is_rotational": true,
+      "final_scale": 1.0
+    },
+    "dumbbell_(right_hand)": {
+      "name": "dumbbell (right hand)",
+      "num_verts": 49296,
+      "num_faces": 98592,
+      "num_parts": 2,
+      "parts": [
+        "handle",
+        "weight_plates"
       ],
       "is_translational": true,
       "is_rotational": true,
@@ -242,22 +255,33 @@
       "num_verts": 10475,
       "num_faces": 20908,
       "active_chains": [
+        "left",
         "right"
       ],
       "active_body_pose_ids": [
+        12,
         13,
+        15,
         16,
+        17,
         18,
+        19,
         20
       ],
-      "max_delta_pose_deg": 6.868343460490088,
-      "mean_delta_pose_deg": 4.49399126630159,
+      "max_delta_pose_deg": 15.675420748962663,
+      "mean_delta_pose_deg": 8.228740412011854,
       "global_scale": 1.0
     }
   },
   "edges": [
     {
-      "node_a": "umbrella, handle",
+      "node_a": "dumbbell (left hand), handle",
+      "node_b": "person 1, left hand",
+      "is_continuous": true,
+      "is_rel_static": true
+    },
+    {
+      "node_a": "dumbbell (right hand), handle",
       "node_b": "person 1, right hand",
       "is_continuous": true,
       "is_rel_static": true
