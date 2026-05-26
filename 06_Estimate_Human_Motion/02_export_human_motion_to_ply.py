@@ -5,8 +5,6 @@ import smplx
 import torch
 from tqdm import tqdm
 
-from incam_stabilization import compute_stabilized_incam_params
-
 
 def write_ascii_ply(path: Path, vertices, faces) -> None:
     """Write a triangular mesh to an ASCII PLY file."""
@@ -48,23 +46,14 @@ def export_one_human(
     output_dir: Path,
     smplx_layer,
     faces_smplx,
-    gvhmr_path: Path,
-    stabilize_incam: bool,
 ) -> None:
     result_path = result_dir / "hmr4d_results.pt"
     if not result_path.exists():
         raise FileNotFoundError(f"Could not find hmr4d_results.pt in: {result_dir}")
 
     print(f"Loading data from {result_path}...")
-    data = torch.load(result_path)
-
-    # Export in camera-frame coordinates so the human matches other OpenCV-camera
-    # assets. By default we use a stabilized camera-frame trajectory derived from
-    # GVHMR's post-processed global motion to reduce visible foot sliding.
-    if stabilize_incam:
-        params = compute_stabilized_incam_params(data, gvhmr_path)
-    else:
-        params = data.get("smpl_params_incam_raw", data["smpl_params_incam"])
+    data = torch.load(result_path, map_location="cpu")
+    params = data["smpl_params_incam"]
 
     body_pose = params["body_pose"]
     betas = params["betas"]
@@ -79,13 +68,13 @@ def export_one_human(
 
     print(f"Exporting {result_dir.name} frames to .ply...")
     for i in tqdm(range(num_frames)):
-        curr_betas = betas[i: i + 1] if betas.shape[0] > 1 else betas[:1]
+        curr_betas = betas[i : i + 1] if betas.shape[0] > 1 else betas[:1]
 
         output = smplx_layer(
             betas=curr_betas,
-            body_pose=body_pose[i: i + 1],
-            global_orient=global_orient[i: i + 1],
-            transl=transl[i: i + 1],
+            body_pose=body_pose[i : i + 1],
+            global_orient=global_orient[i : i + 1],
+            transl=transl[i : i + 1],
         )
 
         smplx_verts = output.vertices[0]
@@ -126,30 +115,12 @@ def main() -> None:
             "Meshes are exported as SMPL-X topology."
         ),
     )
-    parser.add_argument(
-        "--gvhmr_path",
-        type=str,
-        default=None,
-        help="Path to the cloned GVHMR repo, used for stabilized camera-frame export.",
-    )
-    parser.add_argument(
-        "--stabilize_incam",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help=(
-            "Export a stabilized camera-frame motion derived from GVHMR's "
-            "post-processed global trajectory. Use --no-stabilize_incam to export "
-            "the raw GVHMR incam motion instead."
-        ),
-    )
     args = parser.parse_args()
 
     default_video_dir, default_output_dir = build_default_paths(args.interaction_name)
-    default_gvhmr_path = Path(__file__).resolve().parents[2] / "GVHMR"
 
     video_dir = Path(args.video_dir).resolve() if args.video_dir else default_video_dir
     smpl_folder = Path(args.smpl_folder).resolve()
-    gvhmr_path = Path(args.gvhmr_path).resolve() if args.gvhmr_path else default_gvhmr_path
 
     if not video_dir.exists() or not video_dir.is_dir():
         raise NotADirectoryError(f"Interaction directory not found: {video_dir}")
@@ -185,8 +156,6 @@ def main() -> None:
             output_dir=output_dir / result_dir.name / "human_plys",
             smplx_layer=smplx_layer,
             faces_smplx=smplx_layer.faces,
-            gvhmr_path=gvhmr_path,
-            stabilize_incam=bool(args.stabilize_incam),
         )
 
     print(f"\nDone! Files saved in: {output_dir}")

@@ -121,31 +121,83 @@ def build_arg_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--hip_back_normal_threshold",
-        type=float,
-        default=0.15,
-        help=(
-            "Minimum vertex-normal alignment with the posterior direction "
-            "for the hip contact patch."
-        ),
-    )
-    parser.add_argument(
         "--hip_upper_pelvis_offset_m",
         type=float,
-        default=0.02,
+        default=-0.07,
         help=(
             "Highest y-coordinate kept for hip contact, expressed as a meter "
-            "offset above the pelvis joint."
+            "offset from the pelvis joint. Negative values move the cap below "
+            "the pelvis."
         ),
     )
     parser.add_argument(
         "--hip_upper_leg_fraction",
         type=float,
-        default=0.45,
+        default=0.20,
         help=(
             "Fraction of the hip-to-knee span included for posterior upper-leg "
             "support in the hip contact patch."
         ),
+    )
+    parser.add_argument(
+        "--hip_posterior_z_max_m",
+        type=float,
+        default=-0.10,
+        help=(
+            "Maximum canonical z-coordinate kept for hip contact. More negative "
+            "values keep a tighter posterior glute/ischial patch."
+        ),
+    )
+    parser.add_argument(
+        "--hip_posterior_z_min_m",
+        type=float,
+        default=-0.14,
+        help=(
+            "Minimum canonical z-coordinate kept for hip contact. This removes "
+            "the deepest back-side vertices to reduce side-view depth variance."
+        ),
+    )
+    parser.add_argument(
+        "--visualize_interaction",
+        type=str,
+        default=None,
+        help=(
+            "Optional interaction_xx folder to visualize directly from "
+            "module-06 GVHMR hmr4d_results.pt."
+        ),
+    )
+    parser.add_argument(
+        "--human_motion_dir",
+        type=str,
+        default="output",
+        help="06_Estimate_Human_Motion output root containing interaction folders.",
+    )
+    parser.add_argument(
+        "--visualize_person",
+        type=str,
+        default="person_1",
+        help="Human slug to visualize inside the selected interaction.",
+    )
+    parser.add_argument(
+        "--visualize_frame",
+        type=int,
+        default=0,
+        help="Frame index to visualize from hmr4d_results.pt.",
+    )
+    parser.add_argument(
+        "--visualize_output_dir",
+        type=str,
+        default="assets/contact_region_visualizations",
+        help=(
+            "Where colored interaction visualization PLYs should be written. "
+            "Defaults inside the module-06 assets directory."
+        ),
+    )
+    parser.add_argument(
+        "--visualize_smpl_param_space",
+        choices=("incam", "global"),
+        default="incam",
+        help="Which GVHMR SMPL-X parameter group to visualize.",
     )
     return parser
 
@@ -185,6 +237,13 @@ def load_segmentation_json(seg_path: Path) -> dict:
         return json.load(file_obj)
 
 
+def load_torch_payload(path: Path):
+    try:
+        return torch.load(str(path), map_location="cpu", weights_only=True)
+    except TypeError:
+        return torch.load(str(path), map_location="cpu")
+
+
 def normalize_segment(indices) -> list[int]:
     return sorted({int(index) for index in indices})
 
@@ -212,18 +271,14 @@ def compute_vertex_normals(vertices: torch.Tensor, faces) -> torch.Tensor:
         triangles[:, 2] - triangles[:, 0],
         dim=1,
     )
-    face_normals = (
-        face_normals
-        / face_normals.norm(dim=1, keepdim=True).clamp_min(1e-8)
-    )
+    face_normals = face_normals / face_normals.norm(dim=1, keepdim=True).clamp_min(1e-8)
 
     vertex_normals = torch.zeros_like(vertices)
     for corner_id in range(3):
         vertex_normals.index_add_(0, faces_t[:, corner_id], face_normals)
-    vertex_normals = (
-        vertex_normals
-        / vertex_normals.norm(dim=1, keepdim=True).clamp_min(1e-8)
-    )
+    vertex_normals = vertex_normals / vertex_normals.norm(
+        dim=1, keepdim=True
+    ).clamp_min(1e-8)
     return vertex_normals
 
 
@@ -298,11 +353,11 @@ def build_foot_bottom_segment(
 def build_hip_contact_segment(
     rest_vertices: torch.Tensor,
     rest_joints: torch.Tensor,
-    vertex_normals: torch.Tensor,
     full_ids: list[int],
-    hip_back_normal_threshold: float,
     hip_upper_pelvis_offset_m: float,
     hip_upper_leg_fraction: float,
+    hip_posterior_z_max_m: float,
+    hip_posterior_z_min_m: float,
 ) -> list[int]:
     if not 0.0 <= hip_upper_leg_fraction <= 1.0:
         raise ValueError("--hip_upper_leg_fraction must be between 0 and 1.")
@@ -326,12 +381,16 @@ def build_hip_contact_segment(
             "--hip_upper_pelvis_offset_m or --hip_upper_leg_fraction."
         )
 
-    posterior = torch.tensor([0.0, 0.0, -1.0], dtype=rest_vertices.dtype)
     points = rest_vertices[full_ids_t]
     height_mask = (points[:, 1] >= lower_y) & (points[:, 1] <= upper_y)
-    posterior_scores = vertex_normals[full_ids_t] @ posterior
-    posterior_mask = posterior_scores >= float(hip_back_normal_threshold)
-    contact_ids = full_ids_t[height_mask & posterior_mask]
+    z_min = float(hip_posterior_z_min_m)
+    z_max = float(hip_posterior_z_max_m)
+    if z_min >= z_max:
+        raise ValueError(
+            "--hip_posterior_z_min_m must be smaller than --hip_posterior_z_max_m."
+        )
+    posterior_depth_mask = (points[:, 2] >= z_min) & (points[:, 2] <= z_max)
+    contact_ids = full_ids_t[height_mask & posterior_depth_mask]
 
     contact_list = normalize_segment(contact_ids.tolist())
     if not contact_list:
@@ -345,9 +404,10 @@ def build_payload(
     wrist_forward_cutoff: float,
     inner_normal_threshold: float,
     foot_bottom_normal_threshold: float,
-    hip_back_normal_threshold: float,
     hip_upper_pelvis_offset_m: float,
     hip_upper_leg_fraction: float,
+    hip_posterior_z_max_m: float,
+    hip_posterior_z_min_m: float,
 ) -> tuple[dict, torch.Tensor]:
     rest_output = get_rest_pose_output(model)
     rest_vertices = rest_output.vertices[0].detach().cpu()
@@ -397,11 +457,11 @@ def build_payload(
     project_segments["hips_contact"] = build_hip_contact_segment(
         rest_vertices=rest_vertices,
         rest_joints=rest_joints,
-        vertex_normals=vertex_normals,
         full_ids=combine_segments(source_segments, HIP_CONTACT_SOURCE_SEGMENTS),
-        hip_back_normal_threshold=hip_back_normal_threshold,
         hip_upper_pelvis_offset_m=hip_upper_pelvis_offset_m,
         hip_upper_leg_fraction=hip_upper_leg_fraction,
+        hip_posterior_z_max_m=hip_posterior_z_max_m,
+        hip_posterior_z_min_m=hip_posterior_z_min_m,
     )
 
     payload = {
@@ -453,9 +513,7 @@ def validate_payload(payload: dict) -> None:
 
     hip_contact_set = set(segments["hips_contact"])
     hip_support_set = (
-        set(segments["hips"])
-        | set(segments["left_leg"])
-        | set(segments["right_leg"])
+        set(segments["hips"]) | set(segments["left_leg"]) | set(segments["right_leg"])
     )
     if not hip_contact_set < hip_support_set:
         raise RuntimeError(
@@ -523,6 +581,99 @@ def write_canonical_visualization(
     write_ascii_ply_with_vertex_colors(output_path, rest_vertices, faces, colors)
 
 
+def _frame_slice(params: dict, name: str, frame_index: int) -> torch.Tensor:
+    value = params[name].detach().clone().float()
+    if value.ndim == 1:
+        return value.view(1, -1)
+    if frame_index >= value.shape[0]:
+        raise IndexError(
+            f"Requested frame {frame_index}, but '{name}' has only "
+            f"{value.shape[0]} frame(s)."
+        )
+    return value[frame_index : frame_index + 1]
+
+
+def get_hmr4d_frame_vertices(
+    result_path: Path,
+    model,
+    frame_index: int,
+    smpl_param_space: str,
+) -> torch.Tensor:
+    data = load_torch_payload(result_path)
+    params_key = f"smpl_params_{smpl_param_space}"
+    if params_key not in data:
+        raise KeyError(f"Missing '{params_key}' in {result_path}")
+    params = data[params_key]
+
+    body_pose = _frame_slice(params, "body_pose", frame_index)
+    global_orient = _frame_slice(params, "global_orient", frame_index)
+    transl = _frame_slice(params, "transl", frame_index)
+    betas = _frame_slice(params, "betas", frame_index)
+
+    num_pca_comps = int(getattr(model, "num_pca_comps", None) or 12)
+    num_expression_coeffs = int(getattr(model, "num_expression_coeffs", None) or 10)
+    zeros_3 = torch.zeros(1, 3, dtype=torch.float32)
+    zeros_hand = torch.zeros(1, num_pca_comps, dtype=torch.float32)
+    zeros_expr = torch.zeros(1, num_expression_coeffs, dtype=torch.float32)
+
+    model.eval()
+    with torch.no_grad():
+        output = model(
+            betas=betas,
+            body_pose=body_pose,
+            global_orient=global_orient,
+            transl=transl,
+            left_hand_pose=zeros_hand,
+            right_hand_pose=zeros_hand,
+            jaw_pose=zeros_3,
+            leye_pose=zeros_3,
+            reye_pose=zeros_3,
+            expression=zeros_expr,
+        )
+    return output.vertices[0].detach().cpu()
+
+
+def write_interaction_visualization(
+    human_motion_dir: Path,
+    output_dir: Path,
+    interaction_name: str,
+    person_name: str,
+    frame_index: int,
+    smpl_param_space: str,
+    model,
+    payload: dict,
+) -> Path:
+    result_path = (
+        human_motion_dir
+        / interaction_name
+        / "humans"
+        / person_name
+        / "hmr4d_results.pt"
+    )
+    if not result_path.exists():
+        raise FileNotFoundError(f"GVHMR result file not found: {result_path}")
+
+    vertices = get_hmr4d_frame_vertices(
+        result_path=result_path,
+        model=model,
+        frame_index=frame_index,
+        smpl_param_space=smpl_param_space,
+    )
+    output_path = (
+        output_dir
+        / interaction_name
+        / person_name
+        / f"frame_{frame_index:04d}_smplx_contact_regions.ply"
+    )
+    write_ascii_ply_with_vertex_colors(
+        path=output_path,
+        vertices=vertices,
+        faces=model.faces,
+        colors=build_visualization_colors(payload),
+    )
+    return output_path
+
+
 def main() -> None:
     args = build_arg_parser().parse_args()
     smpl_folder = resolve_path(args.smpl_folder, SCRIPT_DIR)
@@ -544,9 +695,10 @@ def main() -> None:
         wrist_forward_cutoff=float(args.wrist_forward_cutoff),
         inner_normal_threshold=float(args.inner_normal_threshold),
         foot_bottom_normal_threshold=float(args.foot_bottom_normal_threshold),
-        hip_back_normal_threshold=float(args.hip_back_normal_threshold),
         hip_upper_pelvis_offset_m=float(args.hip_upper_pelvis_offset_m),
         hip_upper_leg_fraction=float(args.hip_upper_leg_fraction),
+        hip_posterior_z_max_m=float(args.hip_posterior_z_max_m),
+        hip_posterior_z_min_m=float(args.hip_posterior_z_min_m),
     )
     write_payload(output_json, payload)
 
@@ -559,6 +711,23 @@ def main() -> None:
 
     print(f"Wrote SMPL-X segmentation to: {output_json}")
     print(f"Wrote canonical segmented mesh to: {output_ply}")
+
+    if args.visualize_interaction:
+        human_motion_dir = resolve_path(args.human_motion_dir, SCRIPT_DIR)
+        visualize_output_dir = resolve_path(args.visualize_output_dir, SCRIPT_DIR)
+        visualization_path = write_interaction_visualization(
+            human_motion_dir=human_motion_dir,
+            output_dir=visualize_output_dir,
+            interaction_name=args.visualize_interaction,
+            person_name=args.visualize_person,
+            frame_index=int(args.visualize_frame),
+            smpl_param_space=args.visualize_smpl_param_space,
+            model=model,
+            payload=payload,
+        )
+        print(
+            f"Wrote interaction contact-region visualization to: {visualization_path}"
+        )
 
 
 if __name__ == "__main__":

@@ -398,8 +398,7 @@ def main() -> None:
         help=(
             "Project GVHMR's post-processed global trajectory back into the static "
             "camera frame, overwrite smpl_params_incam with the stabilized motion, "
-            "preserve the raw camera-frame params under smpl_params_incam_raw, and "
-            "rerender the incam videos."
+            "and rerender the incam videos."
         ),
     )
     parser.add_argument(

@@ -30,9 +30,6 @@ def compute_stabilized_incam_params(
     corrected global motion can be projected back into camera coordinates through a
     single world-to-camera transform estimated from frame 0.
     """
-    if "smpl_params_incam_stabilized" in result_data:
-        return _clone_param_dict(result_data["smpl_params_incam_stabilized"])
-
     _ensure_gvhmr_on_path(gvhmr_path)
 
     import torch
@@ -40,7 +37,9 @@ def compute_stabilized_incam_params(
     from hmr4d.utils.smplx_utils import make_smplx
 
     global_params = result_data["smpl_params_global"]
-    raw_incam_params = result_data.get("smpl_params_incam_raw", result_data["smpl_params_incam"])
+    raw_incam_params = result_data.get(
+        "smpl_params_incam_raw", result_data["smpl_params_incam"]
+    )
 
     stabilized = {
         "body_pose": global_params["body_pose"].clone(),
@@ -78,20 +77,17 @@ def stabilize_result_file(
     gvhmr_path: Path,
     overwrite_incam: bool = True,
 ) -> bool:
-    """Save a stabilized camera-frame motion beside the raw GVHMR outputs."""
+    """Overwrite smpl_params_incam with a stabilized camera-frame motion."""
     _ensure_gvhmr_on_path(gvhmr_path)
 
     import torch
 
     result_data = torch.load(result_path, map_location="cpu")
-    raw_incam_key = "smpl_params_incam_raw"
-    if raw_incam_key not in result_data:
-        result_data[raw_incam_key] = _clone_param_dict(result_data["smpl_params_incam"])
-
     stabilized = compute_stabilized_incam_params(result_data, gvhmr_path)
-    result_data["smpl_params_incam_stabilized"] = _clone_param_dict(stabilized)
     if overwrite_incam:
         result_data["smpl_params_incam"] = _clone_param_dict(stabilized)
+    result_data.pop("smpl_params_incam_raw", None)
+    result_data.pop("smpl_params_incam_stabilized", None)
 
     torch.save(result_data, result_path)
     return True
