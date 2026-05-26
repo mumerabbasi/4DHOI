@@ -1,22 +1,22 @@
 {
-  "interaction_name": "interaction_05",
+  "interaction_name": "interaction_01",
   "status": "completed",
   "script": "01_track_human_object_mesh.py",
   "num_frames": 81,
   "num_humans": 1,
   "num_objects": 2,
-  "num_edges": 5,
-  "best_total_loss": 3.805389404296875,
-  "optimisation_time_s": 594.1363650318235,
-  "best_iter": 3751,
+  "num_edges": 2,
+  "best_total_loss": 0.357339084148407,
+  "optimisation_time_s": 523.9045676738024,
+  "best_iter": 9919,
   "inputs": {
-    "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_05",
-    "human_motion_dir": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/output/interaction_05",
-    "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_05",
-    "segment_object_dir": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_05",
-    "pag_file": "/my_workspace/4DHHOI/4DHOI/01_Generate_PAG/output/interaction_05/output_pag_qwen3_6_27b.json",
+    "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01",
+    "human_motion_dir": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/output/interaction_01",
+    "tracked_object_dir": "/my_workspace/4DHHOI/4DHOI/10_Track_Object_Mesh/output/interaction_01",
+    "segment_object_dir": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_01",
+    "pag_file": "/my_workspace/4DHHOI/4DHOI/01_Generate_PAG/output/interaction_01/output_pag_qwen3_6_27b.json",
     "smpl_seg_json": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/assets/smplx_vert_segmentation.json",
-    "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_05/alignment_summary.json"
+    "intrinsics_source": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_01/alignment_summary.json"
   },
   "weights": {
     "tracking": {
@@ -72,11 +72,10 @@
     "adam_lr": 0.0001,
     "sdf_resolution": 128,
     "optimize_arm_pose": true,
-    "optimize_object_scale": true,
-    "max_object_scale_delta": 0.2,
+    "optimize_object_scale": false,
+    "max_object_scale_delta": 0.1,
     "active_human_pose_chains": {
       "person_1": [
-        "left",
         "right"
       ]
     },
@@ -89,13 +88,13 @@
   "debug_outputs": {
     "frame_loss_semantics": "diagnostic_local",
     "csv": {
-      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_05/debug/csv/iter_metrics.csv",
-      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_05/debug/csv/frame_loss_metrics.csv",
-      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_05/debug/csv/final_loss_summary.csv"
+      "iter_metrics_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_01/debug/csv/iter_metrics.csv",
+      "frame_loss_metrics_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_01/debug/csv/frame_loss_metrics.csv",
+      "final_loss_summary_csv": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_01/debug/csv/final_loss_summary.csv"
     },
     "plots": {
-      "iter_dir": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_05/debug/plots/iter",
-      "frame_dir": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_05/debug/plots/frame"
+      "iter_dir": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_01/debug/plots/iter",
+      "frame_dir": "/my_workspace/4DHHOI/4DHOI/11_Track_Human_Object_Mesh/output/interaction_01/debug/plots/frame"
     },
     "iter_columns": [
       "iter",
@@ -218,33 +217,31 @@
     ]
   },
   "objects": {
-    "bicycle": {
-      "name": "bicycle",
-      "num_verts": 20024,
-      "num_faces": 40106,
-      "num_parts": 4,
-      "parts": [
-        "frame_tubes",
-        "handlebar",
-        "seat",
-        "wheels"
-      ],
-      "is_translational": true,
-      "is_rotational": false,
-      "final_scale": 0.9868050813674927
-    },
-    "umbrella": {
-      "name": "umbrella",
-      "num_verts": 44031,
-      "num_faces": 88004,
+    "iron": {
+      "name": "iron",
+      "num_verts": 46843,
+      "num_faces": 93661,
       "num_parts": 2,
       "parts": [
-        "canopy",
-        "shaft"
+        "handle",
+        "soleplate"
       ],
       "is_translational": true,
+      "is_rotational": true,
+      "final_scale": 1.0
+    },
+    "ironing_board": {
+      "name": "ironing board",
+      "num_verts": 20009,
+      "num_faces": 40025,
+      "num_parts": 2,
+      "parts": [
+        "legs",
+        "top_flat_panel"
+      ],
+      "is_translational": false,
       "is_rotational": false,
-      "final_scale": 0.9778037071228027
+      "final_scale": 1.0
     }
   },
   "humans": {
@@ -257,54 +254,31 @@
       "num_verts": 10475,
       "num_faces": 20908,
       "active_chains": [
-        "left",
         "right"
       ],
       "active_body_pose_ids": [
-        12,
         13,
-        15,
         16,
-        17,
         18,
-        19,
         20
       ],
-      "max_delta_pose_deg": 6.458328912161516,
-      "mean_delta_pose_deg": 1.4440624999861909,
+      "max_delta_pose_deg": 1.8457371738947668,
+      "mean_delta_pose_deg": 0.5666687789242235,
       "global_scale": 1.0
     }
   },
   "edges": [
     {
-      "node_a": "bicycle, handlebar",
-      "node_b": "person 1, left hand",
-      "is_continuous": true,
-      "is_rel_static": true
-    },
-    {
-      "node_a": "bicycle, seat",
-      "node_b": "person 1, hips",
-      "is_continuous": true,
-      "is_rel_static": true
-    },
-    {
-      "node_a": "bicycle, pedal",
-      "node_b": "person 1, left foot",
-      "is_continuous": true,
-      "is_rel_static": true
-    },
-    {
-      "node_a": "bicycle, pedal",
-      "node_b": "person 1, right foot",
-      "is_continuous": true,
-      "is_rel_static": true
-    },
-    {
-      "node_a": "umbrella, shaft",
+      "node_a": "iron, handle",
       "node_b": "person 1, right hand",
       "is_continuous": true,
       "is_rel_static": true
+    },
+    {
+      "node_a": "iron, soleplate",
+      "node_b": "ironing board, top flat panel",
+      "is_continuous": true,
+      "is_rel_static": false
     }
   ],
   "conventions": {

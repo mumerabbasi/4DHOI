@@ -1,8 +1,8 @@
 {
   "status": "arm_pose_optimized",
   "source": "module_06_smplx_with_module_09_transform",
-  "name": "person 1",
-  "slug": "person_1",
+  "name": "person 2",
+  "slug": "person_2",
   "num_frames": 81,
   "num_verts": 10475,
   "num_faces": 20908,
@@ -20,7 +20,7 @@
     19,
     20
   ],
-  "max_delta_pose_deg": 6.458328912161516,
-  "mean_delta_pose_deg": 1.4440624999861909,
+  "max_delta_pose_deg": 44.40221285079581,
+  "mean_delta_pose_deg": 2.7413884174950014,
   "global_scale": 1.0
 }

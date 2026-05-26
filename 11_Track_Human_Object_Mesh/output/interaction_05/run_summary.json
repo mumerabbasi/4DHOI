@@ -6,9 +6,9 @@
   "num_humans": 1,
   "num_objects": 2,
   "num_edges": 5,
-  "best_total_loss": 3.805389404296875,
-  "optimisation_time_s": 594.1363650318235,
-  "best_iter": 3751,
+  "best_total_loss": 3.1810035705566406,
+  "optimisation_time_s": 482.5441429167986,
+  "best_iter": 4774,
   "inputs": {
     "aligned_mesh_dir": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_05",
     "human_motion_dir": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/output/interaction_05",
@@ -72,8 +72,8 @@
     "adam_lr": 0.0001,
     "sdf_resolution": 128,
     "optimize_arm_pose": true,
-    "optimize_object_scale": true,
-    "max_object_scale_delta": 0.2,
+    "optimize_object_scale": false,
+    "max_object_scale_delta": 0.1,
     "active_human_pose_chains": {
       "person_1": [
         "left",
@@ -231,7 +231,7 @@
       ],
       "is_translational": true,
       "is_rotational": false,
-      "final_scale": 0.9868050813674927
+      "final_scale": 1.0
     },
     "umbrella": {
       "name": "umbrella",
@@ -244,7 +244,7 @@
       ],
       "is_translational": true,
       "is_rotational": false,
-      "final_scale": 0.9778037071228027
+      "final_scale": 1.0
     }
   },
   "humans": {
@@ -270,8 +270,8 @@
         19,
         20
       ],
-      "max_delta_pose_deg": 6.458328912161516,
-      "mean_delta_pose_deg": 1.4440624999861909,
+      "max_delta_pose_deg": 5.919240010218981,
+      "mean_delta_pose_deg": 1.492406152044718,
       "global_scale": 1.0
     }
   },
