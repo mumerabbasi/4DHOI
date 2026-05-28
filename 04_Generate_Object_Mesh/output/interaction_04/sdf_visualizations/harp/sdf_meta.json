@@ -1,0 +1,30 @@
+{
+  "mesh_path": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_04/meshes/harp.ply",
+  "sdf_volume_npy": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_04/sdf_visualizations/harp/sdf_volume.npy",
+  "sdf_zero_level_ply": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_04/sdf_visualizations/harp/sdf_zero_level.ply",
+  "sdf_band_points_ply": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_04/sdf_visualizations/harp/sdf_band_points.ply",
+  "sdf_inside_points_ply": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_04/sdf_visualizations/harp/sdf_inside_points.ply",
+  "resolution": 128,
+  "padding": 0.05,
+  "bbox_min": [
+    -0.13321444392204285,
+    -0.4089803695678711,
+    1.060692548751831
+  ],
+  "bbox_max": [
+    0.30721020698547363,
+    0.42449942231178284,
+    1.4550021886825562
+  ],
+  "sign_convention": "negative_inside_same_as_11_Track_Human_Object_Mesh",
+  "mesh_is_watertight": true,
+  "mesh_is_winding_consistent": true,
+  "mesh_is_volume": true,
+  "boundary_edges": 0,
+  "nonmanifold_edges": 0,
+  "sdf_min": -0.013132838532328606,
+  "sdf_max": 0.2941797375679016,
+  "band_point_count": 158206,
+  "inside_point_count": 30193,
+  "note": "For non-watertight meshes, the SDF magnitude is still useful, but inside/outside sign may be unreliable."
+}

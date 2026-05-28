@@ -1,0 +1,30 @@
+{
+  "mesh_path": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_02/meshes/dumbbell_(left_hand).ply",
+  "sdf_volume_npy": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_02/sdf_visualizations/dumbbell_(left_hand)/sdf_volume.npy",
+  "sdf_zero_level_ply": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_02/sdf_visualizations/dumbbell_(left_hand)/sdf_zero_level.ply",
+  "sdf_band_points_ply": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_02/sdf_visualizations/dumbbell_(left_hand)/sdf_band_points.ply",
+  "sdf_inside_points_ply": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_02/sdf_visualizations/dumbbell_(left_hand)/sdf_inside_points.ply",
+  "resolution": 128,
+  "padding": 0.05,
+  "bbox_min": [
+    0.04968191310763359,
+    -0.309628963470459,
+    1.1651575565338135
+  ],
+  "bbox_max": [
+    0.25594788789749146,
+    -0.11476956307888031,
+    1.3979265689849854
+  ],
+  "sign_convention": "negative_inside_same_as_11_Track_Human_Object_Mesh",
+  "mesh_is_watertight": false,
+  "mesh_is_winding_consistent": true,
+  "mesh_is_volume": false,
+  "boundary_edges": 5,
+  "nonmanifold_edges": 2,
+  "sdf_min": -0.0023596249520778656,
+  "sdf_max": 0.15304502844810486,
+  "band_point_count": 72766,
+  "inside_point_count": 13056,
+  "note": "For non-watertight meshes, the SDF magnitude is still useful, but inside/outside sign may be unreliable."
+}
