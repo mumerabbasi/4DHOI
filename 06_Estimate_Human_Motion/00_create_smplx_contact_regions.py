@@ -133,7 +133,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--hip_upper_leg_fraction",
         type=float,
-        default=0.20,
+        default=0.40,
         help=(
             "Fraction of the hip-to-knee span included for posterior upper-leg "
             "support in the hip contact patch."
@@ -590,7 +590,7 @@ def _frame_slice(params: dict, name: str, frame_index: int) -> torch.Tensor:
             f"Requested frame {frame_index}, but '{name}' has only "
             f"{value.shape[0]} frame(s)."
         )
-    return value[frame_index : frame_index + 1]
+    return value[frame_index: frame_index + 1]
 
 
 def get_hmr4d_frame_vertices(
