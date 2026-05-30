@@ -15,6 +15,7 @@ import json
 import math
 import os
 import re
+import shutil
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Dict, Iterable, List, Tuple
@@ -34,6 +35,7 @@ except Exception:  # pragma: no cover
 
 IMAGE_EXTS = ("*.jpg", "*.JPG", "*.jpeg", "*.JPEG", "*.png", "*.PNG")
 LABEL_RE = re.compile(r'"label"\s*:\s*"([^"]+)"')
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 CHAIR_LABELS = {
@@ -107,18 +109,24 @@ SCENE_TYPE_BONUS = {
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Select low-clutter HSI-friendly scenes.")
-    parser.add_argument("--data-root", type=Path, default=Path("data"), help="Dataset root with scene directories")
+    parser.add_argument("--data-root", type=Path, default=PROJECT_ROOT / "data", help="Dataset root with scene directories")
     parser.add_argument(
         "--scene-types",
         type=Path,
-        default=Path("metadata/scene_types.json"),
+        default=PROJECT_ROOT / "metadata" / "scene_types.json",
         help="Scene type metadata JSON",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=PROJECT_ROOT / "outputs" / "hsi_scene_selection",
+        help="Directory for the ranking CSV and selected_scenes_export/",
     )
     parser.add_argument(
         "--output-csv",
         type=Path,
-        default=Path("outputs/hsi_scene_ranking.csv"),
-        help="Output CSV path",
+        default=None,
+        help="Optional output CSV path. Defaults to output-dir/hsi_scene_ranking.csv",
     )
     parser.add_argument("--top-k", type=int, default=5, help="Number of scenes to return")
     parser.add_argument(
@@ -384,8 +392,66 @@ def discover_scenes(data_root: Path) -> List[Tuple[str, Path, List[Path]]]:
     return scenes
 
 
+def output_csv_path(args: argparse.Namespace) -> Path:
+    if args.output_csv is not None:
+        return args.output_csv
+    return args.output_dir / "hsi_scene_ranking.csv"
+
+
+def resolve_image_path(image_path: object, data_root: Path) -> Path | None:
+    p = Path(str(image_path))
+    candidates = [p]
+    if not p.is_absolute():
+        candidates.append(Path.cwd() / p)
+        if p.parts and p.parts[0] == data_root.name:
+            candidates.append(data_root.parent / p)
+        if p.parts and p.parts[0] == "data":
+            candidates.append(data_root / Path(*p.parts[1:]))
+
+    seen: set[Path] = set()
+    for candidate in candidates:
+        candidate = candidate.resolve()
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def write_selected_export(
+    selected: List[Dict[str, object]],
+    fields: List[str],
+    output_dir: Path,
+    data_root: Path,
+) -> Path:
+    export_dir = output_dir / "selected_scenes_export"
+    if export_dir.exists():
+        shutil.rmtree(export_dir)
+    image_dir = export_dir / "representative_images"
+    image_dir.mkdir(parents=True, exist_ok=True)
+
+    manifest_csv = export_dir / "selected_scene_candidates.csv"
+    with manifest_csv.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        for row in selected:
+            writer.writerow({k: row.get(k, "") for k in fields})
+
+    for row in selected:
+        scene_id = str(row.get("scene_id", "scene"))
+        src = resolve_image_path(row.get("representative_image", ""), data_root)
+        if src is None:
+            continue
+        suffix = src.suffix if src.suffix else ".jpg"
+        shutil.copy2(src, image_dir / f"{scene_id}{suffix}")
+
+    return export_dir
+
+
 def main() -> None:
     args = parse_args()
+    output_csv = output_csv_path(args)
 
     if not args.data_root.is_dir():
         raise SystemExit(f"data root not found: {args.data_root}")
@@ -490,7 +556,7 @@ def main() -> None:
 
     top = preferred[: args.top_k]
 
-    args.output_csv.parent.mkdir(parents=True, exist_ok=True)
+    output_csv.parent.mkdir(parents=True, exist_ok=True)
     fields = [
         "scene_id",
         "scene_type",
@@ -512,22 +578,14 @@ def main() -> None:
         "representative_image",
     ]
 
-    with args.output_csv.open("w", newline="", encoding="utf-8") as f:
+    with output_csv.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fields)
         writer.writeheader()
         for r in ranked:
             row = {k: r.get(k, "") for k in fields}
             writer.writerow(row)
 
-    top_txt = args.output_csv.with_name(args.output_csv.stem + "_top.txt")
-    with top_txt.open("w", encoding="utf-8") as f:
-        for i, r in enumerate(top, start=1):
-            f.write(
-                f"{i}. {r['scene_id']} | type={r['scene_type']} | "
-                f"final={float(r['final_score']):.4f} | clutter={float(r['visual_clutter']):.4f} | "
-                f"open={float(r['open_ratio']):.4f} | chairs={int(r['chair_count'])} | "
-                f"img={r['representative_image']}\n"
-            )
+    export_dir = write_selected_export(top, fields, output_csv.parent, args.data_root)
 
     print("\nTop scene recommendations:")
     for i, r in enumerate(top, start=1):
@@ -538,8 +596,8 @@ def main() -> None:
             f"open={float(r['open_ratio']):.4f}, chairs={int(r['chair_count'])})"
         )
 
-    print(f"\nSaved full ranking to: {args.output_csv}")
-    print(f"Saved top list to: {top_txt}")
+    print(f"\nSaved ranking CSV to: {output_csv}")
+    print(f"Saved selected export to: {export_dir}")
 
 
 if __name__ == "__main__":
