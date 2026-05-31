@@ -20,4 +20,4 @@ Output:
 Return only the edited scene image.
 
 Interaction:
-A person sits on top of the round white table in the meeting room with both legs crossed on the tabletop. The hips are supported by the table surface and both legs remain on the table rather than reaching the floor. The torso is upright and relaxed, with the hands resting naturally near the body. The person has short dark hair, a neutral facial expression, a light shirt, dark pants, and casual shoes. The room has white walls, a whiteboard, orange chairs around the table, a wooden door, and a dark floor.
+A person lies asleep on the bed with the body stretched across the patterned blanket. The head rests near the pillow area, the torso and hips are supported by the mattress, and both legs lie on top of the bed. There is no required foot contact with the floor. The arms rest naturally near the body in a relaxed sleeping posture. The person has short dark hair, closed or relaxed eyes, a calm facial expression, a gray shirt, blue pants, and socks. The bedroom has white walls, a wooden floor, pillows, and small furniture near the bed.

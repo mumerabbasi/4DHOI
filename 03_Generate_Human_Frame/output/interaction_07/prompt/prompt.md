@@ -20,4 +20,4 @@ Output:
 Return only the edited scene image.
 
 Interaction:
-A person stands beside the round white table, leaning slightly forward with their right hand resting flat on the table surface. The left arm hangs naturally by their side. Both feet are planted on the dark grey floor in a stable, relaxed stance. The person has short dark hair, a neutral facial expression, a light-colored shirt, and dark pants. The room is a clean, bright indoor space with white walls, a large whiteboard on the right wall, and a wooden door in the background.
+A person sits on top of the round white table in the meeting room with both legs crossed on the tabletop. The hips are supported by the table surface and both legs remain on the table rather than reaching the floor. The torso is upright and relaxed, with the hands resting naturally near the body. The person has short dark hair, a neutral facial expression, a light shirt, dark pants, and casual shoes. The room has white walls, a whiteboard, orange chairs around the table, a wooden door, and a dark floor.

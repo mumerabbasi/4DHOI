@@ -1,0 +1,22 @@
+{
+  "palette": [
+    {
+      "part": "left hand",
+      "label": "Left Hand",
+      "hex": "#00FFFF",
+      "rgb": [
+        0,
+        255,
+        255
+      ],
+      "color_name": "pure cyan"
+    }
+  ],
+  "color_max_distance": 90.0,
+  "color_hue_tolerance": 12.0,
+  "min_color_saturation": 80,
+  "min_color_value": 40,
+  "min_component_area": 0,
+  "keep_components": 1,
+  "target_mask_erode_pixels": 2
+}

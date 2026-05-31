@@ -20,4 +20,4 @@ Output:
 Return only the edited scene image.
 
 Interaction:
-A person hangs from the wooden door near the doorway, using both hands to grip the door or upper door frame. Both arms are extended and tense, carrying the body weight while the feet are lifted or not relied on for floor support. The torso is close to the door, with the legs bent slightly beneath the body. The person has short dark hair, a concentrated expression, a gray shirt, blue pants, and light shoes. The room has a wooden floor, white walls, a bed visible to one side, shelves, and the open wooden door leading to a hallway.
+A person stands inside the shower stall taking a shower. Both feet are on the shower floor within the glass enclosure, and the right hand reaches toward the shower control or glass door while the body faces the shower wall. The torso is upright and relaxed, with the head angled forward as if under the shower area. The person has short dark hair and a calm neutral expression. The bathroom is bright with white walls, gray tile flooring, a window, a toilet, a sink, open shelving, a mirror, and a potted plant near the vanity.

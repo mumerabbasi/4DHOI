@@ -20,4 +20,4 @@ Output:
 Return only the edited scene image.
 
 Interaction:
-A person stands in front of the stove and reaches with the right hand toward the stove controls to turn it on. The body faces the cooktop, with the torso slightly angled toward the counter and the left arm relaxed nearby. Both feet are planted on the kitchen floor in a stable stance. The person has short dark hair, a focused neutral expression, a gray shirt, blue jeans, and light sneakers. The compact kitchen includes a cooktop and oven, white cabinets, tiled backsplash, hanging pans, a sink, and a dish rack.
+A person stands in front of the washing machine and opens the washing machine door with the right hand. The right hand grips the round door or handle, pulling it outward while the torso leans slightly toward the appliance. The left arm stays relaxed near the body and both feet remain on the gray tile floor. The person has short dark hair, a neutral focused expression, a gray shirt, blue jeans, and light sneakers. The laundry area has white walls, a window, shelving, a vacuum cleaner nearby, and a bathroom doorway in the background.

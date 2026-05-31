@@ -20,4 +20,4 @@ Output:
 Return only the edited scene image.
 
 Interaction:
-A person stands in the bedroom and kicks the teddy bear with the right foot. The right leg extends toward the teddy bear so the right foot makes direct contact with it, while the left foot stays on the wooden floor to support the body. The torso leans slightly back for balance and the arms extend naturally to steady the pose. The person has short dark hair, a focused expression, a gray shirt, blue jeans, and light shoes. The room includes white walls, a wooden floor, a bed, shelves, and an open doorway.
+A person stands at the kitchen counter making coffee with the coffee maker. The right hand operates the coffee maker controls or cup area while the left hand steadies the machine or counter nearby. The torso leans slightly forward toward the counter and both feet remain planted on the wooden floor. The person has short dark hair, a calm focused expression, a gray shirt, blue jeans, and light sneakers. The bright kitchen has white cabinets, a sink, a stovetop hood, a towel hanging from the counter, a trash bin, and light wooden flooring.

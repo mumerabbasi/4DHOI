@@ -24,6 +24,21 @@ BODY_PART_COLOR_MAP: dict[str, tuple[str, str]] = {
     "hips": ("#9400D3", "bright violet"),
 }
 
+CONTACT_COLOR_CANDIDATES: tuple[tuple[str, str], ...] = (
+    ("#FF00FF", "pure magenta"),
+    ("#00FF00", "pure green"),
+    ("#0000FF", "pure blue"),
+    ("#FFFF00", "pure yellow"),
+    ("#FF0000", "pure red"),
+    ("#00FFFF", "pure cyan"),
+    ("#FF8000", "vivid orange"),
+    ("#8000FF", "electric violet"),
+    ("#00FF80", "spring green"),
+    ("#FF0080", "hot rose"),
+    ("#0080FF", "azure blue"),
+    ("#80FF00", "chartreuse green"),
+)
+
 SAM3_CHECKPOINT = None
 SAM3_BPE_PATH = "/my_workspace/4DHHOI/sam3/sam3/assets/bpe_simple_vocab_16e6.txt.gz"
 
@@ -83,6 +98,10 @@ def hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
     if len(value) != 6:
         raise ValueError(f"Expected #RRGGBB color, got: {hex_color}")
     return int(value[0:2], 16), int(value[2:4], 16), int(value[4:6], 16)
+
+
+def rgb_to_hex(color_rgb: tuple[int, int, int]) -> str:
+    return "#{:02X}{:02X}{:02X}".format(*color_rgb)
 
 
 def title_label(text: str) -> str:
@@ -149,21 +168,206 @@ def all_contact_human_parts(sig_payload: dict[str, Any]) -> list[str]:
     return contact_human_parts(sig_payload, scene_element=None)
 
 
-def build_contact_prompt(system_prompt: str, human_parts: list[str]) -> str:
+def build_static_contact_palette(human_parts: list[str]) -> list[dict[str, Any]]:
+    palette: list[dict[str, Any]] = []
+    for part in human_parts:
+        hex_color, color_name = color_for_part(part)
+        palette.append(
+            {
+                "part": normalize_label(part),
+                "label": title_label(part),
+                "hex": hex_color.upper(),
+                "rgb": list(hex_to_rgb(hex_color)),
+                "color_name": color_name,
+            }
+        )
+    return palette
+
+
+def _scene_color_distance_score(
+    candidate_rgb: tuple[int, int, int],
+    scene_rgb: np.ndarray,
+    avoid_mask: np.ndarray | None,
+) -> float:
+    import numpy as np
+
+    if avoid_mask is not None and np.any(avoid_mask):
+        pixels = scene_rgb[avoid_mask.astype(bool)]
+    else:
+        pixels = scene_rgb.reshape(-1, 3)
+    if pixels.size == 0:
+        return 441.0
+    step = max(1, int(pixels.shape[0] // 50000))
+    sampled = pixels[::step].astype(np.float32)
+    candidate = np.asarray(candidate_rgb, dtype=np.float32)
+    distances = np.linalg.norm(sampled - candidate[None, :], axis=1)
+    return float(np.percentile(distances, 5))
+
+
+def choose_contact_palette(
+    human_parts: list[str],
+    scene_rgb: np.ndarray,
+    avoid_mask: np.ndarray | None = None,
+) -> list[dict[str, Any]]:
+    import numpy as np
+
+    for part in human_parts:
+        color_for_part(part)
+
+    candidates = [
+        (hex_color.upper(), name, hex_to_rgb(hex_color))
+        for hex_color, name in CONTACT_COLOR_CANDIDATES
+    ]
+    if len(human_parts) > len(candidates):
+        raise ValueError(
+            f"Need {len(human_parts)} contact colors, but only "
+            f"{len(candidates)} candidates are configured."
+        )
+
+    scene_scores = {
+        hex_color: _scene_color_distance_score(color_rgb, scene_rgb, avoid_mask)
+        for hex_color, _name, color_rgb in candidates
+    }
+    selected: list[tuple[str, str, tuple[int, int, int]]] = []
+    available = candidates[:]
+    for _part in human_parts:
+        best_idx = 0
+        best_score: tuple[float, float, float] | None = None
+        for idx, (hex_color, _name, color_rgb) in enumerate(available):
+            if selected:
+                pair_distance = min(
+                    float(
+                        np.linalg.norm(
+                            np.asarray(color_rgb, dtype=np.float32)
+                            - np.asarray(selected_rgb, dtype=np.float32)
+                        )
+                    )
+                    for _selected_hex, _selected_name, selected_rgb in selected
+                )
+            else:
+                pair_distance = 441.0
+            scene_distance = scene_scores[hex_color]
+            score = (
+                min(pair_distance, scene_distance),
+                pair_distance,
+                scene_distance,
+            )
+            if best_score is None or score > best_score:
+                best_idx = idx
+                best_score = score
+        selected.append(available.pop(best_idx))
+
+    palette: list[dict[str, Any]] = []
+    for part, (hex_color, color_name, color_rgb) in zip(human_parts, selected):
+        palette.append(
+            {
+                "part": normalize_label(part),
+                "label": title_label(part),
+                "hex": hex_color,
+                "rgb": list(color_rgb),
+                "color_name": color_name,
+            }
+        )
+    return palette
+
+
+def build_contact_spec(
+    intrinsics_3x3: list[list[float]],
+    palette: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "version": 1,
+        "camera": {
+            "intrinsics_3x3": intrinsics_3x3,
+        },
+        "palette": {
+            "parts": palette,
+        },
+    }
+
+
+def save_contact_spec(
+    path: Path,
+    intrinsics_3x3: list[list[float]],
+    palette: list[dict[str, Any]],
+) -> None:
+    save_json(path, build_contact_spec(intrinsics_3x3, palette))
+
+
+def load_contact_spec(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        raise FileNotFoundError(f"Contact spec JSON not found: {path}")
+    payload = load_json(path)
+    if not isinstance(payload.get("camera"), dict):
+        raise ValueError(f"Contact spec missing camera object: {path}")
+    if not isinstance(payload.get("palette"), dict):
+        raise ValueError(f"Contact spec missing palette object: {path}")
+    return payload
+
+
+def contact_palette_from_spec(
+    path: Path,
+    human_parts: list[str],
+) -> list[dict[str, Any]]:
+    payload = load_contact_spec(path)
+    raw_parts = payload["palette"].get("parts")
+    if not isinstance(raw_parts, list):
+        raise ValueError(f"Contact spec palette missing parts list: {path}")
+
+    by_part: dict[str, dict[str, Any]] = {}
+    for item in raw_parts:
+        if not isinstance(item, dict):
+            continue
+        part = normalize_label(str(item.get("part", "")))
+        hex_color = str(item.get("hex", "")).upper()
+        color_rgb = hex_to_rgb(hex_color)
+        by_part[part] = {
+            "part": part,
+            "label": str(item.get("label") or title_label(part)),
+            "hex": rgb_to_hex(color_rgb),
+            "rgb": list(color_rgb),
+            "color_name": str(item.get("color_name") or hex_color),
+        }
+
+    palette: list[dict[str, Any]] = []
+    for part in human_parts:
+        normalized = normalize_label(part)
+        if normalized not in by_part:
+            raise ValueError(
+                f"Contact palette {path} does not define a color for "
+                f"'{normalized}'."
+            )
+        palette.append(by_part[normalized])
+    return palette
+
+
+def build_contact_prompt(
+    system_prompt: str,
+    human_parts: list[str],
+    palette: list[dict[str, Any]] | None = None,
+) -> str:
+    if palette is None:
+        palette = build_static_contact_palette(human_parts)
+    palette_by_part = {
+        normalize_label(str(item["part"])): item
+        for item in palette
+    }
     color_lines = []
     for part in human_parts:
-        _hex_color, color_name = color_for_part(part)
         part_label = normalize_label(part)
+        color_info = palette_by_part[part_label]
+        rgb = color_info["rgb"]
         color_lines.append(
-            f"{title_label(part)}: If the target object is touched by the "
-            f"{part_label} in the Reference Image, copy the visible "
-            f"{part_label} mask shape from the Reference Image onto the "
-            f"matching location in the Canvas Image using a precise "
-            f"{color_name} overlay."
+            f"{title_label(part)}: The {part_label} is in contact with the "
+            f"target object. Copy the visible {part_label} mask shape from "
+            f"the Reference Image onto the matching location in the returned "
+            f"overlay image using solid "
+            f"{color_info['hex']} / RGB({rgb[0]}, {rgb[1]}, {rgb[2]}) "
+            f"({color_info['color_name']})."
         )
     return (
         f"{system_prompt.strip()}\n\n"
-        "Color Mapping for Segmentation Overlays:\n"
+        "Color Mapping for Segmentation Masks:\n"
         + "\n".join(color_lines)
     )
 
@@ -431,10 +635,13 @@ def run_gemini_image_edit(
 def resize_cover_center_crop_array(
     image_rgb: np.ndarray,
     target_shape: tuple[int, int],
+    resampling: int | None = None,
 ) -> np.ndarray:
     import numpy as np
     from PIL import Image, ImageOps
 
+    if resampling is None:
+        resampling = Image.Resampling.BICUBIC
     target_h, target_w = target_shape
     if image_rgb.shape[:2] == (target_h, target_w):
         return image_rgb
@@ -443,7 +650,7 @@ def resize_cover_center_crop_array(
     resized = ImageOps.fit(
         image,
         (target_w, target_h),
-        method=Image.Resampling.BICUBIC,
+        method=resampling,
         centering=(0.5, 0.5),
     )
     return np.asarray(resized.convert("RGB"))
@@ -475,11 +682,14 @@ def normalize_overlay_to_canvas(
     canvas_path: Path,
     resized_overlay_path: Path,
 ) -> tuple[np.ndarray, tuple[int, int]]:
+    from PIL import Image
+
     canvas_rgb = load_rgb(canvas_path)
     overlay_rgb = load_rgb(overlay_path)
     normalized = resize_cover_center_crop_array(
         overlay_rgb,
         canvas_rgb.shape[:2],
+        resampling=Image.Resampling.NEAREST,
     )
     save_rgb(resized_overlay_path, normalized)
     return normalized, canvas_rgb.shape[:2]
@@ -534,7 +744,11 @@ def classify_nearest_color(
     overlay_rgb: np.ndarray,
     target_colors_rgb: list[tuple[int, int, int]],
     color_max_distance: float,
+    color_hue_tolerance: float = 12.0,
+    min_color_saturation: int = 80,
+    min_color_value: int = 40,
 ) -> tuple[np.ndarray, np.ndarray]:
+    import cv2
     import numpy as np
 
     candidates = np.asarray(target_colors_rgb, dtype=np.int16)
@@ -543,9 +757,53 @@ def classify_nearest_color(
         - candidates[None, None, :, :]
     )
     distances = np.linalg.norm(diff, axis=-1)
-    nearest = distances.argmin(axis=-1)
-    accept = distances.min(axis=-1) <= float(color_max_distance)
+    nearest_rgb = distances.argmin(axis=-1)
+    rgb_accept = distances.min(axis=-1) <= float(color_max_distance)
+
+    overlay_hsv = cv2.cvtColor(overlay_rgb, cv2.COLOR_RGB2HSV)
+    candidate_rgb = np.asarray(target_colors_rgb, dtype=np.uint8).reshape(-1, 1, 3)
+    candidate_hsv = cv2.cvtColor(candidate_rgb, cv2.COLOR_RGB2HSV)[:, 0, :]
+    hue_diff = np.abs(
+        overlay_hsv[..., 0].astype(np.int16)[..., None]
+        - candidate_hsv[:, 0].astype(np.int16)[None, None, :]
+    )
+    hue_distance = np.minimum(hue_diff, 180 - hue_diff)
+    nearest_hue = hue_distance.argmin(axis=-1)
+    hue_accept = (
+        (hue_distance.min(axis=-1) <= float(color_hue_tolerance))
+        & (overlay_hsv[..., 1] >= int(min_color_saturation))
+        & (overlay_hsv[..., 2] >= int(min_color_value))
+    )
+
+    nearest = nearest_rgb.copy()
+    hue_only = ~rgb_accept & hue_accept
+    nearest[hue_only] = nearest_hue[hue_only]
+    accept = rgb_accept | hue_accept
     return nearest, accept
+
+
+def save_contact_visualization(
+    canvas_rgb: np.ndarray,
+    masks_by_part: list[tuple[str, np.ndarray]],
+    palette: list[dict[str, Any]],
+    visualization_path: Path,
+    alpha: float = 0.65,
+) -> None:
+    import numpy as np
+
+    palette_by_part = {
+        normalize_label(str(item["part"])): tuple(int(v) for v in item["rgb"])
+        for item in palette
+    }
+    visual = canvas_rgb.astype(np.float32).copy()
+    blend_alpha = min(1.0, max(0.0, float(alpha)))
+    for part, mask in masks_by_part:
+        color = np.asarray(palette_by_part[normalize_label(part)], dtype=np.float32)
+        visual[mask] = (
+            visual[mask] * (1.0 - blend_alpha)
+            + color[None, :] * blend_alpha
+        )
+    save_rgb(visualization_path, np.clip(visual, 0, 255).astype(np.uint8))
 
 
 def save_contact_masks_from_overlay(
@@ -555,8 +813,13 @@ def save_contact_masks_from_overlay(
     target_mask_crop_path: Path,
     contact_masks_dir: Path,
     human_parts: list[str],
+    palette: list[dict[str, Any]] | None = None,
+    visualization_path: Path | None = None,
     color_max_distance: float = 90.0,
-    min_component_area: int = 10,
+    color_hue_tolerance: float = 12.0,
+    min_color_saturation: int = 80,
+    min_color_value: int = 40,
+    min_component_area: int = 0,
     keep_components: int = 3,
     target_mask_erode_pixels: int = 2,
 ) -> list[Path]:
@@ -565,21 +828,32 @@ def save_contact_masks_from_overlay(
         canvas_path=canvas_path,
         resized_overlay_path=resized_overlay_path,
     )
+    canvas_rgb = load_rgb(canvas_path)
     target_mask = load_binary_mask(target_mask_crop_path, expected_hw=canvas_hw)
     target_mask = erode_binary_mask(target_mask, target_mask_erode_pixels)
 
+    if palette is None:
+        palette = build_static_contact_palette(human_parts)
+    palette_by_part = {
+        normalize_label(str(item["part"])): item
+        for item in palette
+    }
     target_colors = [
-        hex_to_rgb(color_for_part(part)[0])
+        tuple(int(value) for value in palette_by_part[normalize_label(part)]["rgb"])
         for part in human_parts
     ]
     nearest_color, color_accept = classify_nearest_color(
         overlay_rgb=overlay_rgb,
         target_colors_rgb=target_colors,
         color_max_distance=color_max_distance,
+        color_hue_tolerance=color_hue_tolerance,
+        min_color_saturation=min_color_saturation,
+        min_color_value=min_color_value,
     )
 
     contact_masks_dir.mkdir(parents=True, exist_ok=True)
     written_paths: list[Path] = []
+    masks_by_part: list[tuple[str, np.ndarray]] = []
     for part_idx, part in enumerate(human_parts):
         mask = (
             (nearest_color == part_idx)
@@ -593,9 +867,30 @@ def save_contact_masks_from_overlay(
         )
         mask_path = contact_masks_dir / f"{slugify(part)}.png"
         save_binary_mask(mask_path, mask)
+        masks_by_part.append((part, mask))
         written_paths.append(mask_path)
 
+    if visualization_path is not None:
+        save_contact_visualization(
+            canvas_rgb=canvas_rgb,
+            masks_by_part=masks_by_part,
+            palette=palette,
+            visualization_path=visualization_path,
+        )
+
     metadata_path = contact_masks_dir / "metadata.json"
-    if metadata_path.exists():
-        metadata_path.unlink()
+    save_json(
+        metadata_path,
+        {
+            "palette": palette,
+            "color_max_distance": float(color_max_distance),
+            "color_hue_tolerance": float(color_hue_tolerance),
+            "min_color_saturation": int(min_color_saturation),
+            "min_color_value": int(min_color_value),
+            "min_component_area": int(min_component_area),
+            "keep_components": int(keep_components),
+            "target_mask_erode_pixels": int(target_mask_erode_pixels),
+        },
+    )
+    written_paths.append(metadata_path)
     return written_paths

@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "camera": {
+    "intrinsics_3x3": [
+      [
+        469.8606350451475,
+        0.0,
+        504.0
+      ],
+      [
+        0.0,
+        471.1590811418314,
+        213.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ]
+  },
+  "palette": {
+    "parts": [
+      {
+        "part": "hips",
+        "label": "Hips",
+        "hex": "#0000FF",
+        "rgb": [
+          0,
+          0,
+          255
+        ],
+        "color_name": "pure blue"
+      },
+      {
+        "part": "left leg",
+        "label": "Left Leg",
+        "hex": "#00FF00",
+        "rgb": [
+          0,
+          255,
+          0
+        ],
+        "color_name": "pure green"
+      },
+      {
+        "part": "right leg",
+        "label": "Right Leg",
+        "hex": "#FF0000",
+        "rgb": [
+          255,
+          0,
+          0
+        ],
+        "color_name": "pure red"
+      }
+    ]
+  }
+}

@@ -306,21 +306,25 @@ def load_scannet_camera(
 
 
 def load_contact_camera(
-    camera_path: Path,
+    contact_spec_path: Path,
     contact_image_path: Path,
 ) -> tuple[np.ndarray, int, int]:
-    if not camera_path.exists():
+    if not contact_spec_path.exists():
         raise FileNotFoundError(
-            f"Contact camera JSON not found: {camera_path}"
+            f"Contact spec JSON not found: {contact_spec_path}"
         )
     if not contact_image_path.exists():
         raise FileNotFoundError(f"Contact canvas image not found: {contact_image_path}")
 
-    payload = load_json(camera_path)
-    intrinsics = np.asarray(payload["intrinsics_3x3"], dtype=np.float32)
+    payload = load_json(contact_spec_path)
+    camera_payload = payload.get("camera")
+    if not isinstance(camera_payload, dict):
+        raise ValueError(f"Expected camera object in {contact_spec_path}")
+    intrinsics = np.asarray(camera_payload["intrinsics_3x3"], dtype=np.float32)
     if intrinsics.shape != (3, 3):
         raise ValueError(
-            f"Expected 3x3 intrinsics in {camera_path}, got {intrinsics.shape}"
+            f"Expected 3x3 intrinsics in {contact_spec_path}, got "
+            f"{intrinsics.shape}"
         )
 
     image = cv2.imread(str(contact_image_path), cv2.IMREAD_COLOR)
@@ -377,11 +381,11 @@ def build_shared_default_paths(interaction_name: str) -> dict[str, Path]:
         interaction_name /
         "prompt" /
         "target_scene_crop.png",
-        "contact_camera_json": PROJECT_DIR /
+        "contact_spec": PROJECT_DIR /
         "04_Estimate_Contact" /
         "output" /
         interaction_name /
-        "contact_camera.json",
+        "contact_spec.json",
     }
 
 
@@ -2609,7 +2613,7 @@ def main() -> None:
     smpl_seg_json_path = resolve_path(args.smpl_seg_json, defaults["smpl_seg_json"])
     smpl_folder = resolve_path(args.smpl_folder, defaults["smpl_folder"])
     contact_canvas_path = defaults["contact_canvas_path"]
-    contact_camera_json = defaults["contact_camera_json"]
+    contact_spec_path = defaults["contact_spec"]
     contact_masks_dir = resolve_path(
         args.contact_masks_dir, defaults["contact_masks_dir"]
     )
@@ -2660,7 +2664,7 @@ def main() -> None:
         target_width,
         target_height,
     ) = load_contact_camera(
-        contact_camera_json,
+        contact_spec_path,
         contact_canvas_path,
     )
     contact_camera_ctx = build_identity_camera(

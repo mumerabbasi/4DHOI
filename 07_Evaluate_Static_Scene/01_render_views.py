@@ -68,11 +68,11 @@ def default_paths(interaction_name: str) -> dict[str, Path]:
         "outdir": SCRIPT_DIR /
         "output" /
         interaction_name,
-        "contact_camera_json": PROJECT_DIR /
+        "contact_spec": PROJECT_DIR /
         "04_Estimate_Contact" /
         "output" /
         interaction_name /
-        "contact_camera.json",
+        "contact_spec.json",
         "contact_canvas_image": PROJECT_DIR /
         "04_Estimate_Contact" /
         "output" /
@@ -292,19 +292,22 @@ def read_camera(input_scene: dict[str, Any], scannet_root: Path) -> dict[str, An
 
 def read_contact_crop_camera(
     base_camera: dict[str, Any],
-    contact_camera_json: Path,
+    contact_spec_path: Path,
     contact_canvas_image: Path,
     Image: Any,
 ) -> dict[str, Any]:
-    if not contact_camera_json.exists():
-        raise FileNotFoundError(f"Contact camera JSON not found: {contact_camera_json}")
+    if not contact_spec_path.exists():
+        raise FileNotFoundError(f"Contact spec JSON not found: {contact_spec_path}")
     if not contact_canvas_image.exists():
         raise FileNotFoundError(f"Contact canvas image not found: {contact_canvas_image}")
 
-    payload = load_json(contact_camera_json)
-    intrinsics = payload.get("intrinsics_3x3")
+    payload = load_json(contact_spec_path)
+    camera_payload = payload.get("camera")
+    if not isinstance(camera_payload, dict):
+        raise ValueError(f"Expected camera object in {contact_spec_path}")
+    intrinsics = camera_payload.get("intrinsics_3x3")
     if not isinstance(intrinsics, list) or len(intrinsics) != 3:
-        raise ValueError(f"Expected intrinsics_3x3 in {contact_camera_json}")
+        raise ValueError(f"Expected camera.intrinsics_3x3 in {contact_spec_path}")
 
     with Image.open(contact_canvas_image) as image:
         width, height = image.size
@@ -318,7 +321,7 @@ def read_contact_crop_camera(
             "fy": float(intrinsics[1][1]),
             "cx": float(intrinsics[0][2]),
             "cy": float(intrinsics[1][2]),
-            "contact_camera_json": contact_camera_json,
+            "contact_spec": contact_spec_path,
             "contact_canvas_image": contact_canvas_image,
         }
     )
@@ -646,7 +649,7 @@ def render_scene_with_human(
         "scene_crop": {
             "mode": "rebuilt_from_scannet_contact_camera_frustum",
             "source_scene_mesh": str(camera["scene_mesh_path"]),
-            "contact_camera_json": str(contact_crop_camera["contact_camera_json"]),
+            "contact_spec": str(contact_crop_camera["contact_spec"]),
             "contact_canvas_image": str(contact_crop_camera["contact_canvas_image"]),
             "full_scene_vertex_count": int(full_scene_vertices.shape[0]),
             "full_scene_face_count": int(full_scene_faces.shape[0]),
@@ -1726,17 +1729,17 @@ def render_views(
 
     camera = read_camera(input_scene, Path(args.scannet_root).resolve())
     defaults = default_paths(args.interaction_name)
-    contact_camera_json = resolve_path(args.contact_camera_json, defaults["contact_camera_json"])
+    contact_spec_path = resolve_path(args.contact_spec, defaults["contact_spec"])
     contact_canvas_image = resolve_path(args.contact_canvas_image, defaults["contact_canvas_image"])
     contact_crop_camera = read_contact_crop_camera(
         camera,
-        contact_camera_json,
+        contact_spec_path,
         contact_canvas_image,
         Image,
     )
     human_mesh_path = optimizer_root / "meshes" / "frame_0000_world.ply"
     log("load", f"source ScanNet scene mesh: {camera['scene_mesh_path']}")
-    log("load", f"contact crop camera: {contact_camera_json}")
+    log("load", f"contact spec: {contact_spec_path}")
     log("load", f"contact crop canvas: {contact_canvas_image}")
     log("load", f"SMPL-X segmentation: {Path(args.smpl_seg_json).resolve()}")
     segmentation = load_json(Path(args.smpl_seg_json).resolve())
@@ -1863,7 +1866,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sig-json", default=None)
     parser.add_argument("--input-scene-json", default=None)
     parser.add_argument("--outdir", default=None)
-    parser.add_argument("--contact-camera-json", default=None)
+    parser.add_argument("--contact-spec", default=None)
     parser.add_argument("--contact-canvas-image", default=None)
     parser.add_argument("--scannet-root", default=str(DEFAULT_SCANNET_ROOT))
     parser.add_argument("--smpl-seg-json", default=str(DEFAULT_SMPL_SEG_JSON))

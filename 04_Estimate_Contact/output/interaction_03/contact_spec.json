@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "camera": {
+    "intrinsics_3x3": [
+      [
+        463.0958330484893,
+        0.0,
+        42.0
+      ],
+      [
+        0.0,
+        463.20252044787384,
+        211.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ]
+  },
+  "palette": {
+    "parts": [
+      {
+        "part": "hips",
+        "label": "Hips",
+        "hex": "#00FFFF",
+        "rgb": [
+          0,
+          255,
+          255
+        ],
+        "color_name": "pure cyan"
+      },
+      {
+        "part": "left hand",
+        "label": "Left Hand",
+        "hex": "#0000FF",
+        "rgb": [
+          0,
+          0,
+          255
+        ],
+        "color_name": "pure blue"
+      },
+      {
+        "part": "right hand",
+        "label": "Right Hand",
+        "hex": "#FF00FF",
+        "rgb": [
+          255,
+          0,
+          255
+        ],
+        "color_name": "pure magenta"
+      }
+    ]
+  }
+}

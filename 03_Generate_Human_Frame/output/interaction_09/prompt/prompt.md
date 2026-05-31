@@ -20,4 +20,4 @@ Output:
 Return only the edited scene image.
 
 Interaction:
-A person lies asleep on the bed with the body stretched across the patterned blanket. The head rests near the pillow area, the torso and hips are supported by the mattress, and both legs lie on top of the bed. There is no required foot contact with the floor. The arms rest naturally near the body in a relaxed sleeping posture. The person has short dark hair, closed or relaxed eyes, a calm facial expression, a gray shirt, blue pants, and socks. The bedroom has white walls, a wooden floor, pillows, and small furniture near the bed.
+A person hangs from the wooden door near the doorway, using both hands to grip the door or upper door frame. Both arms are extended and tense, carrying the body weight while the feet are lifted or not relied on for floor support. The torso is close to the door, with the legs bent slightly beneath the body. The person has short dark hair, a concentrated expression, a gray shirt, blue pants, and light shoes. The room has a wooden floor, white walls, a bed visible to one side, shelves, and the open wooden door leading to a hallway.

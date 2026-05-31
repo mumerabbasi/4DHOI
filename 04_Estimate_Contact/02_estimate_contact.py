@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 from common import (
+    contact_palette_from_spec,
     floor_contact_human_parts,
     load_binary_mask,
     load_json,
@@ -27,6 +28,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--prompt", default=None)
     parser.add_argument("--reference-image", default=None)
     parser.add_argument("--canvas-image", default=None)
+    parser.add_argument("--contact-spec", default=None)
     parser.add_argument("--target-mask-crop", default=None)
     parser.add_argument("--outdir", default=None)
     parser.add_argument("--sig-json", default=None)
@@ -36,9 +38,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--model", default="gemini-2.5-flash-image")
     parser.add_argument("--overwrite-overlay", action="store_true")
-    parser.add_argument("--color-max-distance", type=float, default=175.0)
-    parser.add_argument("--min-component-area", type=int, default=10)
-    parser.add_argument("--keep-components", type=int, default=3)
+    parser.add_argument("--color-max-distance", type=float, default=90.0)
+    parser.add_argument("--color-hue-tolerance", type=float, default=12.0)
+    parser.add_argument("--min-color-saturation", type=int, default=80)
+    parser.add_argument("--min-color-value", type=int, default=40)
+    parser.add_argument("--min-component-area", type=int, default=0)
+    parser.add_argument("--keep-components", type=int, default=1)
     parser.add_argument("--target-mask-erode-pixels", type=int, default=2)
     parser.set_defaults(script_dir=script_dir, project_dir=project_dir)
     return parser.parse_args(argv)
@@ -75,6 +80,11 @@ def main(argv: list[str] | None = None) -> Path:
         if args.target_mask_crop
         else output_root / "target_mask_crop.png"
     )
+    contact_spec_path = (
+        Path(args.contact_spec).resolve()
+        if args.contact_spec
+        else output_root / "contact_spec.json"
+    )
     floor_mask_crop_path = output_root / "floor_mask_crop.png"
     sig_json_path = (
         Path(args.sig_json).resolve()
@@ -95,7 +105,9 @@ def main(argv: list[str] | None = None) -> Path:
 
     contact_overlay_path = output_root / "contact_overlay.png"
     resized_overlay_path = output_root / "contact_overlay_resized.png"
+    visualization_path = output_root / "contact_overlay_visualization.png"
     contact_masks_dir = output_root / "contact_masks"
+    contact_palette = contact_palette_from_spec(contact_spec_path, human_parts)
 
     if contact_overlay_path.exists() and not args.overwrite_overlay:
         print(
@@ -130,7 +142,12 @@ def main(argv: list[str] | None = None) -> Path:
         target_mask_crop_path=target_mask_crop_path,
         contact_masks_dir=contact_masks_dir,
         human_parts=human_parts,
+        palette=contact_palette,
+        visualization_path=visualization_path,
         color_max_distance=args.color_max_distance,
+        color_hue_tolerance=args.color_hue_tolerance,
+        min_color_saturation=args.min_color_saturation,
+        min_color_value=args.min_color_value,
         min_component_area=args.min_component_area,
         keep_components=args.keep_components,
         target_mask_erode_pixels=args.target_mask_erode_pixels,
@@ -153,6 +170,7 @@ def main(argv: list[str] | None = None) -> Path:
 
     print(f"Read contact overlay: {contact_overlay_path}")
     print(f"Wrote resized contact overlay: {resized_overlay_path}")
+    print(f"Wrote contact overlay visualization: {visualization_path}")
     for path in written_paths:
         print(f"Wrote contact mask artifact: {path}")
     return contact_overlay_path

@@ -20,4 +20,4 @@ Output:
 Return only the edited scene image.
 
 Interaction:
-A person stands at the kitchen counter doing dishes in the kitchen sink. Both hands are positioned over the sink area, handling dishes and water near the faucet. The torso leans slightly forward toward the counter while both feet remain planted on the floor for balance. The person has short dark hair, a neutral focused expression, a gray shirt, blue jeans, and light sneakers. The kitchen contains white cabinets, a stove and cooktop on the left, tiled backsplash, a dish rack beside the sink, and a wooden floor.
+A person stands at the bathroom sink and turns on the bathroom faucet with the right hand. The right hand touches the faucet handle, the torso leans slightly toward the sink, and the left arm rests naturally by the side. Both feet remain on the gray tile floor in a stable stance. The person has short dark hair, a neutral focused expression, a gray shirt, blue jeans, and light sneakers. The bathroom has white walls, a window, a glass shower enclosure, a toilet, shelves, a sink, a mirror, a potted plant, and gray floor tiles.

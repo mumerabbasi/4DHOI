@@ -48,9 +48,12 @@ Manual Gemini contact workflow:
 04_Estimate_Contact/output/<interaction_name>/prompt/prompt.md
 04_Estimate_Contact/output/<interaction_name>/prompt/reference_inpainted_crop.png
 04_Estimate_Contact/output/<interaction_name>/prompt/target_scene_crop.png
+04_Estimate_Contact/output/<interaction_name>/contact_spec.json
 ```
 
-Upload those three files to Gemini online, save the generated contact overlay as:
+Upload the prompt and two images to Gemini online. The contact spec stores the
+crop camera and color palette used by the prompt. Save the generated contact
+overlay image as:
 
 ```text
 04_Estimate_Contact/output/<interaction_name>/contact_overlay.png

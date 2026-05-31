@@ -68,11 +68,11 @@ def default_paths(interaction_name: str) -> dict[str, Path]:
         "outdir": SCRIPT_DIR /
         "output" /
         interaction_name,
-        "contact_camera_json": PROJECT_DIR /
+        "contact_spec": PROJECT_DIR /
         "04_Estimate_Contact" /
         "output" /
         interaction_name /
-        "contact_camera.json",
+        "contact_spec.json",
         "contact_canvas_image": PROJECT_DIR /
         "04_Estimate_Contact" /
         "output" /

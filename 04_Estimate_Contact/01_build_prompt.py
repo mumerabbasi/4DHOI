@@ -9,6 +9,7 @@ from common import (
     build_contact_prompt,
     build_pinhole_intrinsics,
     build_sam3_processor,
+    choose_contact_palette,
     crop_array,
     erode_binary_mask,
     floor_contact_human_parts,
@@ -20,7 +21,7 @@ from common import (
     resolve_scannet_root,
     resolve_transforms_path,
     save_binary_mask,
-    save_json,
+    save_contact_spec,
     save_rgb,
     save_text,
     run_sam3_text_prompt,
@@ -132,8 +133,6 @@ def main(argv: list[str] | None = None) -> Path:
     system_prompt = system_prompt_path.read_text(encoding="utf-8")
     human_parts = target_object_human_parts(sig_payload)
     floor_parts = floor_contact_human_parts(sig_payload)
-    prompt = build_contact_prompt(system_prompt, human_parts)
-    save_text(prompt_path, prompt + "\n")
 
     scene_rgb = load_rgb(scene_image_path)
     inpainted_rgb = load_rgb(inpainted_frame_path)
@@ -218,7 +217,7 @@ def main(argv: list[str] | None = None) -> Path:
     canvas_crop_path = prompt_dir / "target_scene_crop.png"
     target_mask_crop_path = output_root / "target_mask_crop.png"
     floor_mask_crop_path = output_root / "floor_mask_crop.png"
-    contact_camera_path = output_root / "contact_camera.json"
+    contact_spec_path = output_root / "contact_spec.json"
 
     save_rgb(reference_crop_path, reference_crop)
     save_rgb(canvas_crop_path, canvas_crop)
@@ -245,12 +244,14 @@ def main(argv: list[str] | None = None) -> Path:
         source_intrinsics,
         crop_xyxy,
     )
-    save_json(
-        contact_camera_path,
-        {
-            "intrinsics_3x3": contact_intrinsics,
-        },
+    contact_palette = choose_contact_palette(
+        human_parts=human_parts,
+        scene_rgb=canvas_crop,
+        avoid_mask=target_mask_crop,
     )
+    save_contact_spec(contact_spec_path, contact_intrinsics, contact_palette)
+    prompt = build_contact_prompt(system_prompt, human_parts, contact_palette)
+    save_text(prompt_path, prompt + "\n")
 
     print(f"Wrote contact estimation prompt: {prompt_path}")
     print(f"Wrote reference crop: {reference_crop_path}")
@@ -258,7 +259,7 @@ def main(argv: list[str] | None = None) -> Path:
     print(f"Wrote target mask crop: {target_mask_crop_path}")
     if floor_mask_crop is not None:
         print(f"Wrote floor mask crop: {floor_mask_crop_path}")
-    print(f"Wrote contact camera JSON: {contact_camera_path}")
+    print(f"Wrote contact spec JSON: {contact_spec_path}")
     return prompt_path
 
 
