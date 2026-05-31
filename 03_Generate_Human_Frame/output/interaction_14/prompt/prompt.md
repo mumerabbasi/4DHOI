@@ -20,4 +20,4 @@ Output:
 Return only the edited scene image.
 
 Interaction:
-A person stands beside the dark curtain in the living room and opens it with the right hand. The right hand grips the curtain fabric and pulls it sideways while the left arm hangs naturally or balances the body. Both feet remain on the wooden floor, with the torso turned toward the window. The person has short dark hair, a neutral focused expression, a gray shirt, blue jeans, and light sneakers. The room contains a dark sofa, pillows, a rug, a low table, wall art, a television stand, wooden flooring, and dark curtains over the window.
+A person stands inside the shower stall taking a shower. Both feet are on the shower floor within the glass enclosure, and the right hand reaches toward the shower control or glass door while the body faces the shower wall. The torso is upright and relaxed, with the head angled forward as if under the shower area. The person has short dark hair and a calm neutral expression. The bathroom is bright with white walls, gray tile flooring, a window, a toilet, a sink, open shelving, a mirror, and a potted plant near the vanity.
