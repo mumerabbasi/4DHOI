@@ -12,9 +12,9 @@ and appearance as in the original scene.
 Do not move, rotate, deform, lift, translate, or reposition the target object in any way.
 Only add the human in plausible contact, as if about to start the action in the next frame.
 
-Input Images:
-The first image is the original scene. The second image is the binary target-object mask.
-Use the mask only to identify the existing target object that must remain fixed and contacted.
+Input Image:
+The image is the original scene. Use the interaction description to identify the existing
+target object that must remain fixed and contacted.
 
 Output:
 Return only the edited scene image.

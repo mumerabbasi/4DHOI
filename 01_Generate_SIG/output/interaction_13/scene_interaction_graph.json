@@ -1,0 +1,26 @@
+{
+  "target_object": {
+    "label": "teddy bear"
+  },
+  "human_part_nodes": [
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "right foot",
+      "scene_element": "target_object",
+      "notes": "the right foot contacts the teddy bear during the kick"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "floor",
+      "notes": "the left foot supports the body while kicking"
+    }
+  ],
+  "interaction": "A person stands in the bedroom and kicks the teddy bear with the right foot. The right leg extends toward the teddy bear so the right foot makes direct contact with it, while the left foot stays on the wooden floor to support the body. The torso leans slightly back for balance and the arms extend naturally to steady the pose. The person has short dark hair, a focused expression, a gray shirt, blue jeans, and light shoes. The room includes white walls, a wooden floor, a bed, shelves, and an open doorway."
+}

@@ -49,14 +49,6 @@ def resolve_scene_image_path(
     return scannet_root / scene_id / image_rel_path / camera_name
 
 
-def resolve_target_mask_path(
-    selection_json_path: Path,
-    selection_payload: dict[str, Any],
-) -> Path:
-    mask_path = selection_payload["target_selection"]["mask_path"]
-    return selection_json_path.parent / str(mask_path)
-
-
 def extract_response_image(response: Any) -> Image.Image:
     parts = getattr(response, "parts", None)
     if parts is None and getattr(response, "candidates", None):
@@ -92,14 +84,13 @@ def run_gemini_image_edit(
     model: str,
     prompt: str,
     scene_image: Image.Image,
-    target_mask_image: Image.Image,
 ) -> Image.Image:
     from google import genai
 
     client = genai.Client(api_key=api_key)
     response = client.models.generate_content(
         model=model,
-        contents=[prompt, scene_image, target_mask_image],
+        contents=[prompt, scene_image],
     )
     return extract_response_image(response)
 

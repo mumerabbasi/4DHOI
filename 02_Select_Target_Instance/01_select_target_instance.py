@@ -65,14 +65,14 @@ def resolve_scene_paths(scannet_root: Path, scene_context: dict[str, Any]) -> di
     }
 
 
-def resolve_sam3_prompt(sig_payload: dict[str, Any], sig_json_path: Path) -> str:
+def resolve_target_label(sig_payload: dict[str, Any], sig_json_path: Path) -> str:
     target = sig_payload.get("target_object", {})
-    prompt = str(target.get("sam3_prompt", "")).strip()
-    if not prompt:
+    label = str(target.get("label", "")).strip()
+    if not label:
         raise ValueError(
-            f"SIG target_object.sam3_prompt is empty or missing: {sig_json_path}"
+            f"SIG target_object.label is empty or missing: {sig_json_path}"
         )
-    return prompt
+    return label
 
 
 def build_sam3_processor(
@@ -209,7 +209,7 @@ def main() -> None:
         raise FileNotFoundError(f"Failed to read image: {scene_paths['image_path']}")
     image_rgb = Image.fromarray(cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB))
 
-    sam3_prompt = resolve_sam3_prompt(sig_payload, sig_json_path)
+    target_label = resolve_target_label(sig_payload, sig_json_path)
 
     sam3_processor = build_sam3_processor(
         checkpoint_path=Path(args.sam3_checkpoint).resolve() if args.sam3_checkpoint else None,
@@ -221,7 +221,7 @@ def main() -> None:
     sam3_predictions = run_sam3_text_prompts(
         processor=sam3_processor,
         image_rgb=image_rgb,
-        prompts=[sam3_prompt],
+        prompts=[target_label],
     )
     selected = select_highest_confidence_mask(sam3_predictions)
     selected_mask = selected["mask"]
@@ -235,18 +235,11 @@ def main() -> None:
     cv2.imwrite(str(scene_image_path), image_bgr)
     save_mask(target_mask_path, selected_mask)
 
-    target = sig_payload["target_object"]
     selection_payload = {
-        "target_selection": {
-            "sam3_prompt": str(selected["prompt"]),
-            "target_mask_score": float(selected["sam3_score"]),
-            "mask_path": target_mask_path.name,
-            "sig_json": str(sig_json_path),
-        },
-        "target_object": {
-            "label": str(target.get("label", selected["prompt"])),
-            "sam3_prompt": str(target.get("sam3_prompt", selected["prompt"])),
-        },
+        "label": str(selected["prompt"]),
+        "target_mask_score": float(selected["sam3_score"]),
+        "mask_path": target_mask_path.name,
+        "sig_json": str(sig_json_path),
     }
     selection_json_path.write_text(
         json.dumps(selection_payload, ensure_ascii=False, indent=2) + "\n",
@@ -256,13 +249,13 @@ def main() -> None:
     print(f"Input scene: {input_dir / 'input_scene.json'}")
     print(f"SIG: {sig_json_path}")
     print(f"Scene image: {scene_paths['image_path']}")
-    print(f"SAM3 prompt: {sam3_prompt}")
+    print(f"Target label: {target_label}")
     print(f"Saved target mask: {target_mask_path}")
     print(f"Saved selection JSON: {selection_json_path}")
     print(
         "Selected target:",
         {
-            "selected_sam3_prompt": selected["prompt"],
+            "selected_label": selected["prompt"],
             "sam3_model_score": selected["sam3_score"],
             "mask_area_px": selected_stats["mask_area_px"],
         },

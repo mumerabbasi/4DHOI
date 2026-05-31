@@ -17,8 +17,7 @@ Required output schema:
 
 {
   "target_object": {
-    "label": "short target object name",
-    "sam3_prompt": "short SAM3 prompt for the target object"
+    "label": "short target object name"
   },
   "human_part_nodes": [
     "person 1, left hand",
@@ -42,7 +41,7 @@ Rules:
 
 1. Use the scene image and interaction text together. The interaction text tells you the intended action; the image tells you the visible scene layout and object context.
 2. Choose exactly one target object.
-3. `target_object.sam3_prompt` must be a short noun phrase, usually 2 to 6 words.
+3. `target_object.label` must be a short noun phrase naming the target object.
 4. Use human part nodes only from this vocabulary:
    - left hand
    - right hand
@@ -85,8 +84,7 @@ Example 1 output:
 
 {
   "target_object": {
-    "label": "brown small wooden table",
-    "sam3_prompt": "brown wooden table"
+    "label": "brown small wooden table"
   },
   "human_part_nodes": [
     "person 1, left hand",
@@ -133,8 +131,7 @@ Example 2 output:
 
 {
   "target_object": {
-    "label": "white trash bin",
-    "sam3_prompt": "white trash bin"
+    "label": "white trash bin"
   },
   "human_part_nodes": [
     "person 1, left hand",
@@ -181,8 +178,7 @@ Example 3 output:
 
 {
   "target_object": {
-    "label": "bed",
-    "sam3_prompt": "bed"
+    "label": "bed"
   },
   "human_part_nodes": [
     "person 1, hips",

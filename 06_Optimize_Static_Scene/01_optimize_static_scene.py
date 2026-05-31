@@ -180,11 +180,10 @@ def resolve_sig_target_label(sig_payload: dict[str, Any]) -> str:
     target_object = sig_payload.get("target_object", {})
     if not isinstance(target_object, dict):
         raise ValueError("SIG must contain target_object.")
-    for key in ("label", "sam3_prompt"):
-        value = str(target_object.get(key, "")).strip()
-        if value:
-            return value
-    raise ValueError("SIG target_object must contain a non-empty label or sam3_prompt.")
+    label = str(target_object.get("label", "")).strip()
+    if label:
+        return label
+    raise ValueError("SIG target_object.label must be non-empty.")
 
 
 def resolve_scannet_root(
@@ -1628,12 +1627,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--scene_intersect_weight_start",
         type=float,
-        default=0.0,
+        default=30.0,
     )
     parser.add_argument(
         "--scene_intersect_weight_end",
         type=float,
-        default=10.0,
+        default=30.0,
     )
     parser.add_argument("--scene_intersect_margin_m", type=float, default=0.01)
     parser.add_argument("--scene_intersect_surface_samples", type=int, default=700000)

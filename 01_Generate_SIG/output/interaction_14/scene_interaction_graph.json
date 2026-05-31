@@ -1,0 +1,32 @@
+{
+  "target_object": {
+    "label": "curtain"
+  },
+  "human_part_nodes": [
+    "person 1, right hand",
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object",
+      "notes": "the right hand grasps the curtain to pull it open"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "floor",
+      "notes": "the left foot supports the standing pose"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "floor",
+      "notes": "the right foot supports the standing pose"
+    }
+  ],
+  "interaction": "A person stands beside the dark curtain in the living room and opens it with the right hand. The right hand grips the curtain fabric and pulls it sideways while the left arm hangs naturally or balances the body. Both feet remain on the wooden floor, with the torso turned toward the window. The person has short dark hair, a neutral focused expression, a gray shirt, blue jeans, and light sneakers. The room contains a dark sofa, pillows, a rug, a low table, wall art, a television stand, wooden flooring, and dark curtains over the window."
+}

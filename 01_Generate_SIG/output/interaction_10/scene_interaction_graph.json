@@ -1,0 +1,38 @@
+{
+  "target_object": {
+    "label": "kitchen sink"
+  },
+  "human_part_nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "left hand",
+      "scene_element": "target_object",
+      "notes": "the left hand works over the sink while washing dishes"
+    },
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object",
+      "notes": "the right hand handles dishes or water at the sink"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "floor",
+      "notes": "the left foot supports the standing pose on the kitchen floor"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "floor",
+      "notes": "the right foot supports the standing pose on the kitchen floor"
+    }
+  ],
+  "interaction": "A person stands at the kitchen counter doing dishes in the kitchen sink. Both hands are positioned over the sink area, handling dishes and water near the faucet. The torso leans slightly forward toward the counter while both feet remain planted on the floor for balance. The person has short dark hair, a neutral focused expression, a gray shirt, blue jeans, and light sneakers. The kitchen contains white cabinets, a stove and cooktop on the left, tiled backsplash, a dish rack beside the sink, and a wooden floor."
+}

@@ -1,0 +1,31 @@
+{
+  "target_object": {
+    "label": "shower stall"
+  },
+  "human_part_nodes": [
+    "person 1, right hand",
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "left foot",
+      "scene_element": "target_object",
+      "notes": "the left foot stands on the shower floor"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "target_object",
+      "notes": "the right foot stands on the shower floor"
+    },
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object",
+      "notes": "the right hand touches the shower control or glass door"
+    }
+  ],
+  "interaction": "A person stands inside the shower stall taking a shower. Both feet are on the shower floor within the glass enclosure, and the right hand reaches toward the shower control or glass door while the body faces the shower wall. The torso is upright and relaxed, with the head angled forward as if under the shower area. The person has short dark hair and a calm neutral expression. The bathroom is bright with white walls, gray tile flooring, a window, a toilet, a sink, open shelving, a mirror, and a potted plant near the vanity."
+}

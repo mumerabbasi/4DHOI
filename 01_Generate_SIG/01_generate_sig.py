@@ -175,11 +175,8 @@ def validate_sig(sig: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("SIG must contain target_object.")
 
     label = str(target_object.get("label", "")).strip()
-    sam3_prompt = str(target_object.get("sam3_prompt", "")).strip()
     if not label:
         raise ValueError("target_object.label must be non-empty.")
-    if not sam3_prompt:
-        target_object["sam3_prompt"] = label
 
     raw_edges = sig.get("interaction_edges")
     if not isinstance(raw_edges, list) or not raw_edges:
@@ -193,7 +190,7 @@ def validate_sig(sig: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(edge, dict):
             continue
         human_part = normalize_label(str(edge.get("human_part", "")))
-        target_labels = {normalize_label(label), normalize_label(sam3_prompt)}
+        target_labels = {normalize_label(label)}
         scene_element = normalize_scene_element(str(edge.get("scene_element", "")), target_labels)
         if not human_part or not scene_element:
             continue
@@ -246,7 +243,7 @@ def validate_sig(sig: dict[str, Any]) -> dict[str, Any]:
     for node in raw_scene_nodes:
         scene_node = normalize_scene_element(
             str(node),
-            {normalize_label(label), normalize_label(sam3_prompt)},
+            {normalize_label(label)},
         )
         if not scene_node:
             continue
@@ -266,10 +263,7 @@ def validate_sig(sig: dict[str, Any]) -> dict[str, Any]:
             f"got {count_words(interaction)}."
         )
 
-    sig["target_object"] = {
-        "label": label,
-        "sam3_prompt": str(target_object.get("sam3_prompt", label)).strip(),
-    }
+    sig["target_object"] = {"label": label}
     sig["human_part_nodes"] = [
         format_human_part_node(part_name)
         for part_name in HUMAN_PARTS

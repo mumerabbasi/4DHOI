@@ -1,0 +1,32 @@
+{
+  "target_object": {
+    "label": "toilet paper roll"
+  },
+  "human_part_nodes": [
+    "person 1, right hand",
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object",
+      "notes": "the right hand grasps the toilet paper roll"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "floor",
+      "notes": "the left foot supports the standing pose"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "floor",
+      "notes": "the right foot supports the standing pose"
+    }
+  ],
+  "interaction": "A person stands near the toilet and takes out the toilet paper roll with the right hand. The right hand grasps the roll or pulls paper from it, while the torso leans slightly toward the toilet area. The left arm stays relaxed for balance and both feet are planted on the gray tile floor. The person has short dark hair, a neutral focused expression, a gray shirt, blue jeans, and light sneakers. The bathroom has a glass shower enclosure, a toilet, white walls, gray floor tiles, a window, shelves, a sink, and a potted plant."
+}

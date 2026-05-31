@@ -121,30 +121,40 @@ def build_arg_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "--hip_back_normal_threshold",
-        type=float,
-        default=0.15,
-        help=(
-            "Minimum vertex-normal alignment with the posterior direction "
-            "for the hip contact patch."
-        ),
-    )
-    parser.add_argument(
         "--hip_upper_pelvis_offset_m",
         type=float,
-        default=0.02,
+        default=-0.07,
         help=(
             "Highest y-coordinate kept for hip contact, expressed as a meter "
-            "offset above the pelvis joint."
+            "offset from the pelvis joint. Negative values move the cap below "
+            "the pelvis."
         ),
     )
     parser.add_argument(
         "--hip_upper_leg_fraction",
         type=float,
-        default=0.45,
+        default=0.40,
         help=(
             "Fraction of the hip-to-knee span included for posterior upper-leg "
             "support in the hip contact patch."
+        ),
+    )
+    parser.add_argument(
+        "--hip_posterior_z_max_m",
+        type=float,
+        default=-0.08,
+        help=(
+            "Maximum canonical z-coordinate kept for hip contact. More negative "
+            "values keep a tighter posterior glute/ischial patch."
+        ),
+    )
+    parser.add_argument(
+        "--hip_posterior_z_min_m",
+        type=float,
+        default=-0.16,
+        help=(
+            "Minimum canonical z-coordinate kept for hip contact. This removes "
+            "the deepest back-side vertices to reduce side-view depth variance."
         ),
     )
     return parser
@@ -298,11 +308,11 @@ def build_foot_bottom_segment(
 def build_hip_contact_segment(
     rest_vertices: torch.Tensor,
     rest_joints: torch.Tensor,
-    vertex_normals: torch.Tensor,
     full_ids: list[int],
-    hip_back_normal_threshold: float,
     hip_upper_pelvis_offset_m: float,
     hip_upper_leg_fraction: float,
+    hip_posterior_z_max_m: float,
+    hip_posterior_z_min_m: float,
 ) -> list[int]:
     if not 0.0 <= hip_upper_leg_fraction <= 1.0:
         raise ValueError("--hip_upper_leg_fraction must be between 0 and 1.")
@@ -326,12 +336,16 @@ def build_hip_contact_segment(
             "--hip_upper_pelvis_offset_m or --hip_upper_leg_fraction."
         )
 
-    posterior = torch.tensor([0.0, 0.0, -1.0], dtype=rest_vertices.dtype)
     points = rest_vertices[full_ids_t]
     height_mask = (points[:, 1] >= lower_y) & (points[:, 1] <= upper_y)
-    posterior_scores = vertex_normals[full_ids_t] @ posterior
-    posterior_mask = posterior_scores >= float(hip_back_normal_threshold)
-    contact_ids = full_ids_t[height_mask & posterior_mask]
+    z_min = float(hip_posterior_z_min_m)
+    z_max = float(hip_posterior_z_max_m)
+    if z_min >= z_max:
+        raise ValueError(
+            "--hip_posterior_z_min_m must be smaller than --hip_posterior_z_max_m."
+        )
+    posterior_depth_mask = (points[:, 2] >= z_min) & (points[:, 2] <= z_max)
+    contact_ids = full_ids_t[height_mask & posterior_depth_mask]
 
     contact_list = normalize_segment(contact_ids.tolist())
     if not contact_list:
@@ -345,9 +359,10 @@ def build_payload(
     wrist_forward_cutoff: float,
     inner_normal_threshold: float,
     foot_bottom_normal_threshold: float,
-    hip_back_normal_threshold: float,
     hip_upper_pelvis_offset_m: float,
     hip_upper_leg_fraction: float,
+    hip_posterior_z_max_m: float,
+    hip_posterior_z_min_m: float,
 ) -> tuple[dict, torch.Tensor]:
     rest_output = get_rest_pose_output(model)
     rest_vertices = rest_output.vertices[0].detach().cpu()
@@ -397,11 +412,11 @@ def build_payload(
     project_segments["hips_contact"] = build_hip_contact_segment(
         rest_vertices=rest_vertices,
         rest_joints=rest_joints,
-        vertex_normals=vertex_normals,
         full_ids=combine_segments(source_segments, HIP_CONTACT_SOURCE_SEGMENTS),
-        hip_back_normal_threshold=hip_back_normal_threshold,
         hip_upper_pelvis_offset_m=hip_upper_pelvis_offset_m,
         hip_upper_leg_fraction=hip_upper_leg_fraction,
+        hip_posterior_z_max_m=hip_posterior_z_max_m,
+        hip_posterior_z_min_m=hip_posterior_z_min_m,
     )
 
     payload = {
@@ -544,9 +559,10 @@ def main() -> None:
         wrist_forward_cutoff=float(args.wrist_forward_cutoff),
         inner_normal_threshold=float(args.inner_normal_threshold),
         foot_bottom_normal_threshold=float(args.foot_bottom_normal_threshold),
-        hip_back_normal_threshold=float(args.hip_back_normal_threshold),
         hip_upper_pelvis_offset_m=float(args.hip_upper_pelvis_offset_m),
         hip_upper_leg_fraction=float(args.hip_upper_leg_fraction),
+        hip_posterior_z_max_m=float(args.hip_posterior_z_max_m),
+        hip_posterior_z_min_m=float(args.hip_posterior_z_min_m),
     )
     write_payload(output_json, payload)
 

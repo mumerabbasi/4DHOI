@@ -1,0 +1,37 @@
+{
+  "target_object": {
+    "label": "bed"
+  },
+  "human_part_nodes": [
+    "person 1, left leg",
+    "person 1, right leg",
+    "person 1, head",
+    "person 1, hips"
+  ],
+  "scene_nodes": [
+    "target_object"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "head",
+      "scene_element": "target_object",
+      "notes": "the head rests on the pillow or mattress area"
+    },
+    {
+      "human_part": "hips",
+      "scene_element": "target_object",
+      "notes": "the hips are supported by the mattress"
+    },
+    {
+      "human_part": "left leg",
+      "scene_element": "target_object",
+      "notes": "the left leg lies on the bed"
+    },
+    {
+      "human_part": "right leg",
+      "scene_element": "target_object",
+      "notes": "the right leg lies on the bed"
+    }
+  ],
+  "interaction": "A person lies asleep on the bed with the body stretched across the patterned blanket. The head rests near the pillow area, the torso and hips are supported by the mattress, and both legs lie on top of the bed. There is no required foot contact with the floor. The arms rest naturally near the body in a relaxed sleeping posture. The person has short dark hair, closed or relaxed eyes, a calm facial expression, a gray shirt, blue pants, and socks. The bedroom has white walls, a wooden floor, pillows, and small furniture near the bed."
+}

@@ -1,0 +1,32 @@
+{
+  "target_object": {
+    "label": "white radiator"
+  },
+  "human_part_nodes": [
+    "person 1, right hand",
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object",
+      "notes": "the right hand adjusts the radiator temperature control"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "floor",
+      "notes": "the left foot supports the standing pose"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "floor",
+      "notes": "the right foot supports the standing pose"
+    }
+  ],
+  "interaction": "A person stands beside the bathroom radiator and adjusts its temperature control with the right hand. The right hand contacts the radiator valve or knob, while the torso bends slightly toward the wall near the window. Both feet are planted on the gray tile floor for balance. The person has short dark hair, a focused neutral expression, a gray shirt, blue jeans, and light sneakers. The bathroom contains a glass shower enclosure, a toilet, a sink, shelves, a mirror, a potted plant, a window, white walls, and gray tile flooring."
+}

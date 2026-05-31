@@ -1,12 +1,6 @@
 {
-  "target_selection": {
-    "sam3_prompt": "round white table",
-    "target_mask_score": 0.9613337516784668,
-    "mask_path": "target_mask.png",
-    "sig_json": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/output/interaction_07/scene_interaction_graph.json"
-  },
-  "target_object": {
-    "label": "round white table",
-    "sam3_prompt": "round white table"
-  }
+  "label": "round white table",
+  "target_mask_score": 0.9613337516784668,
+  "mask_path": "target_mask.png",
+  "sig_json": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/output/interaction_07/scene_interaction_graph.json"
 }
