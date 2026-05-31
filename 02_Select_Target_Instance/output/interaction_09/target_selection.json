@@ -1,6 +1,19 @@
 {
-  "label": "wooden door",
-  "target_mask_score": 0.952635645866394,
+  "label": "open door",
+  "target_mask_score": 0.93671053647995,
   "mask_path": "target_mask.png",
-  "sig_json": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/output/interaction_09/scene_interaction_graph.json"
+  "sig_json": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/output/interaction_09/scene_interaction_graph.json",
+  "sam3_candidate_prompt": "open door",
+  "sam3_candidate_mask_index": 14,
+  "sam3_candidate_bbox_xyxy": [
+    785,
+    188,
+    917,
+    758
+  ],
+  "sam3_candidate_area_px": 53113,
+  "sam3_selection_method": "highest IoU with temporary open-door guide mask",
+  "sam3_candidates_dir": "/my_workspace/4DHHOI/4DHSI/02_Select_Target_Instance/output/interaction_09/sam3_door_candidates_tmp",
+  "sam3_selected_candidate_file": "4DHSI/02_Select_Target_Instance/output/interaction_09/sam3_door_candidates_tmp/candidate_03_mask.png",
+  "sam3_candidate_guide_iou": 1.0
 }
