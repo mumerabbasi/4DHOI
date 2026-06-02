@@ -1597,7 +1597,7 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default="cuda:0",
     )
-    parser.add_argument("--adam_iters", type=int, default=1000)
+    parser.add_argument("--adam_iters", type=int, default=2000)
     parser.add_argument("--adam_lr", type=float, default=1e-3)
     parser.add_argument(
         "--rigid_stage_iters",
@@ -1610,7 +1610,7 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument("--root_orient_gvhmr_weight", type=float, default=20.0)
-    parser.add_argument("--pose_gvhmr_weight", type=float, default=10.0)
+    parser.add_argument("--pose_gvhmr_weight", type=float, default=50.0)
     parser.add_argument("--height_prior_weight", type=float, default=1.0)
     parser.add_argument(
         "--height_prior_target_m",
@@ -1631,12 +1631,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--scene_intersect_weight_start",
         type=float,
-        default=30.0,
+        default=0,
     )
     parser.add_argument(
         "--scene_intersect_weight_end",
         type=float,
-        default=30.0,
+        default=10,
     )
     parser.add_argument("--scene_intersect_margin_m", type=float, default=0.01)
     parser.add_argument("--scene_intersect_surface_samples", type=int, default=700000)
@@ -1837,6 +1837,12 @@ def build_dynamic_interaction_edges(
             moving_part_name,
             expected_hw=image_hw,
         )
+        if not np.any(contact_mask):
+            print(
+                f"  skipping interaction edge '{moving_part_name}' -> "
+                f"{scene_element}: contact mask is empty"
+            )
+            continue
         seed_face_ids, projection_filter_stats = (
             project_mask_to_depth_filtered_scene_faces(
                 contact_mask,
@@ -1918,7 +1924,8 @@ def build_dynamic_interaction_edges(
 
     if not interaction_edges:
         raise RuntimeError(
-            "No SIG interaction edges found for the human."
+            "No usable SIG interaction edges found for the human. "
+            "All contact masks may be empty or unavailable."
         )
     spatially_disambiguate_bilateral_interaction_edges(
         interaction_edges,
@@ -2050,6 +2057,13 @@ def query_human_sdf_for_scene_points(
     return scene_collision_points, sdf
 
 
+def clear_smplx_volume_cache(smplx_layer: Any) -> None:
+    volume = getattr(smplx_layer, "volume", None)
+    detach_cache = getattr(volume, "detach_cache", None)
+    if callable(detach_cache):
+        detach_cache()
+
+
 def compute_scene_inside_human_loss(
     current: dict[str, torch.Tensor],
     smplx_layer: Any,
@@ -2145,17 +2159,21 @@ def query_human_sdf_at_points(
     scale = current["scale"].reshape(())
     transl = current["transl"].reshape(1, 3)
     sdf_chunks: list[torch.Tensor] = []
-    for start in range(0, query_points.shape[0], int(chunk_size)):
-        query_chunk = query_points[start:start + int(chunk_size)]
-        query_unscaled = transl + (query_chunk - transl) / scale
-        sdf_unscaled = smplx_layer.volume.query_fast(
-            query_unscaled.unsqueeze(0),
-            current["smplx_output"],
-        )[0]
-        sdf_chunks.append(sdf_unscaled * scale)
-    if not sdf_chunks:
-        raise RuntimeError("SMPL-X SDF query received zero query points.")
-    return torch.cat(sdf_chunks, dim=0)
+    clear_smplx_volume_cache(smplx_layer)
+    try:
+        for start in range(0, query_points.shape[0], int(chunk_size)):
+            query_chunk = query_points[start:start + int(chunk_size)]
+            query_unscaled = transl + (query_chunk - transl) / scale
+            sdf_unscaled = smplx_layer.volume.query_fast(
+                query_unscaled.unsqueeze(0),
+                current["smplx_output"],
+            )[0]
+            sdf_chunks.append(sdf_unscaled * scale)
+        if not sdf_chunks:
+            raise RuntimeError("SMPL-X SDF query received zero query points.")
+        return torch.cat(sdf_chunks, dim=0)
+    finally:
+        clear_smplx_volume_cache(smplx_layer)
 
 
 def save_scene_intersect_debug_artifacts(
