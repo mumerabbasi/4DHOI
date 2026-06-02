@@ -33,6 +33,8 @@ PROJECT_BODY_PART_ORDER = [
 CONTACT_SEGMENT_ORDER = [
     "left_hand_inner",
     "right_hand_inner",
+    "left_leg_contact",
+    "right_leg_contact",
     "left_foot_bottom",
     "right_foot_bottom",
     "hips_contact",
@@ -68,6 +70,8 @@ SEGMENT_COLORS = {
     "hips": (210, 180, 140),
     "left_hand_inner": (220, 20, 60),
     "right_hand_inner": (30, 144, 255),
+    "left_leg_contact": (148, 0, 211),
+    "right_leg_contact": (65, 105, 225),
     "left_foot_bottom": (255, 69, 0),
     "right_foot_bottom": (0, 191, 255),
     "hips_contact": (46, 139, 87),
@@ -118,6 +122,44 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help=(
             "Minimum vertex-normal alignment with the downward direction "
             "for foot bottoms."
+        ),
+    )
+    parser.add_argument(
+        "--leg_upper_leg_start_fraction",
+        type=float,
+        default=0.35,
+        help=(
+            "Fraction of the hip-to-knee span where posterior leg contact "
+            "begins. This keeps the leg patch focused below the hip contact "
+            "support area."
+        ),
+    )
+    parser.add_argument(
+        "--leg_lower_leg_extension_fraction",
+        type=float,
+        default=0.90,
+        help=(
+            "Fraction of the knee-to-ankle span included in posterior leg "
+            "contact. Values near 1 include the backside of the calf while "
+            "leaving the ankle/foot to the foot contact region."
+        ),
+    )
+    parser.add_argument(
+        "--leg_posterior_z_max_m",
+        type=float,
+        default=-0.07,
+        help=(
+            "Maximum canonical z-coordinate kept for leg contact. More "
+            "negative values keep a tighter posterior leg patch."
+        ),
+    )
+    parser.add_argument(
+        "--leg_posterior_z_min_m",
+        type=float,
+        default=-0.12,
+        help=(
+            "Minimum canonical z-coordinate kept for leg contact. This caps "
+            "the deepest back-side vertices, mirroring the hip contact logic."
         ),
     )
     parser.add_argument(
@@ -305,6 +347,60 @@ def build_foot_bottom_segment(
     return bottom_list
 
 
+def build_leg_contact_segment(
+    rest_vertices: torch.Tensor,
+    rest_joints: torch.Tensor,
+    full_ids: list[int],
+    side: str,
+    leg_upper_leg_start_fraction: float,
+    leg_lower_leg_extension_fraction: float,
+    leg_posterior_z_max_m: float,
+    leg_posterior_z_min_m: float,
+) -> list[int]:
+    if not 0.0 <= leg_upper_leg_start_fraction <= 1.0:
+        raise ValueError("--leg_upper_leg_start_fraction must be between 0 and 1.")
+    if not 0.0 <= leg_lower_leg_extension_fraction <= 1.0:
+        raise ValueError(
+            "--leg_lower_leg_extension_fraction must be between 0 and 1."
+        )
+
+    full_ids_t = torch.as_tensor(full_ids, dtype=torch.long)
+    hip_y = rest_joints[JOINT_NAMES.index(f"{side}_hip")][1]
+    knee_y = rest_joints[JOINT_NAMES.index(f"{side}_knee")][1]
+    ankle_y = rest_joints[JOINT_NAMES.index(f"{side}_ankle")][1]
+
+    upper_y = float(
+        hip_y + float(leg_upper_leg_start_fraction) * (knee_y - hip_y)
+    )
+    lower_y = float(
+        knee_y + float(leg_lower_leg_extension_fraction) * (ankle_y - knee_y)
+    )
+    if lower_y >= upper_y:
+        raise ValueError(
+            "The leg contact vertical bounds are inverted; adjust "
+            "--leg_upper_leg_start_fraction or "
+            "--leg_lower_leg_extension_fraction."
+        )
+
+    z_min = float(leg_posterior_z_min_m)
+    z_max = float(leg_posterior_z_max_m)
+    if z_min >= z_max:
+        raise ValueError(
+            "--leg_posterior_z_min_m must be smaller than "
+            "--leg_posterior_z_max_m."
+        )
+
+    points = rest_vertices[full_ids_t]
+    height_mask = (points[:, 1] >= lower_y) & (points[:, 1] <= upper_y)
+    posterior_depth_mask = (points[:, 2] >= z_min) & (points[:, 2] <= z_max)
+    contact_ids = full_ids_t[height_mask & posterior_depth_mask]
+
+    contact_list = normalize_segment(contact_ids.tolist())
+    if not contact_list:
+        raise RuntimeError(f"The leg contact region for {side} is empty.")
+    return contact_list
+
+
 def build_hip_contact_segment(
     rest_vertices: torch.Tensor,
     rest_joints: torch.Tensor,
@@ -359,6 +455,10 @@ def build_payload(
     wrist_forward_cutoff: float,
     inner_normal_threshold: float,
     foot_bottom_normal_threshold: float,
+    leg_upper_leg_start_fraction: float,
+    leg_lower_leg_extension_fraction: float,
+    leg_posterior_z_max_m: float,
+    leg_posterior_z_min_m: float,
     hip_upper_pelvis_offset_m: float,
     hip_upper_leg_fraction: float,
     hip_posterior_z_max_m: float,
@@ -394,6 +494,26 @@ def build_payload(
         side="right",
         wrist_forward_cutoff=wrist_forward_cutoff,
         inner_normal_threshold=inner_normal_threshold,
+    )
+    project_segments["left_leg_contact"] = build_leg_contact_segment(
+        rest_vertices=rest_vertices,
+        rest_joints=rest_joints,
+        full_ids=project_segments["left_leg"],
+        side="left",
+        leg_upper_leg_start_fraction=leg_upper_leg_start_fraction,
+        leg_lower_leg_extension_fraction=leg_lower_leg_extension_fraction,
+        leg_posterior_z_max_m=leg_posterior_z_max_m,
+        leg_posterior_z_min_m=leg_posterior_z_min_m,
+    )
+    project_segments["right_leg_contact"] = build_leg_contact_segment(
+        rest_vertices=rest_vertices,
+        rest_joints=rest_joints,
+        full_ids=project_segments["right_leg"],
+        side="right",
+        leg_upper_leg_start_fraction=leg_upper_leg_start_fraction,
+        leg_lower_leg_extension_fraction=leg_lower_leg_extension_fraction,
+        leg_posterior_z_max_m=leg_posterior_z_max_m,
+        leg_posterior_z_min_m=leg_posterior_z_min_m,
     )
     project_segments["left_foot_bottom"] = build_foot_bottom_segment(
         rest_vertices=rest_vertices,
@@ -464,6 +584,12 @@ def validate_payload(payload: dict) -> None:
         if not bottom_set < foot_set:
             raise RuntimeError(
                 f"{side}_foot_bottom must be a strict subset of {side}_foot."
+            )
+        leg_set = set(segments[f"{side}_leg"])
+        leg_contact_set = set(segments[f"{side}_leg_contact"])
+        if not leg_contact_set < leg_set:
+            raise RuntimeError(
+                f"{side}_leg_contact must be a strict subset of {side}_leg."
             )
 
     hip_contact_set = set(segments["hips_contact"])
@@ -559,6 +685,12 @@ def main() -> None:
         wrist_forward_cutoff=float(args.wrist_forward_cutoff),
         inner_normal_threshold=float(args.inner_normal_threshold),
         foot_bottom_normal_threshold=float(args.foot_bottom_normal_threshold),
+        leg_upper_leg_start_fraction=float(args.leg_upper_leg_start_fraction),
+        leg_lower_leg_extension_fraction=float(
+            args.leg_lower_leg_extension_fraction
+        ),
+        leg_posterior_z_max_m=float(args.leg_posterior_z_max_m),
+        leg_posterior_z_min_m=float(args.leg_posterior_z_min_m),
         hip_upper_pelvis_offset_m=float(args.hip_upper_pelvis_offset_m),
         hip_upper_leg_fraction=float(args.hip_upper_leg_fraction),
         hip_posterior_z_max_m=float(args.hip_posterior_z_max_m),
