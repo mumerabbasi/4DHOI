@@ -18,6 +18,6 @@ Colors: Use only the exact solid colors listed below for contacting body-part ma
 Constraints: Do not add the generated human body, text labels, arrows, legends, boxes, keypoints, outlines, or any other annotations. Show only the original Canvas Image with the colored body-part masks overlaid for the specified contacting parts.
 
 Color Mapping for Segmentation Masks:
-Hips: The hips is in contact with the target object. Copy the visible hips mask shape from the Reference Image onto the matching location in the returned overlay image using solid #00FFFF / RGB(0, 255, 255) (pure cyan).
-Left Hand: The left hand is in contact with the target object. Copy the visible left hand mask shape from the Reference Image onto the matching location in the returned overlay image using solid #0000FF / RGB(0, 0, 255) (pure blue).
-Right Hand: The right hand is in contact with the target object. Copy the visible right hand mask shape from the Reference Image onto the matching location in the returned overlay image using solid #FF00FF / RGB(255, 0, 255) (pure magenta).
+Hips: The hips is in contact with the target object. Copy the visible hips mask shape from the Reference Image onto the matching location in the returned overlay image using solid #7601FD / RGB(118, 1, 253) (bright violet).
+Left Hand: The left hand is in contact with the target object. Copy the visible left hand mask shape from the Reference Image onto the matching location in the returned overlay image using solid #E502EC / RGB(229, 2, 236) (bright magenta).
+Right Hand: The right hand is in contact with the target object. Copy the visible right hand mask shape from the Reference Image onto the matching location in the returned overlay image using solid #7FF73D / RGB(127, 247, 61) (bright lime green).

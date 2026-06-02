@@ -42,7 +42,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--color-hue-tolerance", type=float, default=12.0)
     parser.add_argument("--min-color-saturation", type=int, default=80)
     parser.add_argument("--min-color-value", type=int, default=40)
-    parser.add_argument("--min-component-area", type=int, default=0)
+    parser.add_argument("--min-component-area", type=int, default=10)
     parser.add_argument("--keep-components", type=int, default=1)
     parser.add_argument("--target-mask-erode-pixels", type=int, default=2)
     parser.set_defaults(script_dir=script_dir, project_dir=project_dir)

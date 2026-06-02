@@ -3,42 +3,42 @@
     {
       "part": "hips",
       "label": "Hips",
-      "hex": "#00FFFF",
+      "hex": "#7601FD",
       "rgb": [
-        0,
-        255,
-        255
+        118,
+        1,
+        253
       ],
-      "color_name": "pure cyan"
+      "color_name": "bright violet"
     },
     {
       "part": "left hand",
       "label": "Left Hand",
-      "hex": "#0000FF",
+      "hex": "#E502EC",
       "rgb": [
-        0,
-        0,
-        255
+        229,
+        2,
+        236
       ],
-      "color_name": "pure blue"
+      "color_name": "bright magenta"
     },
     {
       "part": "right hand",
       "label": "Right Hand",
-      "hex": "#FF00FF",
+      "hex": "#7FF73D",
       "rgb": [
-        255,
-        0,
-        255
+        127,
+        247,
+        61
       ],
-      "color_name": "pure magenta"
+      "color_name": "bright lime green"
     }
   ],
   "color_max_distance": 90.0,
   "color_hue_tolerance": 12.0,
   "min_color_saturation": 80,
   "min_color_value": 40,
-  "min_component_area": 0,
+  "min_component_area": 10,
   "keep_components": 1,
   "target_mask_erode_pixels": 2
 }
