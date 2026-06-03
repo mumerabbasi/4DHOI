@@ -15,10 +15,10 @@
     "num_scene_collision_points": 700000,
     "num_sdf_query_points": 700000,
     "num_visualized_points": 700000,
-    "num_inside_points": 598,
-    "num_margin_points": 1004,
-    "min_sdf_m": -0.0403110533952713,
-    "max_sdf_m": 5.041017532348633
+    "num_inside_points": 278,
+    "num_margin_points": 638,
+    "min_sdf_m": -0.026071559637784958,
+    "max_sdf_m": 5.059041500091553
   },
   "sdf_grid": {
     "num_grid_points": 262144,
@@ -27,10 +27,10 @@
       64,
       64
     ],
-    "min_sdf_m": -0.10482902079820633,
-    "max_sdf_m": 0.7096742391586304,
-    "num_inside_grid_points": 10760,
-    "num_near_surface_grid_points": 5642,
+    "min_sdf_m": -0.10943206399679184,
+    "max_sdf_m": 0.7363452911376953,
+    "num_inside_grid_points": 9427,
+    "num_near_surface_grid_points": 4984,
     "color_clamp_m": 0.05
   }
 }

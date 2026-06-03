@@ -36,12 +36,15 @@ LOSS_TERM_KEYS = (
     "pose_gvhmr",
     "height_prior",
     "scene_intersect",
+    "human_scene_depth",
     "nocontact",
     "self_intersect",
 )
 CONTACT_SEGMENT_BY_BODY_SEGMENT = {
     "left_hand": "left_hand_inner",
     "right_hand": "right_hand_inner",
+    "left_leg": "left_leg_contact",
+    "right_leg": "right_leg_contact",
     "left_foot": "left_foot_bottom",
     "right_foot": "right_foot_bottom",
     "hips": "hips_contact",
@@ -578,6 +581,7 @@ def _get_reduction(nodes: tuple[InteractionNode, InteractionNode]) -> str:
     for node in nodes:
         if node.is_human and node.part_name.split(" ")[-1] in (
             "hand",
+            "leg",
             "foot",
             "hips",
         ):
@@ -1645,8 +1649,16 @@ def parse_args() -> argparse.Namespace:
         action=argparse.BooleanOptionalAction,
         default=True,
     )
-    parser.add_argument("--nocontact_weight_start", type=float, default=500.0)
-    parser.add_argument("--nocontact_weight_end", type=float, default=500.0)
+    parser.add_argument("--human_scene_depth_weight_start", type=float, default=0.0)
+    parser.add_argument("--human_scene_depth_weight_end", type=float, default=10.0)
+    parser.add_argument(
+        "--human_scene_depth_penetration_tolerance_m",
+        type=float,
+        default=0.01,
+    )
+    parser.add_argument("--human_scene_depth_min_valid_weight", type=float, default=0.25)
+    parser.add_argument("--nocontact_weight_start", type=float, default=800.0)
+    parser.add_argument("--nocontact_weight_end", type=float, default=800.0)
     parser.add_argument("--self_intersect_weight_start", type=float, default=0.0)
     parser.add_argument("--self_intersect_weight_end", type=float, default=1e-3)
     parser.add_argument("--seed", type=int, default=0)
@@ -1688,6 +1700,12 @@ def get_loss_weights(
             iteration,
             total_iters,
         ),
+        "human_scene_depth": linear_weight(
+            args.human_scene_depth_weight_start,
+            args.human_scene_depth_weight_end,
+            iteration,
+            total_iters,
+        ),
         "nocontact": linear_weight(
             args.nocontact_weight_start,
             args.nocontact_weight_end,
@@ -1724,6 +1742,10 @@ def build_loss_row(
     if isinstance(scene_stats, dict):
         for key, value in scene_stats.items():
             row[f"scene_intersect_{key}"] = int(value)
+    depth_stats = losses.get("human_scene_depth_stats", {})
+    if isinstance(depth_stats, dict):
+        for key, value in depth_stats.items():
+            row[f"human_scene_depth_{key}"] = int(value)
     return row
 
 
@@ -1771,6 +1793,10 @@ def build_final_loss_summary_row(
     if isinstance(scene_stats, dict):
         for key, value in scene_stats.items():
             row[f"scene_intersect_{key}"] = int(value)
+    depth_stats = losses.get("human_scene_depth_stats", {})
+    if isinstance(depth_stats, dict):
+        for key, value in depth_stats.items():
+            row[f"human_scene_depth_{key}"] = int(value)
     return row
 
 
@@ -2094,6 +2120,85 @@ def compute_scene_inside_human_loss(
     return violations[active].mean(), stats
 
 
+def compute_human_scene_depth_loss(
+    current_vertices: torch.Tensor,
+    scene_depth: torch.Tensor,
+    intrinsics: torch.Tensor,
+    penetration_tolerance_m: float,
+    min_valid_weight: float,
+) -> tuple[torch.Tensor, dict[str, int]]:
+    if scene_depth.ndim != 4 or scene_depth.shape[0] != 1 or scene_depth.shape[1] != 1:
+        raise ValueError("scene_depth must have shape [1, 1, H, W].")
+    if intrinsics.shape != (3, 3):
+        raise ValueError(f"intrinsics must have shape [3, 3], got {intrinsics.shape}.")
+
+    height = int(scene_depth.shape[2])
+    width = int(scene_depth.shape[3])
+    z = current_vertices[:, 2]
+    valid_z = z > 1e-6
+    z_safe = torch.clamp(z, min=1e-6)
+
+    fx = intrinsics[0, 0]
+    fy = intrinsics[1, 1]
+    cx = intrinsics[0, 2]
+    cy = intrinsics[1, 2]
+    u = fx * current_vertices[:, 0] / z_safe + cx
+    v = fy * current_vertices[:, 1] / z_safe + cy
+    valid_xy = (
+        (u >= 0.0)
+        & (u <= float(width - 1))
+        & (v >= 0.0)
+        & (v <= float(height - 1))
+    )
+
+    if width > 1:
+        grid_x = (u / float(width - 1)) * 2.0 - 1.0
+    else:
+        grid_x = torch.zeros_like(u)
+    if height > 1:
+        grid_y = (v / float(height - 1)) * 2.0 - 1.0
+    else:
+        grid_y = torch.zeros_like(v)
+    grid = torch.stack((grid_x, grid_y), dim=-1).view(1, -1, 1, 2)
+    scene_depth_valid = (scene_depth > 1e-6).to(dtype=scene_depth.dtype)
+    sampled_depth_sum = F.grid_sample(
+        scene_depth,
+        grid,
+        mode="bilinear",
+        padding_mode="zeros",
+        align_corners=True,
+    ).view(-1)
+    sampled_valid_weight = F.grid_sample(
+        scene_depth_valid,
+        grid,
+        mode="bilinear",
+        padding_mode="zeros",
+        align_corners=True,
+    ).view(-1)
+    sampled_depth = sampled_depth_sum / torch.clamp(sampled_valid_weight, min=1e-6)
+
+    valid_scene = sampled_valid_weight >= float(min_valid_weight)
+    valid = valid_z & valid_xy & valid_scene
+    stats = {
+        "num_human_vertices": int(current_vertices.shape[0]),
+        "num_projected_vertices": int(valid.sum().detach().cpu().item()),
+        "num_behind_scene_vertices": 0,
+    }
+    if not torch.any(valid):
+        return current_vertices.new_tensor(0.0), stats
+
+    violations = F.relu(
+        z[valid] - sampled_depth[valid] - float(penetration_tolerance_m)
+    )
+    active = violations > 0
+    stats["num_behind_scene_vertices"] = int(
+        active.sum().detach().cpu().item()
+    )
+    if not torch.any(active):
+        return current_vertices.new_tensor(0.0), stats
+    return violations[active].mean(), stats
+
+
 def color_scene_intersect_sdf(
     sdf: np.ndarray,
     clearance_margin_m: float,
@@ -2292,6 +2397,10 @@ def compute_loss_dict(
     interaction_edges: list[DynamicInteractionEdge],
     scene_collision_points_t: torch.Tensor,
     scene_intersect_margin_m: float,
+    scene_depth_t: torch.Tensor,
+    scene_depth_intrinsics_t: torch.Tensor,
+    human_scene_depth_penetration_tolerance_m: float,
+    human_scene_depth_min_valid_weight: float,
     init_params: dict[str, torch.Tensor],
     self_intersection_helper: SelfIntersectionHelper,
     weights: dict[str, float],
@@ -2317,6 +2426,13 @@ def compute_loss_dict(
         scene_collision_points=scene_collision_points_t,
         clearance_margin_m=scene_intersect_margin_m,
     )
+    human_scene_depth, human_scene_depth_stats = compute_human_scene_depth_loss(
+        current_vertices=verts_camera,
+        scene_depth=scene_depth_t,
+        intrinsics=scene_depth_intrinsics_t,
+        penetration_tolerance_m=human_scene_depth_penetration_tolerance_m,
+        min_valid_weight=human_scene_depth_min_valid_weight,
+    )
     nocontact = compute_contact_distance_loss(
         current_vertices=verts_camera,
         edges=interaction_edges,
@@ -2332,6 +2448,7 @@ def compute_loss_dict(
         + pose_gvhmr * float(weights["pose_gvhmr"])
         + height_prior * float(weights["height_prior"])
         + scene_intersect * float(weights["scene_intersect"])
+        + human_scene_depth * float(weights["human_scene_depth"])
         + nocontact * float(weights["nocontact"])
         + self_intersect * float(weights["self_intersect"])
     )
@@ -2341,11 +2458,13 @@ def compute_loss_dict(
         "pose_gvhmr": pose_gvhmr,
         "height_prior": height_prior,
         "scene_intersect": scene_intersect,
+        "human_scene_depth": human_scene_depth,
         "nocontact": nocontact,
         "self_intersect": self_intersect,
         "weights": weights,
         "current": current,
         "scene_intersect_stats": scene_intersect_stats,
+        "human_scene_depth_stats": human_scene_depth_stats,
     }
 
 
@@ -2433,6 +2552,8 @@ def optimize_track(
     init_params_np: dict[str, np.ndarray],
     interaction_edges: list[DynamicInteractionEdge],
     scene_collision_points: np.ndarray,
+    scene_depth: np.ndarray,
+    scene_depth_intrinsics: np.ndarray,
     args: argparse.Namespace,
     device: torch.device,
     snapshots_dir: Path,
@@ -2480,6 +2601,12 @@ def optimize_track(
 
     scene_collision_points_t = torch.from_numpy(
         scene_collision_points.astype(np.float32)
+    ).to(device)
+    scene_depth_t = torch.from_numpy(
+        scene_depth.astype(np.float32)
+    ).to(device).view(1, 1, scene_depth.shape[0], scene_depth.shape[1])
+    scene_depth_intrinsics_t = torch.from_numpy(
+        scene_depth_intrinsics.astype(np.float32)
     ).to(device)
 
     iter_rows: list[dict[str, Any]] = []
@@ -2532,6 +2659,14 @@ def optimize_track(
                 interaction_edges=interaction_edges,
                 scene_collision_points_t=scene_collision_points_t,
                 scene_intersect_margin_m=float(args.scene_intersect_margin_m),
+                scene_depth_t=scene_depth_t,
+                scene_depth_intrinsics_t=scene_depth_intrinsics_t,
+                human_scene_depth_penetration_tolerance_m=float(
+                    args.human_scene_depth_penetration_tolerance_m
+                ),
+                human_scene_depth_min_valid_weight=float(
+                    args.human_scene_depth_min_valid_weight
+                ),
                 init_params=init_params_t,
                 self_intersection_helper=self_intersection_helper,
                 weights=weights,
@@ -2579,6 +2714,14 @@ def optimize_track(
             interaction_edges=interaction_edges,
             scene_collision_points_t=scene_collision_points_t,
             scene_intersect_margin_m=float(args.scene_intersect_margin_m),
+            scene_depth_t=scene_depth_t,
+            scene_depth_intrinsics_t=scene_depth_intrinsics_t,
+            human_scene_depth_penetration_tolerance_m=float(
+                args.human_scene_depth_penetration_tolerance_m
+            ),
+            human_scene_depth_min_valid_weight=float(
+                args.human_scene_depth_min_valid_weight
+            ),
             init_params=init_params_t,
             self_intersection_helper=self_intersection_helper,
             weights=final_weights,
@@ -2613,6 +2756,7 @@ def optimize_track(
             params_module.canonical_height_m.detach().cpu().item()
         ),
         "scene_intersect_stats": final_losses.get("scene_intersect_stats", {}),
+        "human_scene_depth_stats": final_losses.get("human_scene_depth_stats", {}),
         "scene_intersect_debug": scene_intersect_debug_payloads,
         "stage_iters": {
             "rigid": int(rigid_stage_iters),
@@ -2851,6 +2995,8 @@ def main() -> None:
             init_params_np=init_params_np,
             interaction_edges=interaction_edges,
             scene_collision_points=scene_collision_points,
+            scene_depth=scene_depth,
+            scene_depth_intrinsics=intrinsics,
             args=args,
             device=device,
             snapshots_dir=snapshots_dir,
@@ -2918,6 +3064,7 @@ def main() -> None:
                 "stage_iters": optimization["stage_iters"],
                 "scene_intersect_sampling": scene_collision_sampling_stats,
                 "scene_intersect_stats": optimization["scene_intersect_stats"],
+                "human_scene_depth_stats": optimization["human_scene_depth_stats"],
                 "scene_intersect_debug": optimization["scene_intersect_debug"],
             },
             "init_frame_0": {
@@ -2965,6 +3112,16 @@ def main() -> None:
                         "clearance_margin_m": float(args.scene_intersect_margin_m),
                         "surface_samples": int(args.scene_intersect_surface_samples),
                         "debug": bool(args.scene_intersect_debug),
+                    },
+                    "human_scene_depth": {
+                        "start": float(args.human_scene_depth_weight_start),
+                        "end": float(args.human_scene_depth_weight_end),
+                        "penetration_tolerance_m": float(
+                            args.human_scene_depth_penetration_tolerance_m
+                        ),
+                        "min_valid_weight": float(
+                            args.human_scene_depth_min_valid_weight
+                        ),
                     },
                     "nocontact": {
                         "start": float(args.nocontact_weight_start),

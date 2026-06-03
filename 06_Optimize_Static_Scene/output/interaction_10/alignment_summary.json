@@ -22,9 +22,15 @@
         "surface_samples": 700000,
         "debug": true
       },
+      "human_scene_depth": {
+        "start": 0.0,
+        "end": 10.0,
+        "penetration_tolerance_m": 0.01,
+        "min_valid_weight": 0.25
+      },
       "nocontact": {
-        "start": 500.0,
-        "end": 500.0
+        "start": 800.0,
+        "end": 800.0
       },
       "self_intersect": {
         "start": 0.0,
@@ -48,7 +54,7 @@
   "human": {
     "optimization": {
       "final_iter": 2000,
-      "final_total_loss": 0.4467402398586273,
+      "final_total_loss": 1.3924063444137573,
       "stage_iters": {
         "rigid": 800,
         "pose": 1200
@@ -62,6 +68,11 @@
         "num_scene_collision_points": 700000,
         "num_sdf_query_points": 700000,
         "num_inside_or_margin_points": 199
+      },
+      "human_scene_depth_stats": {
+        "num_human_vertices": 10475,
+        "num_projected_vertices": 10475,
+        "num_behind_scene_vertices": 55
       },
       "scene_intersect_debug": {
         "init": {
@@ -83,7 +94,7 @@
             "num_visualized_points": 700000,
             "num_inside_points": 27,
             "num_margin_points": 40,
-            "min_sdf_m": -0.023267781361937523,
+            "min_sdf_m": -0.023030826821923256,
             "max_sdf_m": 12.229156494140625
           },
           "sdf_grid": {
@@ -93,10 +104,10 @@
               64,
               64
             ],
-            "min_sdf_m": -0.10680773109197617,
+            "min_sdf_m": -0.10730838030576706,
             "max_sdf_m": 0.9643101096153259,
-            "num_inside_grid_points": 7237,
-            "num_near_surface_grid_points": 3859,
+            "num_inside_grid_points": 7234,
+            "num_near_surface_grid_points": 3825,
             "color_clamp_m": 0.05
           }
         },
@@ -117,10 +128,10 @@
             "num_scene_collision_points": 700000,
             "num_sdf_query_points": 700000,
             "num_visualized_points": 700000,
-            "num_inside_points": 74,
-            "num_margin_points": 121,
-            "min_sdf_m": -0.008593124337494373,
-            "max_sdf_m": 12.26259994506836
+            "num_inside_points": 47,
+            "num_margin_points": 153,
+            "min_sdf_m": -0.007457764353603125,
+            "max_sdf_m": 12.256766319274902
           },
           "sdf_grid": {
             "num_grid_points": 262144,
@@ -129,10 +140,10 @@
               64,
               64
             ],
-            "min_sdf_m": -0.10935841500759125,
-            "max_sdf_m": 0.9942977428436279,
-            "num_inside_grid_points": 7090,
-            "num_near_surface_grid_points": 3782,
+            "min_sdf_m": -0.10320039093494415,
+            "max_sdf_m": 0.9633280634880066,
+            "num_inside_grid_points": 6995,
+            "num_near_surface_grid_points": 3762,
             "color_clamp_m": 0.05
           }
         }
@@ -201,8 +212,8 @@
           "fixed_part_name": "bathroom faucet",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.001115249702706933,
-          "nocontact_distance_m": 0.03339535450787928
+          "nocontact_raw": 0.0024631067644804716,
+          "nocontact_distance_m": 0.049629696397222416
         },
         {
           "node_a": "human.left_foot",
@@ -216,8 +227,8 @@
           "fixed_part_name": "floor",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.00026899855583906174,
-          "nocontact_distance_m": 0.016401175440774414
+          "nocontact_raw": 0.00023128614702727646,
+          "nocontact_distance_m": 0.015208094786240533
         },
         {
           "node_a": "human.right_foot",
@@ -231,8 +242,8 @@
           "fixed_part_name": "floor",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.00017623539315536618,
-          "nocontact_distance_m": 0.013275367910358122
+          "nocontact_raw": 0.00015862510190345347,
+          "nocontact_distance_m": 0.01259464576331758
         }
       ]
     },

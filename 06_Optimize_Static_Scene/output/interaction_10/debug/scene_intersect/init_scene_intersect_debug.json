@@ -17,7 +17,7 @@
     "num_visualized_points": 700000,
     "num_inside_points": 27,
     "num_margin_points": 40,
-    "min_sdf_m": -0.023267781361937523,
+    "min_sdf_m": -0.023030826821923256,
     "max_sdf_m": 12.229156494140625
   },
   "sdf_grid": {
@@ -27,10 +27,10 @@
       64,
       64
     ],
-    "min_sdf_m": -0.10680773109197617,
+    "min_sdf_m": -0.10730838030576706,
     "max_sdf_m": 0.9643101096153259,
-    "num_inside_grid_points": 7237,
-    "num_near_surface_grid_points": 3859,
+    "num_inside_grid_points": 7234,
+    "num_near_surface_grid_points": 3825,
     "color_clamp_m": 0.05
   }
 }
