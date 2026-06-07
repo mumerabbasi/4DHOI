@@ -188,7 +188,7 @@ def main() -> None:
     parser.add_argument("--sam3-checkpoint", default=None)
     parser.add_argument("--sam3-bpe-path", default=None)
     parser.add_argument("--sam3-device", default=get_default_sam3_device())
-    parser.add_argument("--sam3-confidence-threshold", type=float, default=0.5)
+    parser.add_argument("--sam3-confidence-threshold", type=float, default=0.1)
     parser.add_argument("--no-sam3-hf-download", action="store_true")
     args = parser.parse_args()
 
