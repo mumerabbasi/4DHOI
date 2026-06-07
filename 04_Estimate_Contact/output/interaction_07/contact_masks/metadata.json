@@ -12,8 +12,8 @@
       "color_name": "pure blue"
     },
     {
-      "part": "left leg",
-      "label": "Left Leg",
+      "part": "left foot",
+      "label": "Left Foot",
       "hex": "#00FF00",
       "rgb": [
         0,
@@ -23,8 +23,8 @@
       "color_name": "pure green"
     },
     {
-      "part": "right leg",
-      "label": "Right Leg",
+      "part": "right foot",
+      "label": "Right Foot",
       "hex": "#FF0000",
       "rgb": [
         255,
@@ -40,5 +40,5 @@
   "min_color_value": 40,
   "min_component_area": 50,
   "keep_components": 1,
-  "target_mask_erode_pixels": 2
+  "target_mask_erode_pixels": 0
 }

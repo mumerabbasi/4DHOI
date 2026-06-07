@@ -44,7 +44,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--min-color-value", type=int, default=40)
     parser.add_argument("--min-component-area", type=int, default=50)
     parser.add_argument("--keep-components", type=int, default=1)
-    parser.add_argument("--target-mask-erode-pixels", type=int, default=2)
+    parser.add_argument("--target-mask-erode-pixels", type=int, default=0)
     parser.set_defaults(script_dir=script_dir, project_dir=project_dir)
     return parser.parse_args(argv)
 
