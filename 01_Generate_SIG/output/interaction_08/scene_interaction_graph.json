@@ -1,6 +1,6 @@
 {
   "target_object": {
-    "label": "bed"
+    "label": "bed with pillows"
   },
   "human_part_nodes": [
     "person 1, left leg",
@@ -15,7 +15,7 @@
     {
       "human_part": "head",
       "scene_element": "target_object",
-      "notes": "the head rests on the pillow or mattress area"
+      "notes": "the head rests on the pillow as part of the bed setup"
     },
     {
       "human_part": "hips",
@@ -25,13 +25,13 @@
     {
       "human_part": "left leg",
       "scene_element": "target_object",
-      "notes": "the left leg lies on the bed"
+      "notes": "the left leg rests on the bed rather than the floor"
     },
     {
       "human_part": "right leg",
       "scene_element": "target_object",
-      "notes": "the right leg lies on the bed"
+      "notes": "the right leg rests on the bed rather than the floor"
     }
   ],
-  "interaction": "A person lies asleep on the bed with the body stretched across the patterned blanket. The head rests near the pillow area, the torso and hips are supported by the mattress, and both legs lie on top of the bed. There is no required foot contact with the floor. The arms rest naturally near the body in a relaxed sleeping posture. The person has short dark hair, closed or relaxed eyes, a calm facial expression, a gray shirt, blue pants, and socks. The bedroom has white walls, a wooden floor, pillows, and small furniture near the bed."
+  "interaction": "A person lies on the bed with the hips and legs supported by the mattress while the head rests on a pillow. The bed and pillows function together as the single target object for this static sleeping pose, so there is no separate pillow node. Both legs remain on the bed, and no foot-floor contact is needed. The person has short black hair, a relaxed sleepy facial expression, a gray shirt, comfortable pants, and socks. The room remains a clean indoor bedroom with white walls and a wooden floor."
 }

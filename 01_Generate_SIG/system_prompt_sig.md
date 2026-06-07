@@ -42,7 +42,8 @@ Rules:
 1. Use the scene image and interaction text together. The interaction text tells you the intended action; the image tells you the visible scene layout and object context.
 2. Choose exactly one target object.
 3. `target_object.label` must be a short noun phrase naming the target object.
-4. Use human part nodes only from this vocabulary:
+4. When the interaction requires contact with multiple closely associated scene objects that function together as one support or interaction target, name the target object as a short composite noun phrase. For example, if the body rests on a bed and the head rests on a pillow, use "bed with pillows" rather than only "bed". Keep the target as one object node; do not create separate pillow, cushion, blanket, or object-part nodes.
+5. Use human part nodes only from this vocabulary:
    - left hand
    - right hand
    - left arm
@@ -55,19 +56,19 @@ Rules:
    - right foot
    - head
    - hips
-5. Include a human part node when that part is physically important for contact or pose.
-6. `scene_nodes` can include only:
+6. Include a human part node when that part is physically important for contact or pose.
+7. `scene_nodes` can include only:
    - target_object
    - floor
-7. `interaction_edges` represent direct physical contact only.
-8. Use `scene_element: "target_object"` for contacts with the selected target object.
-9. Use `scene_element: "floor"` only when the human part should touch the floor in the static pose.
-10. Do not force feet to touch the floor. If the person is lying, sitting with feet off the ground, hanging, jumping, climbing, or otherwise unsupported by the floor, omit floor contact.
-11. Do not create object part nodes. Do not create 3D part nodes.
-12. Keep interaction edges focused on physically necessary contacts in the static scene.
-13. Every listed interaction edge is an active static contact by definition.
-14. The output `interaction` must be a detailed static description under 150 words. It should describe the human pose, target object, physical contacts, clothing, shoes, hair, and facial expression. It should not describe video motion.
-15. The scene is a clean, spacious indoor area with white walls and a wooden floor unless the input image clearly shows otherwise.
+8. `interaction_edges` represent direct physical contact only.
+9. Use `scene_element: "target_object"` for contacts with the selected target object.
+10. Use `scene_element: "floor"` only when the human part should touch the floor in the static pose.
+11. Do not force feet to touch the floor. If the person is lying, sitting with feet off the ground, hanging, jumping, climbing, or otherwise unsupported by the floor, omit floor contact.
+12. Do not create object part nodes. Do not create 3D part nodes.
+13. Keep interaction edges focused on physically necessary contacts in the static scene.
+14. Every listed interaction edge is an active static contact by definition.
+15. The output `interaction` must be a detailed static description under 150 words. It should describe the human pose, target object, physical contacts, clothing, shoes, hair, and facial expression. It should not describe video motion.
+16. The scene is a clean, spacious indoor area with white walls and a wooden floor unless the input image clearly shows otherwise.
 
 Few-shot examples:
 
@@ -171,28 +172,34 @@ Example 2 output:
 Example 3 input JSON:
 
 {
-  "interaction": "a person lying on the bed"
+  "interaction": "a person lying on bed with his head on the pillow"
 }
 
 Example 3 output:
 
 {
   "target_object": {
-    "label": "bed"
+    "label": "bed with pillows"
   },
   "human_part_nodes": [
-    "person 1, hips",
     "person 1, left leg",
-    "person 1, right leg"
+    "person 1, right leg",
+    "person 1, head",
+    "person 1, hips"
   ],
   "scene_nodes": [
     "target_object"
   ],
   "interaction_edges": [
     {
+      "human_part": "head",
+      "scene_element": "target_object",
+      "notes": "the head rests on the pillow as part of the bed setup"
+    },
+    {
       "human_part": "hips",
       "scene_element": "target_object",
-      "notes": "the hips rest on the bed surface"
+      "notes": "the hips are supported by the mattress"
     },
     {
       "human_part": "left leg",
@@ -205,5 +212,5 @@ Example 3 output:
       "notes": "the right leg rests on the bed rather than the floor"
     }
   ],
-  "interaction": "A person lies on the bed with the torso and hips supported by the mattress. Both legs rest on the bed, so there is no foot-floor contact. The arms rest naturally near the body without requiring object contact. The person has short black hair, a calm neutral facial expression, a gray shirt, blue jeans, and white socks. The bed remains fixed in the original scene, and the room keeps its clean indoor appearance with white walls and a wooden floor."
+  "interaction": "A person lies on the bed with the hips and legs supported by the mattress while the head rests on a pillow. The bed and pillows function together as the single target object for this static sleeping pose, so there is no separate pillow node. Both legs remain on the bed, and no foot-floor contact is needed. The person has short black hair, a relaxed sleepy facial expression, a gray shirt, comfortable pants, and socks. The room remains a clean indoor bedroom with white walls and a wooden floor."
 }

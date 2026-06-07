@@ -1,0 +1,26 @@
+{
+  "target_object": {
+    "label": "teddy bear"
+  },
+  "human_part_nodes": [
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "right foot",
+      "scene_element": "target_object",
+      "notes": "the right foot strikes the teddy bear resting on the chair"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "floor",
+      "notes": "the left foot anchors the standing pose on the wooden floor"
+    }
+  ],
+  "interaction": "A person stands beside the white chair and kicks the teddy bear resting on the seat. The right foot extends forward to make contact with the yellow and blue plush toy, while the left foot remains planted on the wooden floor to maintain balance. The person has short black hair, a focused facial expression, a gray shirt, blue jeans, and white sneakers. The room is a clean indoor space with white walls, a wooden floor, a bed with blue patterned sheets in the background, and a black shelving unit to the right."
+}

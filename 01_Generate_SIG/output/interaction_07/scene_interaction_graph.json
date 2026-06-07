@@ -3,8 +3,8 @@
     "label": "round white table"
   },
   "human_part_nodes": [
-    "person 1, left leg",
-    "person 1, right leg",
+    "person 1, left foot",
+    "person 1, right foot",
     "person 1, hips"
   ],
   "scene_nodes": [
@@ -17,15 +17,15 @@
       "notes": "the hips rest on the table surface"
     },
     {
-      "human_part": "left leg",
+      "human_part": "left foot",
       "scene_element": "target_object",
-      "notes": "the left leg rests crossed on top of the table"
+      "notes": "the left foot rests on top of the table"
     },
     {
-      "human_part": "right leg",
+      "human_part": "right foot",
       "scene_element": "target_object",
-      "notes": "the right leg rests crossed on top of the table"
+      "notes": "the right foot rests on top of the table"
     }
   ],
-  "interaction": "A person sits on top of the round white table in the meeting room with both legs crossed on the tabletop. The hips are supported by the table surface and both legs remain on the table rather than reaching the floor. The torso is upright and relaxed, with the hands resting naturally near the body. The person has short dark hair, a neutral facial expression, a light shirt, dark pants, and casual shoes. The room has white walls, a whiteboard, orange chairs around the table, a wooden door, and a dark floor."
+  "interaction": "A person sits on top of the round white table in the meeting room with both feet flat on the tabletop. The hips are supported by the table surface and both feet remain on the table rather than reaching the floor. The torso is upright and relaxed, with the hands resting naturally near the body. The person has short dark hair, a neutral facial expression, a light shirt, dark pants, and casual shoes. The room has white walls, a whiteboard, orange chairs around the table, a wooden door, and a dark floor."
 }

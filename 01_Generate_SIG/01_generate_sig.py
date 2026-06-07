@@ -107,10 +107,7 @@ def resolve_scene_image_path(scannet_root: Path, scene_context: dict[str, Any]) 
             f"Supported values: {sorted(IMAGE_SOURCE_TO_REL_PATHS)}"
         )
     image_rel, _ = IMAGE_SOURCE_TO_REL_PATHS[camera_source]
-    image_path = scannet_root / scene_id / image_rel / camera_name
-    if not image_path.exists():
-        raise FileNotFoundError(f"Scene image not found: {image_path}")
-    return image_path
+    return scannet_root / scene_id / image_rel / camera_name
 
 
 def encode_image_data_url(image_path: Path) -> str:
@@ -121,14 +118,12 @@ def encode_image_data_url(image_path: Path) -> str:
 
 def build_user_message_content(
     user_payload: dict[str, Any],
-    scene_image_path: Path | None,
-) -> str | list[dict[str, Any]]:
+    scene_image_path: Path,
+) -> list[dict[str, Any]]:
     text = (
         "Use the provided scene image and JSON request to generate the SIG.\n\n"
         f"JSON request:\n{json.dumps(user_payload, ensure_ascii=False, indent=2)}"
     )
-    if scene_image_path is None:
-        return text
     return [
         {"type": "text", "text": text},
         {
@@ -143,7 +138,7 @@ def request_sig(
     model: str,
     system_prompt: str,
     user_payload: dict[str, Any],
-    scene_image_path: Path | None,
+    scene_image_path: Path,
     temperature: float,
     reasoning_effort: str | None,
 ) -> dict[str, Any]:
@@ -288,16 +283,11 @@ def main() -> None:
     parser.add_argument("--input-dir", default=None)
     parser.add_argument("--outdir", default=None)
     parser.add_argument("--scannet-root", default=None)
-    parser.add_argument(
-        "--no-scene-image",
-        action="store_true",
-        help="Send only the JSON request. By default the scene image is attached.",
-    )
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument(
         "--reasoning-effort",
         choices=["low", "medium", "high", "none"],
-        default="high",
+        default="none",
     )
     args = parser.parse_args()
 
@@ -315,12 +305,10 @@ def main() -> None:
 
     input_payload = load_json(input_dir / "input_scene.json")
     scannet_root = resolve_scannet_root(script_dir, args.scannet_root)
-    scene_image_path = None
-    if not args.no_scene_image:
-        scene_image_path = resolve_scene_image_path(
-            scannet_root=scannet_root,
-            scene_context=input_payload["scene_context"],
-        )
+    scene_image_path = resolve_scene_image_path(
+        scannet_root=scannet_root,
+        scene_context=input_payload["scene_context"],
+    )
     system_prompt = system_prompt_path.read_text(encoding="utf-8")
     model_input = build_model_input(input_payload)
     reasoning_effort = None if args.reasoning_effort == "none" else args.reasoning_effort
@@ -340,8 +328,7 @@ def main() -> None:
     save_json(out_path, sig)
 
     print(f"Input scene: {input_dir / 'input_scene.json'}")
-    if scene_image_path is not None:
-        print(f"Scene image: {scene_image_path}")
+    print(f"Scene image: {scene_image_path}")
     print(f"System prompt: {system_prompt_path}")
     print(f"Wrote SIG: {out_path}")
 
