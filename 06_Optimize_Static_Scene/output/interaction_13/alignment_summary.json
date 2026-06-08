@@ -54,7 +54,7 @@
   "human": {
     "optimization": {
       "final_iter": 2000,
-      "final_total_loss": 0.9144704937934875,
+      "final_total_loss": 0.9297575354576111,
       "stage_iters": {
         "rigid": 800,
         "pose": 1200
@@ -67,11 +67,11 @@
       "scene_intersect_stats": {
         "num_scene_collision_points": 700000,
         "num_sdf_query_points": 700000,
-        "num_inside_or_margin_points": 920
+        "num_inside_or_margin_points": 905
       },
       "human_scene_depth_stats": {
         "num_human_vertices": 10475,
-        "num_projected_vertices": 10413,
+        "num_projected_vertices": 10415,
         "num_behind_scene_vertices": 81
       },
       "scene_intersect_debug": {
@@ -93,8 +93,8 @@
             "num_sdf_query_points": 700000,
             "num_visualized_points": 700000,
             "num_inside_points": 2357,
-            "num_margin_points": 955,
-            "min_sdf_m": -0.05618622526526451,
+            "num_margin_points": 966,
+            "min_sdf_m": -0.057639967650175095,
             "max_sdf_m": 4.983368396759033
           },
           "sdf_grid": {
@@ -104,10 +104,10 @@
               64,
               64
             ],
-            "min_sdf_m": -0.09944752603769302,
+            "min_sdf_m": -0.10075443983078003,
             "max_sdf_m": 0.6854903697967529,
-            "num_inside_grid_points": 12111,
-            "num_near_surface_grid_points": 6416,
+            "num_inside_grid_points": 12136,
+            "num_near_surface_grid_points": 6431,
             "color_clamp_m": 0.05
           }
         },
@@ -128,10 +128,10 @@
             "num_scene_collision_points": 700000,
             "num_sdf_query_points": 700000,
             "num_visualized_points": 700000,
-            "num_inside_points": 278,
-            "num_margin_points": 638,
-            "min_sdf_m": -0.026071559637784958,
-            "max_sdf_m": 5.059041500091553
+            "num_inside_points": 280,
+            "num_margin_points": 620,
+            "min_sdf_m": -0.02612757869064808,
+            "max_sdf_m": 5.058901309967041
           },
           "sdf_grid": {
             "num_grid_points": 262144,
@@ -140,10 +140,10 @@
               64,
               64
             ],
-            "min_sdf_m": -0.10943206399679184,
-            "max_sdf_m": 0.7363452911376953,
-            "num_inside_grid_points": 9427,
-            "num_near_surface_grid_points": 4984,
+            "min_sdf_m": -0.11165080964565277,
+            "max_sdf_m": 0.7349250316619873,
+            "num_inside_grid_points": 9432,
+            "num_near_surface_grid_points": 4999,
             "color_clamp_m": 0.05
           }
         }
@@ -163,8 +163,8 @@
           "fixed_part_name": "coffee maker",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.007649377919733524,
-          "nocontact_distance_m": 0.0874607221541963
+          "nocontact_raw": 0.00749465124681592,
+          "nocontact_distance_m": 0.0865716538297376
         },
         {
           "node_a": "human.left_foot",
@@ -212,8 +212,8 @@
           "fixed_part_name": "coffee maker",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0015870779752731323,
-          "nocontact_distance_m": 0.03983814723695283
+          "nocontact_raw": 0.0015855951933190227,
+          "nocontact_distance_m": 0.03981953281141082
         },
         {
           "node_a": "human.left_foot",
@@ -227,8 +227,8 @@
           "fixed_part_name": "floor",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0001461865467717871,
-          "nocontact_distance_m": 0.012090762869719475
+          "nocontact_raw": 0.00014805996033828706,
+          "nocontact_distance_m": 0.012167989165769628
         },
         {
           "node_a": "human.right_foot",
@@ -242,8 +242,8 @@
           "fixed_part_name": "floor",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.00015061143494676799,
-          "nocontact_distance_m": 0.012272385055349591
+          "nocontact_raw": 0.00014428328722715378,
+          "nocontact_distance_m": 0.012011797834926867
         }
       ]
     },

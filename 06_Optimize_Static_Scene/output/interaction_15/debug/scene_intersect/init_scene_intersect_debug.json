@@ -1,0 +1,36 @@
+{
+  "stage": "init",
+  "scene_point_colors": {
+    "red": "inside SMPL-X human SDF; contributes to scene_intersect",
+    "orange": "outside but within scene_intersect clearance margin",
+    "blue_gray": "outside clearance margin"
+  },
+  "sdf_grid_colors": {
+    "red_intensity": "inside SMPL-X; stronger red means more negative SDF",
+    "white": "near zero SDF surface",
+    "blue_intensity": "outside SMPL-X; stronger blue means larger positive SDF"
+  },
+  "clearance_margin_m": 0.01,
+  "scene_points": {
+    "num_scene_collision_points": 700000,
+    "num_sdf_query_points": 700000,
+    "num_visualized_points": 700000,
+    "num_inside_points": 0,
+    "num_margin_points": 0,
+    "min_sdf_m": 0.046765562146902084,
+    "max_sdf_m": 3.8693995475769043
+  },
+  "sdf_grid": {
+    "num_grid_points": 262144,
+    "grid_shape": [
+      64,
+      64,
+      64
+    ],
+    "min_sdf_m": -0.09193085134029388,
+    "max_sdf_m": 1.1519802808761597,
+    "num_inside_grid_points": 5626,
+    "num_near_surface_grid_points": 3153,
+    "color_clamp_m": 0.05
+  }
+}

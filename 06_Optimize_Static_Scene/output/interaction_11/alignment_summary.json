@@ -54,7 +54,7 @@
   "human": {
     "optimization": {
       "final_iter": 2000,
-      "final_total_loss": 0.9972200393676758,
+      "final_total_loss": 0.9701796770095825,
       "stage_iters": {
         "rigid": 800,
         "pose": 1200
@@ -67,12 +67,12 @@
       "scene_intersect_stats": {
         "num_scene_collision_points": 700000,
         "num_sdf_query_points": 700000,
-        "num_inside_or_margin_points": 761
+        "num_inside_or_margin_points": 796
       },
       "human_scene_depth_stats": {
         "num_human_vertices": 10475,
         "num_projected_vertices": 10466,
-        "num_behind_scene_vertices": 103
+        "num_behind_scene_vertices": 107
       },
       "scene_intersect_debug": {
         "init": {
@@ -92,9 +92,9 @@
             "num_scene_collision_points": 700000,
             "num_sdf_query_points": 700000,
             "num_visualized_points": 700000,
-            "num_inside_points": 103,
-            "num_margin_points": 144,
-            "min_sdf_m": -0.02061004564166069,
+            "num_inside_points": 102,
+            "num_margin_points": 140,
+            "min_sdf_m": -0.02084818109869957,
             "max_sdf_m": 3.5857419967651367
           },
           "sdf_grid": {
@@ -104,10 +104,10 @@
               64,
               64
             ],
-            "min_sdf_m": -0.09701725095510483,
+            "min_sdf_m": -0.09910851716995239,
             "max_sdf_m": 0.8038780689239502,
-            "num_inside_grid_points": 8407,
-            "num_near_surface_grid_points": 4691,
+            "num_inside_grid_points": 8421,
+            "num_near_surface_grid_points": 4743,
             "color_clamp_m": 0.05
           }
         },
@@ -128,10 +128,10 @@
             "num_scene_collision_points": 700000,
             "num_sdf_query_points": 700000,
             "num_visualized_points": 700000,
-            "num_inside_points": 262,
-            "num_margin_points": 502,
-            "min_sdf_m": -0.012179533950984478,
-            "max_sdf_m": 3.457702398300171
+            "num_inside_points": 266,
+            "num_margin_points": 529,
+            "min_sdf_m": -0.01165449433028698,
+            "max_sdf_m": 3.469547986984253
           },
           "sdf_grid": {
             "num_grid_points": 262144,
@@ -140,10 +140,10 @@
               64,
               64
             ],
-            "min_sdf_m": -0.09692011028528214,
-            "max_sdf_m": 0.8569058179855347,
-            "num_inside_grid_points": 7693,
-            "num_near_surface_grid_points": 4445,
+            "min_sdf_m": -0.09136181324720383,
+            "max_sdf_m": 0.8604600429534912,
+            "num_inside_grid_points": 7697,
+            "num_near_surface_grid_points": 4606,
             "color_clamp_m": 0.05
           }
         }
@@ -163,8 +163,8 @@
           "fixed_part_name": "washing machine door",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.2796730101108551,
-          "nocontact_distance_m": 0.5288411955500962
+          "nocontact_raw": 0.2767142653465271,
+          "nocontact_distance_m": 0.5260363726459674
         },
         {
           "node_a": "human.left_foot",
@@ -212,8 +212,8 @@
           "fixed_part_name": "washing machine door",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0014345782110467553,
-          "nocontact_distance_m": 0.037875826209427504
+          "nocontact_raw": 0.0013355073751881719,
+          "nocontact_distance_m": 0.036544594336073453
         },
         {
           "node_a": "human.left_foot",
@@ -227,8 +227,8 @@
           "fixed_part_name": "floor",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0002157469280064106,
-          "nocontact_distance_m": 0.014688326249318219
+          "nocontact_raw": 0.00021807140728924423,
+          "nocontact_distance_m": 0.014767241018187664
         },
         {
           "node_a": "human.right_foot",
@@ -242,8 +242,8 @@
           "fixed_part_name": "floor",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0001743913599057123,
-          "nocontact_distance_m": 0.01320573208518605
+          "nocontact_raw": 0.00017558355466462672,
+          "nocontact_distance_m": 0.013250794491826772
         }
       ]
     },

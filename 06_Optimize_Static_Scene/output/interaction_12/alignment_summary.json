@@ -54,7 +54,7 @@
   "human": {
     "optimization": {
       "final_iter": 2000,
-      "final_total_loss": 0.8099262714385986,
+      "final_total_loss": 0.8151572942733765,
       "stage_iters": {
         "rigid": 800,
         "pose": 1200
@@ -67,12 +67,12 @@
       "scene_intersect_stats": {
         "num_scene_collision_points": 700000,
         "num_sdf_query_points": 700000,
-        "num_inside_or_margin_points": 871
+        "num_inside_or_margin_points": 878
       },
       "human_scene_depth_stats": {
         "num_human_vertices": 10475,
-        "num_projected_vertices": 10398,
-        "num_behind_scene_vertices": 164
+        "num_projected_vertices": 10397,
+        "num_behind_scene_vertices": 156
       },
       "scene_intersect_debug": {
         "init": {
@@ -92,9 +92,9 @@
             "num_scene_collision_points": 700000,
             "num_sdf_query_points": 700000,
             "num_visualized_points": 700000,
-            "num_inside_points": 623,
-            "num_margin_points": 475,
-            "min_sdf_m": -0.03698322921991348,
+            "num_inside_points": 621,
+            "num_margin_points": 476,
+            "min_sdf_m": -0.03689843788743019,
             "max_sdf_m": 4.069535732269287
           },
           "sdf_grid": {
@@ -104,10 +104,10 @@
               64,
               64
             ],
-            "min_sdf_m": -0.10053619742393494,
+            "min_sdf_m": -0.0999578982591629,
             "max_sdf_m": 0.6446079015731812,
-            "num_inside_grid_points": 9573,
-            "num_near_surface_grid_points": 5194,
+            "num_inside_grid_points": 9561,
+            "num_near_surface_grid_points": 5179,
             "color_clamp_m": 0.05
           }
         },
@@ -128,10 +128,10 @@
             "num_scene_collision_points": 700000,
             "num_sdf_query_points": 700000,
             "num_visualized_points": 700000,
-            "num_inside_points": 259,
-            "num_margin_points": 603,
-            "min_sdf_m": -0.013044237159192562,
-            "max_sdf_m": 3.976301431655884
+            "num_inside_points": 247,
+            "num_margin_points": 604,
+            "min_sdf_m": -0.012235856615006924,
+            "max_sdf_m": 3.9764444828033447
           },
           "sdf_grid": {
             "num_grid_points": 262144,
@@ -140,10 +140,10 @@
               64,
               64
             ],
-            "min_sdf_m": -0.10203135013580322,
-            "max_sdf_m": 0.67275470495224,
-            "num_inside_grid_points": 9228,
-            "num_near_surface_grid_points": 4968,
+            "min_sdf_m": -0.10153467953205109,
+            "max_sdf_m": 0.6723314523696899,
+            "num_inside_grid_points": 9251,
+            "num_near_surface_grid_points": 4997,
             "color_clamp_m": 0.05
           }
         }
@@ -212,8 +212,8 @@
           "fixed_part_name": "curtain",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0013752421364188194,
-          "nocontact_distance_m": 0.037084257258556755
+          "nocontact_raw": 0.001386058866046369,
+          "nocontact_distance_m": 0.03722981152311101
         },
         {
           "node_a": "human.left_foot",
@@ -227,8 +227,8 @@
           "fixed_part_name": "floor",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.00031215071794576943,
-          "nocontact_distance_m": 0.017667787579257608
+          "nocontact_raw": 0.00031610194128006697,
+          "nocontact_distance_m": 0.017779255925939843
         },
         {
           "node_a": "human.right_foot",
@@ -242,8 +242,8 @@
           "fixed_part_name": "floor",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0003489366499707103,
-          "nocontact_distance_m": 0.018679846090659053
+          "nocontact_raw": 0.0003503164916764945,
+          "nocontact_distance_m": 0.01871674361838871
         }
       ]
     },
