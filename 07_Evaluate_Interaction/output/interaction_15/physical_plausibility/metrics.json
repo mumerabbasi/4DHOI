@@ -1,0 +1,30 @@
+[
+  {
+    "node_a": "human.right_foot",
+    "node_b": "teddy bear",
+    "contact": {
+      "min_distance_m": 0.00272616115398705,
+      "max_distance_m": 0.0557762049138546,
+      "mean_distance_m": 0.023338211700320244
+    },
+    "collision": {
+      "ncs": 0.9996514285714285,
+      "mean_penetration_m": 0.008763317950069904,
+      "max_penetration_m": 0.0201889518648386
+    }
+  },
+  {
+    "node_a": "human.left_foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.0024292347952723503,
+      "max_distance_m": 0.04557730257511139,
+      "mean_distance_m": 0.017665470018982887
+    },
+    "collision": {
+      "ncs": 0.9996514285714285,
+      "mean_penetration_m": 0.008763317950069904,
+      "max_penetration_m": 0.0201889518648386
+    }
+  }
+]

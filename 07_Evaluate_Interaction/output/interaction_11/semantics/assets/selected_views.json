@@ -1,0 +1,44 @@
+[
+  {
+    "name": "view_00",
+    "source_label": "view_axis_radius",
+    "yaw_deg": 0.0,
+    "camera_center_world": [
+      10.38428020477295,
+      2.904365301132202,
+      1.5860168933868408
+    ],
+    "nearest_scene_distance_m": 0.4645709021411524,
+    "human_frame_fraction": 1.0,
+    "line_of_sight_fraction": 1.0,
+    "valid": true
+  },
+  {
+    "name": "view_01",
+    "source_label": "yaw_-35",
+    "yaw_deg": -35.0,
+    "camera_center_world": [
+      10.736261367797852,
+      3.6692399978637695,
+      1.5860168933868408
+    ],
+    "nearest_scene_distance_m": 0.5195146860208064,
+    "human_frame_fraction": 1.0,
+    "line_of_sight_fraction": 1.0,
+    "valid": true
+  },
+  {
+    "name": "view_02",
+    "source_label": "yaw_-110",
+    "yaw_deg": -110.0,
+    "camera_center_world": [
+      12.413383483886719,
+      3.973691940307617,
+      1.5860168933868408
+    ],
+    "nearest_scene_distance_m": 0.3784535924038616,
+    "human_frame_fraction": 1.0,
+    "line_of_sight_fraction": 0.8,
+    "valid": true
+  }
+]

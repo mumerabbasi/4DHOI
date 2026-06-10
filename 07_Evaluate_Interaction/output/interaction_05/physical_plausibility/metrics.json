@@ -1,0 +1,44 @@
+[
+  {
+    "node_a": "human.left_hand",
+    "node_b": "wooden door",
+    "contact": {
+      "min_distance_m": 0.001178655424155295,
+      "max_distance_m": 0.07274502515792847,
+      "mean_distance_m": 0.027730753645300865
+    },
+    "collision": {
+      "ncs": 0.9987457142857142,
+      "mean_penetration_m": 0.0030608000233769417,
+      "max_penetration_m": 0.008818565867841244
+    }
+  },
+  {
+    "node_a": "human.left_foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.0006099826423451304,
+      "max_distance_m": 0.031776804476976395,
+      "mean_distance_m": 0.01294997800141573
+    },
+    "collision": {
+      "ncs": 0.9987457142857142,
+      "mean_penetration_m": 0.0030608000233769417,
+      "max_penetration_m": 0.008818565867841244
+    }
+  },
+  {
+    "node_a": "human.right_foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.002436797833070159,
+      "max_distance_m": 0.029540063813328743,
+      "mean_distance_m": 0.013164939358830452
+    },
+    "collision": {
+      "ncs": 0.9987457142857142,
+      "mean_penetration_m": 0.0030608000233769417,
+      "max_penetration_m": 0.008818565867841244
+    }
+  }
+]

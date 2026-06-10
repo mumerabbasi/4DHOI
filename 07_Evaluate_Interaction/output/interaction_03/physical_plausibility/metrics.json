@@ -1,0 +1,72 @@
+[
+  {
+    "node_a": "human.hips",
+    "node_b": "brown small wooden table",
+    "contact": {
+      "min_distance_m": 0.0014686668291687965,
+      "max_distance_m": 0.07607010751962662,
+      "mean_distance_m": 0.023234866559505463
+    },
+    "collision": {
+      "ncs": 0.9947042857142857,
+      "mean_penetration_m": 0.008542262017726898,
+      "max_penetration_m": 0.03972548991441727
+    }
+  },
+  {
+    "node_a": "human.left_hand",
+    "node_b": "brown small wooden table",
+    "contact": {
+      "min_distance_m": 0.0014816148905083537,
+      "max_distance_m": 0.0675494521856308,
+      "mean_distance_m": 0.027910759672522545
+    },
+    "collision": {
+      "ncs": 0.9947042857142857,
+      "mean_penetration_m": 0.008542262017726898,
+      "max_penetration_m": 0.03972548991441727
+    }
+  },
+  {
+    "node_a": "human.right_hand",
+    "node_b": "brown small wooden table",
+    "contact": {
+      "min_distance_m": 0.0004213469219394028,
+      "max_distance_m": 0.13125841319561005,
+      "mean_distance_m": 0.04460098594427109
+    },
+    "collision": {
+      "ncs": 0.9947042857142857,
+      "mean_penetration_m": 0.008542262017726898,
+      "max_penetration_m": 0.03972548991441727
+    }
+  },
+  {
+    "node_a": "human.left_foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.003932267893105745,
+      "max_distance_m": 0.0359027162194252,
+      "mean_distance_m": 0.012572715990245342
+    },
+    "collision": {
+      "ncs": 0.9947042857142857,
+      "mean_penetration_m": 0.008542262017726898,
+      "max_penetration_m": 0.03972548991441727
+    }
+  },
+  {
+    "node_a": "human.right_foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.003272036323323846,
+      "max_distance_m": 0.03285742178559303,
+      "mean_distance_m": 0.013481613248586655
+    },
+    "collision": {
+      "ncs": 0.9947042857142857,
+      "mean_penetration_m": 0.008542262017726898,
+      "max_penetration_m": 0.03972548991441727
+    }
+  }
+]

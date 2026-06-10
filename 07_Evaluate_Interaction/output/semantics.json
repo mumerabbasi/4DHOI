@@ -1,0 +1,88 @@
+{
+  "interactions": [
+    {
+      "interaction_name": "interaction_01",
+      "clip_score": 0.2237250916659832,
+      "num_renders": 4
+    },
+    {
+      "interaction_name": "interaction_02",
+      "clip_score": 0.20665233209729195,
+      "num_renders": 4
+    },
+    {
+      "interaction_name": "interaction_03",
+      "clip_score": 0.22825471684336662,
+      "num_renders": 4
+    },
+    {
+      "interaction_name": "interaction_04",
+      "clip_score": 0.22646481916308403,
+      "num_renders": 4
+    },
+    {
+      "interaction_name": "interaction_05",
+      "clip_score": 0.28317352135976154,
+      "num_renders": 3
+    },
+    {
+      "interaction_name": "interaction_06",
+      "clip_score": 0.24359238892793655,
+      "num_renders": 4
+    },
+    {
+      "interaction_name": "interaction_07",
+      "clip_score": 0.2466595359146595,
+      "num_renders": 4
+    },
+    {
+      "interaction_name": "interaction_08",
+      "clip_score": 0.2894967794418335,
+      "num_renders": 4
+    },
+    {
+      "interaction_name": "interaction_09",
+      "clip_score": 0.2854821781317393,
+      "num_renders": 3
+    },
+    {
+      "interaction_name": "interaction_10",
+      "clip_score": 0.2296481691300869,
+      "num_renders": 4
+    },
+    {
+      "interaction_name": "interaction_11",
+      "clip_score": 0.2499640037616094,
+      "num_renders": 3
+    },
+    {
+      "interaction_name": "interaction_12",
+      "clip_score": 0.25477850437164307,
+      "num_renders": 4
+    },
+    {
+      "interaction_name": "interaction_13",
+      "clip_score": 0.23869234696030617,
+      "num_renders": 4
+    },
+    {
+      "interaction_name": "interaction_14",
+      "clip_score": 0.2679261863231659,
+      "num_renders": 3
+    },
+    {
+      "interaction_name": "interaction_15",
+      "clip_score": 0.22405042747656503,
+      "num_renders": 3
+    },
+    {
+      "interaction_name": "interaction_16",
+      "clip_score": 0.20721299946308136,
+      "num_renders": 1
+    }
+  ],
+  "aggregate": {
+    "num_interactions": 16,
+    "mean_clip_score": 0.24411087506450713
+  }
+}

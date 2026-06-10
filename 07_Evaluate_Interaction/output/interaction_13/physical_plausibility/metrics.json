@@ -1,0 +1,44 @@
+[
+  {
+    "node_a": "human.left_hand",
+    "node_b": "coffee maker",
+    "contact": {
+      "min_distance_m": 0.001028724480420351,
+      "max_distance_m": 0.07800275087356567,
+      "mean_distance_m": 0.035428643226623535
+    },
+    "collision": {
+      "ncs": 0.9982257142857143,
+      "mean_penetration_m": 0.006259750574827194,
+      "max_penetration_m": 0.025724492967128754
+    }
+  },
+  {
+    "node_a": "human.left_foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.0011453062761574984,
+      "max_distance_m": 0.02638472430408001,
+      "mean_distance_m": 0.01115164440125227
+    },
+    "collision": {
+      "ncs": 0.9982257142857143,
+      "mean_penetration_m": 0.006259750574827194,
+      "max_penetration_m": 0.025724492967128754
+    }
+  },
+  {
+    "node_a": "human.right_foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.00179232656955719,
+      "max_distance_m": 0.03439243510365486,
+      "mean_distance_m": 0.010806182399392128
+    },
+    "collision": {
+      "ncs": 0.9982257142857143,
+      "mean_penetration_m": 0.006259750574827194,
+      "max_penetration_m": 0.025724492967128754
+    }
+  }
+]

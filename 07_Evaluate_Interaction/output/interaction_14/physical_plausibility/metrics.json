@@ -1,0 +1,44 @@
+[
+  {
+    "node_a": "human.left_foot",
+    "node_b": "shower stall",
+    "contact": {
+      "min_distance_m": 0.0007229026523418725,
+      "max_distance_m": 0.052996452897787094,
+      "mean_distance_m": 0.018140725791454315
+    },
+    "collision": {
+      "ncs": 0.9995357142857143,
+      "mean_penetration_m": 0.004785508383065462,
+      "max_penetration_m": 0.013718084432184696
+    }
+  },
+  {
+    "node_a": "human.right_foot",
+    "node_b": "shower stall",
+    "contact": {
+      "min_distance_m": 0.0013203457929193974,
+      "max_distance_m": 0.04940691590309143,
+      "mean_distance_m": 0.016865963116288185
+    },
+    "collision": {
+      "ncs": 0.9995357142857143,
+      "mean_penetration_m": 0.004785508383065462,
+      "max_penetration_m": 0.013718084432184696
+    }
+  },
+  {
+    "node_a": "human.right_hand",
+    "node_b": "shower stall",
+    "contact": {
+      "min_distance_m": 0.00040521123446524143,
+      "max_distance_m": 0.0740463063120842,
+      "mean_distance_m": 0.02471165545284748
+    },
+    "collision": {
+      "ncs": 0.9995357142857143,
+      "mean_penetration_m": 0.004785508383065462,
+      "max_penetration_m": 0.013718084432184696
+    }
+  }
+]
