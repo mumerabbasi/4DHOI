@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+import cv2
 import numpy as np
 import trimesh
 from scipy.spatial import cKDTree
@@ -59,6 +60,15 @@ def build_default_paths(interaction_name: str) -> dict[str, Path]:
         / "input_prompts"
         / interaction_name
         / "input_scene.json",
+        "sig_json": PROJECT_DIR
+        / "01_Generate_SIG"
+        / "output"
+        / interaction_name
+        / "scene_interaction_graph.json",
+        "smpl_seg_json": PROJECT_DIR
+        / "05_Estimate_Human_Pose"
+        / "assets"
+        / "smplx_vert_segmentation.json",
         "human_mesh_world": PROJECT_DIR
         / "06_Optimize_Static_Scene"
         / "output"
@@ -175,6 +185,116 @@ def load_scannet_camera(
         width,
         height,
     )
+
+
+def normalize_label(text: str) -> str:
+    return " ".join(
+        str(text).strip().lower().replace("_", " ").replace("-", " ").split()
+    )
+
+
+def slugify_segment_name(text: str) -> str:
+    return normalize_label(text).replace(" ", "_")
+
+
+def normalize_scene_element(text: str, target_label: str) -> str:
+    raw = str(text).strip().lower()
+    normalized = normalize_label(text)
+    target_norm = normalize_label(target_label)
+    if raw == "target_object" or normalized in {"target object", "object", target_norm}:
+        return "target_object"
+    return normalized
+
+
+def resolve_sig_target_label(sig_payload: dict[str, Any]) -> str:
+    target_object = sig_payload.get("target_object", {})
+    if not isinstance(target_object, dict):
+        return ""
+    return str(target_object.get("label", "")).strip()
+
+
+def iter_interaction_human_parts(sig_payload: dict[str, Any]) -> list[str]:
+    target_label = resolve_sig_target_label(sig_payload)
+    parts: list[str] = []
+    seen: set[str] = set()
+    interactions = sig_payload.get("interaction_edges", [])
+    if not isinstance(interactions, list):
+        return parts
+    for interaction in interactions:
+        if not isinstance(interaction, dict):
+            continue
+        scene_element = normalize_scene_element(
+            str(interaction.get("scene_element", "")),
+            target_label,
+        )
+        if scene_element not in {"target_object", "floor"}:
+            continue
+        human_part = normalize_label(str(interaction.get("human_part", "")))
+        if human_part and human_part not in seen:
+            parts.append(human_part)
+            seen.add(human_part)
+    return parts
+
+
+def load_smpl_body_segments(seg_path: Path) -> tuple[int, dict[str, np.ndarray], set[str]]:
+    payload = load_json(seg_path)
+    raw_segments = payload.get("segments")
+    body_segment_ids = payload.get("body_segment_ids")
+    if not isinstance(raw_segments, dict):
+        raise KeyError(f"Expected 'segments' mapping in {seg_path}.")
+    if not isinstance(body_segment_ids, list):
+        raise KeyError(f"Expected 'body_segment_ids' list in {seg_path}.")
+
+    vertex_count = int(payload["vertex_count"])
+    segments: dict[str, np.ndarray] = {}
+    for segment_id, indices in raw_segments.items():
+        indices_array = np.unique(np.asarray(indices, dtype=np.int64))
+        if indices_array.size == 0:
+            continue
+        if indices_array[0] < 0 or indices_array[-1] >= vertex_count:
+            raise ValueError(f"Segment '{segment_id}' has out-of-range vertex ids.")
+        segments[str(segment_id)] = indices_array
+
+    body_ids = {str(segment_id) for segment_id in body_segment_ids}
+    missing = sorted(segment_id for segment_id in body_ids if segment_id not in segments)
+    if missing:
+        raise KeyError(f"Missing SMPL-X body segments in {seg_path}: {missing}")
+    return vertex_count, segments, body_ids
+
+
+def build_interaction_part_vertices(
+    sig_payload: dict[str, Any],
+    smpl_segments: dict[str, np.ndarray],
+    body_segment_ids: set[str],
+    human_vertices_world: np.ndarray,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    part_names = iter_interaction_human_parts(sig_payload)
+    segment_ids: list[str] = []
+    missing_parts: list[str] = []
+    for part_name in part_names:
+        segment_id = slugify_segment_name(part_name)
+        if segment_id not in body_segment_ids:
+            missing_parts.append(part_name)
+            continue
+        segment_ids.append(segment_id)
+
+    if not segment_ids:
+        return np.zeros((0, 3), dtype=np.float32), {
+            "available": False,
+            "human_parts": part_names,
+            "segment_ids": [],
+            "vertex_count": 0,
+            "missing_human_parts": missing_parts,
+        }
+
+    vertex_ids = np.unique(np.concatenate([smpl_segments[item] for item in segment_ids]))
+    return human_vertices_world[vertex_ids].astype(np.float32), {
+        "available": True,
+        "human_parts": part_names,
+        "segment_ids": segment_ids,
+        "vertex_count": int(vertex_ids.shape[0]),
+        "missing_human_parts": missing_parts,
+    }
 
 
 def transform_world_to_camera(
@@ -385,45 +505,98 @@ def load_mesh_vertices(path: Path) -> np.ndarray:
     return np.asarray(mesh.vertices, dtype=np.float32)
 
 
-def human_focus_and_probe_points(human_vertices_world: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def human_focus_point(human_vertices_world: np.ndarray) -> np.ndarray:
     vmin = human_vertices_world.min(axis=0)
     vmax = human_vertices_world.max(axis=0)
     center = (vmin + vmax) * 0.5
     height = float(vmax[2] - vmin[2])
     focus = center.copy()
     focus[2] = float(vmin[2] + 0.55 * height)
-    shoulder_offset = max(float(vmax[0] - vmin[0]), float(vmax[1] - vmin[1])) * 0.22
-    probe_points = np.asarray(
-        [
-            focus,
-            [center[0], center[1], vmin[2] + 0.82 * height],
-            [center[0], center[1], vmin[2] + 0.25 * height],
-            [center[0] + shoulder_offset, center[1], vmin[2] + 0.62 * height],
-            [center[0] - shoulder_offset, center[1], vmin[2] + 0.62 * height],
-        ],
-        dtype=np.float32,
+    return focus.astype(np.float32)
+
+
+def project_camera_points_to_image(
+    points_camera: np.ndarray,
+    intrinsics: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    z = points_camera[:, 2]
+    z_safe = np.clip(z, 1e-6, None)
+    u = intrinsics[0, 0] * points_camera[:, 0] / z_safe + intrinsics[0, 2] - 0.5
+    v = intrinsics[1, 1] * points_camera[:, 1] / z_safe + intrinsics[1, 2] - 0.5
+    return u.astype(np.float32), v.astype(np.float32), z.astype(np.float32)
+
+
+def make_scene_depth_buffer(
+    scene_depth_points_world: np.ndarray,
+    rotation_world_to_camera: np.ndarray,
+    translation_world_to_camera: np.ndarray,
+    intrinsics: np.ndarray,
+    width: int,
+    height: int,
+    max_depth_m: float,
+    depth_width: int,
+) -> tuple[np.ndarray, float]:
+    scale = min(1.0, float(depth_width) / float(width))
+    depth_h = max(1, int(round(float(height) * scale)))
+    depth_w = max(1, int(round(float(width) * scale)))
+    depth = np.full((depth_h, depth_w), np.inf, dtype=np.float32)
+
+    points_camera = transform_world_to_camera(
+        scene_depth_points_world,
+        rotation_world_to_camera=rotation_world_to_camera,
+        translation_world_to_camera=translation_world_to_camera,
     )
-    return focus.astype(np.float32), probe_points
+    u, v, z = project_camera_points_to_image(points_camera, intrinsics)
+    valid = (
+        (z > 1e-5)
+        & (z < float(max_depth_m))
+        & (u >= 0.0)
+        & (u <= float(width - 1))
+        & (v >= 0.0)
+        & (v <= float(height - 1))
+        & np.isfinite(u)
+        & np.isfinite(v)
+    )
+    if not np.any(valid):
+        return depth, scale
+
+    ui = np.clip(np.rint(u[valid] * scale).astype(np.int32), 0, depth_w - 1)
+    vi = np.clip(np.rint(v[valid] * scale).astype(np.int32), 0, depth_h - 1)
+    np.minimum.at(depth, (vi, ui), z[valid].astype(np.float32))
+
+    finite = np.isfinite(depth)
+    if np.any(finite):
+        filled = np.where(finite, depth, np.float32(max_depth_m))
+        depth = cv2.erode(filled, np.ones((5, 5), dtype=np.uint8))
+        depth[depth >= float(max_depth_m)] = np.inf
+
+    return depth, scale
 
 
-def project_points_fraction_in_frame(
+def point_visibility_fraction_from_depth(
     points_world: np.ndarray,
     rotation_world_to_camera: np.ndarray,
     translation_world_to_camera: np.ndarray,
     intrinsics: np.ndarray,
     width: int,
     height: int,
+    scene_depth: np.ndarray,
+    depth_scale: float,
+    depth_tolerance_m: float,
+    require_scene_depth: bool,
+    occluder_depth: np.ndarray | None = None,
+    occluder_depth_tolerance_m: float = 0.0,
+    require_occluder_depth: bool = False,
 ) -> float:
+    if points_world.shape[0] == 0:
+        return 1.0
     points_camera = transform_world_to_camera(
         points_world,
         rotation_world_to_camera=rotation_world_to_camera,
         translation_world_to_camera=translation_world_to_camera,
     )
-    z = points_camera[:, 2]
+    u, v, z = project_camera_points_to_image(points_camera, intrinsics)
     valid_z = z > 1e-6
-    z_safe = np.clip(z, 1e-6, None)
-    u = intrinsics[0, 0] * points_camera[:, 0] / z_safe + intrinsics[0, 2] - 0.5
-    v = intrinsics[1, 1] * points_camera[:, 1] / z_safe + intrinsics[1, 2] - 0.5
     in_frame = (
         valid_z
         & (u >= 0.0)
@@ -431,34 +604,31 @@ def project_points_fraction_in_frame(
         & (v >= 0.0)
         & (v <= float(height - 1))
     )
-    return float(np.count_nonzero(in_frame) / max(points_world.shape[0], 1))
-
-
-def line_of_sight_fraction(
-    scene_mesh: trimesh.Trimesh,
-    camera_center: np.ndarray,
-    probe_points: np.ndarray,
-    clearance_m: float,
-) -> float:
-    origins = np.repeat(camera_center.reshape(1, 3), probe_points.shape[0], axis=0)
-    vectors = probe_points - origins
-    distances = np.linalg.norm(vectors, axis=1)
-    valid = distances > 1e-6
-    if not np.any(valid):
+    if not np.any(in_frame):
         return 0.0
-    directions = np.zeros_like(vectors, dtype=np.float32)
-    directions[valid] = vectors[valid] / distances[valid, None]
-    locations, ray_ids, _tri_ids = scene_mesh.ray.intersects_location(
-        ray_origins=origins[valid],
-        ray_directions=directions[valid],
-        multiple_hits=False,
-    )
-    blocked = np.zeros(int(np.count_nonzero(valid)), dtype=bool)
-    if len(ray_ids) > 0:
-        hit_distances = np.linalg.norm(locations - origins[valid][ray_ids], axis=1)
-        target_distances = distances[valid][ray_ids]
-        blocked[ray_ids] = hit_distances < (target_distances - float(clearance_m))
-    return float(1.0 - np.count_nonzero(blocked) / max(blocked.shape[0], 1))
+
+    depth_h, depth_w = scene_depth.shape
+    ui = np.clip(np.rint(u[in_frame] * depth_scale).astype(np.int32), 0, depth_w - 1)
+    vi = np.clip(np.rint(v[in_frame] * depth_scale).astype(np.int32), 0, depth_h - 1)
+    point_z = z[in_frame]
+    scene_z = scene_depth[vi, ui]
+    has_scene_depth = np.isfinite(scene_z)
+    if require_scene_depth:
+        visible = has_scene_depth & (point_z <= scene_z + float(depth_tolerance_m))
+    else:
+        visible = (~has_scene_depth) | (point_z <= scene_z + float(depth_tolerance_m))
+    if occluder_depth is not None:
+        occluder_z = occluder_depth[vi, ui]
+        has_occluder_depth = np.isfinite(occluder_z)
+        if require_occluder_depth:
+            visible &= has_occluder_depth & (
+                point_z <= occluder_z + float(occluder_depth_tolerance_m)
+            )
+        else:
+            visible &= (~has_occluder_depth) | (
+                point_z <= occluder_z + float(occluder_depth_tolerance_m)
+            )
+    return float(np.count_nonzero(visible) / max(points_world.shape[0], 1))
 
 
 def build_candidate_views(
@@ -466,17 +636,20 @@ def build_candidate_views(
     original_translation_world_to_camera: np.ndarray,
     focus: np.ndarray,
     human_vertices_world: np.ndarray,
-    probe_points: np.ndarray,
-    scene_mesh: trimesh.Trimesh,
+    interaction_part_vertices_world: np.ndarray,
+    scene_depth_points_world: np.ndarray,
     scene_vertex_tree: cKDTree,
     intrinsics: np.ndarray,
     width: int,
     image_height: int,
     num_views: int,
     min_camera_scene_distance_m: float,
-    min_line_of_sight_fraction: float,
-    min_human_frame_fraction: float,
+    min_human_visible_fraction: float,
+    min_interaction_part_visible_fraction: float,
     camera_radius_m: float,
+    visibility_depth_width: int,
+    visibility_depth_tolerance_m: float,
+    max_depth_m: float,
 ) -> list[dict[str, Any]]:
     original_center = camera_center_from_extrinsics(
         original_rotation_world_to_camera,
@@ -487,66 +660,160 @@ def build_candidate_views(
     base_vector_xy[2] = 0.0
     if float(np.linalg.norm(base_vector_xy)) < 1e-6:
         base_vector_xy = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-    radius = float(camera_radius_m)
+    base_radius = float(camera_radius_m)
     camera_height_offset = float(original_center[2] - focus[2])
     camera_height_offset = float(np.clip(camera_height_offset, 0.15, 1.35))
     base_dir = normalize_vector(base_vector_xy)
+    interaction_filter_available = interaction_part_vertices_world.shape[0] > 0
 
     candidates: list[dict[str, Any]] = []
     yaw_offsets = [0.0, 35.0, -35.0, 70.0, -70.0, 110.0, -110.0, 180.0]
-    for yaw in yaw_offsets:
-        direction = normalize_vector(rotate_about_up(base_dir, float(yaw)))
-        center = focus + direction * radius
-        center[2] = focus[2] + camera_height_offset
-        rotation, translation = look_at_world_to_camera(center, focus)
-        nearest_distance = float(scene_vertex_tree.query(center)[0])
-        frame_fraction = project_points_fraction_in_frame(
-            human_vertices_world,
-            rotation,
-            translation,
-            intrinsics,
-            width,
-            image_height,
-        )
-        los_fraction = line_of_sight_fraction(
-            scene_mesh,
-            center,
-            probe_points,
-            clearance_m=0.08,
-        )
-        valid = (
-            nearest_distance >= float(min_camera_scene_distance_m)
-            and frame_fraction >= float(min_human_frame_fraction)
-            and los_fraction >= float(min_line_of_sight_fraction)
-        )
-        candidates.append(
-            {
-                "label": "view_axis_radius" if yaw == 0.0 else f"yaw_{int(yaw):+d}",
-                "yaw_deg": float(yaw),
-                "camera_radius_m": radius,
-                "camera_center_world": center.astype(np.float32),
-                "rotation_world_to_camera": rotation.astype(np.float32),
-                "translation_world_to_camera": translation.astype(np.float32),
-                "nearest_scene_distance_m": nearest_distance,
-                "human_frame_fraction": frame_fraction,
-                "line_of_sight_fraction": los_fraction,
-                "valid": bool(valid),
-            }
-        )
+    radii = [base_radius * scale for scale in (0.75, 1.0, 1.2)]
+    height_offsets = [
+        camera_height_offset,
+        camera_height_offset + 0.25,
+    ]
+    for radius in radii:
+        for yaw in yaw_offsets:
+            for height_offset in height_offsets:
+                direction = normalize_vector(rotate_about_up(base_dir, float(yaw)))
+                center = focus + direction * float(radius)
+                center[2] = focus[2] + float(np.clip(height_offset, 0.05, 1.6))
+                rotation, translation = look_at_world_to_camera(center, focus)
+                nearest_distance = float(scene_vertex_tree.query(center)[0])
+                scene_depth, depth_scale = make_scene_depth_buffer(
+                    scene_depth_points_world=scene_depth_points_world,
+                    rotation_world_to_camera=rotation,
+                    translation_world_to_camera=translation,
+                    intrinsics=intrinsics,
+                    width=width,
+                    height=image_height,
+                    max_depth_m=max_depth_m,
+                    depth_width=visibility_depth_width,
+                )
+                human_depth, _ = make_scene_depth_buffer(
+                    scene_depth_points_world=human_vertices_world,
+                    rotation_world_to_camera=rotation,
+                    translation_world_to_camera=translation,
+                    intrinsics=intrinsics,
+                    width=width,
+                    height=image_height,
+                    max_depth_m=max_depth_m,
+                    depth_width=visibility_depth_width,
+                )
+                human_visible_fraction = point_visibility_fraction_from_depth(
+                    human_vertices_world,
+                    rotation,
+                    translation,
+                    intrinsics,
+                    width,
+                    image_height,
+                    scene_depth=scene_depth,
+                    depth_scale=depth_scale,
+                    depth_tolerance_m=visibility_depth_tolerance_m,
+                    require_scene_depth=False,
+                )
+                if interaction_filter_available:
+                    interaction_part_visible_fraction = point_visibility_fraction_from_depth(
+                        interaction_part_vertices_world,
+                        rotation,
+                        translation,
+                        intrinsics,
+                        width,
+                        image_height,
+                        scene_depth=scene_depth,
+                        depth_scale=depth_scale,
+                        depth_tolerance_m=visibility_depth_tolerance_m,
+                        require_scene_depth=False,
+                        occluder_depth=human_depth,
+                        occluder_depth_tolerance_m=visibility_depth_tolerance_m,
+                        require_occluder_depth=True,
+                    )
+                else:
+                    interaction_part_visible_fraction = 1.0
 
-    selected = [candidate for candidate in candidates if candidate["valid"]]
-    fallback_candidates = [candidate for candidate in candidates if candidate not in selected]
+                valid = (
+                    nearest_distance >= float(min_camera_scene_distance_m)
+                    and human_visible_fraction >= float(min_human_visible_fraction)
+                    and interaction_part_visible_fraction
+                    >= float(min_interaction_part_visible_fraction)
+                )
+                quality = (
+                    0.45 * human_visible_fraction
+                    + 0.55 * interaction_part_visible_fraction
+                )
+                candidates.append(
+                    {
+                        "label": "view_axis_radius" if yaw == 0.0 else f"yaw_{int(yaw):+d}",
+                        "yaw_deg": float(yaw),
+                        "camera_radius_m": float(radius),
+                        "camera_height_offset_m": float(height_offset),
+                        "camera_center_world": center.astype(np.float32),
+                        "rotation_world_to_camera": rotation.astype(np.float32),
+                        "translation_world_to_camera": translation.astype(np.float32),
+                        "nearest_scene_distance_m": nearest_distance,
+                        "human_visible_fraction": human_visible_fraction,
+                        "interaction_part_visible_fraction": interaction_part_visible_fraction,
+                        "interaction_part_filter_available": bool(interaction_filter_available),
+                        "quality": float(quality),
+                        "valid": bool(valid),
+                    }
+                )
+
+    valid_candidates = sorted(
+        [candidate for candidate in candidates if candidate["valid"]],
+        key=lambda candidate: float(candidate["quality"]),
+        reverse=True,
+    )
+    best_by_yaw: dict[float, dict[str, Any]] = {}
+    for candidate in valid_candidates:
+        yaw = float(candidate["yaw_deg"])
+        if yaw not in best_by_yaw:
+            best_by_yaw[yaw] = candidate
+    diverse_candidates = sorted(
+        best_by_yaw.values(),
+        key=lambda candidate: float(candidate["quality"]),
+        reverse=True,
+    )
+    selected: list[dict[str, Any]] = []
+    while len(selected) < int(num_views) and diverse_candidates:
+        if not selected:
+            selected.append(diverse_candidates.pop(0))
+            continue
+        selected_dirs = [
+            normalize_vector(item["camera_center_world"] - focus)
+            for item in selected
+        ]
+
+        def view_score(candidate: dict[str, Any]) -> float:
+            direction = normalize_vector(candidate["camera_center_world"] - focus)
+            min_angle = min(
+                float(np.arccos(np.clip(np.dot(direction, selected_dir), -1.0, 1.0)))
+                for selected_dir in selected_dirs
+            )
+            return float(candidate["quality"]) + 0.25 * min_angle
+
+        best = max(diverse_candidates, key=view_score)
+        selected.append(best)
+        diverse_candidates = [
+            candidate for candidate in diverse_candidates if candidate is not best
+        ]
+    selected_ids = {id(candidate) for candidate in selected}
+    for candidate in valid_candidates:
+        if len(selected) >= int(num_views):
+            break
+        if id(candidate) in selected_ids:
+            continue
+        selected.append(candidate)
+        selected_ids.add(id(candidate))
+
     fallback_candidates = sorted(
-        fallback_candidates,
-        key=lambda candidate: (
-            float(candidate["nearest_scene_distance_m"]),
-            float(candidate["line_of_sight_fraction"]),
-            float(candidate["human_frame_fraction"]),
-        ),
+        candidates,
+        key=lambda candidate: float(candidate["quality"]),
         reverse=True,
     )
     if not selected and fallback_candidates:
-        selected.append(fallback_candidates.pop(0))
+        selected.append(fallback_candidates[0])
     selected = selected[: int(num_views)]
 
     for index, item in enumerate(selected):
@@ -758,6 +1025,8 @@ def render_interaction(
 ) -> dict[str, Any]:
     defaults = build_default_paths(interaction_name)
     input_scene_json_path = resolve_path(args.input_scene_json, defaults["input_scene_json"])
+    sig_json_path = resolve_path(args.sig_json, defaults["sig_json"])
+    smpl_seg_json_path = resolve_path(args.smpl_seg_json, defaults["smpl_seg_json"])
     human_mesh_world_path = resolve_path(args.human_mesh_world, defaults["human_mesh_world"])
     output_root = ensure_dir(resolve_path(args.output_root, defaults["output_root"]))
     assets_dir = ensure_dir(output_root / "assets")
@@ -768,6 +1037,7 @@ def render_interaction(
         raise FileNotFoundError(f"Optimized human world mesh not found: {human_mesh_world_path}")
 
     input_payload = load_json(input_scene_json_path)
+    sig_payload = load_json(sig_json_path)
     scene_context = input_payload["scene_context"]
     scene_paths = resolve_scene_paths(scannet_root, scene_context)
     (
@@ -780,34 +1050,69 @@ def render_interaction(
 
     print(f"Loading optimized human mesh from: {human_mesh_world_path}")
     human_vertices_world = load_mesh_vertices(human_mesh_world_path)
-    focus_world, probe_points_world = human_focus_and_probe_points(human_vertices_world)
+    focus_world = human_focus_point(human_vertices_world)
+    smpl_vertex_count, smpl_segments, body_segment_ids = load_smpl_body_segments(
+        smpl_seg_json_path
+    )
+    if human_vertices_world.shape[0] != smpl_vertex_count:
+        raise ValueError(
+            "Optimized human mesh vertex count does not match SMPL-X segmentation: "
+            f"mesh={human_vertices_world.shape[0]} segmentation={smpl_vertex_count}"
+        )
+    interaction_part_vertices_world, interaction_part_metadata = (
+        build_interaction_part_vertices(
+            sig_payload=sig_payload,
+            smpl_segments=smpl_segments,
+            body_segment_ids=body_segment_ids,
+            human_vertices_world=human_vertices_world,
+        )
+    )
+    print(
+        "Interaction human-part visibility vertices: "
+        f"{interaction_part_metadata.get('vertex_count', 0)}"
+    )
 
     print(f"Loading colored ScanNet mesh from: {scene_paths['mesh_path']}")
     scene_verts_world, scene_faces, scene_colors = load_colored_mesh(
         scene_paths["mesh_path"]
     )
-    scene_mesh_for_rays = trimesh.Trimesh(
-        vertices=scene_verts_world,
-        faces=scene_faces,
-        process=False,
+    scene_depth_points_world = np.concatenate(
+        [
+            scene_verts_world,
+            scene_verts_world[scene_faces].mean(axis=1).astype(np.float32),
+        ],
+        axis=0,
     )
+    if scene_depth_points_world.shape[0] > int(args.max_scene_depth_points):
+        rng = np.random.default_rng(int(args.seed))
+        choice = rng.choice(
+            scene_depth_points_world.shape[0],
+            size=int(args.max_scene_depth_points),
+            replace=False,
+        )
+        scene_depth_points_world = scene_depth_points_world[choice]
     scene_vertex_tree = cKDTree(scene_verts_world)
     selected_views = build_candidate_views(
         original_rotation_world_to_camera=rotation_world_to_camera,
         original_translation_world_to_camera=translation_world_to_camera,
         focus=focus_world,
         human_vertices_world=human_vertices_world,
-        probe_points=probe_points_world,
-        scene_mesh=scene_mesh_for_rays,
+        interaction_part_vertices_world=interaction_part_vertices_world,
+        scene_depth_points_world=scene_depth_points_world,
         scene_vertex_tree=scene_vertex_tree,
         intrinsics=intrinsics,
         width=width,
         image_height=height,
         num_views=int(args.num_views),
         min_camera_scene_distance_m=float(args.min_camera_scene_distance_m),
-        min_line_of_sight_fraction=float(args.min_line_of_sight_fraction),
-        min_human_frame_fraction=float(args.min_human_frame_fraction),
+        min_human_visible_fraction=float(args.min_human_visible_fraction),
+        min_interaction_part_visible_fraction=float(
+            args.min_interaction_part_visible_fraction
+        ),
         camera_radius_m=float(args.camera_radius_m),
+        visibility_depth_width=int(args.visibility_depth_width),
+        visibility_depth_tolerance_m=float(args.visibility_depth_tolerance_m),
+        max_depth_m=float(args.max_depth_m),
     )
     view_metadata = [
         {
@@ -816,13 +1121,25 @@ def render_interaction(
             "yaw_deg": float(view["yaw_deg"]),
             "camera_center_world": view["camera_center_world"].astype(float).tolist(),
             "nearest_scene_distance_m": float(view["nearest_scene_distance_m"]),
-            "human_frame_fraction": float(view["human_frame_fraction"]),
-            "line_of_sight_fraction": float(view["line_of_sight_fraction"]),
+            "human_visible_fraction": float(view["human_visible_fraction"]),
+            "interaction_part_visible_fraction": float(
+                view["interaction_part_visible_fraction"]
+            ),
+            "interaction_part_filter_available": bool(
+                view["interaction_part_filter_available"]
+            ),
+            "quality": float(view["quality"]),
             "valid": bool(view["valid"]),
         }
         for view in selected_views
     ]
-    save_json(assets_dir / "selected_views.json", view_metadata)
+    save_json(
+        assets_dir / "selected_views.json",
+        {
+            "interaction_parts": interaction_part_metadata,
+            "views": view_metadata,
+        },
+    )
 
     scene_crop_ply = assets_dir / "scene_semantics_view_crop.ply"
     if not scene_crop_ply.exists() or bool(args.overwrite_scene_crop):
@@ -954,6 +1271,8 @@ def parse_args() -> argparse.Namespace:
         default=True,
     )
     parser.add_argument("--input_scene_json", type=str, default=None)
+    parser.add_argument("--sig_json", type=str, default=None)
+    parser.add_argument("--smpl_seg_json", type=str, default=None)
     parser.add_argument("--human_mesh_world", type=str, default=None)
     parser.add_argument("--scannet_root", type=str, default=None)
     parser.add_argument("--output_root", type=str, default=None)
@@ -970,9 +1289,13 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--num_views", type=int, default=4)
     parser.add_argument("--camera_radius_m", type=float, default=1.4)
-    parser.add_argument("--min_camera_scene_distance_m", type=float, default=0.25)
-    parser.add_argument("--min_line_of_sight_fraction", type=float, default=0.4)
-    parser.add_argument("--min_human_frame_fraction", type=float, default=0.35)
+    parser.add_argument("--min_camera_scene_distance_m", type=float, default=0.15)
+    parser.add_argument("--min_human_visible_fraction", type=float, default=0.75)
+    parser.add_argument("--min_interaction_part_visible_fraction", type=float, default=0.35)
+    parser.add_argument("--visibility_depth_width", type=int, default=384)
+    parser.add_argument("--visibility_depth_tolerance_m", type=float, default=0.08)
+    parser.add_argument("--max_scene_depth_points", type=int, default=500000)
+    parser.add_argument("--seed", type=int, default=12345)
     parser.add_argument(
         "--overwrite_scene_crop",
         action=argparse.BooleanOptionalAction,
@@ -986,7 +1309,13 @@ def main() -> None:
     if bool(args.all_interactions) or args.interaction_name == "all":
         if any(
             value is not None
-            for value in (args.input_scene_json, args.human_mesh_world, args.output_root)
+            for value in (
+                args.input_scene_json,
+                args.sig_json,
+                args.smpl_seg_json,
+                args.human_mesh_world,
+                args.output_root,
+            )
         ):
             raise ValueError(
                 "--all_interactions cannot be combined with per-interaction "

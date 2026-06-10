@@ -1,44 +1,85 @@
-[
-  {
-    "name": "view_00",
-    "source_label": "view_axis_radius",
-    "yaw_deg": 0.0,
-    "camera_center_world": [
-      4.615294456481934,
-      3.933915615081787,
-      1.5696643590927124
+{
+  "interaction_parts": {
+    "available": true,
+    "human_parts": [
+      "left hand",
+      "right hand",
+      "left arm",
+      "right arm"
     ],
-    "nearest_scene_distance_m": 0.46319817727444995,
-    "human_frame_fraction": 1.0,
-    "line_of_sight_fraction": 1.0,
-    "valid": true
+    "segment_ids": [
+      "left_hand",
+      "right_hand",
+      "left_arm",
+      "right_arm"
+    ],
+    "vertex_count": 2548,
+    "missing_human_parts": []
   },
-  {
-    "name": "view_01",
-    "source_label": "yaw_-35",
-    "yaw_deg": -35.0,
-    "camera_center_world": [
-      5.43154239654541,
-      3.7273645401000977,
-      1.5696643590927124
-    ],
-    "nearest_scene_distance_m": 0.5689887645172071,
-    "human_frame_fraction": 1.0,
-    "line_of_sight_fraction": 1.0,
-    "valid": true
-  },
-  {
-    "name": "view_02",
-    "source_label": "yaw_-70",
-    "yaw_deg": -70.0,
-    "camera_center_world": [
-      5.981700897216797,
-      3.089987277984619,
-      1.5696643590927124
-    ],
-    "nearest_scene_distance_m": 0.540827702093177,
-    "human_frame_fraction": 1.0,
-    "line_of_sight_fraction": 1.0,
-    "valid": true
-  }
-]
+  "views": [
+    {
+      "name": "view_00",
+      "source_label": "yaw_-70",
+      "yaw_deg": -70.0,
+      "camera_center_world": [
+        5.660243034362793,
+        2.951549530029297,
+        1.8196643590927124
+      ],
+      "nearest_scene_distance_m": 0.274682607378362,
+      "human_visible_fraction": 1.0,
+      "interaction_part_visible_fraction": 0.9313186813186813,
+      "interaction_part_filter_available": true,
+      "quality": 0.9622252747252749,
+      "valid": true
+    },
+    {
+      "name": "view_01",
+      "source_label": "view_axis_radius",
+      "yaw_deg": 0.0,
+      "camera_center_world": [
+        4.615294456481934,
+        3.933915615081787,
+        1.8196643590927124
+      ],
+      "nearest_scene_distance_m": 0.4606408245551982,
+      "human_visible_fraction": 1.0,
+      "interaction_part_visible_fraction": 0.7916012558869702,
+      "interaction_part_filter_available": true,
+      "quality": 0.8853806907378337,
+      "valid": true
+    },
+    {
+      "name": "view_02",
+      "source_label": "yaw_-35",
+      "yaw_deg": -35.0,
+      "camera_center_world": [
+        5.43154239654541,
+        3.7273645401000977,
+        1.8196643590927124
+      ],
+      "nearest_scene_distance_m": 0.49077192662464425,
+      "human_visible_fraction": 1.0,
+      "interaction_part_visible_fraction": 0.82574568288854,
+      "interaction_part_filter_available": true,
+      "quality": 0.9041601255886971,
+      "valid": true
+    },
+    {
+      "name": "view_03",
+      "source_label": "yaw_-70",
+      "yaw_deg": -70.0,
+      "camera_center_world": [
+        5.981700897216797,
+        3.089987277984619,
+        1.8196643590927124
+      ],
+      "nearest_scene_distance_m": 0.5227678732244495,
+      "human_visible_fraction": 0.9994272076372315,
+      "interaction_part_visible_fraction": 0.9065934065934066,
+      "interaction_part_filter_available": true,
+      "quality": 0.9483686170631278,
+      "valid": true
+    }
+  ]
+}
