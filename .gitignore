@@ -53,12 +53,21 @@ dmypy.json
 *.fbx
 *.glb
 *.gltf
+*.blend
+*.blend1
 *.ply
 *.stl
 *.pcd
 *.las
 *.laz
 *.npy
+
+# --- Generated Blender Assets ---
+07_Evaluate_Interaction/output/**/semantics/assets/render_config.json
+07_Evaluate_Interaction/output/**/semantics/assets/render_driver.py
+07_Evaluate_Interaction/output/**/semantics/assets/render_scene.blend
+07_Evaluate_Interaction/output/**/semantics/assets/render_scene.blend1
+07_Evaluate_Interaction/output/**/semantics/assets/scene_*_crop.ply
 
 # --- Output Directories ---
 # Ignore specific output folders you are creating
