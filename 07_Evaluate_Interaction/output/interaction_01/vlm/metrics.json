@@ -2,6 +2,7 @@
   "interaction_name": "interaction_01",
   "interaction_instruction": "a person lifting the brown small wooden table with both hands",
   "model": "qwen3-vl:32b",
+  "system_prompt_path": "/my_workspace/4DHHOI/4DHSI/07_Evaluate_Interaction/system_prompt_x.md",
   "render_paths": [
     "/my_workspace/4DHHOI/4DHSI/07_Evaluate_Interaction/output/interaction_01/semantics/renders/view_00.png",
     "/my_workspace/4DHHOI/4DHSI/07_Evaluate_Interaction/output/interaction_01/semantics/renders/view_01.png",
@@ -117,43 +118,41 @@
   },
   "vlm_result": {
     "overall": {
-      "score_1_to_5": 4,
-      "reason": "The interaction shows a person in a crouched position with both hands on a small brown wooden table, appearing to be in the process of lifting it. The target object is correct, the human action matches the requested action, the contact and spatial relation is correct, and the pose is physically plausible. The views provide sufficient evidence, and the metrics are consistent with the visual evidence. The only minor issue is that it's not clear if the table is actually being lifted off the ground (it appears to be in the initial phase of lifting)."
+      "score_1_to_5": 5,
+      "reason": "The 3D human-scene interaction correctly depicts a person lifting a brown small wooden table with both hands. The person's posture, hand placement, and quantitative metrics all confirm the interaction is physically plausible and matches the instruction."
     },
     "criteria": {
       "target_object_correctness": {
         "score_1_to_5": 5,
-        "reason": "The correct object (a brown small wooden table) is visible and identifiable in all views."
+        "reason": "The brown small wooden table is clearly visible and identifiable in all views as the target object."
       },
       "human_action_correctness": {
         "score_1_to_5": 4,
-        "reason": "The person is in a crouched position with both hands on the table, matching the requested action of lifting, but it's not clear if the table is actually being lifted off the ground (it appears to be in the initial phase of lifting)."
+        "reason": "The person is in a crouched position with both hands on the table, indicating the action of lifting. The action is mostly correct, though the table appears to be in the initial phase of lifting rather than fully lifted."
       },
       "contact_and_spatial_relation": {
         "score_1_to_5": 5,
-        "reason": "The person's hands are in contact with the table (min distances 0.001m and 0.0005m), and the quantitative metrics confirm this contact."
+        "reason": "The person's hands are in close contact with the table (min distance < 0.001m), and the person is positioned appropriately for lifting the table."
       },
       "physical_plausibility": {
         "score_1_to_5": 5,
-        "reason": "The pose is physically plausible for lifting a small table, with minimal penetration (0.0037m mean) and high NCS (0.9987)."
+        "reason": "The pose is physically plausible with minimal penetration (0.0037m mean) and high NCS (0.9987), showing the person is in a natural lifting position with feet on the floor."
       },
       "visibility_and_evidence": {
         "score_1_to_5": 5,
-        "reason": "All 4 views show the interaction from different angles, with the human visible in all views (94-100% visible fraction) and the interaction parts (hands) visible in all views (63-69% visible fraction)."
+        "reason": "All 4 views provide clear evidence of the interaction with the human visible in 94-100% of the frame and interaction parts visible in 63-69% of the frame."
       },
       "metric_consistency": {
         "score_1_to_5": 5,
-        "reason": "The quantitative metrics (small contact distances, minimal penetration, high NCS) are consistent with the visual evidence of hands in contact with the table."
+        "reason": "The quantitative metrics (contact distances, penetration, NCS) are consistent with the visual evidence showing hands in contact with the table and feet on the floor."
       }
     },
     "best_view_ids": [
       "view_00",
-      "view_02"
+      "view_01"
     ],
-    "failure_modes": [
-      "The table appears to be in the initial phase of lifting, not fully lifted (though the instruction says 'lifting' which could include the process of lifting, not just the final state)"
-    ],
-    "brief_summary": "The interaction shows a person in a crouched position with both hands on a small brown wooden table, appearing to be in the process of lifting it. The target object is correct, the human action matches the requested action, the contact and spatial relation is correct, and the pose is physically plausible. The views provide sufficient evidence, and the metrics are consistent with the visual evidence. The only minor issue is that it's not clear if the table is actually being lifted off the ground (it appears to be in the initial phase of lifting)."
+    "failure_modes": [],
+    "brief_summary": "The 3D human-scene interaction correctly depicts a person lifting a brown small wooden table with both hands. The person's posture, hand placement, and quantitative metrics all confirm the interaction is physically plausible and matches the instruction."
   },
-  "raw_response": "{\n  \"overall\": {\n    \"score_1_to_5\": 4,\n    \"reason\": \"The interaction shows a person in a crouched position with both hands on a small brown wooden table, appearing to be in the process of lifting it. The target object is correct, the human action matches the requested action, the contact and spatial relation is correct, and the pose is physically plausible. The views provide sufficient evidence, and the metrics are consistent with the visual evidence. The only minor issue is that it's not clear if the table is actually being lifted off the ground (it appears to be in the initial phase of lifting).\"\n  },\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The correct object (a brown small wooden table) is visible and identifiable in all views.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 4,\n      \"reason\": \"The person is in a crouched position with both hands on the table, matching the requested action of lifting, but it's not clear if the table is actually being lifted off the ground (it appears to be in the initial phase of lifting).\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The person's hands are in contact with the table (min distances 0.001m and 0.0005m), and the quantitative metrics confirm this contact.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The pose is physically plausible for lifting a small table, with minimal penetration (0.0037m mean) and high NCS (0.9987).\"\n    },\n    \"visibility_and_evidence\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"All 4 views show the interaction from different angles, with the human visible in all views (94-100% visible fraction) and the interaction parts (hands) visible in all views (63-69% visible fraction).\"\n    },\n    \"metric_consistency\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The quantitative metrics (small contact distances, minimal penetration, high NCS) are consistent with the visual evidence of hands in contact with the table.\"\n    }\n  },\n  \"best_view_ids\": [\"view_00\", \"view_02\"],\n  \"failure_modes\": [\"The table appears to be in the initial phase of lifting, not fully lifted (though the instruction says 'lifting' which could include the process of lifting, not just the final state)\"],\n  \"brief_summary\": \"The interaction shows a person in a crouched position with both hands on a small brown wooden table, appearing to be in the process of lifting it. The target object is correct, the human action matches the requested action, the contact and spatial relation is correct, and the pose is physically plausible. The views provide sufficient evidence, and the metrics are consistent with the visual evidence. The only minor issue is that it's not clear if the table is actually being lifted off the ground (it appears to be in the initial phase of lifting).\"\n}"
+  "raw_response": "{\n  \"overall\": {\n    \"score_1_to_5\": 5,\n    \"reason\": \"The 3D human-scene interaction correctly depicts a person lifting a brown small wooden table with both hands. The person's posture, hand placement, and quantitative metrics all confirm the interaction is physically plausible and matches the instruction.\"\n  },\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The brown small wooden table is clearly visible and identifiable in all views as the target object.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 4,\n      \"reason\": \"The person is in a crouched position with both hands on the table, indicating the action of lifting. The action is mostly correct, though the table appears to be in the initial phase of lifting rather than fully lifted.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The person's hands are in close contact with the table (min distance < 0.001m), and the person is positioned appropriately for lifting the table.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The pose is physically plausible with minimal penetration (0.0037m mean) and high NCS (0.9987), showing the person is in a natural lifting position with feet on the floor.\"\n    },\n    \"visibility_and_evidence\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"All 4 views provide clear evidence of the interaction with the human visible in 94-100% of the frame and interaction parts visible in 63-69% of the frame.\"\n    },\n    \"metric_consistency\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The quantitative metrics (contact distances, penetration, NCS) are consistent with the visual evidence showing hands in contact with the table and feet on the floor.\"\n    }\n  },\n  \"best_view_ids\": [\"view_00\", \"view_01\"],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The 3D human-scene interaction correctly depicts a person lifting a brown small wooden table with both hands. The person's posture, hand placement, and quantitative metrics all confirm the interaction is physically plausible and matches the instruction.\"\n}"
 }

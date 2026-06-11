@@ -1,0 +1,151 @@
+{
+  "interaction_name": "interaction_06",
+  "interaction_instruction": "a person sitting on the green chair",
+  "model": "qwen3-vl:32b",
+  "system_prompt_path": "/my_workspace/4DHHOI/4DHSI/07_Evaluate_Interaction/system_prompt_x.md",
+  "render_paths": [
+    "/my_workspace/4DHHOI/4DHSI/07_Evaluate_Interaction/output/interaction_06/semantics/renders/view_00.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Evaluate_Interaction/output/interaction_06/semantics/renders/view_01.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Evaluate_Interaction/output/interaction_06/semantics/renders/view_02.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Evaluate_Interaction/output/interaction_06/semantics/renders/view_03.png"
+  ],
+  "quantitative_metrics": {
+    "physical_plausibility": {
+      "available": true,
+      "contact_edges": [
+        {
+          "node_a": "human.hips",
+          "node_b": "green chair",
+          "min_distance_m": 0.0005512352799996734,
+          "max_distance_m": 0.07229683548212051,
+          "mean_distance_m": 0.022260883823037148
+        },
+        {
+          "node_a": "human.left_foot",
+          "node_b": "floor",
+          "min_distance_m": 0.0011554491939023137,
+          "max_distance_m": 0.03171057254076004,
+          "mean_distance_m": 0.015009688213467598
+        },
+        {
+          "node_a": "human.right_foot",
+          "node_b": "floor",
+          "min_distance_m": 0.002015074947848916,
+          "max_distance_m": 0.03996597230434418,
+          "mean_distance_m": 0.017101546749472618
+        }
+      ],
+      "mean_contact_distance_m": 0.018124039595325787,
+      "ncs": 0.99968,
+      "mean_penetration_m": 0.004234011750668287,
+      "max_penetration_m": 0.0124443918466568
+    },
+    "clip_semantics": {
+      "available": true,
+      "mean_clip_score": 0.25542327389121056,
+      "per_view_clip_scores": [
+        {
+          "view_id": "view_00",
+          "clip_score": 0.24712920188903809
+        },
+        {
+          "view_id": "view_01",
+          "clip_score": 0.2656654119491577
+        },
+        {
+          "view_id": "view_02",
+          "clip_score": 0.23947779834270477
+        },
+        {
+          "view_id": "view_03",
+          "clip_score": 0.26942068338394165
+        }
+      ]
+    },
+    "render_visibility": {
+      "available": true,
+      "interaction_parts": {
+        "available": true,
+        "human_parts": [
+          "hips",
+          "left foot",
+          "right foot"
+        ],
+        "segment_ids": [
+          "hips",
+          "left_foot",
+          "right_foot"
+        ],
+        "vertex_count": 989,
+        "missing_human_parts": []
+      },
+      "views": [
+        {
+          "view_id": "view_00",
+          "human_visible_fraction": 1.0,
+          "interaction_part_visible_fraction": 0.5722952477249748,
+          "valid": true
+        },
+        {
+          "view_id": "view_01",
+          "human_visible_fraction": 0.9998090692124105,
+          "interaction_part_visible_fraction": 0.37714863498483314,
+          "valid": true
+        },
+        {
+          "view_id": "view_02",
+          "human_visible_fraction": 0.9997136038186157,
+          "interaction_part_visible_fraction": 0.5510616784630941,
+          "valid": true
+        },
+        {
+          "view_id": "view_03",
+          "human_visible_fraction": 0.9970405727923628,
+          "interaction_part_visible_fraction": 0.3953488372093023,
+          "valid": true
+        }
+      ]
+    }
+  },
+  "vlm_result": {
+    "overall": {
+      "score_1_to_5": 5,
+      "reason": "The person is clearly sitting on the green chair in all views, with appropriate contact and physical plausibility. The quantitative metrics confirm the correct interaction with minimal penetration and high contact scores."
+    },
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The green chair is clearly visible and identifiable in all views, and the person is sitting on it."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The person is in a seated position on the green chair in all views, matching the requested action of sitting."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 5,
+        "reason": "The person's hips are in contact with the green chair (min distance 0.000551 m), and feet are on the floor (min distances 0.001155 m and 0.002015 m), with appropriate spatial relations."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The pose is natural and physically plausible with minimal penetration (mean 0.004234 m) and high contact score (0.99968)."
+      },
+      "visibility_and_evidence": {
+        "score_1_to_5": 5,
+        "reason": "All 4 views provide sufficient evidence to judge the interaction, with human visible in all views (99.7-100% visible) and interaction parts visible in all views (37-57% visible)."
+      },
+      "metric_consistency": {
+        "score_1_to_5": 5,
+        "reason": "The quantitative metrics (contact distances, penetration, ncs) are consistent with the visual evidence showing the person sitting on the green chair with feet on the floor."
+      }
+    },
+    "best_view_ids": [
+      "view_00",
+      "view_01",
+      "view_02",
+      "view_03"
+    ],
+    "failure_modes": [],
+    "brief_summary": "The interaction 'a person sitting on the green chair' is correctly implemented. The person is clearly sitting on the green chair in all views with appropriate contact and physical plausibility, confirmed by quantitative metrics."
+  },
+  "raw_response": "{\n  \"overall\": {\n    \"score_1_to_5\": 5,\n    \"reason\": \"The person is clearly sitting on the green chair in all views, with appropriate contact and physical plausibility. The quantitative metrics confirm the correct interaction with minimal penetration and high contact scores.\"\n  },\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The green chair is clearly visible and identifiable in all views, and the person is sitting on it.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The person is in a seated position on the green chair in all views, matching the requested action of sitting.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The person's hips are in contact with the green chair (min distance 0.000551 m), and feet are on the floor (min distances 0.001155 m and 0.002015 m), with appropriate spatial relations.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The pose is natural and physically plausible with minimal penetration (mean 0.004234 m) and high contact score (0.99968).\"\n    },\n    \"visibility_and_evidence\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"All 4 views provide sufficient evidence to judge the interaction, with human visible in all views (99.7-100% visible) and interaction parts visible in all views (37-57% visible).\"\n    },\n    \"metric_consistency\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The quantitative metrics (contact distances, penetration, ncs) are consistent with the visual evidence showing the person sitting on the green chair with feet on the floor.\"\n    }\n  },\n  \"best_view_ids\": [\"view_00\", \"view_01\", \"view_02\", \"view_03\"],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The interaction 'a person sitting on the green chair' is correctly implemented. The person is clearly sitting on the green chair in all views with appropriate contact and physical plausibility, confirmed by quantitative metrics.\"\n}"
+}

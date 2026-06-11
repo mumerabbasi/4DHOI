@@ -1,0 +1,149 @@
+{
+  "interaction_name": "interaction_11",
+  "interaction_instruction": "a person opening the washing machine door",
+  "model": "qwen3-vl:32b",
+  "system_prompt_path": "/my_workspace/4DHHOI/4DHSI/07_Evaluate_Interaction/system_prompt_x.md",
+  "render_paths": [
+    "/my_workspace/4DHHOI/4DHSI/07_Evaluate_Interaction/output/interaction_11/semantics/renders/view_00.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Evaluate_Interaction/output/interaction_11/semantics/renders/view_01.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Evaluate_Interaction/output/interaction_11/semantics/renders/view_02.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Evaluate_Interaction/output/interaction_11/semantics/renders/view_03.png"
+  ],
+  "quantitative_metrics": {
+    "physical_plausibility": {
+      "available": true,
+      "contact_edges": [
+        {
+          "node_a": "human.right_hand",
+          "node_b": "washing machine door",
+          "min_distance_m": 0.0007091099396348,
+          "max_distance_m": 0.07223913073539734,
+          "mean_distance_m": 0.03109900653362274
+        },
+        {
+          "node_a": "human.left_foot",
+          "node_b": "floor",
+          "min_distance_m": 0.0017896087374538183,
+          "max_distance_m": 0.040121886879205704,
+          "mean_distance_m": 0.013044459745287895
+        },
+        {
+          "node_a": "human.right_foot",
+          "node_b": "floor",
+          "min_distance_m": 0.0016038374742493033,
+          "max_distance_m": 0.02718617208302021,
+          "mean_distance_m": 0.012051219120621681
+        }
+      ],
+      "mean_contact_distance_m": 0.018731561799844105,
+      "ncs": 0.9995528571428571,
+      "mean_penetration_m": 0.003953573293983936,
+      "max_penetration_m": 0.012561391107738018
+    },
+    "clip_semantics": {
+      "available": true,
+      "mean_clip_score": 0.25505295768380165,
+      "per_view_clip_scores": [
+        {
+          "view_id": "view_00",
+          "clip_score": 0.251824289560318
+        },
+        {
+          "view_id": "view_01",
+          "clip_score": 0.2477763146162033
+        },
+        {
+          "view_id": "view_02",
+          "clip_score": 0.2298312485218048
+        },
+        {
+          "view_id": "view_03",
+          "clip_score": 0.2907799780368805
+        }
+      ]
+    },
+    "render_visibility": {
+      "available": true,
+      "interaction_parts": {
+        "available": true,
+        "human_parts": [
+          "right hand",
+          "left foot",
+          "right foot"
+        ],
+        "segment_ids": [
+          "right_hand",
+          "left_foot",
+          "right_foot"
+        ],
+        "vertex_count": 1280,
+        "missing_human_parts": []
+      },
+      "views": [
+        {
+          "view_id": "view_00",
+          "human_visible_fraction": 0.9844391408114559,
+          "interaction_part_visible_fraction": 0.53515625,
+          "valid": true
+        },
+        {
+          "view_id": "view_01",
+          "human_visible_fraction": 0.9976133651551312,
+          "interaction_part_visible_fraction": 0.48203125,
+          "valid": true
+        },
+        {
+          "view_id": "view_02",
+          "human_visible_fraction": 0.9838663484486874,
+          "interaction_part_visible_fraction": 0.53203125,
+          "valid": true
+        },
+        {
+          "view_id": "view_03",
+          "human_visible_fraction": 0.9886396181384248,
+          "interaction_part_visible_fraction": 0.4984375,
+          "valid": true
+        }
+      ]
+    }
+  },
+  "vlm_result": {
+    "overall": {
+      "score_1_to_5": 5,
+      "reason": "The interaction correctly shows a person opening the washing machine door with appropriate pose, contact, and physical plausibility. All views and metrics consistently support this."
+    },
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The washing machine door is clearly visible and identifiable in all views as the target object for the interaction."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The person is in a bent-over position with their hand reaching toward the washing machine door, which accurately represents the action of opening it."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 5,
+        "reason": "The person's right hand is in contact with the washing machine door (0.031m mean distance), as shown by both visual evidence and metrics."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The person is standing on the floor with both feet (0.013m and 0.012m mean distances), in a natural bent-over position, with minimal penetration (0.00395m) and high NCS (0.99955)."
+      },
+      "visibility_and_evidence": {
+        "score_1_to_5": 5,
+        "reason": "All four views provide clear perspectives of the interaction, with 98-99% human visibility and 48-54% interaction part visibility in all views."
+      },
+      "metric_consistency": {
+        "score_1_to_5": 5,
+        "reason": "The quantitative metrics (contact distances, penetration, NCS) perfectly align with the visual evidence of the hand on the door and the person standing on the floor."
+      }
+    },
+    "best_view_ids": [
+      "view_00",
+      "view_03"
+    ],
+    "failure_modes": [],
+    "brief_summary": "The interaction correctly shows a person opening the washing machine door with appropriate pose, contact, and physical plausibility. All views and metrics consistently support this."
+  },
+  "raw_response": "{\n  \"overall\": {\n    \"score_1_to_5\": 5,\n    \"reason\": \"The interaction correctly shows a person opening the washing machine door with appropriate pose, contact, and physical plausibility. All views and metrics consistently support this.\"\n  },\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The washing machine door is clearly visible and identifiable in all views as the target object for the interaction.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The person is in a bent-over position with their hand reaching toward the washing machine door, which accurately represents the action of opening it.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The person's right hand is in contact with the washing machine door (0.031m mean distance), as shown by both visual evidence and metrics.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The person is standing on the floor with both feet (0.013m and 0.012m mean distances), in a natural bent-over position, with minimal penetration (0.00395m) and high NCS (0.99955).\"\n    },\n    \"visibility_and_evidence\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"All four views provide clear perspectives of the interaction, with 98-99% human visibility and 48-54% interaction part visibility in all views.\"\n    },\n    \"metric_consistency\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The quantitative metrics (contact distances, penetration, NCS) perfectly align with the visual evidence of the hand on the door and the person standing on the floor.\"\n    }\n  },\n  \"best_view_ids\": [\"view_00\", \"view_03\"],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The interaction correctly shows a person opening the washing machine door with appropriate pose, contact, and physical plausibility. All views and metrics consistently support this.\"\n}"
+}

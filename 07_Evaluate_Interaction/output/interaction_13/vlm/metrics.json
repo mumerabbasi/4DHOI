@@ -1,0 +1,153 @@
+{
+  "interaction_name": "interaction_13",
+  "interaction_instruction": "a person making coffee",
+  "model": "qwen3-vl:32b",
+  "system_prompt_path": "/my_workspace/4DHHOI/4DHSI/07_Evaluate_Interaction/system_prompt_x.md",
+  "render_paths": [
+    "/my_workspace/4DHHOI/4DHSI/07_Evaluate_Interaction/output/interaction_13/semantics/renders/view_00.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Evaluate_Interaction/output/interaction_13/semantics/renders/view_01.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Evaluate_Interaction/output/interaction_13/semantics/renders/view_02.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Evaluate_Interaction/output/interaction_13/semantics/renders/view_03.png"
+  ],
+  "quantitative_metrics": {
+    "physical_plausibility": {
+      "available": true,
+      "contact_edges": [
+        {
+          "node_a": "human.left_hand",
+          "node_b": "coffee maker",
+          "min_distance_m": 0.001028724480420351,
+          "max_distance_m": 0.07800275087356567,
+          "mean_distance_m": 0.035428643226623535
+        },
+        {
+          "node_a": "human.left_foot",
+          "node_b": "floor",
+          "min_distance_m": 0.0011453062761574984,
+          "max_distance_m": 0.02638472430408001,
+          "mean_distance_m": 0.01115164440125227
+        },
+        {
+          "node_a": "human.right_foot",
+          "node_b": "floor",
+          "min_distance_m": 0.00179232656955719,
+          "max_distance_m": 0.03439243510365486,
+          "mean_distance_m": 0.010806182399392128
+        }
+      ],
+      "mean_contact_distance_m": 0.019128823342422645,
+      "ncs": 0.9982257142857143,
+      "mean_penetration_m": 0.006259750574827194,
+      "max_penetration_m": 0.025724492967128754
+    },
+    "clip_semantics": {
+      "available": true,
+      "mean_clip_score": 0.2589276023209095,
+      "per_view_clip_scores": [
+        {
+          "view_id": "view_00",
+          "clip_score": 0.27976396679878235
+        },
+        {
+          "view_id": "view_01",
+          "clip_score": 0.25591322779655457
+        },
+        {
+          "view_id": "view_02",
+          "clip_score": 0.2432733029127121
+        },
+        {
+          "view_id": "view_03",
+          "clip_score": 0.256759911775589
+        }
+      ]
+    },
+    "render_visibility": {
+      "available": true,
+      "interaction_parts": {
+        "available": true,
+        "human_parts": [
+          "left hand",
+          "right hand",
+          "left foot",
+          "right foot"
+        ],
+        "segment_ids": [
+          "left_hand",
+          "right_hand",
+          "left_foot",
+          "right_foot"
+        ],
+        "vertex_count": 2058,
+        "missing_human_parts": []
+      },
+      "views": [
+        {
+          "view_id": "view_00",
+          "human_visible_fraction": 0.9907398568019093,
+          "interaction_part_visible_fraction": 0.8168124392614189,
+          "valid": true
+        },
+        {
+          "view_id": "view_01",
+          "human_visible_fraction": 0.9998090692124105,
+          "interaction_part_visible_fraction": 0.6428571428571429,
+          "valid": true
+        },
+        {
+          "view_id": "view_02",
+          "human_visible_fraction": 0.8867780429594272,
+          "interaction_part_visible_fraction": 0.6797862001943634,
+          "valid": true
+        },
+        {
+          "view_id": "view_03",
+          "human_visible_fraction": 0.9899761336515513,
+          "interaction_part_visible_fraction": 0.7793974732750243,
+          "valid": true
+        }
+      ]
+    }
+  },
+  "vlm_result": {
+    "overall": {
+      "score_1_to_5": 4,
+      "reason": "The interaction is mostly correct with minor issues. The person is correctly positioned at a coffee maker, hands are in contact with the coffee maker, and the posture is appropriate for making coffee. The scene is physically plausible with minor penetration. The clip score is lower than expected but may be due to metric implementation."
+    },
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The coffee maker is clearly visible and identifiable in all views as the target object for making coffee."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 4,
+        "reason": "The human pose matches the requested action of making coffee, with hands positioned as if interacting with the coffee maker, though the exact action (e.g., adding water, pressing a button) is not entirely clear from the images."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 5,
+        "reason": "The left hand is in close contact with the coffee maker (0.001m min distance), and the feet are in contact with the floor, as shown by both visual evidence and quantitative metrics."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 4,
+        "reason": "The pose and body-object relation is physically plausible, with the person standing on the floor and hands in contact with the coffee maker. There is minor penetration (0.006m mean) which is acceptable but not perfect."
+      },
+      "visibility_and_evidence": {
+        "score_1_to_5": 5,
+        "reason": "All views provide clear evidence of the interaction, with the hands and coffee maker visible from multiple angles, and the human visible in 98-99% of the views."
+      },
+      "metric_consistency": {
+        "score_1_to_5": 4,
+        "reason": "The physical plausibility metrics (0.001m min contact distance, 0.998 NCS) align with the visual evidence, but the clip score (0.259) is lower than expected, suggesting a potential inconsistency with the text description."
+      }
+    },
+    "best_view_ids": [
+      "view_00",
+      "view_03"
+    ],
+    "failure_modes": [
+      "Low clip score (0.259) suggests the image may not strongly match the text description 'a person making coffee'"
+    ],
+    "brief_summary": "The 3D human-scene interaction for 'a person making coffee' is mostly correct. The person is correctly positioned at a coffee maker with hands in contact, and the scene is physically plausible with minor penetration. The clip score is lower than expected but may be due to metric implementation."
+  },
+  "raw_response": "{\n  \"overall\": {\n    \"score_1_to_5\": 4,\n    \"reason\": \"The interaction is mostly correct with minor issues. The person is correctly positioned at a coffee maker, hands are in contact with the coffee maker, and the posture is appropriate for making coffee. The scene is physically plausible with minor penetration. The clip score is lower than expected but may be due to metric implementation.\"\n  },\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The coffee maker is clearly visible and identifiable in all views as the target object for making coffee.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 4,\n      \"reason\": \"The human pose matches the requested action of making coffee, with hands positioned as if interacting with the coffee maker, though the exact action (e.g., adding water, pressing a button) is not entirely clear from the images.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The left hand is in close contact with the coffee maker (0.001m min distance), and the feet are in contact with the floor, as shown by both visual evidence and quantitative metrics.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 4,\n      \"reason\": \"The pose and body-object relation is physically plausible, with the person standing on the floor and hands in contact with the coffee maker. There is minor penetration (0.006m mean) which is acceptable but not perfect.\"\n    },\n    \"visibility_and_evidence\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"All views provide clear evidence of the interaction, with the hands and coffee maker visible from multiple angles, and the human visible in 98-99% of the views.\"\n    },\n    \"metric_consistency\": {\n      \"score_1_to_5\": 4,\n      \"reason\": \"The physical plausibility metrics (0.001m min contact distance, 0.998 NCS) align with the visual evidence, but the clip score (0.259) is lower than expected, suggesting a potential inconsistency with the text description.\"\n    }\n  },\n  \"best_view_ids\": [\"view_00\", \"view_03\"],\n  \"failure_modes\": [\"Low clip score (0.259) suggests the image may not strongly match the text description 'a person making coffee'\"],\n  \"brief_summary\": \"The 3D human-scene interaction for 'a person making coffee' is mostly correct. The person is correctly positioned at a coffee maker with hands in contact, and the scene is physically plausible with minor penetration. The clip score is lower than expected but may be due to metric implementation.\"\n}"
+}

@@ -16,112 +16,7 @@ from PIL import Image
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
-
-SYSTEM_PROMPT = """### ROLE
-You are a 3D Human-Scene Interaction quality assurance agent.
-
-### INPUT DATA
-You will receive:
-
-1. Interaction Instruction:
-A text description of the intended human-scene interaction.
-
-2. Rendered Views:
-Multiple rendered images of the same static 3D human-scene interaction from different viewpoints.
-
-3. Quantitative Metrics:
-Contact, collision, semantic, and render-visibility metrics computed by separate evaluation scripts.
-
-### TASK
-Evaluate whether the rendered 3D human-scene interaction satisfies the interaction instruction.
-
-Use the rendered views as the primary evidence.
-Use the quantitative metrics as supporting evidence.
-Judge the interaction itself, not general render aesthetics.
-
-### EVALUATION LOGIC
-1. Identify the target object or scene element described in the interaction instruction.
-2. Check whether the target object or scene element is visible and matches the instruction.
-3. Check whether the human pose expresses the requested action.
-4. Check whether the relevant human body parts are spatially close to or contacting the correct object or floor region.
-5. Check whether the human-scene relation is physically plausible.
-6. Check whether the rendered views provide enough evidence to judge the interaction.
-7. Compare the visual evidence with the quantitative metrics.
-8. Assign a 1 to 5 score for each criterion and for the overall interaction.
-
-### CRITERIA
-Use this 1 to 5 scale for every score:
-
-1 = Incorrect, missing, or impossible to judge.
-2 = Mostly incorrect or very unclear.
-3 = Partially correct, but ambiguous or incomplete.
-4 = Mostly correct with minor issues.
-5 = Clearly correct and physically plausible.
-
-Score these criteria:
-
-1. Target Object Correctness:
-Is the correct object or scene element visible and identifiable?
-
-2. Human Action Correctness:
-Does the human pose match the requested action?
-
-3. Contact and Spatial Relation:
-Are the relevant body parts plausibly interacting with the correct scene element?
-
-4. Physical Plausibility:
-Is the pose and body-object relation plausible, without severe floating, penetration, impossible support, or nonsensical placement?
-
-5. Visibility and Evidence:
-Do the views provide enough visual evidence to judge the interaction?
-
-6. Metric Consistency:
-Are the quantitative metrics consistent with the visual evidence?
-
-7. Overall:
-How well does the final interaction satisfy the instruction?
-
-### OUTPUT FORMAT
-Return ONLY a valid JSON object. Do not include markdown or extra text.
-
-Use this exact schema:
-
-{
-  "overall": {
-    "score_1_to_5": 0,
-    "reason": ""
-  },
-  "criteria": {
-    "target_object_correctness": {
-      "score_1_to_5": 0,
-      "reason": ""
-    },
-    "human_action_correctness": {
-      "score_1_to_5": 0,
-      "reason": ""
-    },
-    "contact_and_spatial_relation": {
-      "score_1_to_5": 0,
-      "reason": ""
-    },
-    "physical_plausibility": {
-      "score_1_to_5": 0,
-      "reason": ""
-    },
-    "visibility_and_evidence": {
-      "score_1_to_5": 0,
-      "reason": ""
-    },
-    "metric_consistency": {
-      "score_1_to_5": 0,
-      "reason": ""
-    }
-  },
-  "best_view_ids": [],
-  "failure_modes": [],
-  "brief_summary": ""
-}
-"""
+DEFAULT_SYSTEM_PROMPT_PATH = SCRIPT_DIR / "system_prompt_x.md"
 
 CSV_FIELDNAMES = [
     "interaction_name",
@@ -161,6 +56,13 @@ def save_csv_rows(path: Path, rows: list[dict[str, Any]], fieldnames: list[str])
 
 def resolve_path(raw_path: str | None, default_path: Path) -> Path:
     return default_path.resolve() if raw_path is None else Path(raw_path).resolve()
+
+
+def load_text(path: Path) -> str:
+    text = path.read_text(encoding="utf-8").strip()
+    if not text:
+        raise ValueError(f"System prompt is empty: {path}")
+    return text
 
 
 def build_default_paths(interaction_name: str) -> dict[str, Path]:
@@ -478,6 +380,8 @@ def flatten_result_row(
 def evaluate_interaction_vlm(
     interaction_name: str,
     args: argparse.Namespace,
+    system_prompt: str,
+    system_prompt_path: Path,
 ) -> dict[str, Any]:
     defaults = build_default_paths(interaction_name)
     input_scene_json_path = resolve_path(
@@ -526,7 +430,7 @@ def evaluate_interaction_vlm(
     raw_response = ollama_chat(
         host=args.ollama_host,
         model=args.model,
-        system_prompt=SYSTEM_PROMPT,
+        system_prompt=system_prompt,
         user_prompt=user_prompt,
         images_base64=images_base64,
         timeout_s=int(args.timeout_s),
@@ -545,6 +449,7 @@ def evaluate_interaction_vlm(
             "interaction_name": interaction_name,
             "interaction_instruction": interaction_prompt,
             "model": args.model,
+            "system_prompt_path": str(system_prompt_path),
             "render_paths": [str(path) for path in render_paths],
             "quantitative_metrics": quantitative_metrics,
             "vlm_result": parsed_response,
@@ -571,6 +476,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--model", type=str, default="qwen3.6:27b")
     parser.add_argument("--ollama_host", type=str, default="http://localhost:11434")
+    parser.add_argument("--system_prompt", type=str, default=None)
     parser.add_argument("--input_scene_json", type=str, default=None)
     parser.add_argument("--render_root", type=str, default=None)
     parser.add_argument("--physical_metrics_json", type=str, default=None)
@@ -586,6 +492,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    system_prompt_path = resolve_path(args.system_prompt, DEFAULT_SYSTEM_PROMPT_PATH)
+    system_prompt = load_text(system_prompt_path)
     all_mode = bool(args.all_interactions) or args.interaction_name == "all"
     if all_mode:
         if any(
@@ -608,7 +516,12 @@ def main() -> None:
         interaction_names = [args.interaction_name]
 
     rows = [
-        evaluate_interaction_vlm(interaction_name=interaction_name, args=args)
+        evaluate_interaction_vlm(
+            interaction_name=interaction_name,
+            args=args,
+            system_prompt=system_prompt,
+            system_prompt_path=system_prompt_path,
+        )
         for interaction_name in interaction_names
     ]
 
