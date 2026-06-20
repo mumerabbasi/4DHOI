@@ -1,0 +1,167 @@
+{
+  "interaction_name": "interaction_02",
+  "interaction_instruction": "a person sitting on the brown small wooden table",
+  "model": "qwen3-vl:32b",
+  "system_prompt_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/system_prompt_x.md",
+  "render_paths": [
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_02/semantics/renders/view_00.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_02/semantics/renders/view_01.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_02/semantics/renders/view_02.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_02/semantics/renders/view_03.png"
+  ],
+  "quantitative_metrics": {
+    "physical_plausibility": {
+      "available": true,
+      "contact_edges": [
+        {
+          "node_a": "human.hips",
+          "node_b": "brown small wooden table",
+          "min_distance_m": 0.0014686668291687965,
+          "max_distance_m": 0.07607010751962662,
+          "mean_distance_m": 0.023234866559505463
+        },
+        {
+          "node_a": "human.left_hand",
+          "node_b": "brown small wooden table",
+          "min_distance_m": 0.0014816148905083537,
+          "max_distance_m": 0.0675494521856308,
+          "mean_distance_m": 0.027910759672522545
+        },
+        {
+          "node_a": "human.right_hand",
+          "node_b": "brown small wooden table",
+          "min_distance_m": 0.0004213469219394028,
+          "max_distance_m": 0.13125841319561005,
+          "mean_distance_m": 0.04460098594427109
+        },
+        {
+          "node_a": "human.left_foot",
+          "node_b": "floor",
+          "min_distance_m": 0.003932267893105745,
+          "max_distance_m": 0.0359027162194252,
+          "mean_distance_m": 0.012572715990245342
+        },
+        {
+          "node_a": "human.right_foot",
+          "node_b": "floor",
+          "min_distance_m": 0.003272036323323846,
+          "max_distance_m": 0.03285742178559303,
+          "mean_distance_m": 0.013481613248586655
+        }
+      ],
+      "mean_contact_distance_m": 0.02436018828302622,
+      "ncs": 0.9947042857142858,
+      "mean_penetration_m": 0.008542262017726898,
+      "max_penetration_m": 0.03972548991441727
+    },
+    "clip_semantics": {
+      "available": true,
+      "mean_clip_score": 0.24244018271565437,
+      "per_view_clip_scores": [
+        {
+          "view_id": "view_00",
+          "clip_score": 0.23626403510570526
+        },
+        {
+          "view_id": "view_01",
+          "clip_score": 0.24369046092033386
+        },
+        {
+          "view_id": "view_02",
+          "clip_score": 0.23210155963897705
+        },
+        {
+          "view_id": "view_03",
+          "clip_score": 0.2577046751976013
+        }
+      ]
+    },
+    "render_visibility": {
+      "available": true,
+      "interaction_parts": {
+        "available": true,
+        "human_parts": [
+          "hips",
+          "left hand",
+          "right hand",
+          "left foot",
+          "right foot"
+        ],
+        "segment_ids": [
+          "hips",
+          "left_hand",
+          "right_hand",
+          "left_foot",
+          "right_foot"
+        ],
+        "vertex_count": 2545,
+        "missing_human_parts": []
+      },
+      "views": [
+        {
+          "view_id": "view_00",
+          "human_visible_fraction": 0.9935083532219571,
+          "interaction_part_visible_fraction": 0.5009823182711198,
+          "valid": true
+        },
+        {
+          "view_id": "view_01",
+          "human_visible_fraction": 0.9998090692124105,
+          "interaction_part_visible_fraction": 0.41414538310412574,
+          "valid": true
+        },
+        {
+          "view_id": "view_02",
+          "human_visible_fraction": 1.0,
+          "interaction_part_visible_fraction": 0.4656188605108055,
+          "valid": true
+        },
+        {
+          "view_id": "view_03",
+          "human_visible_fraction": 0.9698329355608591,
+          "interaction_part_visible_fraction": 0.4612966601178782,
+          "valid": true
+        }
+      ]
+    }
+  },
+  "vlm_result": {
+    "overall": {
+      "score_1_to_5": 5,
+      "reason": "The person is clearly sitting on the brown small wooden table as instructed. The pose is correct, contact is appropriate, and the interaction is physically plausible with only minor penetration issues."
+    },
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The brown small wooden table is clearly visible and identifiable in all views, matching the instruction."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The person is in a clear sitting position on the table, with knees bent and body positioned appropriately for sitting."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 5,
+        "reason": "The person's hips and hands are in contact with the table, as confirmed by the quantitative metrics showing very small distances (0.001-0.004m)."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 4,
+        "reason": "The pose is physically plausible, but there is some penetration (0.0397m max) which is minor but noticeable. The NCS of 0.9947 indicates good contact overall."
+      },
+      "visibility_and_evidence": {
+        "score_1_to_5": 5,
+        "reason": "All 4 views provide sufficient visual evidence to judge the interaction, with the human visible in all views (96-100% visible) and the interaction parts visible in all views."
+      },
+      "metric_consistency": {
+        "score_1_to_5": 5,
+        "reason": "The quantitative metrics (contact distances, penetration, NCS) are consistent with the visual evidence, confirming the person is in contact with the table."
+      }
+    },
+    "best_view_ids": [
+      "view_02",
+      "view_03"
+    ],
+    "failure_modes": [],
+    "brief_summary": "The 3D human-scene interaction correctly depicts a person sitting on the brown small wooden table. The pose is appropriate, contact is verified by metrics, and the interaction is physically plausible with only minor penetration issues."
+  },
+  "raw_response": "{\n  \"overall\": {\n    \"score_1_to_5\": 5,\n    \"reason\": \"The person is clearly sitting on the brown small wooden table as instructed. The pose is correct, contact is appropriate, and the interaction is physically plausible with only minor penetration issues.\"\n  },\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The brown small wooden table is clearly visible and identifiable in all views, matching the instruction.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The person is in a clear sitting position on the table, with knees bent and body positioned appropriately for sitting.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The person's hips and hands are in contact with the table, as confirmed by the quantitative metrics showing very small distances (0.001-0.004m).\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 4,\n      \"reason\": \"The pose is physically plausible, but there is some penetration (0.0397m max) which is minor but noticeable. The NCS of 0.9947 indicates good contact overall.\"\n    },\n    \"visibility_and_evidence\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"All 4 views provide sufficient visual evidence to judge the interaction, with the human visible in all views (96-100% visible) and the interaction parts visible in all views.\"\n    },\n    \"metric_consistency\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The quantitative metrics (contact distances, penetration, NCS) are consistent with the visual evidence, confirming the person is in contact with the table.\"\n    }\n  },\n  \"best_view_ids\": [\"view_02\", \"view_03\"],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The 3D human-scene interaction correctly depicts a person sitting on the brown small wooden table. The pose is appropriate, contact is verified by metrics, and the interaction is physically plausible with only minor penetration issues.\"\n}"
+}

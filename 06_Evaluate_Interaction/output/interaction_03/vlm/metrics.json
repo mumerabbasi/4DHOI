@@ -1,0 +1,158 @@
+{
+  "interaction_name": "interaction_03",
+  "interaction_instruction": "a person pulling back the chair to sit down",
+  "model": "qwen3-vl:32b",
+  "system_prompt_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/system_prompt_x.md",
+  "render_paths": [
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_03/semantics/renders/view_00.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_03/semantics/renders/view_01.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_03/semantics/renders/view_02.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_03/semantics/renders/view_03.png"
+  ],
+  "quantitative_metrics": {
+    "physical_plausibility": {
+      "available": true,
+      "contact_edges": [
+        {
+          "node_a": "human.left_hand",
+          "node_b": "wooden chair",
+          "min_distance_m": 0.0005175210535526276,
+          "max_distance_m": 0.07020095735788345,
+          "mean_distance_m": 0.0305135827511549
+        },
+        {
+          "node_a": "human.right_hand",
+          "node_b": "wooden chair",
+          "min_distance_m": 0.00035236915573477745,
+          "max_distance_m": 0.06853275746107101,
+          "mean_distance_m": 0.027224166318774223
+        },
+        {
+          "node_a": "human.left_foot",
+          "node_b": "floor",
+          "min_distance_m": 0.0029141355771571398,
+          "max_distance_m": 0.03425353392958641,
+          "mean_distance_m": 0.012751061469316483
+        },
+        {
+          "node_a": "human.right_foot",
+          "node_b": "floor",
+          "min_distance_m": 0.004724370781332254,
+          "max_distance_m": 0.0359484925866127,
+          "mean_distance_m": 0.01599000208079815
+        }
+      ],
+      "mean_contact_distance_m": 0.02161970315501094,
+      "ncs": 0.9979657142857142,
+      "mean_penetration_m": 0.004472618922591209,
+      "max_penetration_m": 0.014949693344533443
+    },
+    "clip_semantics": {
+      "available": true,
+      "mean_clip_score": 0.23929866403341293,
+      "per_view_clip_scores": [
+        {
+          "view_id": "view_00",
+          "clip_score": 0.2393239438533783
+        },
+        {
+          "view_id": "view_01",
+          "clip_score": 0.2458803802728653
+        },
+        {
+          "view_id": "view_02",
+          "clip_score": 0.22643043100833893
+        },
+        {
+          "view_id": "view_03",
+          "clip_score": 0.2455599009990692
+        }
+      ]
+    },
+    "render_visibility": {
+      "available": true,
+      "interaction_parts": {
+        "available": true,
+        "human_parts": [
+          "left hand",
+          "right hand",
+          "left foot",
+          "right foot"
+        ],
+        "segment_ids": [
+          "left_hand",
+          "right_hand",
+          "left_foot",
+          "right_foot"
+        ],
+        "vertex_count": 2058,
+        "missing_human_parts": []
+      },
+      "views": [
+        {
+          "view_id": "view_00",
+          "human_visible_fraction": 0.9072076372315035,
+          "interaction_part_visible_fraction": 0.60932944606414,
+          "valid": true
+        },
+        {
+          "view_id": "view_01",
+          "human_visible_fraction": 0.9981861575178997,
+          "interaction_part_visible_fraction": 0.5140913508260447,
+          "valid": true
+        },
+        {
+          "view_id": "view_02",
+          "human_visible_fraction": 0.9317422434367542,
+          "interaction_part_visible_fraction": 0.43100097181729835,
+          "valid": true
+        },
+        {
+          "view_id": "view_03",
+          "human_visible_fraction": 0.9859665871121719,
+          "interaction_part_visible_fraction": 0.4859086491739553,
+          "valid": true
+        }
+      ]
+    }
+  },
+  "vlm_result": {
+    "overall": {
+      "score_1_to_5": 5,
+      "reason": "The interaction correctly shows a person pulling back a chair to sit down. The person's hands are in contact with the chair, the pose is natural, and the action is physically plausible. All views and metrics support this."
+    },
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The correct wooden chair is clearly visible and identifiable in all views as the target object for the interaction."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The person's pose correctly shows the action of pulling back a chair to sit down, with hands on the chair and body posture indicating the pulling motion."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 5,
+        "reason": "The person's hands are in close contact with the chair (min distances 0.00035-0.0005m), and the spatial relationship is appropriate for pulling a chair back."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The pose is physically plausible with feet on the floor (min distances 0.003-0.005m), no severe penetration (max 0.015m), and a high NCS of 0.998 indicating good contact."
+      },
+      "visibility_and_evidence": {
+        "score_1_to_5": 5,
+        "reason": "All views provide sufficient visual evidence to judge the interaction, with the human visible in 90-100% of the views and interaction parts visible in 43-61% of the views."
+      },
+      "metric_consistency": {
+        "score_1_to_5": 5,
+        "reason": "The quantitative metrics (contact distances, NCS, penetration) are consistent with the visual evidence showing the person in contact with the chair and standing on the floor."
+      }
+    },
+    "best_view_ids": [
+      "view_01",
+      "view_03"
+    ],
+    "failure_modes": [],
+    "brief_summary": "The interaction correctly shows a person pulling back a chair to sit down. The person's hands are in contact with the chair, the pose is natural, and the action is physically plausible. All views and metrics support this."
+  },
+  "raw_response": "{\n  \"overall\": {\n    \"score_1_to_5\": 5,\n    \"reason\": \"The interaction correctly shows a person pulling back a chair to sit down. The person's hands are in contact with the chair, the pose is natural, and the action is physically plausible. All views and metrics support this.\"\n  },\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The correct wooden chair is clearly visible and identifiable in all views as the target object for the interaction.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The person's pose correctly shows the action of pulling back a chair to sit down, with hands on the chair and body posture indicating the pulling motion.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The person's hands are in close contact with the chair (min distances 0.00035-0.0005m), and the spatial relationship is appropriate for pulling a chair back.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The pose is physically plausible with feet on the floor (min distances 0.003-0.005m), no severe penetration (max 0.015m), and a high NCS of 0.998 indicating good contact.\"\n    },\n    \"visibility_and_evidence\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"All views provide sufficient visual evidence to judge the interaction, with the human visible in 90-100% of the views and interaction parts visible in 43-61% of the views.\"\n    },\n    \"metric_consistency\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The quantitative metrics (contact distances, NCS, penetration) are consistent with the visual evidence showing the person in contact with the chair and standing on the floor.\"\n    }\n  },\n  \"best_view_ids\": [\"view_01\", \"view_03\"],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The interaction correctly shows a person pulling back a chair to sit down. The person's hands are in contact with the chair, the pose is natural, and the action is physically plausible. All views and metrics support this.\"\n}"
+}

@@ -1,6 +1,6 @@
 {
   "target_object": {
-    "label": "brown small wooden table"
+    "label": "white trash bin"
   },
   "human_part_nodes": [
     "person 1, left hand",
@@ -16,23 +16,23 @@
     {
       "human_part": "left hand",
       "scene_element": "target_object",
-      "notes": "the left hand grips the edge of the table to lift it"
+      "notes": "the left hand grips the side of the trash bin"
     },
     {
       "human_part": "right hand",
       "scene_element": "target_object",
-      "notes": "the right hand grips the opposite edge of the table"
+      "notes": "the right hand grips the opposite side of the trash bin"
     },
     {
       "human_part": "left foot",
       "scene_element": "floor",
-      "notes": "the left foot supports the standing pose on the floor"
+      "notes": "the left foot supports the standing pose on the carpet"
     },
     {
       "human_part": "right foot",
       "scene_element": "floor",
-      "notes": "the right foot supports the standing pose on the floor"
+      "notes": "the right foot supports the standing pose on the carpet"
     }
   ],
-  "interaction": "A person stands in front of the brown small wooden table, preparing to lift it with both hands. The left and right hands firmly grasp the edges of the table top. The person is in a standing position with both feet planted on the gray floor, knees slightly bent to engage the legs for lifting. The torso is upright but leaning slightly forward towards the table. The person has short black hair, a neutral focused facial expression, a gray shirt, blue jeans, and white sneakers. The room features white walls, a blue door, a whiteboard, and a gray floor."
+  "interaction": "A person stands near the white trash bin located by the door and prepares to lift it with both hands. The left and right hands firmly grasp the sides of the bin while the bin remains fixed in its original position. Both feet are planted on the grey carpeted floor in a balanced stance, with slightly bent knees and a forward-leaning torso. The person has short black hair, a neutral focused facial expression, a gray shirt, blue jeans, and white sneakers. The scene is a clean conference room with white walls, a large white table, and orange chairs."
 }

@@ -1,37 +1,38 @@
 {
   "target_object": {
-    "label": "bed with pillows"
+    "label": "coffee maker"
   },
   "human_part_nodes": [
-    "person 1, left leg",
-    "person 1, right leg",
-    "person 1, head",
-    "person 1, hips"
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, left foot",
+    "person 1, right foot"
   ],
   "scene_nodes": [
-    "target_object"
+    "target_object",
+    "floor"
   ],
   "interaction_edges": [
     {
-      "human_part": "head",
+      "human_part": "left hand",
       "scene_element": "target_object",
-      "notes": "the head rests on the pillow as part of the bed setup"
+      "notes": "the left hand steadies or holds the coffee maker area"
     },
     {
-      "human_part": "hips",
+      "human_part": "right hand",
       "scene_element": "target_object",
-      "notes": "the hips are supported by the mattress"
+      "notes": "the right hand operates the coffee maker"
     },
     {
-      "human_part": "left leg",
-      "scene_element": "target_object",
-      "notes": "the left leg rests on the bed rather than the floor"
+      "human_part": "left foot",
+      "scene_element": "floor",
+      "notes": "the left foot supports the standing pose"
     },
     {
-      "human_part": "right leg",
-      "scene_element": "target_object",
-      "notes": "the right leg rests on the bed rather than the floor"
+      "human_part": "right foot",
+      "scene_element": "floor",
+      "notes": "the right foot supports the standing pose"
     }
   ],
-  "interaction": "A person lies on the bed with the hips and legs supported by the mattress while the head rests on a pillow. The bed and pillows function together as the single target object for this static sleeping pose, so there is no separate pillow node. Both legs remain on the bed, and no foot-floor contact is needed. The person has short black hair, a relaxed sleepy facial expression, a gray shirt, comfortable pants, and socks. The room remains a clean indoor bedroom with white walls and a wooden floor."
+  "interaction": "A person stands at the kitchen counter making coffee with the coffee maker. The right hand operates the coffee maker controls or cup area while the left hand steadies the machine or counter nearby. The torso leans slightly forward toward the counter and both feet remain planted on the wooden floor. The person has short dark hair, a calm focused expression, a gray shirt, blue jeans, and light sneakers. The bright kitchen has white cabinets, a sink, a stovetop hood, a towel hanging from the counter, a trash bin, and light wooden flooring."
 }

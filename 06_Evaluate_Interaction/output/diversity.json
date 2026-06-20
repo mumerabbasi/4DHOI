@@ -1,0 +1,69 @@
+{
+  "num_samples": 10,
+  "num_clusters": 8,
+  "entropy": 2.0253262207700677,
+  "cluster_size": 2.3153600454330445,
+  "standardized": true,
+  "cluster_counts": [
+    1,
+    1,
+    1,
+    1,
+    2,
+    1,
+    1,
+    2
+  ],
+  "assignments": [
+    {
+      "interaction_name": "interaction_01",
+      "cluster_id": 0,
+      "distance_to_cluster_center": 4.492570877075195
+    },
+    {
+      "interaction_name": "interaction_02",
+      "cluster_id": 5,
+      "distance_to_cluster_center": 3.3784592151641846
+    },
+    {
+      "interaction_name": "interaction_03",
+      "cluster_id": 6,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_04",
+      "cluster_id": 3,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_05",
+      "cluster_id": 7,
+      "distance_to_cluster_center": 3.724184989929199
+    },
+    {
+      "interaction_name": "interaction_06",
+      "cluster_id": 2,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_07",
+      "cluster_id": 7,
+      "distance_to_cluster_center": 3.72418475151062
+    },
+    {
+      "interaction_name": "interaction_08",
+      "cluster_id": 4,
+      "distance_to_cluster_center": 3.917100191116333
+    },
+    {
+      "interaction_name": "interaction_09",
+      "cluster_id": 1,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_10",
+      "cluster_id": 4,
+      "distance_to_cluster_center": 3.917100429534912
+    }
+  ]
+}

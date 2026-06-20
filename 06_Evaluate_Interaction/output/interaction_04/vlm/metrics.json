@@ -1,0 +1,149 @@
+{
+  "interaction_name": "interaction_04",
+  "interaction_instruction": "a person opening the door",
+  "model": "qwen3-vl:32b",
+  "system_prompt_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/system_prompt_x.md",
+  "render_paths": [
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_04/semantics/renders/view_00.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_04/semantics/renders/view_01.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_04/semantics/renders/view_02.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_04/semantics/renders/view_03.png"
+  ],
+  "quantitative_metrics": {
+    "physical_plausibility": {
+      "available": true,
+      "contact_edges": [
+        {
+          "node_a": "human.left_hand",
+          "node_b": "wooden door",
+          "min_distance_m": 0.001178655424155295,
+          "max_distance_m": 0.07274502515792847,
+          "mean_distance_m": 0.027730753645300865
+        },
+        {
+          "node_a": "human.left_foot",
+          "node_b": "floor",
+          "min_distance_m": 0.0006099826423451304,
+          "max_distance_m": 0.031776804476976395,
+          "mean_distance_m": 0.01294997800141573
+        },
+        {
+          "node_a": "human.right_foot",
+          "node_b": "floor",
+          "min_distance_m": 0.002436797833070159,
+          "max_distance_m": 0.029540063813328743,
+          "mean_distance_m": 0.013164939358830452
+        }
+      ],
+      "mean_contact_distance_m": 0.017948557001849014,
+      "ncs": 0.9987457142857142,
+      "mean_penetration_m": 0.0030608000233769417,
+      "max_penetration_m": 0.008818565867841244
+    },
+    "clip_semantics": {
+      "available": true,
+      "mean_clip_score": 0.27978069335222244,
+      "per_view_clip_scores": [
+        {
+          "view_id": "view_00",
+          "clip_score": 0.28156551718711853
+        },
+        {
+          "view_id": "view_01",
+          "clip_score": 0.29489925503730774
+        },
+        {
+          "view_id": "view_02",
+          "clip_score": 0.27078452706336975
+        },
+        {
+          "view_id": "view_03",
+          "clip_score": 0.27187347412109375
+        }
+      ]
+    },
+    "render_visibility": {
+      "available": true,
+      "interaction_parts": {
+        "available": true,
+        "human_parts": [
+          "left hand",
+          "left foot",
+          "right foot"
+        ],
+        "segment_ids": [
+          "left_hand",
+          "left_foot",
+          "right_foot"
+        ],
+        "vertex_count": 1280,
+        "missing_human_parts": []
+      },
+      "views": [
+        {
+          "view_id": "view_00",
+          "human_visible_fraction": 0.966109785202864,
+          "interaction_part_visible_fraction": 0.57265625,
+          "valid": true
+        },
+        {
+          "view_id": "view_01",
+          "human_visible_fraction": 0.9707875894988067,
+          "interaction_part_visible_fraction": 0.42734375,
+          "valid": true
+        },
+        {
+          "view_id": "view_02",
+          "human_visible_fraction": 0.9621002386634845,
+          "interaction_part_visible_fraction": 0.528125,
+          "valid": true
+        },
+        {
+          "view_id": "view_03",
+          "human_visible_fraction": 0.9553221957040573,
+          "interaction_part_visible_fraction": 0.5046875,
+          "valid": true
+        }
+      ]
+    }
+  },
+  "vlm_result": {
+    "overall": {
+      "score_1_to_5": 5,
+      "reason": "The 3D human-scene interaction correctly represents a person opening a door. The person is standing in front of the door with their left hand on the door handle, in a physically plausible pose. The contact metrics confirm the hand is in contact with the door handle, and all views provide sufficient evidence to judge the interaction."
+    },
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The wooden door is clearly visible and identifiable as the target object for the 'opening the door' instruction in all views."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 4,
+        "reason": "The person's pose shows the left hand reaching for the door handle, which is consistent with the action of opening a door. The door is not actually open yet, but the instruction is about the action of opening, not the final state of the door being open."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 5,
+        "reason": "The person's left hand is in contact with the door handle (min distance 0.001178655424155295m), and the person's feet are in contact with the floor. The spatial relationship is correct for opening a door."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The pose is physically plausible with no floating, penetration, or impossible support. The NCS is 0.9987 (very high) and mean penetration is minimal (0.0030608m)."
+      },
+      "visibility_and_evidence": {
+        "score_1_to_5": 5,
+        "reason": "All 4 views show the person and the door from different angles, with the interaction (hand on door handle) clearly visible in all views. The human is visible in 95-97% of the views."
+      },
+      "metric_consistency": {
+        "score_1_to_5": 5,
+        "reason": "The physical plausibility metrics (0.001m contact distances, 0.9987 NCS) are consistent with the visual evidence of contact. The CLIP scores (0.27-0.29) and render visibility metrics (0.95-0.97 human visibility) are also consistent across views."
+      }
+    },
+    "best_view_ids": [
+      "view_00",
+      "view_02"
+    ],
+    "failure_modes": [],
+    "brief_summary": "The 3D human-scene interaction correctly represents a person opening a door. The person is standing in front of the door with their left hand on the door handle, in a physically plausible pose. The contact metrics confirm the hand is in contact with the door handle, and all views provide sufficient evidence to judge the interaction."
+  },
+  "raw_response": "{\n  \"overall\": {\n    \"score_1_to_5\": 5,\n    \"reason\": \"The 3D human-scene interaction correctly represents a person opening a door. The person is standing in front of the door with their left hand on the door handle, in a physically plausible pose. The contact metrics confirm the hand is in contact with the door handle, and all views provide sufficient evidence to judge the interaction.\"\n  },\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The wooden door is clearly visible and identifiable as the target object for the 'opening the door' instruction in all views.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 4,\n      \"reason\": \"The person's pose shows the left hand reaching for the door handle, which is consistent with the action of opening a door. The door is not actually open yet, but the instruction is about the action of opening, not the final state of the door being open.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The person's left hand is in contact with the door handle (min distance 0.001178655424155295m), and the person's feet are in contact with the floor. The spatial relationship is correct for opening a door.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The pose is physically plausible with no floating, penetration, or impossible support. The NCS is 0.9987 (very high) and mean penetration is minimal (0.0030608m).\"\n    },\n    \"visibility_and_evidence\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"All 4 views show the person and the door from different angles, with the interaction (hand on door handle) clearly visible in all views. The human is visible in 95-97% of the views.\"\n    },\n    \"metric_consistency\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The physical plausibility metrics (0.001m contact distances, 0.9987 NCS) are consistent with the visual evidence of contact. The CLIP scores (0.27-0.29) and render visibility metrics (0.95-0.97 human visibility) are also consistent across views.\"\n    }\n  },\n  \"best_view_ids\": [\"view_00\", \"view_02\"],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The 3D human-scene interaction correctly represents a person opening a door. The person is standing in front of the door with their left hand on the door handle, in a physically plausible pose. The contact metrics confirm the hand is in contact with the door handle, and all views provide sufficient evidence to judge the interaction.\"\n}"
+}

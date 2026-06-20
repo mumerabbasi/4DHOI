@@ -1,0 +1,45 @@
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "bunk bed ladder"
+    },
+    {
+      "id": "target_object_2",
+      "label": "top bed"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object_1",
+    "target_object_2"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "left foot",
+      "scene_element": "target_object_1",
+      "notes": "the left foot presses on the bunk bed ladder while climbing"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "target_object_2",
+      "notes": "the right foot steps onto the top bed during the climb"
+    },
+    {
+      "human_part": "left hand",
+      "scene_element": "target_object_1",
+      "notes": "the left hand holds the ladder for balance"
+    },
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object_2",
+      "notes": "the right hand grips the top bed frame while climbing up"
+    }
+  ],
+  "interaction": "A person stands on the wooden staircase between the white side walls. Both feet are placed on the stair treads while both hands touch the nearby walls for balance and support. The person has short black hair, a careful focused facial expression, a gray shirt, blue jeans, and white sneakers."
+}

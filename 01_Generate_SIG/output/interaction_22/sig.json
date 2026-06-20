@@ -1,0 +1,46 @@
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "bicycle"
+    },
+    {
+      "id": "target_object_2",
+      "label": "bicycle stand"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object_1",
+    "target_object_2",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "left hand",
+      "scene_element": "target_object_1",
+      "notes": "the left hand holds the bicycle handlebar or frame"
+    },
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object_1",
+      "notes": "the right hand steadies the bicycle frame"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "target_object_2",
+      "notes": "the right foot pushes the bicycle stand"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "floor",
+      "notes": "the left foot supports the body on the floor"
+    }
+  ],
+  "interaction": "A person stands beside the bicycle, holding it with both hands while one foot pushes the bicycle stand to remove it from support. The other foot stays on the floor for balance. The person has short dark hair, a focused expression, a casual top, long pants, and sneakers."
+}

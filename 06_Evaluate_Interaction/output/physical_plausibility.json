@@ -1,0 +1,80 @@
+{
+  "interactions": [
+    {
+      "interaction_name": "interaction_01",
+      "num_edges": 4,
+      "mean_contact_distance_m": 0.02289871289394796,
+      "ncs": 0.9988085714285714,
+      "mean_penetration_m": 0.004537209868431091
+    },
+    {
+      "interaction_name": "interaction_02",
+      "num_edges": 5,
+      "mean_contact_distance_m": 0.02436018828302622,
+      "ncs": 0.9947042857142857,
+      "mean_penetration_m": 0.008542262017726898
+    },
+    {
+      "interaction_name": "interaction_03",
+      "num_edges": 4,
+      "mean_contact_distance_m": 0.02161970315501094,
+      "ncs": 0.9979657142857142,
+      "mean_penetration_m": 0.004472618922591209
+    },
+    {
+      "interaction_name": "interaction_04",
+      "num_edges": 3,
+      "mean_contact_distance_m": 0.017948557001849014,
+      "ncs": 0.9987457142857142,
+      "mean_penetration_m": 0.0030608000233769417
+    },
+    {
+      "interaction_name": "interaction_05",
+      "num_edges": 3,
+      "mean_contact_distance_m": 0.023713285724322002,
+      "ncs": 0.9997671428571429,
+      "mean_penetration_m": 0.003375617554411292
+    },
+    {
+      "interaction_name": "interaction_06",
+      "num_edges": 3,
+      "mean_contact_distance_m": 0.018731561799844105,
+      "ncs": 0.9995528571428571,
+      "mean_penetration_m": 0.003953573293983936
+    },
+    {
+      "interaction_name": "interaction_07",
+      "num_edges": 3,
+      "mean_contact_distance_m": 0.01964421197772026,
+      "ncs": 0.9992828571428571,
+      "mean_penetration_m": 0.004114477429538965
+    },
+    {
+      "interaction_name": "interaction_08",
+      "num_edges": 3,
+      "mean_contact_distance_m": 0.019128823342422645,
+      "ncs": 0.9982257142857143,
+      "mean_penetration_m": 0.006259750574827194
+    },
+    {
+      "interaction_name": "interaction_09",
+      "num_edges": 3,
+      "mean_contact_distance_m": 0.019906114786863327,
+      "ncs": 0.9995357142857143,
+      "mean_penetration_m": 0.004785508383065462
+    },
+    {
+      "interaction_name": "interaction_10",
+      "num_edges": 4,
+      "mean_contact_distance_m": 0.021316600497812033,
+      "ncs": 0.99942,
+      "mean_penetration_m": 0.005535355303436518
+    }
+  ],
+  "aggregate": {
+    "num_interactions": 10,
+    "mean_ncs": 0.9986008571428572,
+    "mean_of_mean_contact_distance_m": 0.02092677594628185,
+    "mean_penetration_m": 0.0048637173371389505
+  }
+}

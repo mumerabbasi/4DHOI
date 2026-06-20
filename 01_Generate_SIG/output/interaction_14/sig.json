@@ -1,0 +1,34 @@
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "bicycle"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, hips"
+  ],
+  "scene_nodes": [
+    "target_object_1"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "hips",
+      "scene_element": "target_object_1",
+      "notes": "the hips rest on the bicycle saddle"
+    },
+    {
+      "human_part": "left hand",
+      "scene_element": "target_object_1",
+      "notes": "the left hand grips the handlebar"
+    },
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object_1",
+      "notes": "the right hand grips the handlebar"
+    }
+  ],
+  "interaction": "A person sits on the bicycle with hips resting on the saddle. Both hands grasp the handlebars in a riding position. The person has short black hair, a neutral focused facial expression, a gray shirt, blue jeans, and white sneakers."
+}

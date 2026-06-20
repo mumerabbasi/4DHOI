@@ -1,0 +1,40 @@
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "sofa"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, left leg",
+    "person 1, right leg",
+    "person 1, head",
+    "person 1, hips"
+  ],
+  "scene_nodes": [
+    "target_object_1"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "head",
+      "scene_element": "target_object_1",
+      "notes": "the head rests against the sofa backrest or pillows"
+    },
+    {
+      "human_part": "hips",
+      "scene_element": "target_object_1",
+      "notes": "the hips are supported by the sofa seat cushions"
+    },
+    {
+      "human_part": "left leg",
+      "scene_element": "target_object_1",
+      "notes": "the left leg rests on the sofa seat"
+    },
+    {
+      "human_part": "right leg",
+      "scene_element": "target_object_1",
+      "notes": "the right leg rests on the sofa seat"
+    }
+  ],
+  "interaction": "A person lies lengthwise on the blue sofa with the head resting against the backrest or pillows. The hips and legs are fully supported by the seat cushions in a relaxed horizontal pose. The person has short black hair, a calm facial expression, a white shirt, blue pants, and socks."
+}

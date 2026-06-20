@@ -1,0 +1,88 @@
+{
+  "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_09/semantics/assets/scene_semantics_view_crop.ply",
+  "human_mesh_world": "/my_workspace/4DHHOI/4DHSI/05_Optimize_Static_Scene/output/interaction_09/meshes/frame_0000_world.ply",
+  "blend_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_09/semantics/assets/render_scene.blend",
+  "views": [
+    {
+      "name": "view_00",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_09/semantics/renders/view_00.png",
+      "camera_matrix_world": [
+        [
+          0.9873160719871521,
+          -0.037264384329319,
+          0.15433171391487122,
+          14.132333755493164
+        ],
+        [
+          0.15876683592796326,
+          0.23173433542251587,
+          -0.959735631942749,
+          3.5333781242370605
+        ],
+        [
+          0.0,
+          0.9720651507377625,
+          0.2347113937139511,
+          1.561977744102478
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "view_01",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_09/semantics/renders/view_01.png",
+      "camera_matrix_world": [
+        [
+          0.9873161315917969,
+          -0.06865117698907852,
+          0.1431569904088974,
+          14.132335662841797
+        ],
+        [
+          0.15876683592796326,
+          0.4269179701805115,
+          -0.8902438879013062,
+          3.5333781242370605
+        ],
+        [
+          0.0,
+          0.9016807079315186,
+          0.43240252137184143,
+          1.811977505683899
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    }
+  ],
+  "intrinsics": [
+    [
+      464.8388977050781,
+      0.0,
+      876.0
+    ],
+    [
+      0.0,
+      466.0625305175781,
+      584.0
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "width": 1752,
+  "height": 1168,
+  "resolution_percentage": 75,
+  "cycles_samples": 64
+}

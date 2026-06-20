@@ -1,9 +1,9 @@
 {
   "target_object": {
-    "label": "wooden door"
+    "label": "bathroom faucet"
   },
   "human_part_nodes": [
-    "person 1, left hand",
+    "person 1, right hand",
     "person 1, left foot",
     "person 1, right foot"
   ],
@@ -13,20 +13,20 @@
   ],
   "interaction_edges": [
     {
-      "human_part": "left hand",
+      "human_part": "right hand",
       "scene_element": "target_object",
-      "notes": "the left hand grasps the door handle to open it"
+      "notes": "the right hand turns the bathroom faucet handle"
     },
     {
       "human_part": "left foot",
       "scene_element": "floor",
-      "notes": "the left foot supports the standing pose on the floor"
+      "notes": "the left foot supports the standing pose"
     },
     {
       "human_part": "right foot",
       "scene_element": "floor",
-      "notes": "the right foot supports the standing pose on the floor"
+      "notes": "the right foot supports the standing pose"
     }
   ],
-  "interaction": "A person stands facing the wooden door, reaching out with their left hand to grasp the silver handle. The hand is positioned to turn the handle or push the door open. The left arm hangs naturally by the side. Both feet are planted on the dark floor in a balanced stance. The person has short dark hair, a neutral focused expression, and wears a light shirt, dark pants, and dark shoes. The room is a clean indoor space with white walls, a whiteboard, and a table."
+  "interaction": "A person stands at the bathroom sink and turns on the bathroom faucet with the right hand. The right hand touches the faucet handle, the torso leans slightly toward the sink, and the left arm rests naturally by the side. Both feet remain on the gray tile floor in a stable stance. The person has short dark hair, a neutral focused expression, a gray shirt, blue jeans, and light sneakers. The bathroom has white walls, a window, a glass shower enclosure, a toilet, shelves, a sink, a mirror, a potted plant, and gray floor tiles."
 }

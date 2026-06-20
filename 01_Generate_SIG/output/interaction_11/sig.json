@@ -1,0 +1,41 @@
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "brown small wooden table"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object_1",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "left hand",
+      "scene_element": "target_object_1",
+      "notes": "the left hand grips the table edge to lift"
+    },
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object_1",
+      "notes": "the right hand grips the opposite table edge to lift"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "floor",
+      "notes": "the left foot supports the standing pose on the floor"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "floor",
+      "notes": "the right foot supports the standing pose on the floor"
+    }
+  ],
+  "interaction": "A person stands with their back facing the camera, positioned in front of a small brown wooden table. Both hands firmly grasp the edges of the table as they engage in a lifting motion. The person maintains a stable standing posture with both feet planted on the gray carpeted floor. They have short dark hair, a focused facial expression, a gray shirt, blue jeans, and white sneakers."
+}

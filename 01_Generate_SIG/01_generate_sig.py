@@ -25,7 +25,8 @@ HUMAN_PARTS = (
     "hips",
 )
 HUMAN_PART_VOCAB = set(HUMAN_PARTS)
-SCENE_NODE_ORDER = ("target_object", "floor")
+TARGET_OBJECT_IDS = ("target_object_1", "target_object_2")
+SCENE_NODE_ORDER = (*TARGET_OBJECT_IDS, "floor")
 SCENE_NODES = set(SCENE_NODE_ORDER)
 MAX_INTERACTION_WORDS = 150
 IMAGE_SOURCE_TO_REL_PATHS: dict[str, tuple[str, str]] = {
@@ -46,6 +47,13 @@ def save_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def save_scene_image(source_path: Path, output_path: Path) -> None:
+    from PIL import Image
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    Image.open(source_path).convert("RGB").save(output_path)
+
+
 def strip_json_fence(text: str) -> str:
     text = (text or "").strip()
     if not text.startswith("```"):
@@ -60,12 +68,16 @@ def normalize_label(text: str) -> str:
     return " ".join(text.strip().lower().replace("_", " ").replace("-", " ").split())
 
 
-def normalize_scene_element(text: str, target_labels: set[str] | None = None) -> str:
+def normalize_scene_element(text: str, target_label_to_id: dict[str, str] | None = None) -> str:
     raw = str(text).strip().lower()
     normalized = normalize_label(text)
-    labels = target_labels or set()
-    if raw == "target_object" or normalized in {"target object", "object"} or normalized in labels:
-        return "target_object"
+    label_to_id = target_label_to_id or {}
+    if raw in SCENE_NODES:
+        return raw
+    if normalized in label_to_id:
+        return label_to_id[normalized]
+    if raw == "target_object" or normalized in {"target object", "object"}:
+        return "target_object_1"
     return normalized
 
 
@@ -165,13 +177,27 @@ def validate_sig(sig: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(sig, dict):
         raise TypeError("SIG must be a JSON object.")
 
-    target_object = sig.get("target_object")
-    if not isinstance(target_object, dict):
-        raise ValueError("SIG must contain target_object.")
+    raw_target_objects = sig.get("target_objects")
+    if not isinstance(raw_target_objects, list) or not raw_target_objects:
+        raise ValueError("SIG must contain a non-empty target_objects list.")
+    if len(raw_target_objects) > len(TARGET_OBJECT_IDS):
+        raise ValueError(f"SIG can contain at most {len(TARGET_OBJECT_IDS)} target objects.")
 
-    label = str(target_object.get("label", "")).strip()
-    if not label:
-        raise ValueError("target_object.label must be non-empty.")
+    target_objects: list[dict[str, str]] = []
+    target_label_to_id: dict[str, str] = {}
+    for index, target_object in enumerate(raw_target_objects):
+        if not isinstance(target_object, dict):
+            raise ValueError("Each target_objects entry must be an object.")
+        target_id = TARGET_OBJECT_IDS[index]
+        label = str(target_object.get("label", "")).strip()
+        if not label:
+            raise ValueError("Each target_objects entry must contain a non-empty label.")
+        normalized_label = normalize_label(label)
+        if normalized_label in target_label_to_id:
+            raise ValueError(f"Duplicate target object label '{label}'.")
+        target_label_to_id[normalized_label] = target_id
+        target_objects.append({"id": target_id, "label": label})
+    active_target_ids = {target_object["id"] for target_object in target_objects}
 
     raw_edges = sig.get("interaction_edges")
     if not isinstance(raw_edges, list) or not raw_edges:
@@ -180,19 +206,27 @@ def validate_sig(sig: dict[str, Any]) -> dict[str, Any]:
     clean_edges: list[dict[str, Any]] = []
     edge_human_parts: set[str] = set()
     scene_nodes: set[str] = set()
+    contact_scene_nodes: set[str] = set()
     seen_edges: set[tuple[str, str]] = set()
     for edge in raw_edges:
         if not isinstance(edge, dict):
             continue
         human_part = normalize_label(str(edge.get("human_part", "")))
-        target_labels = {normalize_label(label)}
-        scene_element = normalize_scene_element(str(edge.get("scene_element", "")), target_labels)
+        scene_element = normalize_scene_element(
+            str(edge.get("scene_element", "")),
+            target_label_to_id,
+        )
         if not human_part or not scene_element:
             continue
         if human_part not in HUMAN_PART_VOCAB:
             raise ValueError(
                 f"Unsupported SIG human_part '{human_part}'. "
                 f"Allowed parts: {sorted(HUMAN_PART_VOCAB)}"
+            )
+        if scene_element in TARGET_OBJECT_IDS and scene_element not in active_target_ids:
+            raise ValueError(
+                f"SIG interaction edge references '{scene_element}', "
+                "but that target object is not defined in target_objects."
             )
         if scene_element not in SCENE_NODES:
             raise ValueError(
@@ -205,6 +239,7 @@ def validate_sig(sig: dict[str, Any]) -> dict[str, Any]:
         seen_edges.add(dedup_key)
         edge_human_parts.add(human_part)
         scene_nodes.add(scene_element)
+        contact_scene_nodes.add(scene_element)
         clean_edges.append(
             {
                 "human_part": human_part,
@@ -238,10 +273,15 @@ def validate_sig(sig: dict[str, Any]) -> dict[str, Any]:
     for node in raw_scene_nodes:
         scene_node = normalize_scene_element(
             str(node),
-            {normalize_label(label)},
+            target_label_to_id,
         )
         if not scene_node:
             continue
+        if scene_node in TARGET_OBJECT_IDS and scene_node not in active_target_ids:
+            raise ValueError(
+                f"SIG scene_nodes references '{scene_node}', "
+                "but that target object is not defined in target_objects."
+            )
         if scene_node not in SCENE_NODES:
             raise ValueError(
                 f"Unsupported scene_nodes entry '{node}'. "
@@ -257,8 +297,14 @@ def validate_sig(sig: dict[str, Any]) -> dict[str, Any]:
             f"SIG interaction must be at most {MAX_INTERACTION_WORDS} words; "
             f"got {count_words(interaction)}."
         )
+    missing_contact_targets = active_target_ids - contact_scene_nodes
+    if missing_contact_targets:
+        raise ValueError(
+            "Each target object must have at least one contact edge; "
+            f"missing contacts for: {sorted(missing_contact_targets)}"
+        )
 
-    sig["target_object"] = {"label": label}
+    sig["target_objects"] = target_objects
     sig["human_part_nodes"] = [
         format_human_part_node(part_name)
         for part_name in HUMAN_PARTS
@@ -324,13 +370,16 @@ def main() -> None:
         reasoning_effort=reasoning_effort,
     )
     sig = validate_sig(sig)
-    out_path = output_root / "scene_interaction_graph.json"
+    out_path = output_root / "sig.json"
+    out_scene_image_path = output_root / "scene_image.png"
     save_json(out_path, sig)
+    save_scene_image(scene_image_path, out_scene_image_path)
 
     print(f"Input scene: {input_dir / 'input_scene.json'}")
     print(f"Scene image: {scene_image_path}")
     print(f"System prompt: {system_prompt_path}")
     print(f"Wrote SIG: {out_path}")
+    print(f"Wrote scene image: {out_scene_image_path}")
 
 
 if __name__ == "__main__":

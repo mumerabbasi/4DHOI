@@ -1,8 +1,9 @@
 {
   "target_object": {
-    "label": "bathroom faucet"
+    "label": "vacuum cleaner"
   },
   "human_part_nodes": [
+    "person 1, left hand",
     "person 1, right hand",
     "person 1, left foot",
     "person 1, right foot"
@@ -13,20 +14,25 @@
   ],
   "interaction_edges": [
     {
+      "human_part": "left hand",
+      "scene_element": "target_object",
+      "notes": "the left hand grips the vacuum cleaner to pull it out"
+    },
+    {
       "human_part": "right hand",
       "scene_element": "target_object",
-      "notes": "the right hand turns the bathroom faucet handle"
+      "notes": "the right hand assists in gripping the vacuum cleaner"
     },
     {
       "human_part": "left foot",
       "scene_element": "floor",
-      "notes": "the left foot supports the standing pose"
+      "notes": "the left foot supports the standing pose on the floor"
     },
     {
       "human_part": "right foot",
       "scene_element": "floor",
-      "notes": "the right foot supports the standing pose"
+      "notes": "the right foot supports the standing pose on the floor"
     }
   ],
-  "interaction": "A person stands at the bathroom sink and turns on the bathroom faucet with the right hand. The right hand touches the faucet handle, the torso leans slightly toward the sink, and the left arm rests naturally by the side. Both feet remain on the gray tile floor in a stable stance. The person has short dark hair, a neutral focused expression, a gray shirt, blue jeans, and light sneakers. The bathroom has white walls, a window, a glass shower enclosure, a toilet, shelves, a sink, a mirror, a potted plant, and gray floor tiles."
+  "interaction": "A person stands beside the white shelving unit and prepares to take out the vacuum cleaner stored behind it using both hands. The left and right hands firmly grasp the vacuum cleaner's handle or body to pull it forward. Both feet are planted on the grey tiled floor in a balanced standing stance, with the torso slightly leaning towards the object. The person has short black hair, a neutral focused facial expression, a gray shirt, blue jeans, and white sneakers. The room features white walls, a window on the left, and a washing machine on the right."
 }

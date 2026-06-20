@@ -1,0 +1,46 @@
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "bed"
+    },
+    {
+      "id": "target_object_2",
+      "label": "Milka chocolate"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, right hand",
+    "person 1, left foot",
+    "person 1, right foot",
+    "person 1, hips"
+  ],
+  "scene_nodes": [
+    "target_object_1",
+    "target_object_2",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "hips",
+      "scene_element": "target_object_1",
+      "notes": "the hips are supported by the bed while sitting"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "floor",
+      "notes": "the left foot is planted on the floor for chair-like seated support"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "floor",
+      "notes": "the right foot is planted on the floor for chair-like seated support"
+    },
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object_2",
+      "notes": "the right hand reaches to grasp the Milka chocolate"
+    }
+  ],
+  "interaction": "A person sits on the edge of the bed like sitting in a chair, with the hips supported by the mattress and both feet planted on the floor. The torso leans outward while the right hand reaches toward the nearby Milka chocolate. The person has short black hair, a casual focused expression, a gray shirt, comfortable pants, and socks."
+}

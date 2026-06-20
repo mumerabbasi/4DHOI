@@ -1,11 +1,11 @@
 {
   "target_object": {
-    "label": "green chair"
+    "label": "washing machine door"
   },
   "human_part_nodes": [
+    "person 1, right hand",
     "person 1, left foot",
-    "person 1, right foot",
-    "person 1, hips"
+    "person 1, right foot"
   ],
   "scene_nodes": [
     "target_object",
@@ -13,20 +13,20 @@
   ],
   "interaction_edges": [
     {
-      "human_part": "hips",
+      "human_part": "right hand",
       "scene_element": "target_object",
-      "notes": "the hips rest on the seat of the green chair"
+      "notes": "the right hand grips the washing machine door handle"
     },
     {
       "human_part": "left foot",
       "scene_element": "floor",
-      "notes": "the left foot is planted on the carpeted floor"
+      "notes": "the left foot supports the standing pose"
     },
     {
       "human_part": "right foot",
       "scene_element": "floor",
-      "notes": "the right foot is planted on the carpeted floor"
+      "notes": "the right foot supports the standing pose"
     }
   ],
-  "interaction": "A person sits on the green office chair positioned near the whiteboard wall. Their hips rest firmly on the seat cushion, supporting their upright posture. Both feet are planted flat on the patterned carpet floor, providing stability. The person has short black hair, a calm neutral facial expression, and is wearing a gray shirt, blue jeans, and white sneakers. The green chair is distinct from the blue chairs arranged around the conference table. The room features concrete walls, a large window with blinds, and a whiteboard."
+  "interaction": "A person stands in front of the washing machine and opens the washing machine door with the right hand. The right hand grips the round door or handle, pulling it outward while the torso leans slightly toward the appliance. The left arm stays relaxed near the body and both feet remain on the gray tile floor. The person has short dark hair, a neutral focused expression, a gray shirt, blue jeans, and light sneakers. The laundry area has white walls, a window, shelving, a vacuum cleaner nearby, and a bathroom doorway in the background."
 }

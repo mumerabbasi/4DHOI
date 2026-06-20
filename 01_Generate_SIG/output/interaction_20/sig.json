@@ -1,0 +1,45 @@
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "bed"
+    },
+    {
+      "id": "target_object_2",
+      "label": "bedside lamp"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, right hand",
+    "person 1, left leg",
+    "person 1, right leg",
+    "person 1, hips"
+  ],
+  "scene_nodes": [
+    "target_object_1",
+    "target_object_2"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "hips",
+      "scene_element": "target_object_1",
+      "notes": "the hips are supported by the bed while sitting"
+    },
+    {
+      "human_part": "left leg",
+      "scene_element": "target_object_1",
+      "notes": "the left leg rests on the bed surface"
+    },
+    {
+      "human_part": "right leg",
+      "scene_element": "target_object_1",
+      "notes": "the right leg rests on the bed surface"
+    },
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object_2",
+      "notes": "the right hand reaches to press or turn the bedside lamp switch"
+    }
+  ],
+  "interaction": "A person sits on the bed with the hips and legs supported by the mattress while the right hand reaches toward the bedside lamp to turn it off. The torso leans slightly toward the lamp. The person has short black hair, a calm sleepy expression, a gray top, comfortable pants, and socks."
+}

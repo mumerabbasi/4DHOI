@@ -1,0 +1,145 @@
+{
+  "interaction_name": "interaction_05",
+  "interaction_instruction": "a person turning on the faucet",
+  "model": "qwen3-vl:32b",
+  "system_prompt_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/system_prompt_x.md",
+  "render_paths": [
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_05/semantics/renders/view_00.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_05/semantics/renders/view_01.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_05/semantics/renders/view_03.png"
+  ],
+  "quantitative_metrics": {
+    "physical_plausibility": {
+      "available": true,
+      "contact_edges": [
+        {
+          "node_a": "human.right_hand",
+          "node_b": "bathroom faucet",
+          "min_distance_m": 0.0054245260544121265,
+          "max_distance_m": 0.0993027612566948,
+          "mean_distance_m": 0.04575377330183983
+        },
+        {
+          "node_a": "human.left_foot",
+          "node_b": "floor",
+          "min_distance_m": 0.001699708285741508,
+          "max_distance_m": 0.032969001680612564,
+          "mean_distance_m": 0.013708902522921562
+        },
+        {
+          "node_a": "human.right_foot",
+          "node_b": "floor",
+          "min_distance_m": 0.0026273042894899845,
+          "max_distance_m": 0.02515345998108387,
+          "mean_distance_m": 0.011677181348204613
+        }
+      ],
+      "mean_contact_distance_m": 0.023713285724322002,
+      "ncs": 0.9997671428571429,
+      "mean_penetration_m": 0.003375617554411292,
+      "max_penetration_m": 0.010901354253292084
+    },
+    "clip_semantics": {
+      "available": true,
+      "mean_clip_score": 0.25005697707335156,
+      "per_view_clip_scores": [
+        {
+          "view_id": "view_00",
+          "clip_score": 0.24812763929367065
+        },
+        {
+          "view_id": "view_01",
+          "clip_score": 0.25316107273101807
+        },
+        {
+          "view_id": "view_03",
+          "clip_score": 0.2488822191953659
+        }
+      ]
+    },
+    "render_visibility": {
+      "available": true,
+      "interaction_parts": {
+        "available": true,
+        "human_parts": [
+          "right hand",
+          "left foot",
+          "right foot"
+        ],
+        "segment_ids": [
+          "right_hand",
+          "left_foot",
+          "right_foot"
+        ],
+        "vertex_count": 1280,
+        "missing_human_parts": []
+      },
+      "views": [
+        {
+          "view_id": "view_00",
+          "human_visible_fraction": 0.9905489260143198,
+          "interaction_part_visible_fraction": 0.7859375,
+          "valid": true
+        },
+        {
+          "view_id": "view_01",
+          "human_visible_fraction": 0.9805250596658711,
+          "interaction_part_visible_fraction": 0.62890625,
+          "valid": true
+        },
+        {
+          "view_id": "view_02",
+          "human_visible_fraction": 0.8412410501193317,
+          "interaction_part_visible_fraction": 0.63671875,
+          "valid": true
+        },
+        {
+          "view_id": "view_03",
+          "human_visible_fraction": 0.9753699284009546,
+          "interaction_part_visible_fraction": 0.70703125,
+          "valid": true
+        }
+      ]
+    }
+  },
+  "vlm_result": {
+    "overall": {
+      "score_1_to_5": 5,
+      "reason": "The interaction correctly shows a person turning on the faucet with proper hand contact, standing on the floor, and physically plausible pose. All criteria are satisfied."
+    },
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The bathroom faucet is clearly visible and identifiable as the target object in all views."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human pose correctly shows the action of turning on the faucet with the right hand positioned to interact with the faucet."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 5,
+        "reason": "The right hand is in contact with the faucet (0.0054m min distance) as shown in the metrics and visible in all views."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The pose is physically plausible with the person standing on the floor (0.0017m and 0.0026m min distances for feet) and the hand in a natural position to turn on the faucet."
+      },
+      "visibility_and_evidence": {
+        "score_1_to_5": 5,
+        "reason": "All three views provide clear evidence of the hand-faucet interaction from different angles, with high human visibility (0.97-0.99) and interaction part visibility (0.63-0.79)."
+      },
+      "metric_consistency": {
+        "score_1_to_5": 5,
+        "reason": "The quantitative metrics (0.0054m hand-faucet distance, 0.0017m and 0.0026m foot-floor distances) are consistent with the visual evidence of contact and proper standing position."
+      }
+    },
+    "best_view_ids": [
+      "view_00",
+      "view_01",
+      "view_03"
+    ],
+    "failure_modes": [],
+    "brief_summary": "The 3D human-scene interaction correctly depicts a person turning on the faucet with proper hand contact, standing on the floor, and physically plausible pose. All criteria are satisfied with a score of 5."
+  },
+  "raw_response": "{\n  \"overall\": {\n    \"score_1_to_5\": 5,\n    \"reason\": \"The interaction correctly shows a person turning on the faucet with proper hand contact, standing on the floor, and physically plausible pose. All criteria are satisfied.\"\n  },\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The bathroom faucet is clearly visible and identifiable as the target object in all views.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human pose correctly shows the action of turning on the faucet with the right hand positioned to interact with the faucet.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The right hand is in contact with the faucet (0.0054m min distance) as shown in the metrics and visible in all views.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The pose is physically plausible with the person standing on the floor (0.0017m and 0.0026m min distances for feet) and the hand in a natural position to turn on the faucet.\"\n    },\n    \"visibility_and_evidence\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"All three views provide clear evidence of the hand-faucet interaction from different angles, with high human visibility (0.97-0.99) and interaction part visibility (0.63-0.79).\"\n    },\n    \"metric_consistency\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The quantitative metrics (0.0054m hand-faucet distance, 0.0017m and 0.0026m foot-floor distances) are consistent with the visual evidence of contact and proper standing position.\"\n    }\n  },\n  \"best_view_ids\": [\"view_00\", \"view_01\", \"view_03\"],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The 3D human-scene interaction correctly depicts a person turning on the faucet with proper hand contact, standing on the floor, and physically plausible pose. All criteria are satisfied with a score of 5.\"\n}"
+}

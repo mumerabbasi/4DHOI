@@ -1,0 +1,52 @@
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "sofa"
+    },
+    {
+      "id": "target_object_2",
+      "label": "potted plant"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, left foot",
+    "person 1, right foot",
+    "person 1, hips"
+  ],
+  "scene_nodes": [
+    "target_object_1",
+    "target_object_2",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "hips",
+      "scene_element": "target_object_1",
+      "notes": "the hips rest on the side cushion of the sofa while sitting"
+    },
+    {
+      "human_part": "left hand",
+      "scene_element": "target_object_2",
+      "notes": "the left hand touches and plays with the plant leaves"
+    },
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object_2",
+      "notes": "the right hand touches and plays with the plant leaves"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "floor",
+      "notes": "the left foot supports the sitting posture on the floor"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "floor",
+      "notes": "the right foot supports the sitting posture on the floor"
+    }
+  ],
+  "interaction": "A person sits on the side of the grey sofa with hips supported by the side cushion and both feet planted on the wooden floor. The body faces the nearby potted plant, and both hands reach toward the leaves as if gently playing with them. The person has short dark hair, a calm engaged facial expression, a light-colored shirt, dark pants, and casual shoes."
+}

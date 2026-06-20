@@ -1,0 +1,323 @@
+{
+  "interaction_name": "interaction_15",
+  "scene_id": "eea4ad9c04",
+  "target_object": {
+    "label": "sofa"
+  },
+  "optimizer": {
+    "adam_iters": 2000,
+    "adam_lr": 0.001,
+    "stage_iters": {
+      "rigid": 800,
+      "pose": 1200
+    },
+    "loss_weights": {
+      "root_orient_gvhmr": 20.0,
+      "pose_gvhmr": 250.0,
+      "height_prior": 1.0,
+      "scene_intersect": {
+        "start": 0.0,
+        "end": 10.0,
+        "clearance_margin_m": 0.01,
+        "surface_samples": 700000,
+        "debug": true
+      },
+      "human_scene_depth": {
+        "start": 0.0,
+        "end": 0.0,
+        "penetration_tolerance_m": 0.01,
+        "min_valid_weight": 0.25
+      },
+      "nocontact": {
+        "start": 800.0,
+        "end": 800.0
+      },
+      "self_intersect": {
+        "start": 0.0,
+        "end": 0.001
+      }
+    },
+    "height_prior": {
+      "target_m": 1.8288,
+      "min_m": 1.778,
+      "max_m": 1.8796,
+      "sigma_m": 0.0508,
+      "target_ft_in": "6 ft 0 in",
+      "min_ft_in": "5 ft 10 in",
+      "max_ft_in": "6 ft 2 in"
+    }
+  },
+  "scene": {
+    "num_contact_crop_faces": 1411754,
+    "num_contact_crop_vertices": 680285
+  },
+  "human": {
+    "optimization": {
+      "final_iter": 2000,
+      "final_total_loss": 3.1687352657318115,
+      "stage_iters": {
+        "rigid": 800,
+        "pose": 1200
+      },
+      "scene_intersect_sampling": {
+        "mode": "visible_scene_surface",
+        "num_scene_faces_total": 2006118,
+        "num_sampled_points": 700000
+      },
+      "scene_intersect_stats": {
+        "num_scene_collision_points": 700000,
+        "num_sdf_query_points": 700000,
+        "num_inside_or_margin_points": 971
+      },
+      "human_scene_depth_stats": {
+        "num_human_vertices": 10475,
+        "num_projected_vertices": 10432,
+        "num_behind_scene_vertices": 508
+      },
+      "scene_intersect_debug": {
+        "init": {
+          "stage": "init",
+          "scene_point_colors": {
+            "red": "inside SMPL-X human SDF; contributes to scene_intersect",
+            "orange": "outside but within scene_intersect clearance margin",
+            "blue_gray": "outside clearance margin"
+          },
+          "sdf_grid_colors": {
+            "red_intensity": "inside SMPL-X; stronger red means more negative SDF",
+            "white": "near zero SDF surface",
+            "blue_intensity": "outside SMPL-X; stronger blue means larger positive SDF"
+          },
+          "clearance_margin_m": 0.01,
+          "scene_points": {
+            "num_scene_collision_points": 700000,
+            "num_sdf_query_points": 700000,
+            "num_visualized_points": 700000,
+            "num_inside_points": 1905,
+            "num_margin_points": 531,
+            "min_sdf_m": -0.0740753784775734,
+            "max_sdf_m": 4.553173065185547
+          },
+          "sdf_grid": {
+            "num_grid_points": 262144,
+            "grid_shape": [
+              64,
+              64,
+              64
+            ],
+            "min_sdf_m": -0.0941239446401596,
+            "max_sdf_m": 0.6539040207862854,
+            "num_inside_grid_points": 10567,
+            "num_near_surface_grid_points": 5220,
+            "color_clamp_m": 0.05
+          }
+        },
+        "final": {
+          "stage": "final",
+          "scene_point_colors": {
+            "red": "inside SMPL-X human SDF; contributes to scene_intersect",
+            "orange": "outside but within scene_intersect clearance margin",
+            "blue_gray": "outside clearance margin"
+          },
+          "sdf_grid_colors": {
+            "red_intensity": "inside SMPL-X; stronger red means more negative SDF",
+            "white": "near zero SDF surface",
+            "blue_intensity": "outside SMPL-X; stronger blue means larger positive SDF"
+          },
+          "clearance_margin_m": 0.01,
+          "scene_points": {
+            "num_scene_collision_points": 700000,
+            "num_sdf_query_points": 700000,
+            "num_visualized_points": 700000,
+            "num_inside_points": 425,
+            "num_margin_points": 535,
+            "min_sdf_m": -0.0514262355864048,
+            "max_sdf_m": 4.485753536224365
+          },
+          "sdf_grid": {
+            "num_grid_points": 262144,
+            "grid_shape": [
+              64,
+              64,
+              64
+            ],
+            "min_sdf_m": -0.08935755491256714,
+            "max_sdf_m": 0.9231293201446533,
+            "num_inside_grid_points": 9145,
+            "num_near_surface_grid_points": 4684,
+            "color_clamp_m": 0.05
+          }
+        }
+      }
+    },
+    "init_frame_0": {
+      "interaction_edges": [
+        {
+          "node_a": "human.hips",
+          "node_b": "sofa",
+          "moving_entity_name": "human",
+          "moving_part_name": "hips",
+          "moving_segment_id": "hips_contact",
+          "moving_segment_name": "hips contact",
+          "moving_vertex_count": 88,
+          "fixed_entity_name": "sofa",
+          "fixed_part_name": "sofa",
+          "fixed_point_count": 2048,
+          "reduction": "mean",
+          "nocontact_raw": 0.037625737488269806,
+          "nocontact_distance_m": 0.19397354842418543
+        },
+        {
+          "node_a": "human.left_hand",
+          "node_b": "sofa",
+          "moving_entity_name": "human",
+          "moving_part_name": "left hand",
+          "moving_segment_id": "left_hand_inner",
+          "moving_segment_name": "left hand inner",
+          "moving_vertex_count": 371,
+          "fixed_entity_name": "sofa",
+          "fixed_part_name": "sofa",
+          "fixed_point_count": 2048,
+          "reduction": "mean",
+          "nocontact_raw": 0.5372160077095032,
+          "nocontact_distance_m": 0.732950208206194
+        },
+        {
+          "node_a": "human.right_hand",
+          "node_b": "sofa",
+          "moving_entity_name": "human",
+          "moving_part_name": "right hand",
+          "moving_segment_id": "right_hand_inner",
+          "moving_segment_name": "right hand inner",
+          "moving_vertex_count": 373,
+          "fixed_entity_name": "sofa",
+          "fixed_part_name": "sofa",
+          "fixed_point_count": 2048,
+          "reduction": "mean",
+          "nocontact_raw": 0.06376379728317261,
+          "nocontact_distance_m": 0.2525149446729294
+        },
+        {
+          "node_a": "human.left_foot",
+          "node_b": "floor",
+          "moving_entity_name": "human",
+          "moving_part_name": "left foot",
+          "moving_segment_id": "left_foot_bottom",
+          "moving_segment_name": "left foot bottom",
+          "moving_vertex_count": 120,
+          "fixed_entity_name": "floor",
+          "fixed_part_name": "floor",
+          "fixed_point_count": 2048,
+          "reduction": "mean",
+          "nocontact_raw": 0.0010922497604042292,
+          "nocontact_distance_m": 0.03304920211448726
+        },
+        {
+          "node_a": "human.right_foot",
+          "node_b": "floor",
+          "moving_entity_name": "human",
+          "moving_part_name": "right foot",
+          "moving_segment_id": "right_foot_bottom",
+          "moving_segment_name": "right foot bottom",
+          "moving_vertex_count": 120,
+          "fixed_entity_name": "floor",
+          "fixed_part_name": "floor",
+          "fixed_point_count": 2048,
+          "reduction": "mean",
+          "nocontact_raw": 0.0011563807493075728,
+          "nocontact_distance_m": 0.034005598793545345
+        }
+      ]
+    },
+    "final_frame_0": {
+      "interaction_edges": [
+        {
+          "node_a": "human.hips",
+          "node_b": "sofa",
+          "moving_entity_name": "human",
+          "moving_part_name": "hips",
+          "moving_segment_id": "hips_contact",
+          "moving_segment_name": "hips contact",
+          "moving_vertex_count": 88,
+          "fixed_entity_name": "sofa",
+          "fixed_part_name": "sofa",
+          "fixed_point_count": 2048,
+          "reduction": "mean",
+          "nocontact_raw": 0.004491368308663368,
+          "nocontact_distance_m": 0.06701767161475672
+        },
+        {
+          "node_a": "human.left_hand",
+          "node_b": "sofa",
+          "moving_entity_name": "human",
+          "moving_part_name": "left hand",
+          "moving_segment_id": "left_hand_inner",
+          "moving_segment_name": "left hand inner",
+          "moving_vertex_count": 371,
+          "fixed_entity_name": "sofa",
+          "fixed_part_name": "sofa",
+          "fixed_point_count": 2048,
+          "reduction": "mean",
+          "nocontact_raw": 0.0021714288741350174,
+          "nocontact_distance_m": 0.04659859304887882
+        },
+        {
+          "node_a": "human.right_hand",
+          "node_b": "sofa",
+          "moving_entity_name": "human",
+          "moving_part_name": "right hand",
+          "moving_segment_id": "right_hand_inner",
+          "moving_segment_name": "right hand inner",
+          "moving_vertex_count": 373,
+          "fixed_entity_name": "sofa",
+          "fixed_part_name": "sofa",
+          "fixed_point_count": 2048,
+          "reduction": "mean",
+          "nocontact_raw": 0.0013822909677401185,
+          "nocontact_distance_m": 0.03717917384423864
+        },
+        {
+          "node_a": "human.left_foot",
+          "node_b": "floor",
+          "moving_entity_name": "human",
+          "moving_part_name": "left foot",
+          "moving_segment_id": "left_foot_bottom",
+          "moving_segment_name": "left foot bottom",
+          "moving_vertex_count": 120,
+          "fixed_entity_name": "floor",
+          "fixed_part_name": "floor",
+          "fixed_point_count": 2048,
+          "reduction": "mean",
+          "nocontact_raw": 0.0004869966069236398,
+          "nocontact_distance_m": 0.022067999613096783
+        },
+        {
+          "node_a": "human.right_foot",
+          "node_b": "floor",
+          "moving_entity_name": "human",
+          "moving_part_name": "right foot",
+          "moving_segment_id": "right_foot_bottom",
+          "moving_segment_name": "right foot bottom",
+          "moving_vertex_count": 120,
+          "fixed_entity_name": "floor",
+          "fixed_part_name": "floor",
+          "fixed_point_count": 2048,
+          "reduction": "mean",
+          "nocontact_raw": 0.00093258754350245,
+          "nocontact_distance_m": 0.030538296342501655
+        }
+      ]
+    },
+    "artifacts": {
+      "camera_mesh": "/my_workspace/4DHHOI/4DHSI/05_Optimize_Static_Scene/output/interaction_15/meshes/frame_0000_camera.ply",
+      "world_mesh": "/my_workspace/4DHHOI/4DHSI/05_Optimize_Static_Scene/output/interaction_15/meshes/frame_0000_world.ply",
+      "init_depth_vis": "/my_workspace/4DHHOI/4DHSI/05_Optimize_Static_Scene/output/interaction_15/debug/overlays/frame_0000_init_depth_vis.png",
+      "final_depth_vis": "/my_workspace/4DHHOI/4DHSI/05_Optimize_Static_Scene/output/interaction_15/debug/overlays/frame_0000_final_depth_vis.png",
+      "optimized_params": "/my_workspace/4DHHOI/4DHSI/05_Optimize_Static_Scene/output/interaction_15/debug/params/optimized_frame_0000.pt",
+      "scene_intersect_debug": "/my_workspace/4DHHOI/4DHSI/05_Optimize_Static_Scene/output/interaction_15/debug/scene_intersect",
+      "csv": {
+        "iter_metrics": "/my_workspace/4DHHOI/4DHSI/05_Optimize_Static_Scene/output/interaction_15/debug/csv/iter_metrics.csv",
+        "final_loss_summary": "/my_workspace/4DHHOI/4DHSI/05_Optimize_Static_Scene/output/interaction_15/debug/csv/final_loss_summary.csv"
+      }
+    }
+  }
+}

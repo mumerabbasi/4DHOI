@@ -1,0 +1,35 @@
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "dumbbell"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, right hand",
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object_1",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object_1",
+      "notes": "the right hand grips one dumbbell while lifting"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "floor",
+      "notes": "the left foot supports the standing lifting pose on the floor"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "floor",
+      "notes": "the right foot supports the standing lifting pose on the floor"
+    }
+  ],
+  "interaction": "A person stands near the gray sofa and lifts one dumbbell with the right hand. Both feet are planted on the wooden floor in a stable exercise stance while the other arm stays relaxed for balance. The person has short black hair, a focused facial expression, a gray shirt, blue jeans, and athletic shoes."
+}

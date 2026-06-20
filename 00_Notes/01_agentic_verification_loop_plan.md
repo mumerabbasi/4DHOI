@@ -19,9 +19,9 @@ The core principle is that VLMs should judge narrow evidence packets, not one br
 
 Add candidate-aware outputs to the stochastic stages:
 
-- Human inpainting writes candidates under `03_Generate_Human_Frame/output/<interaction>/candidates/human_<id>/`.
-- Contact estimation writes candidates under `04_Estimate_Contact/output/<interaction>/candidates/human_<id>/contact_<id>/`.
-- Static optimization writes variants under `06_Optimize_Static_Scene/output/<interaction>/candidates/<candidate_id>/opt_<id>/`.
+- Human inpainting writes candidates under `02_Generate_Human_Frame/output/<interaction>/candidates/human_<id>/`.
+- Contact estimation writes candidates under `03_Estimate_Contact/output/<interaction>/candidates/human_<id>/contact_<id>/`.
+- Static optimization writes variants under `05_Optimize_Static_Scene/output/<interaction>/candidates/<candidate_id>/opt_<id>/`.
 
 Each candidate should have a `candidate_manifest.json` containing source interaction name, upstream candidate ids, model/prompt/settings, artifact paths, seed or sample index, and status.
 
@@ -133,5 +133,5 @@ Manual labels should use a compact rubric: correct target, required contacts, no
 - Primary milestone is paper-style evaluation, not full production automation.
 - Moderate sampling budget is acceptable.
 - Existing Gemini/Ollama/OpenAI-compatible model usage remains allowed.
-- The first implementation should reuse current artifacts from `04_Estimate_Contact` and `06_Optimize_Static_Scene` rather than replacing the optimizer.
+- The first implementation should reuse current artifacts from `03_Estimate_Contact` and `05_Optimize_Static_Scene` rather than replacing the optimizer.
 - The verification system should be reproducible: every candidate, prompt, score, and rejection reason must be saved to disk.

@@ -1,0 +1,36 @@
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "wooden shelf"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, left leg",
+    "person 1, right leg",
+    "person 1, hips"
+  ],
+  "scene_nodes": [
+    "target_object_1"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "hips",
+      "scene_element": "target_object_1",
+      "notes": "the hips are supported by the wooden shelf while sitting"
+    },
+    {
+      "human_part": "left hand",
+      "scene_element": "target_object_1",
+      "notes": "the left hand presses on the shelf to support the seated body"
+    },
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object_1",
+      "notes": "the right hand presses on the shelf for balance and support"
+    }
+  ],
+  "interaction": "A person sits on the wooden shelf with the hips supported by the shelf surface. Both hands press down on the shelf beside the body for balance, while both legs hang down freely in front without touching the floor. The person has short dark hair, a neutral focused facial expression, a gray shirt, blue jeans, and white sneakers."
+}

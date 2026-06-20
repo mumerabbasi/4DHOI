@@ -1,0 +1,45 @@
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "wooden staircase"
+    },
+    {
+      "id": "target_object_2",
+      "label": "side walls"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object_1",
+    "target_object_2"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "left foot",
+      "scene_element": "target_object_1",
+      "notes": "the left foot stands on a stair tread"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "target_object_1",
+      "notes": "the right foot stands on another stair tread for support"
+    },
+    {
+      "human_part": "left hand",
+      "scene_element": "target_object_2",
+      "notes": "the left hand touches a side wall for balance"
+    },
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object_2",
+      "notes": "the right hand touches the opposite side wall for support"
+    }
+  ],
+  "interaction": "A person stands at the end of the wooden staircase with both feet planted on the stair treads. Both arms reach outward so the left and right hands touch the side walls for balance and support. The person has short dark hair, a steady focused facial expression, a gray shirt, blue jeans, and white sneakers."
+}
