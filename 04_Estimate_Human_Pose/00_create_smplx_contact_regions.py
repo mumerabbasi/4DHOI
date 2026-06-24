@@ -168,7 +168,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--hip_pelvis_upper_offset_m",
         type=float,
-        default=0.01,
+        default=-0.04,
         help=(
             "Highest y-coordinate kept for hip contact, expressed as a meter "
             "offset from the pelvis joint."
