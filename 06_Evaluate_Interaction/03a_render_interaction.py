@@ -23,6 +23,19 @@ IMAGE_SOURCE_TO_REL_PATHS: dict[str, tuple[str, str]] = {
     ),
 }
 WORLD_UP = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+CONTACT_SEGMENT_BY_BODY_SEGMENT = {
+    "left_hand": "left_hand_contact",
+    "right_hand": "right_hand_contact",
+    "left_arm": "left_arm_contact",
+    "right_arm": "right_arm_contact",
+    "left_leg": "left_leg_contact",
+    "right_leg": "right_leg_contact",
+    "left_foot": "left_foot_contact",
+    "right_foot": "right_foot_contact",
+    "head": "head_contact",
+    "hips": "hips_contact",
+    "back": "back_contact",
+}
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -250,11 +263,11 @@ def iter_interaction_human_parts(sig_payload: dict[str, Any]) -> list[str]:
 def load_smpl_body_segments(seg_path: Path) -> tuple[int, dict[str, np.ndarray], set[str]]:
     payload = load_json(seg_path)
     raw_segments = payload.get("segments")
-    body_segment_ids = payload.get("body_segment_ids")
+    contact_segment_ids = payload.get("contact_segment_ids")
     if not isinstance(raw_segments, dict):
         raise KeyError(f"Expected 'segments' mapping in {seg_path}.")
-    if not isinstance(body_segment_ids, list):
-        raise KeyError(f"Expected 'body_segment_ids' list in {seg_path}.")
+    if not isinstance(contact_segment_ids, list):
+        raise KeyError(f"Expected 'contact_segment_ids' list in {seg_path}.")
 
     vertex_count = int(payload["vertex_count"])
     segments: dict[str, np.ndarray] = {}
@@ -266,25 +279,26 @@ def load_smpl_body_segments(seg_path: Path) -> tuple[int, dict[str, np.ndarray],
             raise ValueError(f"Segment '{segment_id}' has out-of-range vertex ids.")
         segments[str(segment_id)] = indices_array
 
-    body_ids = {str(segment_id) for segment_id in body_segment_ids}
-    missing = sorted(segment_id for segment_id in body_ids if segment_id not in segments)
+    contact_ids = {str(segment_id) for segment_id in contact_segment_ids}
+    missing = sorted(contact_id for contact_id in contact_ids if contact_id not in segments)
     if missing:
-        raise KeyError(f"Missing SMPL-X body segments in {seg_path}: {missing}")
-    return vertex_count, segments, body_ids
+        raise KeyError(f"Missing SMPL-X contact segments in {seg_path}: {missing}")
+    return vertex_count, segments, contact_ids
 
 
 def build_interaction_part_vertices(
     sig_payload: dict[str, Any],
     smpl_segments: dict[str, np.ndarray],
-    body_segment_ids: set[str],
+    contact_segment_ids: set[str],
     human_vertices_world: np.ndarray,
 ) -> tuple[np.ndarray, dict[str, Any]]:
     part_names = iter_interaction_human_parts(sig_payload)
     segment_ids: list[str] = []
     missing_parts: list[str] = []
     for part_name in part_names:
-        segment_id = slugify_segment_name(part_name)
-        if segment_id not in body_segment_ids:
+        body_segment_id = slugify_segment_name(part_name)
+        segment_id = CONTACT_SEGMENT_BY_BODY_SEGMENT.get(body_segment_id)
+        if segment_id not in contact_segment_ids:
             missing_parts.append(part_name)
             continue
         segment_ids.append(segment_id)
@@ -1062,7 +1076,7 @@ def render_interaction(
     print(f"Loading optimized human mesh from: {human_mesh_world_path}")
     human_vertices_world = load_mesh_vertices(human_mesh_world_path)
     focus_world = human_focus_point(human_vertices_world)
-    smpl_vertex_count, smpl_segments, body_segment_ids = load_smpl_body_segments(
+    smpl_vertex_count, smpl_segments, contact_segment_ids = load_smpl_body_segments(
         smpl_seg_json_path
     )
     if human_vertices_world.shape[0] != smpl_vertex_count:
@@ -1074,7 +1088,7 @@ def render_interaction(
         build_interaction_part_vertices(
             sig_payload=sig_payload,
             smpl_segments=smpl_segments,
-            body_segment_ids=body_segment_ids,
+            contact_segment_ids=contact_segment_ids,
             human_vertices_world=human_vertices_world,
         )
     )

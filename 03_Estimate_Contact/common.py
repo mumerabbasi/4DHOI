@@ -22,6 +22,7 @@ BODY_PART_COLOR_MAP: dict[str, tuple[str, str]] = {
     "right foot": ("#FF4500", "bright orange red"),
     "head": ("#FFFF00", "pure yellow"),
     "hips": ("#9400D3", "bright violet"),
+    "back": ("#8000FF", "electric violet"),
 }
 
 CONTACT_COLOR_CANDIDATES: tuple[tuple[str, str], ...] = (

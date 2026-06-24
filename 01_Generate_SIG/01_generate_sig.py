@@ -15,14 +15,13 @@ HUMAN_PARTS = (
     "right hand",
     "left arm",
     "right arm",
-    "left shoulder",
-    "right shoulder",
     "left leg",
     "right leg",
     "left foot",
     "right foot",
     "head",
     "hips",
+    "back",
 )
 HUMAN_PART_VOCAB = set(HUMAN_PARTS)
 TARGET_OBJECT_IDS = ("target_object_1", "target_object_2")

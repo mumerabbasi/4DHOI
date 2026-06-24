@@ -41,13 +41,17 @@ LOSS_TERM_KEYS = (
     "self_intersect",
 )
 CONTACT_SEGMENT_BY_BODY_SEGMENT = {
-    "left_hand": "left_hand_inner",
-    "right_hand": "right_hand_inner",
+    "left_hand": "left_hand_contact",
+    "right_hand": "right_hand_contact",
+    "left_arm": "left_arm_contact",
+    "right_arm": "right_arm_contact",
     "left_leg": "left_leg_contact",
     "right_leg": "right_leg_contact",
-    "left_foot": "left_foot_bottom",
-    "right_foot": "right_foot_bottom",
+    "left_foot": "left_foot_contact",
+    "right_foot": "right_foot_contact",
+    "head": "head_contact",
     "hips": "hips_contact",
+    "back": "back_contact",
 }
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -92,7 +96,6 @@ class InteractionEdge:
 class SmplxSegmentCatalog:
     vertex_count: int
     segments: dict[str, np.ndarray]
-    body_segment_ids: list[str]
     contact_segment_ids: list[str]
 
     def get_indices(self, segment_id: str) -> np.ndarray:
@@ -106,12 +109,6 @@ class SmplxSegmentCatalog:
             raise KeyError(f"Unknown SMPL-X segment id '{segment_id}'.")
         return segment_id.replace("_", " ")
 
-    def get_body_segment_id(self, sig_part_name: str) -> str:
-        segment_id = slugify_segment_name(sig_part_name)
-        if segment_id not in self.body_segment_ids:
-            raise KeyError(f"Missing body segment mapping for '{sig_part_name}'.")
-        return segment_id
-
     def get_contact_segment_id(self, sig_part_name: str) -> str:
         body_segment_id = slugify_segment_name(sig_part_name)
         segment_id = CONTACT_SEGMENT_BY_BODY_SEGMENT.get(body_segment_id)
@@ -120,13 +117,7 @@ class SmplxSegmentCatalog:
         return segment_id
 
     def get_contact_or_body_segment_id(self, sig_part_name: str) -> str:
-        body_segment_id = slugify_segment_name(sig_part_name)
-        segment_id = CONTACT_SEGMENT_BY_BODY_SEGMENT.get(body_segment_id)
-        if segment_id is not None:
-            if segment_id not in self.contact_segment_ids:
-                raise KeyError(f"Missing contact segment mapping for '{sig_part_name}'.")
-            return segment_id
-        return self.get_body_segment_id(sig_part_name)
+        return self.get_contact_segment_id(sig_part_name)
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -538,12 +529,6 @@ def load_smpl_segment_catalog(seg_path: Path) -> SmplxSegmentCatalog:
             f"Expected a 'segments' mapping in {seg_path}, but it was not found."
         )
 
-    body_segment_ids = raw.get("body_segment_ids")
-    if not isinstance(body_segment_ids, list):
-        raise KeyError(
-            f"Expected 'body_segment_ids' in {seg_path}, but it was not found."
-        )
-
     contact_segment_ids = raw.get("contact_segment_ids")
     if not isinstance(contact_segment_ids, list):
         raise KeyError(
@@ -560,22 +545,17 @@ def load_smpl_segment_catalog(seg_path: Path) -> SmplxSegmentCatalog:
             raise ValueError(f"Segment '{segment_id}' has out-of-range ids.")
         segments[str(segment_id)] = indices_array
 
-    body_segment_ids = [str(segment_id) for segment_id in body_segment_ids]
     contact_segment_ids = [
         str(segment_id) for segment_id in contact_segment_ids
     ]
-    for segment_id in body_segment_ids + contact_segment_ids:
+    for segment_id in contact_segment_ids:
         if segment_id not in segments:
             raise KeyError(
                 f"Missing SMPL-X segment '{segment_id}' in {seg_path}."
             )
-    for body_segment_id, contact_segment_id in (
+    for _body_segment_id, contact_segment_id in (
         CONTACT_SEGMENT_BY_BODY_SEGMENT.items()
     ):
-        if body_segment_id not in body_segment_ids:
-            raise KeyError(
-                f"Missing body segment '{body_segment_id}' in {seg_path}."
-            )
         if contact_segment_id not in contact_segment_ids:
             raise KeyError(
                 f"Missing contact segment '{contact_segment_id}' in {seg_path}."
@@ -584,7 +564,6 @@ def load_smpl_segment_catalog(seg_path: Path) -> SmplxSegmentCatalog:
     return SmplxSegmentCatalog(
         vertex_count=vertex_count,
         segments=segments,
-        body_segment_ids=body_segment_ids,
         contact_segment_ids=contact_segment_ids,
     )
 
