@@ -68,7 +68,7 @@
   "human": {
     "optimization": {
       "final_iter": 2000,
-      "final_total_loss": 1.1217041015625,
+      "final_total_loss": 1.1190173625946045,
       "stage_iters": {
         "rigid": 800,
         "pose": 1200
@@ -82,12 +82,12 @@
       "scene_intersect_stats": {
         "num_scene_collision_points": 700000,
         "num_sdf_query_points": 700000,
-        "num_inside_or_margin_points": 2198
+        "num_inside_or_margin_points": 2227
       },
       "human_scene_depth_stats": {
         "num_human_vertices": 10475,
         "num_projected_vertices": 10475,
-        "num_behind_scene_vertices": 443
+        "num_behind_scene_vertices": 436
       },
       "scene_intersect_debug": {
         "init": {
@@ -107,9 +107,9 @@
             "num_scene_collision_points": 700000,
             "num_sdf_query_points": 700000,
             "num_visualized_points": 700000,
-            "num_inside_points": 1259,
-            "num_margin_points": 1052,
-            "min_sdf_m": -0.05800493806600571,
+            "num_inside_points": 1253,
+            "num_margin_points": 1069,
+            "min_sdf_m": -0.05607405677437782,
             "max_sdf_m": 3.0302183628082275
           },
           "sdf_grid": {
@@ -119,10 +119,10 @@
               64,
               64
             ],
-            "min_sdf_m": -0.10605697333812714,
+            "min_sdf_m": -0.11073562502861023,
             "max_sdf_m": 0.6668566465377808,
-            "num_inside_grid_points": 9729,
-            "num_near_surface_grid_points": 4946,
+            "num_inside_grid_points": 9748,
+            "num_near_surface_grid_points": 4971,
             "color_clamp_m": 0.05
           }
         },
@@ -143,10 +143,10 @@
             "num_scene_collision_points": 700000,
             "num_sdf_query_points": 700000,
             "num_visualized_points": 700000,
-            "num_inside_points": 775,
-            "num_margin_points": 1458,
-            "min_sdf_m": -0.01251430343836546,
-            "max_sdf_m": 3.0428614616394043
+            "num_inside_points": 739,
+            "num_margin_points": 1488,
+            "min_sdf_m": -0.012879868037998676,
+            "max_sdf_m": 3.042633295059204
           },
           "sdf_grid": {
             "num_grid_points": 262144,
@@ -155,10 +155,10 @@
               64,
               64
             ],
-            "min_sdf_m": -0.10741090774536133,
-            "max_sdf_m": 0.5831834077835083,
-            "num_inside_grid_points": 12004,
-            "num_near_surface_grid_points": 6259,
+            "min_sdf_m": -0.1102161630988121,
+            "max_sdf_m": 0.583361804485321,
+            "num_inside_grid_points": 11994,
+            "num_near_surface_grid_points": 6242,
             "color_clamp_m": 0.05
           }
         }
@@ -242,8 +242,8 @@
           "fixed_part_name": "white trash bin",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0014395725447684526,
-          "nocontact_distance_m": 0.037941699286780144
+          "nocontact_raw": 0.0014473192859441042,
+          "nocontact_distance_m": 0.038043649745313664
         },
         {
           "node_a": "human.right_hand",
@@ -257,8 +257,8 @@
           "fixed_part_name": "white trash bin",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0013404518831521273,
-          "nocontact_distance_m": 0.03661218216867341
+          "nocontact_raw": 0.001349763828329742,
+          "nocontact_distance_m": 0.03673913211181971
         },
         {
           "node_a": "human.left_foot",
@@ -272,8 +272,8 @@
           "fixed_part_name": "floor",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0003080285678151995,
-          "nocontact_distance_m": 0.01755074265708433
+          "nocontact_raw": 0.0003092588158324361,
+          "nocontact_distance_m": 0.01758575604949745
         },
         {
           "node_a": "human.right_foot",
@@ -287,8 +287,8 @@
           "fixed_part_name": "floor",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.00031378024141304195,
-          "nocontact_distance_m": 0.017713843214080958
+          "nocontact_raw": 0.0003180330095347017,
+          "nocontact_distance_m": 0.017833480017503643
         }
       ]
     },

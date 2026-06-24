@@ -31,15 +31,15 @@
       "height_prior": 1.0,
       "scene_intersect": {
         "start": 0.0,
-        "end": 30.0,
+        "end": 40.0,
         "clearance_margin_m": 0.01,
         "surface_samples": 700000,
         "debug": true
       },
       "human_scene_depth": {
         "start": 0.0,
-        "end": 0.0,
-        "penetration_tolerance_m": 0.01,
+        "end": 10.0,
+        "penetration_tolerance_m": 0.0,
         "min_valid_weight": 0.25
       },
       "nocontact": {
@@ -48,7 +48,7 @@
       },
       "self_intersect": {
         "start": 0.0,
-        "end": 0.001
+        "end": 0.0
       }
     },
     "height_prior": {
@@ -68,7 +68,7 @@
   "human": {
     "optimization": {
       "final_iter": 2000,
-      "final_total_loss": 1.6912630796432495,
+      "final_total_loss": 1.9278004169464111,
       "stage_iters": {
         "rigid": 800,
         "pose": 1200
@@ -82,12 +82,12 @@
       "scene_intersect_stats": {
         "num_scene_collision_points": 700000,
         "num_sdf_query_points": 700000,
-        "num_inside_or_margin_points": 1310
+        "num_inside_or_margin_points": 711
       },
       "human_scene_depth_stats": {
         "num_human_vertices": 10475,
-        "num_projected_vertices": 10456,
-        "num_behind_scene_vertices": 901
+        "num_projected_vertices": 10459,
+        "num_behind_scene_vertices": 422
       },
       "scene_intersect_debug": {
         "init": {
@@ -108,8 +108,8 @@
             "num_sdf_query_points": 700000,
             "num_visualized_points": 700000,
             "num_inside_points": 0,
-            "num_margin_points": 42,
-            "min_sdf_m": 0.0011596825206652284,
+            "num_margin_points": 39,
+            "min_sdf_m": 0.001957472413778305,
             "max_sdf_m": 6.268679141998291
           },
           "sdf_grid": {
@@ -119,10 +119,10 @@
               64,
               64
             ],
-            "min_sdf_m": -0.09492577612400055,
+            "min_sdf_m": -0.09745928645133972,
             "max_sdf_m": 0.6570104956626892,
-            "num_inside_grid_points": 11167,
-            "num_near_surface_grid_points": 5504,
+            "num_inside_grid_points": 11127,
+            "num_near_surface_grid_points": 5454,
             "color_clamp_m": 0.05
           }
         },
@@ -143,10 +143,10 @@
             "num_scene_collision_points": 700000,
             "num_sdf_query_points": 700000,
             "num_visualized_points": 700000,
-            "num_inside_points": 728,
-            "num_margin_points": 573,
-            "min_sdf_m": -0.03504965081810951,
-            "max_sdf_m": 6.087045669555664
+            "num_inside_points": 161,
+            "num_margin_points": 542,
+            "min_sdf_m": -0.021345259621739388,
+            "max_sdf_m": 6.097243785858154
           },
           "sdf_grid": {
             "num_grid_points": 262144,
@@ -155,10 +155,10 @@
               64,
               64
             ],
-            "min_sdf_m": -0.09416164457798004,
-            "max_sdf_m": 0.656669557094574,
-            "num_inside_grid_points": 11702,
-            "num_near_surface_grid_points": 5670,
+            "min_sdf_m": -0.09616874158382416,
+            "max_sdf_m": 0.7018462419509888,
+            "num_inside_grid_points": 10740,
+            "num_near_surface_grid_points": 5386,
             "color_clamp_m": 0.05
           }
         }
@@ -242,8 +242,8 @@
           "fixed_part_name": "lower cabinet",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0005803105887025595,
-          "nocontact_distance_m": 0.024089636541520493
+          "nocontact_raw": 0.0008624419569969177,
+          "nocontact_distance_m": 0.029367362104842133
         },
         {
           "node_a": "human.right_hand",
@@ -257,8 +257,8 @@
           "fixed_part_name": "lower cabinet",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0018053003586828709,
-          "nocontact_distance_m": 0.04248882628036306
+          "nocontact_raw": 0.002514640800654888,
+          "nocontact_distance_m": 0.05014619427887712
         },
         {
           "node_a": "human.left_foot",
@@ -272,8 +272,8 @@
           "fixed_part_name": "floor",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0006101218168623745,
-          "nocontact_distance_m": 0.024700644057643002
+          "nocontact_raw": 0.0007521033403463662,
+          "nocontact_distance_m": 0.02742450255421903
         },
         {
           "node_a": "human.right_foot",
@@ -287,8 +287,8 @@
           "fixed_part_name": "floor",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0008115231757983565,
-          "nocontact_distance_m": 0.028487245844383703
+          "nocontact_raw": 0.0005318333278410137,
+          "nocontact_distance_m": 0.02306151182904134
         }
       ]
     },

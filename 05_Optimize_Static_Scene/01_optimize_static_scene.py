@@ -428,6 +428,13 @@ def linear_weight(
     )
 
 
+def human_scene_depth_loss_enabled(args: argparse.Namespace) -> bool:
+    return (
+        float(args.human_scene_depth_weight_start) != 0.0
+        or float(args.human_scene_depth_weight_end) != 0.0
+    )
+
+
 def save_loss_plot_tree(
     plot_dir: Path,
     rows: list[dict[str, Any]],
@@ -1580,7 +1587,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--scene_intersect_weight_end",
         type=float,
-        default=30,
+        default=40,
     )
     parser.add_argument("--scene_intersect_margin_m", type=float, default=0.01)
     parser.add_argument("--scene_intersect_surface_samples", type=int, default=700000)
@@ -1594,15 +1601,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--human_scene_depth_penetration_tolerance_m",
         type=float,
-        default=0.01,
+        default=0.00,
     )
     parser.add_argument("--human_scene_depth_min_valid_weight", type=float, default=0.25)
     parser.add_argument("--nocontact_weight_start", type=float, default=800.0)
     parser.add_argument("--nocontact_weight_end", type=float, default=800.0)
     parser.add_argument("--self_intersect_weight_start", type=float, default=0.0)
-    parser.add_argument("--self_intersect_weight_end", type=float, default=1e-3)
+    parser.add_argument("--self_intersect_weight_end", type=float, default=0.0)  # Original 1e-3
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--log_every", type=int, default=50)
+    parser.add_argument("--log_every", type=int, default=200)
     parser.add_argument("--contact_masks_dir", type=str, default=None)
     parser.add_argument(
         "--contact_projection_depth_jump_m",
@@ -2054,12 +2061,18 @@ def compute_scene_inside_human_loss(
 def compute_human_scene_depth_loss(
     current_vertices: torch.Tensor,
     scene_depth: torch.Tensor,
+    scene_depth_valid: torch.Tensor,
     intrinsics: torch.Tensor,
     penetration_tolerance_m: float,
     min_valid_weight: float,
 ) -> tuple[torch.Tensor, dict[str, int]]:
     if scene_depth.ndim != 4 or scene_depth.shape[0] != 1 or scene_depth.shape[1] != 1:
         raise ValueError("scene_depth must have shape [1, 1, H, W].")
+    if scene_depth_valid.shape != scene_depth.shape:
+        raise ValueError(
+            "scene_depth_valid must have the same shape as scene_depth, got "
+            f"{scene_depth_valid.shape} and {scene_depth.shape}."
+        )
     if intrinsics.shape != (3, 3):
         raise ValueError(f"intrinsics must have shape [3, 3], got {intrinsics.shape}.")
 
@@ -2091,7 +2104,6 @@ def compute_human_scene_depth_loss(
     else:
         grid_y = torch.zeros_like(v)
     grid = torch.stack((grid_x, grid_y), dim=-1).view(1, -1, 1, 2)
-    scene_depth_valid = (scene_depth > 1e-6).to(dtype=scene_depth.dtype)
     sampled_depth_sum = F.grid_sample(
         scene_depth,
         grid,
@@ -2328,8 +2340,9 @@ def compute_loss_dict(
     interaction_edges: list[DynamicInteractionEdge],
     scene_collision_points_t: torch.Tensor,
     scene_intersect_margin_m: float,
-    scene_depth_t: torch.Tensor,
-    scene_depth_intrinsics_t: torch.Tensor,
+    scene_depth_t: torch.Tensor | None,
+    scene_depth_valid_t: torch.Tensor | None,
+    scene_depth_intrinsics_t: torch.Tensor | None,
     human_scene_depth_penetration_tolerance_m: float,
     human_scene_depth_min_valid_weight: float,
     init_params: dict[str, torch.Tensor],
@@ -2357,13 +2370,22 @@ def compute_loss_dict(
         scene_collision_points=scene_collision_points_t,
         clearance_margin_m=scene_intersect_margin_m,
     )
-    human_scene_depth, human_scene_depth_stats = compute_human_scene_depth_loss(
-        current_vertices=verts_camera,
-        scene_depth=scene_depth_t,
-        intrinsics=scene_depth_intrinsics_t,
-        penetration_tolerance_m=human_scene_depth_penetration_tolerance_m,
-        min_valid_weight=human_scene_depth_min_valid_weight,
-    )
+    if (
+        scene_depth_t is not None
+        and scene_depth_valid_t is not None
+        and scene_depth_intrinsics_t is not None
+    ):
+        human_scene_depth, human_scene_depth_stats = compute_human_scene_depth_loss(
+            current_vertices=verts_camera,
+            scene_depth=scene_depth_t,
+            scene_depth_valid=scene_depth_valid_t,
+            intrinsics=scene_depth_intrinsics_t,
+            penetration_tolerance_m=human_scene_depth_penetration_tolerance_m,
+            min_valid_weight=human_scene_depth_min_valid_weight,
+        )
+    else:
+        human_scene_depth = zero
+        human_scene_depth_stats = {}
     nocontact = compute_contact_distance_loss(
         current_vertices=verts_camera,
         edges=interaction_edges,
@@ -2484,8 +2506,8 @@ def optimize_track(
     init_params_np: dict[str, np.ndarray],
     interaction_edges: list[DynamicInteractionEdge],
     scene_collision_points: np.ndarray,
-    scene_depth: np.ndarray,
-    scene_depth_intrinsics: np.ndarray,
+    scene_depth: np.ndarray | None,
+    scene_depth_intrinsics: np.ndarray | None,
     args: argparse.Namespace,
     device: torch.device,
     snapshots_dir: Path,
@@ -2534,12 +2556,22 @@ def optimize_track(
     scene_collision_points_t = torch.from_numpy(
         scene_collision_points.astype(np.float32)
     ).to(device)
-    scene_depth_t = torch.from_numpy(
-        scene_depth.astype(np.float32)
-    ).to(device).view(1, 1, scene_depth.shape[0], scene_depth.shape[1])
-    scene_depth_intrinsics_t = torch.from_numpy(
-        scene_depth_intrinsics.astype(np.float32)
-    ).to(device)
+    if human_scene_depth_loss_enabled(args):
+        if scene_depth is None or scene_depth_intrinsics is None:
+            raise RuntimeError(
+                "human_scene_depth loss is enabled, but scene depth inputs are missing."
+            )
+        scene_depth_t = torch.from_numpy(
+            scene_depth.astype(np.float32)
+        ).to(device).view(1, 1, scene_depth.shape[0], scene_depth.shape[1])
+        scene_depth_valid_t = (scene_depth_t > 1e-6).to(dtype=scene_depth_t.dtype)
+        scene_depth_intrinsics_t = torch.from_numpy(
+            scene_depth_intrinsics.astype(np.float32)
+        ).to(device)
+    else:
+        scene_depth_t = None
+        scene_depth_valid_t = None
+        scene_depth_intrinsics_t = None
 
     iter_rows: list[dict[str, Any]] = []
     rigid_stage_iters, pose_stage_iters = resolve_optimization_stage_iters(args)
@@ -2593,6 +2625,7 @@ def optimize_track(
                 scene_collision_points_t=scene_collision_points_t,
                 scene_intersect_margin_m=float(args.scene_intersect_margin_m),
                 scene_depth_t=scene_depth_t,
+                scene_depth_valid_t=scene_depth_valid_t,
                 scene_depth_intrinsics_t=scene_depth_intrinsics_t,
                 human_scene_depth_penetration_tolerance_m=float(
                     args.human_scene_depth_penetration_tolerance_m
@@ -2648,6 +2681,7 @@ def optimize_track(
             scene_collision_points_t=scene_collision_points_t,
             scene_intersect_margin_m=float(args.scene_intersect_margin_m),
             scene_depth_t=scene_depth_t,
+            scene_depth_valid_t=scene_depth_valid_t,
             scene_depth_intrinsics_t=scene_depth_intrinsics_t,
             human_scene_depth_penetration_tolerance_m=float(
                 args.human_scene_depth_penetration_tolerance_m
@@ -2718,7 +2752,10 @@ def main() -> None:
         )
     output_root = ensure_dir(resolve_path(args.output_root, defaults["output_root"]))
     scene_root = ensure_dir(output_root / "scene")
-    scene_depth_dir = ensure_dir(scene_root / "depth")
+    human_scene_depth_active = human_scene_depth_loss_enabled(args)
+    scene_depth_dir = scene_root / "depth"
+    if human_scene_depth_active:
+        ensure_dir(scene_depth_dir)
     debug_root = ensure_dir(output_root / "debug")
     summary_json_path = output_root / "alignment_summary.json"
     scannet_root = resolve_scannet_root(SCRIPT_DIR, args.scannet_root)
@@ -2779,24 +2816,25 @@ def main() -> None:
         rotation_world_to_camera=rotation_world_to_camera,
         translation_world_to_camera=translation_world_to_camera,
     )
-    scene_faces_in_view = filter_faces_to_camera_view(
-        verts_camera=scene_verts_camera,
-        faces=scene_faces,
-        intrinsics=intrinsics,
-        width=width,
-        height=height,
-        max_depth_m=20.0,
-        border_px=96.0,
-    )
-    (
-        scene_verts_camera_render,
-        scene_faces_render,
-        _,
-    ) = compact_mesh_with_vertex_ids(
-        scene_verts_camera, scene_faces_in_view
-    )
-    if scene_faces_render.shape[0] == 0:
-        raise RuntimeError("No scene faces remained after view-frustum filtering.")
+    if human_scene_depth_active:
+        scene_faces_in_view = filter_faces_to_camera_view(
+            verts_camera=scene_verts_camera,
+            faces=scene_faces,
+            intrinsics=intrinsics,
+            width=width,
+            height=height,
+            max_depth_m=20.0,
+            border_px=96.0,
+        )
+        (
+            scene_verts_camera_render,
+            scene_faces_render,
+            _,
+        ) = compact_mesh_with_vertex_ids(
+            scene_verts_camera, scene_faces_in_view
+        )
+        if scene_faces_render.shape[0] == 0:
+            raise RuntimeError("No scene faces remained after view-frustum filtering.")
     contact_scene_faces_in_view = filter_faces_to_camera_view(
         verts_camera=scene_verts_camera,
         faces=scene_faces,
@@ -2819,14 +2857,17 @@ def main() -> None:
             "No scene faces remained after contact crop camera filtering."
         )
 
-    scene_depth, _, _ = rasterize_depth_and_mask(
-        scene_verts_camera_render,
-        scene_faces_render,
-        camera_ctx=camera_ctx,
-        device=device,
-    )
-    np.save(scene_depth_dir / "scene_depth.npy", scene_depth.astype(np.float32))
-    save_depth_visualization(scene_depth_dir / "scene_depth_vis.png", scene_depth)
+    if human_scene_depth_active:
+        scene_depth, _, _ = rasterize_depth_and_mask(
+            scene_verts_camera_render,
+            scene_faces_render,
+            camera_ctx=camera_ctx,
+            device=device,
+        )
+        np.save(scene_depth_dir / "scene_depth.npy", scene_depth.astype(np.float32))
+        save_depth_visualization(scene_depth_dir / "scene_depth_vis.png", scene_depth)
+    else:
+        scene_depth = None
 
     human_result_dir = human_pose_root
     if not human_result_dir.is_dir():
@@ -2929,7 +2970,7 @@ def main() -> None:
             interaction_edges=interaction_edges,
             scene_collision_points=scene_collision_points,
             scene_depth=scene_depth,
-            scene_depth_intrinsics=intrinsics,
+            scene_depth_intrinsics=intrinsics if human_scene_depth_active else None,
             args=args,
             device=device,
             snapshots_dir=snapshots_dir,
