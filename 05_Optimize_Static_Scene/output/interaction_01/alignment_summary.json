@@ -11,20 +11,34 @@
       "rigid": 800,
       "pose": 1200
     },
+    "stage_trainable": {
+      "rigid": {
+        "transl": true,
+        "global_orient": false,
+        "scale": true,
+        "body_pose": false
+      },
+      "pose": {
+        "transl": true,
+        "global_orient": true,
+        "scale": true,
+        "body_pose": true
+      }
+    },
     "loss_weights": {
-      "root_orient_gvhmr": 20.0,
-      "pose_gvhmr": 50.0,
+      "orient_gvhmr": 100.0,
+      "pose_gvhmr": 250.0,
       "height_prior": 1.0,
       "scene_intersect": {
         "start": 0.0,
-        "end": 10.0,
+        "end": 30.0,
         "clearance_margin_m": 0.01,
         "surface_samples": 700000,
         "debug": true
       },
       "human_scene_depth": {
         "start": 0.0,
-        "end": 10.0,
+        "end": 0.0,
         "penetration_tolerance_m": 0.01,
         "min_valid_weight": 0.25
       },
@@ -54,25 +68,26 @@
   "human": {
     "optimization": {
       "final_iter": 2000,
-      "final_total_loss": 1.0105324983596802,
+      "final_total_loss": 1.117841124534607,
       "stage_iters": {
         "rigid": 800,
         "pose": 1200
       },
       "scene_intersect_sampling": {
-        "mode": "visible_scene_surface",
-        "num_scene_faces_total": 2659391,
-        "num_sampled_points": 700000
+        "mode": "scene_surface",
+        "num_scene_faces_total": 359094,
+        "num_sampled_points": 700000,
+        "source_camera": "contact"
       },
       "scene_intersect_stats": {
         "num_scene_collision_points": 700000,
         "num_sdf_query_points": 700000,
-        "num_inside_or_margin_points": 473
+        "num_inside_or_margin_points": 2217
       },
       "human_scene_depth_stats": {
         "num_human_vertices": 10475,
         "num_projected_vertices": 10475,
-        "num_behind_scene_vertices": 248
+        "num_behind_scene_vertices": 431
       },
       "scene_intersect_debug": {
         "init": {
@@ -92,10 +107,10 @@
             "num_scene_collision_points": 700000,
             "num_sdf_query_points": 700000,
             "num_visualized_points": 700000,
-            "num_inside_points": 241,
-            "num_margin_points": 221,
-            "min_sdf_m": -0.05500445514917374,
-            "max_sdf_m": 6.7888288497924805
+            "num_inside_points": 1257,
+            "num_margin_points": 1065,
+            "min_sdf_m": -0.056162141263484955,
+            "max_sdf_m": 3.0302183628082275
           },
           "sdf_grid": {
             "num_grid_points": 262144,
@@ -104,10 +119,10 @@
               64,
               64
             ],
-            "min_sdf_m": -0.10829922556877136,
-            "max_sdf_m": 0.6668325066566467,
-            "num_inside_grid_points": 9747,
-            "num_near_surface_grid_points": 4928,
+            "min_sdf_m": -0.10734358429908752,
+            "max_sdf_m": 0.6668566465377808,
+            "num_inside_grid_points": 9718,
+            "num_near_surface_grid_points": 4955,
             "color_clamp_m": 0.05
           }
         },
@@ -128,10 +143,10 @@
             "num_scene_collision_points": 700000,
             "num_sdf_query_points": 700000,
             "num_visualized_points": 700000,
-            "num_inside_points": 179,
-            "num_margin_points": 303,
-            "min_sdf_m": -0.023788031190633774,
-            "max_sdf_m": 6.848564147949219
+            "num_inside_points": 712,
+            "num_margin_points": 1495,
+            "min_sdf_m": -0.01289735920727253,
+            "max_sdf_m": 3.0425989627838135
           },
           "sdf_grid": {
             "num_grid_points": 262144,
@@ -140,10 +155,10 @@
               64,
               64
             ],
-            "min_sdf_m": -0.10646570473909378,
-            "max_sdf_m": 0.5913603901863098,
-            "num_inside_grid_points": 11847,
-            "num_near_surface_grid_points": 6311,
+            "min_sdf_m": -0.10939202457666397,
+            "max_sdf_m": 0.5831757187843323,
+            "num_inside_grid_points": 11985,
+            "num_near_surface_grid_points": 6220,
             "color_clamp_m": 0.05
           }
         }
@@ -156,60 +171,60 @@
           "node_b": "white trash bin",
           "moving_entity_name": "human",
           "moving_part_name": "left hand",
-          "moving_segment_id": "left_hand_inner",
-          "moving_segment_name": "left hand inner",
+          "moving_segment_id": "left_hand_contact",
+          "moving_segment_name": "left hand contact",
           "moving_vertex_count": 371,
           "fixed_entity_name": "white trash bin",
           "fixed_part_name": "white trash bin",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0032821730710566044,
-          "nocontact_distance_m": 0.05729025284510974
+          "nocontact_raw": 0.0032749753445386887,
+          "nocontact_distance_m": 0.057227400295126886
         },
         {
           "node_a": "human.right_hand",
           "node_b": "white trash bin",
           "moving_entity_name": "human",
           "moving_part_name": "right hand",
-          "moving_segment_id": "right_hand_inner",
-          "moving_segment_name": "right hand inner",
+          "moving_segment_id": "right_hand_contact",
+          "moving_segment_name": "right hand contact",
           "moving_vertex_count": 373,
           "fixed_entity_name": "white trash bin",
           "fixed_part_name": "white trash bin",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.019216865301132202,
-          "nocontact_distance_m": 0.13862490866050084
+          "nocontact_raw": 0.019192619249224663,
+          "nocontact_distance_m": 0.13853742905520033
         },
         {
           "node_a": "human.left_foot",
           "node_b": "floor",
           "moving_entity_name": "human",
           "moving_part_name": "left foot",
-          "moving_segment_id": "left_foot_bottom",
-          "moving_segment_name": "left foot bottom",
+          "moving_segment_id": "left_foot_contact",
+          "moving_segment_name": "left foot contact",
           "moving_vertex_count": 120,
           "fixed_entity_name": "floor",
           "fixed_part_name": "floor",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.004073827527463436,
-          "nocontact_distance_m": 0.06382654249967984
+          "nocontact_raw": 0.004069908056408167,
+          "nocontact_distance_m": 0.06379583102686387
         },
         {
           "node_a": "human.right_foot",
           "node_b": "floor",
           "moving_entity_name": "human",
           "moving_part_name": "right foot",
-          "moving_segment_id": "right_foot_bottom",
-          "moving_segment_name": "right foot bottom",
+          "moving_segment_id": "right_foot_contact",
+          "moving_segment_name": "right foot contact",
           "moving_vertex_count": 120,
           "fixed_entity_name": "floor",
           "fixed_part_name": "floor",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.002661730395630002,
-          "nocontact_distance_m": 0.05159196057168212
+          "nocontact_raw": 0.0026620326098054647,
+          "nocontact_distance_m": 0.05159488937681197
         }
       ]
     },
@@ -220,60 +235,60 @@
           "node_b": "white trash bin",
           "moving_entity_name": "human",
           "moving_part_name": "left hand",
-          "moving_segment_id": "left_hand_inner",
-          "moving_segment_name": "left hand inner",
+          "moving_segment_id": "left_hand_contact",
+          "moving_segment_name": "left hand contact",
           "moving_vertex_count": 371,
           "fixed_entity_name": "white trash bin",
           "fixed_part_name": "white trash bin",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.001394018647260964,
-          "nocontact_distance_m": 0.03733655912454928
+          "nocontact_raw": 0.0014424597611650825,
+          "nocontact_distance_m": 0.03797972829240728
         },
         {
           "node_a": "human.right_hand",
           "node_b": "white trash bin",
           "moving_entity_name": "human",
           "moving_part_name": "right hand",
-          "moving_segment_id": "right_hand_inner",
-          "moving_segment_name": "right hand inner",
+          "moving_segment_id": "right_hand_contact",
+          "moving_segment_name": "right hand contact",
           "moving_vertex_count": 373,
           "fixed_entity_name": "white trash bin",
           "fixed_part_name": "white trash bin",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0009099270682781935,
-          "nocontact_distance_m": 0.030164997402257362
+          "nocontact_raw": 0.0013428878737613559,
+          "nocontact_distance_m": 0.03664543455549894
         },
         {
           "node_a": "human.left_foot",
           "node_b": "floor",
           "moving_entity_name": "human",
           "moving_part_name": "left foot",
-          "moving_segment_id": "left_foot_bottom",
-          "moving_segment_name": "left foot bottom",
+          "moving_segment_id": "left_foot_contact",
+          "moving_segment_name": "left foot contact",
           "moving_vertex_count": 120,
           "fixed_entity_name": "floor",
           "fixed_part_name": "floor",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.00031911683618091047,
-          "nocontact_distance_m": 0.01786384158519411
+          "nocontact_raw": 0.00030794914346188307,
+          "nocontact_distance_m": 0.017548479804868657
         },
         {
           "node_a": "human.right_foot",
           "node_b": "floor",
           "moving_entity_name": "human",
           "moving_part_name": "right foot",
-          "moving_segment_id": "right_foot_bottom",
-          "moving_segment_name": "right foot bottom",
+          "moving_segment_id": "right_foot_contact",
+          "moving_segment_name": "right foot contact",
           "moving_vertex_count": 120,
           "fixed_entity_name": "floor",
           "fixed_part_name": "floor",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.0002586575865279883,
-          "nocontact_distance_m": 0.016082835152049165
+          "nocontact_raw": 0.00032031640876084566,
+          "nocontact_distance_m": 0.017897385528642045
         }
       ]
     },

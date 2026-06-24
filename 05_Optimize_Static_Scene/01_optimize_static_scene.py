@@ -32,7 +32,7 @@ from mesh_intersection.loss import DistanceFieldPenetrationLoss
 
 
 LOSS_TERM_KEYS = (
-    "root_orient_gvhmr",
+    "orient_gvhmr",
     "pose_gvhmr",
     "height_prior",
     "scene_intersect",
@@ -1214,56 +1214,6 @@ def project_mask_to_depth_filtered_scene_faces(
     return kept_faces, stats
 
 
-def expand_face_set_along_surface(
-    face_indices: np.ndarray,
-    verts_camera: np.ndarray,
-    faces_compact: np.ndarray,
-    num_rings: int,
-) -> np.ndarray:
-    if face_indices.size == 0 or num_rings <= 0:
-        return np.unique(face_indices.astype(np.int64))
-
-    mesh = trimesh.Trimesh(
-        vertices=verts_camera,
-        faces=faces_compact,
-        process=False,
-    )
-    adjacency = np.asarray(mesh.face_adjacency, dtype=np.int64)
-    if adjacency.size == 0:
-        return np.unique(face_indices.astype(np.int64))
-
-    num_faces = int(faces_compact.shape[0])
-    neighbor_offsets = np.zeros(num_faces + 1, dtype=np.int64)
-    pairs = np.concatenate([adjacency, adjacency[:, ::-1]], axis=0)
-    order = np.argsort(pairs[:, 0], kind="stable")
-    pairs_sorted = pairs[order]
-    np.add.at(neighbor_offsets, pairs_sorted[:, 0] + 1, 1)
-    np.cumsum(neighbor_offsets, out=neighbor_offsets)
-    neighbor_flat = pairs_sorted[:, 1]
-
-    in_set = np.zeros(num_faces, dtype=bool)
-    in_set[face_indices.astype(np.int64)] = True
-    frontier = face_indices.astype(np.int64)
-    for _ in range(int(num_rings)):
-        if frontier.size == 0:
-            break
-        starts = neighbor_offsets[frontier]
-        ends = neighbor_offsets[frontier + 1]
-        candidate = np.concatenate(
-            [neighbor_flat[s:e] for s, e in zip(starts, ends)]
-        ) if frontier.size > 0 else np.zeros((0,), dtype=np.int64)
-        if candidate.size == 0:
-            break
-        new_mask = ~in_set[candidate]
-        new_faces = np.unique(candidate[new_mask])
-        if new_faces.size == 0:
-            break
-        in_set[new_faces] = True
-        frontier = new_faces
-
-    return np.flatnonzero(in_set).astype(np.int64)
-
-
 def face_set_to_unique_vertex_ids(
     face_indices: np.ndarray,
     faces_compact: np.ndarray,
@@ -1323,7 +1273,7 @@ def sample_face_set_surface_points(
     return samples.astype(np.float32)
 
 
-def sample_visible_scene_surface_points(
+def sample_scene_surface_points(
     scene_verts_camera: np.ndarray,
     scene_faces: np.ndarray,
     num_samples: int,
@@ -1336,7 +1286,7 @@ def sample_visible_scene_surface_points(
         seed=int(seed),
     )
     return sampled_points.astype(np.float32), {
-        "mode": "visible_scene_surface",
+        "mode": "scene_surface",
         "num_scene_faces_total": int(scene_faces.shape[0]),
         "num_sampled_points": int(sampled_points.shape[0]),
     }
@@ -1598,12 +1548,12 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=None,
         help=(
-            "Number of initial iterations with body_pose frozen. "
+            "Number of initial iterations with body_pose and global orientation frozen. "
             "Defaults to 40 percent of adam_iters, leaving at least one "
             "pose-enabled iteration when possible."
         ),
     )
-    parser.add_argument("--root_orient_gvhmr_weight", type=float, default=20.0)
+    parser.add_argument("--orient_gvhmr_weight", type=float, default=100.0)
     parser.add_argument("--pose_gvhmr_weight", type=float, default=250.0)
     parser.add_argument("--height_prior_weight", type=float, default=1.0)
     parser.add_argument(
@@ -1630,7 +1580,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--scene_intersect_weight_end",
         type=float,
-        default=10,
+        default=30,
     )
     parser.add_argument("--scene_intersect_margin_m", type=float, default=0.01)
     parser.add_argument("--scene_intersect_surface_samples", type=int, default=700000)
@@ -1640,7 +1590,7 @@ def parse_args() -> argparse.Namespace:
         default=True,
     )
     parser.add_argument("--human_scene_depth_weight_start", type=float, default=0.0)
-    parser.add_argument("--human_scene_depth_weight_end", type=float, default=10.0)
+    parser.add_argument("--human_scene_depth_weight_end", type=float, default=0.0)
     parser.add_argument(
         "--human_scene_depth_penetration_tolerance_m",
         type=float,
@@ -1654,7 +1604,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--log_every", type=int, default=50)
     parser.add_argument("--contact_masks_dir", type=str, default=None)
-    parser.add_argument("--contact_region_expand_rings", type=int, default=0)
     parser.add_argument(
         "--contact_projection_depth_jump_m",
         type=float,
@@ -1681,7 +1630,7 @@ def get_loss_weights(
     total_iters: int,
 ) -> dict[str, float]:
     return {
-        "root_orient_gvhmr": float(args.root_orient_gvhmr_weight),
+        "orient_gvhmr": float(args.orient_gvhmr_weight),
         "pose_gvhmr": float(args.pose_gvhmr_weight),
         "height_prior": float(args.height_prior_weight),
         "scene_intersect": linear_weight(
@@ -1800,7 +1749,6 @@ def build_dynamic_interaction_edges(
     scene_vertex_source_ids: np.ndarray,
     camera_ctx: IdentityCameraContext,
     device: torch.device,
-    expand_rings: int,
     surface_sample_seed: int,
     init_verts_camera: np.ndarray,
     contact_projection_depth_jump_m: float,
@@ -1859,7 +1807,7 @@ def build_dynamic_interaction_edges(
                 f"{scene_element}: contact mask is empty"
             )
             continue
-        seed_face_ids, projection_filter_stats = (
+        contact_face_ids, projection_filter_stats = (
             project_mask_to_depth_filtered_scene_faces(
                 contact_mask,
                 scene_verts_camera,
@@ -1872,32 +1820,25 @@ def build_dynamic_interaction_edges(
                 max_component_gap_px=contact_projection_max_component_gap_px,
             )
         )
-        if seed_face_ids.size == 0:
+        if contact_face_ids.size == 0:
             raise RuntimeError(
                 f"Contact mask for '{moving_part_name}' projects to no "
                 f"visible scene faces (mask path under {contact_masks_dir}). "
                 "Check camera/mesh alignment or mask coverage."
             )
         projected_face_count = int(projection_filter_stats["projected_faces"])
-        expanded_face_ids = expand_face_set_along_surface(
-            seed_face_ids,
-            scene_verts_camera,
-            scene_faces_compact,
-            num_rings=int(expand_rings),
-        )
         fixed_vertex_ids = face_set_to_unique_vertex_ids(
-            expanded_face_ids,
+            contact_face_ids,
             scene_faces_compact,
         )
         fixed_vertex_ids = scene_vertex_source_ids[fixed_vertex_ids]
         if fixed_vertex_ids.size == 0:
             raise RuntimeError(
-                f"Empty scene vertex set for '{moving_part_name}' after "
-                f"expansion ({expand_rings} rings)."
+                f"Empty scene vertex set for '{moving_part_name}' contact region."
             )
-        fixed_face_ids = expanded_face_ids
+        fixed_face_ids = contact_face_ids
         fixed_points_part = sample_face_set_surface_points(
-            expanded_face_ids,
+            contact_face_ids,
             verts=scene_verts_camera,
             faces=scene_faces_compact,
             num_samples=CONTACT_SURFACE_SAMPLES_PER_EDGE,
@@ -1914,7 +1855,7 @@ def build_dynamic_interaction_edges(
             f"dropped_faces={projection_filter_stats['dropped_faces']} -> "
             f"depth_components={projection_filter_stats['num_depth_components']} "
             f"kept_components={projection_filter_stats['kept_depth_components']} -> "
-            f"expanded_faces={expanded_face_ids.size} "
+            f"contact_faces={contact_face_ids.size} "
             f"scene_vertices={fixed_vertex_ids.size} "
             f"scene_surface_points={fixed_points_part.shape[0]}"
         )
@@ -2021,7 +1962,7 @@ def compute_canonical_smplx_height_m(
     return float(height.detach().cpu().item())
 
 
-def compute_root_orient_loss(
+def compute_orient_prior_loss(
     current_orient_matrix: torch.Tensor,
     init_orient_matrix: torch.Tensor,
 ) -> torch.Tensor:
@@ -2400,7 +2341,7 @@ def compute_loss_dict(
 
     zero = torch.zeros((), device=verts_camera.device, dtype=verts_camera.dtype)
 
-    root_orient_gvhmr = compute_root_orient_loss(
+    orient_gvhmr = compute_orient_prior_loss(
         current["global_orient_matrix"],
         init_params["global_orient_matrix"],
     )
@@ -2434,7 +2375,7 @@ def compute_loss_dict(
         self_intersect = zero
 
     total = (
-        root_orient_gvhmr * float(weights["root_orient_gvhmr"])
+        orient_gvhmr * float(weights["orient_gvhmr"])
         + pose_gvhmr * float(weights["pose_gvhmr"])
         + height_prior * float(weights["height_prior"])
         + scene_intersect * float(weights["scene_intersect"])
@@ -2444,7 +2385,7 @@ def compute_loss_dict(
     )
     return {
         "total": total,
-        "root_orient_gvhmr": root_orient_gvhmr,
+        "orient_gvhmr": orient_gvhmr,
         "pose_gvhmr": pose_gvhmr,
         "height_prior": height_prior,
         "scene_intersect": scene_intersect,
@@ -2527,10 +2468,11 @@ def resolve_optimization_stage_iters(args: argparse.Namespace) -> tuple[int, int
 
 def set_stage_trainable_params(
     params_module: FullBodySMPLXParams,
+    optimize_global_orient: bool,
     optimize_body_pose: bool,
 ) -> list[nn.Parameter]:
     params_module.transl.requires_grad_(True)
-    params_module.global_orient_6d.requires_grad_(True)
+    params_module.global_orient_6d.requires_grad_(bool(optimize_global_orient))
     params_module.log_scale_raw.requires_grad_(True)
     params_module.body_pose.requires_grad_(bool(optimize_body_pose))
     return [param for param in params_module.parameters() if param.requires_grad]
@@ -2622,15 +2564,16 @@ def optimize_track(
         )
 
     stages = [
-        ("rigid", rigid_stage_iters, False),
-        ("pose", pose_stage_iters, True),
+        ("rigid", rigid_stage_iters, False, False),
+        ("pose", pose_stage_iters, True, True),
     ]
     completed_iters = 0
-    for stage_name, stage_iters, optimize_body_pose in stages:
+    for stage_name, stage_iters, optimize_global_orient, optimize_body_pose in stages:
         if int(stage_iters) <= 0:
             continue
         active_params = set_stage_trainable_params(
             params_module,
+            optimize_global_orient=optimize_global_orient,
             optimize_body_pose=optimize_body_pose,
         )
         optimizer = torch.optim.Adam(active_params, lr=float(args.adam_lr))
@@ -2848,7 +2791,7 @@ def main() -> None:
     (
         scene_verts_camera_render,
         scene_faces_render,
-        scene_render_vertex_source_ids,
+        _,
     ) = compact_mesh_with_vertex_ids(
         scene_verts_camera, scene_faces_in_view
     )
@@ -2922,13 +2865,14 @@ def main() -> None:
             init_verts_camera = init_out.vertices[0].detach().cpu().numpy().astype(np.float32)
 
         scene_collision_points, scene_collision_sampling_stats = (
-            sample_visible_scene_surface_points(
-                scene_verts_camera=scene_verts_camera,
-                scene_faces=scene_faces_in_view,
+            sample_scene_surface_points(
+                scene_verts_camera=contact_scene_verts_camera,
+                scene_faces=contact_scene_faces_render,
                 num_samples=int(args.scene_intersect_surface_samples),
                 seed=int(args.seed) + 4242,
             )
         )
+        scene_collision_sampling_stats["source_camera"] = "contact"
 
         interaction_edges = build_dynamic_interaction_edges(
             sig_payload=sig_payload,
@@ -2940,7 +2884,6 @@ def main() -> None:
             scene_vertex_source_ids=contact_scene_vertex_source_ids,
             camera_ctx=contact_camera_ctx,
             device=device,
-            expand_rings=int(args.contact_region_expand_rings),
             surface_sample_seed=int(args.seed),
             init_verts_camera=init_verts_camera,
             contact_projection_depth_jump_m=float(
@@ -2959,9 +2902,9 @@ def main() -> None:
         save_static_snapshot_references(
             snapshots_dir=snapshots_dir,
             interaction_edges=interaction_edges,
-            scene_verts_camera=scene_verts_camera_render,
-            scene_faces_compact=scene_faces_render,
-            scene_vertex_source_ids=scene_render_vertex_source_ids,
+            scene_verts_camera=contact_scene_verts_camera,
+            scene_faces_compact=contact_scene_faces_render,
+            scene_vertex_source_ids=contact_scene_vertex_source_ids,
             rotation_world_to_camera=rotation_world_to_camera,
             translation_world_to_camera=translation_world_to_camera,
         )
@@ -3092,8 +3035,22 @@ def main() -> None:
                     "rigid": int(optimization["stage_iters"]["rigid"]),
                     "pose": int(optimization["stage_iters"]["pose"]),
                 },
+                "stage_trainable": {
+                    "rigid": {
+                        "transl": True,
+                        "global_orient": False,
+                        "scale": True,
+                        "body_pose": False,
+                    },
+                    "pose": {
+                        "transl": True,
+                        "global_orient": True,
+                        "scale": True,
+                        "body_pose": True,
+                    },
+                },
                 "loss_weights": {
-                    "root_orient_gvhmr": float(args.root_orient_gvhmr_weight),
+                    "orient_gvhmr": float(args.orient_gvhmr_weight),
                     "pose_gvhmr": float(args.pose_gvhmr_weight),
                     "height_prior": float(args.height_prior_weight),
                     "scene_intersect": {

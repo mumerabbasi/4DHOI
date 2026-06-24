@@ -163,6 +163,7 @@ ACTIVE_PIDS=()
 ACTIVE_INTERACTIONS=()
 ACTIVE_GPUS=()
 FAILED_INTERACTIONS=()
+SKIPPED_INTERACTIONS=()
 NEXT_INTERACTION_INDEX=0
 POLL_SECONDS="${POLL_SECONDS:-2}"
 
@@ -229,6 +230,44 @@ launch_interaction() {
   echo "Launched ${interaction_name} on physical GPU ${gpu_id} as cuda:0 (pid ${pid}, log ${log_path})"
 }
 
+missing_required_inputs() {
+  local interaction_name="$1"
+  local missing=()
+
+  local generated_root="${PROJECT_DIR}/02_Generate_Human_Frame/output/${interaction_name}"
+  local sig_input_root="${PROJECT_DIR}/01_Generate_SIG/input_prompts/${interaction_name}"
+  local sig_output_root="${PROJECT_DIR}/01_Generate_SIG/output/${interaction_name}"
+  local human_pose_root="${PROJECT_DIR}/04_Estimate_Human_Pose/output/${interaction_name}"
+  local contact_root="${PROJECT_DIR}/03_Estimate_Contact/output/${interaction_name}"
+
+  [[ -f "${generated_root}/inpainted_frame_resized.png" ]] || missing+=("${generated_root}/inpainted_frame_resized.png")
+  [[ -f "${sig_input_root}/input_scene.json" ]] || missing+=("${sig_input_root}/input_scene.json")
+  [[ -f "${sig_output_root}/sig.json" ]] || missing+=("${sig_output_root}/sig.json")
+  [[ -f "${human_pose_root}/hmr4d_results.pt" ]] || missing+=("${human_pose_root}/hmr4d_results.pt")
+  [[ -d "${contact_root}/contact_masks" ]] || missing+=("${contact_root}/contact_masks/")
+  [[ -f "${contact_root}/prompt/target_scene_crop.png" ]] || missing+=("${contact_root}/prompt/target_scene_crop.png")
+  [[ -f "${contact_root}/contact_spec.json" ]] || missing+=("${contact_root}/contact_spec.json")
+
+  if [[ "${#missing[@]}" -eq 0 ]]; then
+    return 1
+  fi
+
+  printf "%s\n" "${missing[@]}"
+  return 0
+}
+
+skip_interaction() {
+  local interaction_name="$1"
+  local reason="$2"
+  local log_path="${LOG_DIR}/${interaction_name}.log"
+
+  SKIPPED_INTERACTIONS+=("${interaction_name}")
+  {
+    echo "[$(date -Is)] Skipping ${interaction_name}"
+    echo "${reason}"
+  } | tee "${log_path}"
+}
+
 reap_completed_jobs() {
   mapfile -t RUNNING_PIDS < <(jobs -r -p)
   local remaining_pids=()
@@ -267,10 +306,17 @@ trap terminate_active_jobs INT TERM
 
 while [[ "${NEXT_INTERACTION_INDEX}" -lt "${#FILTERED_INTERACTIONS[@]}" || "${#ACTIVE_PIDS[@]}" -gt 0 ]]; do
   while [[ "${NEXT_INTERACTION_INDEX}" -lt "${#FILTERED_INTERACTIONS[@]}" ]]; do
+    interaction_name="${FILTERED_INTERACTIONS[${NEXT_INTERACTION_INDEX}]}"
+    if missing="$(missing_required_inputs "${interaction_name}")"; then
+      skip_interaction "${interaction_name}" "Missing required inputs:
+${missing}"
+      NEXT_INTERACTION_INDEX="$((NEXT_INTERACTION_INDEX + 1))"
+      continue
+    fi
     if ! gpu_id="$(next_available_gpu)"; then
       break
     fi
-    launch_interaction "${FILTERED_INTERACTIONS[${NEXT_INTERACTION_INDEX}]}" "${gpu_id}"
+    launch_interaction "${interaction_name}" "${gpu_id}"
     NEXT_INTERACTION_INDEX="$((NEXT_INTERACTION_INDEX + 1))"
   done
   if [[ "${#ACTIVE_PIDS[@]}" -gt 0 ]]; then
@@ -286,4 +332,7 @@ if [[ "${#FAILED_INTERACTIONS[@]}" -gt 0 ]]; then
   exit 1
 fi
 
+if [[ "${#SKIPPED_INTERACTIONS[@]}" -gt 0 ]]; then
+  echo "Skipped interactions with missing inputs: ${SKIPPED_INTERACTIONS[*]}"
+fi
 echo "All interactions completed at $(date -Is)."
