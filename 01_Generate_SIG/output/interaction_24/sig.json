@@ -1,0 +1,39 @@
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "step ladder"
+    },
+    {
+      "id": "target_object_2",
+      "label": "cupboard"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, right hand",
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object_1",
+    "target_object_2"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object_2",
+      "notes": "the right hand reaches to touch the top of the cupboard"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "target_object_1",
+      "notes": "the left foot presses on a step of the step ladder"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "target_object_1",
+      "notes": "the right foot presses on another step of the step ladder"
+    }
+  ],
+  "interaction": "A person climbs the step ladder while reaching toward the top of the cupboard. The left foot presses on a step of the step ladder, the right foot presses on another step of the step ladder, and the right hand touches the top of the cupboard. The person has short black hair, a focused facial expression, a gray shirt, dark pants, and sneakers."
+}

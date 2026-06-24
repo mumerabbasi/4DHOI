@@ -1,0 +1,40 @@
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "bathtub"
+    },
+    {
+      "id": "target_object_2",
+      "label": "curtain rail"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, left hand",
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object_1",
+    "target_object_2",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "left hand",
+      "scene_element": "target_object_2",
+      "notes": "the left hand grips the curtain rail for balance"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "target_object_1",
+      "notes": "the left foot presses inside the bathtub while stepping over the wall"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "floor",
+      "notes": "the right foot stays planted on the floor outside the bathtub"
+    }
+  ],
+  "interaction": "A person steps over the bathtub wall in a careful balancing pose. The left hand grips the curtain rail, the left foot presses inside the bathtub, and the right foot is planted on the floor outside the tub. The person has short black hair, a focused facial expression, a gray shirt, rolled-up pants, and bare feet."
+}

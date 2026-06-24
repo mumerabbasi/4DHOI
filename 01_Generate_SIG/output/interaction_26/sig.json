@@ -1,0 +1,28 @@
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "pull-up bar"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, left hand",
+    "person 1, right hand"
+  ],
+  "scene_nodes": [
+    "target_object_1"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "left hand",
+      "scene_element": "target_object_1",
+      "notes": "the left hand grips the pull-up bar"
+    },
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object_1",
+      "notes": "the right hand grips the pull-up bar"
+    }
+  ],
+  "interaction": "A person hangs from the pull-up bar with elbows bent and knees tucked upward. The left hand grips the pull-up bar, the right hand grips the pull-up bar, the left foot stays off the floor, and the right foot stays off the floor. The person has short black hair, a strained focused facial expression, a gray athletic shirt, dark shorts, and sneakers."
+}

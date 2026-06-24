@@ -1,0 +1,40 @@
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "ladder"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object_1"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "left hand",
+      "scene_element": "target_object_1",
+      "notes": "the left hand grips the ladder frame"
+    },
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object_1",
+      "notes": "the right hand grips the ladder frame"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "target_object_1",
+      "notes": "the left foot remains on a ladder step while stepping down"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "target_object_1",
+      "notes": "the right foot remains on another ladder step while stepping down"
+    }
+  ],
+  "interaction": "A person steps down from the ladder in a cautious descending pose. The left hand grips the ladder frame, the right hand grips the ladder frame, the left foot remains on a ladder step, and the right foot remains on another ladder step. The person has short black hair, a careful facial expression, a casual shirt, pants, and socks or soft shoes."
+}

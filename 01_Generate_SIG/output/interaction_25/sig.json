@@ -1,0 +1,40 @@
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "fixed lecture-hall seat row"
+    },
+    {
+      "id": "target_object_2",
+      "label": "railing"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, right hand",
+    "person 1, left leg",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object_1",
+    "target_object_2",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object_2",
+      "notes": "the right hand braces on the railing for balance"
+    },
+    {
+      "human_part": "left leg",
+      "scene_element": "target_object_1",
+      "notes": "the left leg contacts the fixed lecture-hall seat row while stepping over it"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "floor",
+      "notes": "the right foot supports the body on the stair floor"
+    }
+  ],
+  "interaction": "A person steps over the fixed lecture-hall seat row in a careful balancing pose. The right hand braces on the railing, the left leg contacts the fixed lecture-hall seat row while crossing it, and the right foot supports the body on the stair floor. The person has short black hair, a concentrated facial expression, a casual shirt, pants, and sneakers."
+}

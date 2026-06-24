@@ -1,0 +1,41 @@
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "rowing machine"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object_1",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "left hand",
+      "scene_element": "target_object_1",
+      "notes": "the left hand holds the rowing machine handlebar"
+    },
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object_1",
+      "notes": "the right hand holds the rowing machine handlebar"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "floor",
+      "notes": "the left foot supports the standing pose on the floor beside the rowing machine"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "floor",
+      "notes": "the right foot supports the standing pose on the floor beside the rowing machine"
+    }
+  ],
+  "interaction": "A person stands beside the rowing machine while preparing to exercise. The left hand holds the rowing machine handlebar, the right hand holds the rowing machine handlebar, the left foot is planted on the floor, and the right foot is planted on the floor. The person has short dark hair, a focused facial expression, an athletic shirt, shorts, and sneakers."
+}

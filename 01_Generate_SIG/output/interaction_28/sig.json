@@ -1,0 +1,34 @@
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "treadmill"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object_1"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "left hand",
+      "scene_element": "target_object_1",
+      "notes": "the left hand lightly holds the left side handle of the treadmill"
+    },
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object_1",
+      "notes": "the right hand lightly holds the right side handle of the treadmill"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "target_object_1",
+      "notes": "the right foot lands on the moving belt of the treadmill"
+    }
+  ],
+  "interaction": "A person runs on the treadmill in a forward-moving exercise pose. The left hand lightly holds the left side handle of the treadmill, the right hand lightly holds the right side handle of the treadmill, and the right foot lands on the moving belt of the treadmill while the left leg lifts behind. The person has tied-back dark hair, a focused facial expression, an athletic top, leggings, and running shoes."
+}
