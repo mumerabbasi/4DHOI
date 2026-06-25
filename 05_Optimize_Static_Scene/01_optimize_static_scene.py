@@ -1553,7 +1553,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--rigid_stage_iters",
         type=int,
-        default=None,
+        default=400,
         help=(
             "Number of initial iterations with body_pose and global orientation frozen. "
             "Defaults to 40 percent of adam_iters, leaving at least one "
@@ -1582,14 +1582,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--scene_intersect_weight_start",
         type=float,
-        default=0,
+        default=60,
     )
     parser.add_argument(
         "--scene_intersect_weight_end",
         type=float,
-        default=40,
+        default=60,
     )
-    parser.add_argument("--scene_intersect_margin_m", type=float, default=0.01)
+    parser.add_argument("--scene_intersect_margin_m", type=float, default=0.00)
     parser.add_argument("--scene_intersect_surface_samples", type=int, default=700000)
     parser.add_argument(
         "--scene_intersect_debug",
