@@ -10,6 +10,8 @@ Generate an edited copy of the Canvas Image with solid-color segmentation masks 
 
 Infer the contacted region relative to the target object in the Reference Image, then place the corresponding contact mask on the matching object region in the Canvas Image.
 
+Don't change anything in the canvas image other than the overlay colors.
+
 Analysis Requirements:
 
 1. Contact Inference:

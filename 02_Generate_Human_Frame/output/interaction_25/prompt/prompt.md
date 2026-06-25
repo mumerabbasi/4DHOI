@@ -23,4 +23,4 @@ Output:
 - Return only the edited scene image.
 
 Interaction:
-A person steps over the fixed lecture-hall seat row in a careful balancing pose. The right hand braces on the railing, the left leg contacts the fixed lecture-hall seat row while crossing it, and the right foot supports the body on the stair floor. The person has short black hair, a concentrated facial expression, a casual shirt, pants, and sneakers.
+A person steps over the fixed lecture-hall seat row in a careful balancing pose. The right hand braces on the railing, the right foot contacts the fixed lecture-hall seat row while crossing it, and the left foot supports the body on the stair floor. The person has short black hair, a concentrated facial expression, a casual shirt, pants, and sneakers.

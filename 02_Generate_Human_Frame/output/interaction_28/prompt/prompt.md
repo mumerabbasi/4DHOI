@@ -23,4 +23,4 @@ Output:
 - Return only the edited scene image.
 
 Interaction:
-A person runs on the treadmill in a forward-moving exercise pose. The left hand lightly holds the left side handle of the treadmill, the right hand lightly holds the right side handle of the treadmill, and the right foot lands on the moving belt of the treadmill while the left leg lifts behind. The person has tied-back dark hair, a focused facial expression, an athletic top, leggings, and running shoes.
+A person runs on the treadmill in a forward-moving exercise pose. The left hand lightly holds the left side handle of the treadmill, the right hand lightly holds the right side handle of the treadmill, and the left foot lands on the moving belt of the treadmill while the right leg lifts behind. The person has tied-back dark hair, a focused facial expression, an athletic top, leggings, and running shoes.

@@ -23,4 +23,4 @@ Output:
 - Return only the edited scene image.
 
 Interaction:
-A person steps over the bathtub wall in a careful balancing pose. The left hand grips the curtain rail, the left foot presses inside the bathtub, and the right foot is planted on the floor outside the tub. The person has short black hair, a focused facial expression, a gray shirt, rolled-up pants, and bare feet.
+A person steps over the bathtub wall in a careful balancing pose. The left hand grips the side glass, the left foot presses inside the bathtub, and the right foot is planted on the floor outside the tub. The person has short black hair, a focused facial expression, a gray shirt, rolled-up pants, and bare feet.

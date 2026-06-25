@@ -9,33 +9,33 @@
     "person 1, left hand",
     "person 1, right hand",
     "person 1, left foot",
-    "person 1, right foot"
+    "person 1, right foot",
+    "person 1, hips"
   ],
   "scene_nodes": [
-    "target_object_1",
-    "floor"
+    "target_object_1"
   ],
   "interaction_edges": [
     {
       "human_part": "left hand",
       "scene_element": "target_object_1",
-      "notes": "the left hand holds the rowing machine handlebar"
+      "notes": "the left hand holds the rowing machine handlebar while preparing to row"
     },
     {
       "human_part": "right hand",
       "scene_element": "target_object_1",
-      "notes": "the right hand holds the rowing machine handlebar"
+      "notes": "the right hand holds the rowing machine handlebar while preparing to row"
     },
     {
       "human_part": "left foot",
       "scene_element": "floor",
-      "notes": "the left foot supports the standing pose on the floor beside the rowing machine"
+      "notes": "the left foot is placed on the floor"
     },
     {
       "human_part": "right foot",
       "scene_element": "floor",
-      "notes": "the right foot supports the standing pose on the floor beside the rowing machine"
+      "notes": "the right foot is placed on the floor"
     }
   ],
-  "interaction": "A person stands beside the rowing machine while preparing to exercise. The left hand holds the rowing machine handlebar, the right hand holds the rowing machine handlebar, the left foot is planted on the floor, and the right foot is planted on the floor. The person has short dark hair, a focused facial expression, an athletic shirt, shorts, and sneakers."
+  "interaction": "A person stands sitting on the rowing machine while preparing to exercise. The left hand holds the rowing machine handlebar, the right hand holds the rowing machine handlebar, the left foot is planted on the floor, and the right foot is planted on the floor. The person has short dark hair, a focused facial expression, an athletic shirt, shorts, and sneakers."
 }

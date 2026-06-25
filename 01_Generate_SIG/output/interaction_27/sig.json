@@ -6,7 +6,7 @@
     },
     {
       "id": "target_object_2",
-      "label": "curtain rail"
+      "label": "side glass"
     }
   ],
   "human_part_nodes": [
@@ -23,7 +23,7 @@
     {
       "human_part": "left hand",
       "scene_element": "target_object_2",
-      "notes": "the left hand grips the curtain rail for balance"
+      "notes": "the left hand grips the side glass for balance"
     },
     {
       "human_part": "left foot",
@@ -36,5 +36,5 @@
       "notes": "the right foot stays planted on the floor outside the bathtub"
     }
   ],
-  "interaction": "A person steps over the bathtub wall in a careful balancing pose. The left hand grips the curtain rail, the left foot presses inside the bathtub, and the right foot is planted on the floor outside the tub. The person has short black hair, a focused facial expression, a gray shirt, rolled-up pants, and bare feet."
+  "interaction": "A person steps over the bathtub wall in a careful balancing pose. The left hand grips the side glass, the left foot presses inside the bathtub, and the right foot is planted on the floor outside the tub. The person has short black hair, a focused facial expression, a gray shirt, rolled-up pants, and bare feet."
 }

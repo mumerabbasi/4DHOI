@@ -23,4 +23,4 @@ Output:
 - Return only the edited scene image.
 
 Interaction:
-A person stands beside the rowing machine while preparing to exercise. The left hand holds the rowing machine handlebar, the right hand holds the rowing machine handlebar, the left foot is planted on the floor, and the right foot is planted on the floor. The person has short dark hair, a focused facial expression, an athletic shirt, shorts, and sneakers.
+A person stands sitting on the rowing machine while preparing to exercise. The left hand holds the rowing machine handlebar, the right hand holds the rowing machine handlebar, the left foot is planted on the floor, and the right foot is planted on the floor. The person has short dark hair, a focused facial expression, an athletic shirt, shorts, and sneakers.
