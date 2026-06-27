@@ -1,0 +1,9 @@
+\begin{thesisabstract}
+Generating a human who interacts convincingly with a real 3D scene is difficult because the input is usually semantic, while the output must satisfy geometry. A hand should meet the correct object surface, feet should support the body, and the body should not pass through nearby furniture or the room itself. This thesis studies a zero-shot pipeline for static human-scene interaction synthesis from a single RGB view, a ScanNet++ scene mesh, and a language instruction.
+
+The method uses foundation models where their strengths are most useful, but keeps the final result tied to metric 3D geometry. First, a vision-language model converts the instruction into a Scene Interaction Graph that names the target object, relevant human body parts, and intended contact edges. An image editing model then inserts a plausible human into the scene, producing a 2D reference for the interaction. A second contact-inpainting step estimates object-surface contact masks for the body parts specified by the graph. These masks are projected from the image view onto the visible scene mesh and converted into 3D contact targets. Starting from an SMPL-X body initialized with GVHMR, the final stage optimizes pose, orientation, translation, and scale using contact, depth ordering, scene collision, self-intersection, height, and pose-prior terms.
+
+The pipeline is evaluated on real indoor scenes using physical contact distances, non-collision metrics, render-based semantic consistency, and vision-language model verification. The result is a practical framework for turning text-level interaction intent into a geometrically grounded 3D human placement without task-specific training.
+
+\textbf{Keywords:} human-scene interaction, foundation models, zero-shot synthesis, SMPL-X, contact optimization
+\end{thesisabstract}

@@ -1,0 +1,171 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{styles/thesis}[2026/06/21 Master thesis template]
+
+\RequirePackage[a4paper,left=32mm,right=28mm,top=30mm,bottom=32mm]{geometry}
+\RequirePackage{fontspec}
+\RequirePackage{graphicx}
+\RequirePackage{booktabs}
+\RequirePackage{array}
+\RequirePackage{tabularx}
+\RequirePackage{amsmath}
+\RequirePackage{amssymb}
+\RequirePackage{xcolor}
+\RequirePackage{setspace}
+\RequirePackage{caption}
+\RequirePackage{subcaption}
+\RequirePackage[numbers,sort&compress]{natbib}
+\RequirePackage{url}
+\RequirePackage[hidelinks]{hyperref}
+\RequirePackage[nameinlink,noabbrev]{cleveref}
+
+\IfFileExists{microtype.sty}{\RequirePackage{microtype}}{}
+
+\defaultfontfeatures{Ligatures=TeX}
+\setmainfont{Latin Modern Roman}
+\setsansfont{Latin Modern Sans}
+\setmonofont{Latin Modern Mono}
+
+\onehalfspacing
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.65em}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{2}
+
+\definecolor{ThesisBlue}{HTML}{1F4E79}
+\definecolor{ThesisGray}{HTML}{5A6572}
+\definecolor{ThesisLightGray}{HTML}{F2F4F7}
+
+\hypersetup{
+  pdftitle={\ThesisTitle},
+  pdfauthor={\ThesisAuthor},
+  pdfsubject={\ThesisDegree},
+  pdfkeywords={master thesis, computer vision, machine learning}
+}
+
+\renewcommand{\chaptername}{Chapter}
+\renewcommand{\arraystretch}{1.18}
+
+\newcommand{\todo}[1]{\textcolor{red}{TODO: #1}}
+\newcommand{\placeholder}[1]{\textcolor{ThesisGray}{#1}}
+
+\newcommand{\chapterabstract}[1]{%
+  #1\par
+}
+
+% Title page layout knobs. Adjust these lengths instead of editing the body.
+\newlength{\TitlePageTopOffset}
+\newlength{\TitleHeaderTextWidth}
+\newlength{\TitleHeaderLogoWidth}
+\newlength{\TitleHeaderProfessorGap}
+\newlength{\TitleHeaderLineGap}
+\newlength{\TitleHeaderToRuleGap}
+\newlength{\TitleRuleThickness}
+\newlength{\TitleHeaderToDegreeGap}
+\newlength{\TitleAroundTitleGap}
+\newlength{\TitleBlockWidth}
+\newlength{\TitleSubtitleGap}
+\newlength{\TitleInfoColumnGap}
+\newlength{\TitleInfoValueWidth}
+\newlength{\TitleInfoRowGap}
+\newlength{\TitlePageBottomReserve}
+
+\setlength{\TitlePageTopOffset}{0.1cm}
+\setlength{\TitleHeaderTextWidth}{0.68\textwidth}
+\setlength{\TitleHeaderLogoWidth}{0.28\textwidth}
+\setlength{\TitleHeaderProfessorGap}{0.12cm}
+\setlength{\TitleHeaderLineGap}{0.08cm}
+\setlength{\TitleHeaderToRuleGap}{0.45cm}
+\setlength{\TitleRuleThickness}{0.7pt}
+\setlength{\TitleHeaderToDegreeGap}{3.95cm}
+\setlength{\TitleAroundTitleGap}{1.85cm}
+\setlength{\TitleBlockWidth}{0.86\textwidth}
+\setlength{\TitleSubtitleGap}{0.35cm}
+\setlength{\TitleInfoColumnGap}{1.2cm}
+\setlength{\TitleInfoValueWidth}{0.44\textwidth}
+\setlength{\TitleInfoRowGap}{0.16cm}
+\setlength{\TitlePageBottomReserve}{1.15cm}
+
+\newcommand{\thesistitlepage}{%
+  \begin{titlepage}
+    \centering
+    \vspace*{\TitlePageTopOffset}
+    \noindent
+    \begin{minipage}[c]{\TitleHeaderTextWidth}
+      \raggedright
+      {\large\bfseries \ThesisChair\par}
+      \vspace{\TitleHeaderProfessorGap}
+      {\normalsize \ThesisChairProfessor\par}
+      \vspace{\TitleHeaderLineGap}
+      {\normalsize \ThesisSchool\par}
+      \vspace{\TitleHeaderLineGap}
+      {\normalsize \ThesisUniversity\par}
+    \end{minipage}%
+    \hfill
+    \begin{minipage}[c]{\TitleHeaderLogoWidth}
+      \raggedleft
+      \IfFileExists{figures/TUM_Logo.png}{\includegraphics[width=\linewidth]{figures/TUM_Logo.png}}{}
+    \end{minipage}
+    \vspace{\TitleHeaderToRuleGap}
+    {\color{ThesisBlue}\rule{\textwidth}{\TitleRuleThickness}\par}
+
+    \vspace{\TitleHeaderToDegreeGap}
+    {\Large \MakeUppercase{\ThesisDegree}\par}
+    \vspace{\TitleAroundTitleGap}
+    {\parbox{\TitleBlockWidth}{\centering\LARGE\bfseries\linespread{1.08}\selectfont \ThesisTitle\par}}
+    \if\relax\detokenize\expandafter{\ThesisSubtitle}\relax
+    \else
+      \vspace{\TitleSubtitleGap}
+      {\large\color{ThesisGray} \ThesisSubtitle\par}
+    \fi
+
+    \vspace{\TitleAroundTitleGap}
+    \begin{tabular}{@{}>{\bfseries}l@{\hspace{\TitleInfoColumnGap}}p{\TitleInfoValueWidth}@{}}
+      Author: & \ThesisAuthor \\
+      \addlinespace[\TitleInfoRowGap]
+      Matriculation Number: & \ThesisMatriculationNumber \\
+      \addlinespace[\TitleInfoRowGap]
+      Email: & \ThesisEmail \\
+      \addlinespace[\TitleInfoRowGap]
+      Supervisor: & \ThesisSupervisor \\
+      \addlinespace[\TitleInfoRowGap]
+      Supervisor Email: & \ThesisSupervisorEmail \\
+      \addlinespace[\TitleInfoRowGap]
+      Start Date: & \ThesisBeginDate \\
+      \addlinespace[\TitleInfoRowGap]
+      Submission Date: & \ThesisSubmissionDate \\
+    \end{tabular}
+    \vspace*{\TitlePageBottomReserve}
+  \end{titlepage}
+}
+
+\newenvironment{thesisabstract}{%
+  \chapter*{Abstract}
+  \addcontentsline{toc}{chapter}{Abstract}
+}{\cleardoublepage}
+
+\newenvironment{thesisacknowledgments}{%
+  \chapter*{Acknowledgments}
+  \addcontentsline{toc}{chapter}{Acknowledgments}
+}{\cleardoublepage}
+
+\newenvironment{thesisdeclaration}{%
+  \chapter*{Declaration}
+  \addcontentsline{toc}{chapter}{Declaration}
+}{\cleardoublepage}
+
+\newcommand{\confidentialnote}{%
+  \ifConfidentialThesis
+    \chapter*{Confidentiality Note}
+    \addcontentsline{toc}{chapter}{Confidentiality Note}
+    This thesis contains confidential information. Publication, reproduction, or disclosure, including extracts, is not permitted without written approval from the relevant parties.
+    \cleardoublepage
+  \fi
+}
+
+\newcommand{\figureplaceholder}[2][0.72\textwidth]{%
+  \begin{center}
+    \fcolorbox{ThesisGray}{ThesisLightGray}{%
+      \parbox[c][0.22\textheight][c]{#1}{\centering\color{ThesisGray}#2}%
+    }
+  \end{center}
+}

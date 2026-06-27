@@ -1,88 +1,13 @@
-# --- Python & Caches ---
-__pycache__/
-*.py[cod]
-*.so
-*$py.class
-.pytest_cache/
-.cache/
-.ruff_cache/
-.ipynb_checkpoints/
-
-# --- Environment & Variables ---
-.env
-.venv
-.venv/
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+*.aux
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.lof
 *.log
-
-# --- VS Code & IDE Configs ---
-.vscode/
-*.code-workspace
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.swp
-*.swo
-*~
-
-# --- Linter & Formatters ---
-.flake8
-.pylintrc
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# --- Generated Media (Images & Videos) ---
-# Prevent accidental commit of thousands of generated frames
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.avi
-*.mov
-*.mkv
-*.webm
-*.exr
-
-# --- 3D Media (Meshes & Point Clouds) ---
-*.obj
-*.fbx
-*.glb
-*.gltf
-*.ply
-*.stl
-*.pcd
-*.las
-*.laz
-*.npy
-
-# --- Output Directories ---
-# Ignore specific output folders you are creating
-first_frames/
-generated_videos/
-checkpoints/
-logs/
-outputs/
-runs/
-wandb/
-
-# --- Model Weights (Large Files) ---
-*.safetensors
-*.ckpt
-*.pt
-*.pth
-*.bin
-*.onnx
-*.obj
-
-# --- OS Specific ---
-.DS_Store
-Thumbs.db
-._*
-__MACOSX/
+*.lot
+*.out
+*.synctex.gz
+*.toc
+build/*
+Sample_Thesis
