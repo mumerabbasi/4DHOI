@@ -13,6 +13,7 @@
 \RequirePackage{setspace}
 \RequirePackage{caption}
 \RequirePackage{subcaption}
+\RequirePackage{fvextra}
 \RequirePackage[numbers,sort&compress]{natbib}
 \RequirePackage{url}
 \RequirePackage[hidelinks]{hyperref}
@@ -47,6 +48,15 @@
 
 \newcommand{\todo}[1]{\textcolor{red}{TODO: #1}}
 \newcommand{\placeholder}[1]{\textcolor{ThesisGray}{#1}}
+\DefineVerbatimEnvironment{promptblock}{Verbatim}{%
+  fontsize=\footnotesize,
+  baselinestretch=0.95,
+  breaklines=true,
+  breakanywhere=true,
+  frame=single,
+  framesep=2mm,
+  rulecolor=\color{ThesisGray}
+}
 
 \newcommand{\chapterabstract}[1]{%
   #1\par

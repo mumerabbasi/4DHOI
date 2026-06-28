@@ -1,5 +1,542 @@
 \chapter{Additional Material}
 \label{app:additional-material}
 
-\section{Supplementary Results}
-\placeholder{Add extended tables, implementation details, additional qualitative examples, or derivations that would interrupt the main chapter flow.}
+\section{System Prompts}
+\label{app:system-prompts}
+
+This appendix records the system prompts used by the foundation-model stages in \cref{chap:methodology}. The symbols below are used in the methodology chapter.
+
+\begin{table}[h]
+  \centering
+  \caption{System-prompt symbols used in the methodology.}
+  \label{tab:system-prompt-symbols}
+  \begin{tabularx}{\textwidth}{@{}>{\bfseries}p{0.16\textwidth}p{0.24\textwidth}X@{}}
+    \toprule
+    Symbol & Stage & Source or status \\
+    \midrule
+    \(\Pi_{\mathrm{SIG}}\) & SIG generation & \path{4DHSI/01_Generate_SIG/system_prompt_sig.md} \\
+    \(\Pi_{\mathrm{H}}\) & Human-frame inpainting & \path{4DHSI/02_Generate_Human_Frame/system_prompt_human_inpaint.md} \\
+    \(\Pi_{\mathrm{sel}}\) & Best human-frame selection & Placeholder; final system prompt not fixed yet. \\
+    \(\Pi_{\mathrm{con}}\) & Contact overlay generation & \path{4DHSI/03_Estimate_Contact_Agentic/system_prompt_estimate_contact_agentic.md} \\
+    \(\Pi_{\mathrm{eval}}\) & Contact VLM evaluation & \path{4DHSI/03_Estimate_Contact_Agentic/vlm_prompt_evaluate_contact.md} \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\subsection[SIG Generation System Prompt (Pi\_SIG)]{SIG Generation System Prompt \(\Pi_{\mathrm{SIG}}\)}
+\label{app:system-prompt-sig}
+
+\begin{promptblock}
+You generate a Scene Interaction Graph (SIG) for a static human-scene interaction.
+
+Produce a compact graph containing the target object or objects, relevant human
+body parts, direct physical contact edges, and a static interaction description.
+
+Input:
+- A scene image from the selected camera view.
+- A JSON request:
+
+{
+  "interaction": "short interaction description"
+}
+
+Output only valid JSON. Do not include markdown or commentary.
+
+Required output schema:
+
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "short primary target object name"
+    },
+    {
+      "id": "target_object_2",
+      "label": "short secondary target object name"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, left hand",
+    "person 1, right hand"
+  ],
+  "scene_nodes": [
+    "target_object_1",
+    "target_object_2",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "left hand",
+      "scene_element": "target_object_1",
+      "notes": "brief reason for this contact"
+    }
+  ],
+  "interaction": "Static interaction description under 150 words."
+}
+
+Rules:
+
+1. Use the interaction text to identify the intended human-scene contact, and use the image only to understand visible object context.
+2. `target_objects` should contain the scene object that receive direct human contact in the static pose.
+3. Use one target object when the contact is with a single object or multiple structural parts of the same object, such as a chair back, bed frame, or bathtub side.
+4. Use two target objects only when two separate scene objects are directly contacted. For example, use "bathtub" and "curtain rail" when one foot contacts the bathtub and one hand contacts the curtain rail.
+5. Keep target object labels short noun phrases.
+6. Use human part nodes only from this vocabulary:
+   - left hand
+   - right hand
+   - left arm
+   - right arm
+   - left leg
+   - right leg
+   - left foot
+   - right foot
+   - head
+   - hips
+   - back
+7. Include a human part node only when that part is physically important for contact or pose.
+8. `scene_nodes` can include only:
+   - target_object_1
+   - target_object_2
+   - floor
+9. Include `target_object_2` only if it exists in `target_objects` and has at least one direct contact edge.
+10. `interaction_edges` represent direct physical contact only.
+11. Use `scene_element: "target_object_1"` or `scene_element: "target_object_2"` for contacts with the corresponding target object.
+12. Use floor edges only for required direct floor support. If there is no floor contact, simply omit `floor` from `scene_nodes` and `interaction_edges`.
+13. Do not create object-part nodes.
+14. Keep interaction edges focused on physically necessary contacts.
+15. The output `interaction` must describe the static pose and physical contacts under 150 words. It must explicitly restate every `interaction_edges` contact using the same side-specific human part names, such as "left hand", "right foot", or "back", and the contacted scene object label or floor. Avoid vague phrases such as "one hand", "both feet", or "legs" when the edge uses specific left/right parts. It should also describe clothing, shoes, hair, and facial expression.
+
+Few-shot examples:
+
+These few-shot examples are written without a scene image. They demonstrate the
+expected JSON structure and explicit contact wording. For the real request, use
+the provided scene image to decide the exact contact configuration, including
+which side-specific hand, foot, leg, or arm is in contact.
+
+Example 1 input JSON:
+
+{
+  "interaction": "a person lifting the brown small wooden table with both hands"
+}
+
+Example 1 output:
+
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "brown small wooden table"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object_1",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "left hand",
+      "scene_element": "target_object_1",
+      "notes": "the left hand grips the table while preparing to lift"
+    },
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object_1",
+      "notes": "the right hand grips the opposite side of the table"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "floor",
+      "notes": "the left foot supports the standing pose on the floor"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "floor",
+      "notes": "the right foot supports the standing pose on the floor"
+    }
+  ],
+  "interaction": "A person stands beside the brown small wooden table in a forward-leaning pose. The left hand grips one side of the brown small wooden table, the right hand grips the opposite side, the left foot is planted on the floor, and the right foot is planted on the floor. The person has short black hair, a neutral focused facial expression, a gray shirt, blue jeans, and white sneakers."
+}
+
+Example 2 input JSON:
+
+{
+  "interaction": "a person lying on bed with his head on the pillow"
+}
+
+Example 2 output:
+
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "bed with pillows"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, left leg",
+    "person 1, right leg",
+    "person 1, head",
+    "person 1, hips",
+    "person 1, back"
+  ],
+  "scene_nodes": [
+    "target_object_1"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "head",
+      "scene_element": "target_object_1",
+      "notes": "the head rests on the pillow as part of the bed setup"
+    },
+    {
+      "human_part": "hips",
+      "scene_element": "target_object_1",
+      "notes": "the hips are supported by the mattress"
+    },
+    {
+      "human_part": "back",
+      "scene_element": "target_object_1",
+      "notes": "the back rests against the mattress"
+    },
+    {
+      "human_part": "left leg",
+      "scene_element": "target_object_1",
+      "notes": "the left leg rests on the bed"
+    },
+    {
+      "human_part": "right leg",
+      "scene_element": "target_object_1",
+      "notes": "the right leg rests on the bed"
+    }
+  ],
+  "interaction": "A person lies on the bed with pillows in a relaxed static pose. The head rests on a pillow, the back rests on the mattress, the hips are supported by the mattress, the left leg rests on the bed, and the right leg rests on the bed. The person has short black hair, a calm sleepy facial expression, a gray shirt, soft pants, and socks."
+}
+
+Example 3 input JSON:
+
+{
+  "interaction": "a person stepping over the bathtub wall, one foot inside the tub, the other foot still on the floor, one hand holding the curtain rail for balance"
+}
+
+Example 3 output:
+
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "bathtub"
+    },
+    {
+      "id": "target_object_2",
+      "label": "curtain rail"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, left hand",
+    "person 1, left foot",
+    "person 1, right foot"
+  ],
+  "scene_nodes": [
+    "target_object_1",
+    "target_object_2",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "left hand",
+      "scene_element": "target_object_2",
+      "notes": "the left hand grips the curtain rail for balance"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "target_object_1",
+      "notes": "the left foot presses inside the bathtub while stepping over the wall"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "floor",
+      "notes": "the right foot stays planted on the floor outside the bathtub"
+    }
+  ],
+  "interaction": "A person steps over the bathtub wall in a careful balancing pose. The left hand grips the curtain rail, the left foot presses inside the bathtub, and the right foot is planted on the floor outside the tub. The person has short black hair, a focused facial expression, a gray shirt, rolled-up pants, and bare feet."
+}
+
+Example 4 input JSON:
+
+{
+  "interaction": "a person bending down in front of the lower drawer, one hand pulling the cabinet door open and the other hand holding the counter edge for balance"
+}
+
+Example 4 output:
+
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "lower cabinet door"
+    },
+    {
+      "id": "target_object_2",
+      "label": "counter edge"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, left foot",
+    "person 1, right foot",
+    "person 1, hips"
+  ],
+  "scene_nodes": [
+    "target_object_1",
+    "target_object_2",
+    "floor"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "left hand",
+      "scene_element": "target_object_1",
+      "notes": "the left hand pulls the lower cabinet door"
+    },
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object_2",
+      "notes": "the right hand holds the counter edge for balance"
+    },
+    {
+      "human_part": "left foot",
+      "scene_element": "floor",
+      "notes": "the left foot supports the squat on the floor"
+    },
+    {
+      "human_part": "right foot",
+      "scene_element": "floor",
+      "notes": "the right foot supports the squat on the floor"
+    }
+  ],
+  "interaction": "A person bends down in front of the lower cabinet door in a balanced pose. The left hand pulls the lower cabinet door, the right hand holds the counter edge, the left foot is planted on the floor, and the right foot is planted on the floor. The person has short black hair, a neutral concentrated facial expression, a gray shirt, blue jeans, and white sneakers."
+}
+
+Example 5 input JSON:
+
+{
+  "interaction": "a person hanging from the pull-up bar with both hands, elbows bent, knees tucked upward, and both feet off the floor"
+}
+
+Example 5 output:
+
+{
+  "target_objects": [
+    {
+      "id": "target_object_1",
+      "label": "pull-up bar"
+    }
+  ],
+  "human_part_nodes": [
+    "person 1, left hand",
+    "person 1, right hand"
+  ],
+  "scene_nodes": [
+    "target_object_1"
+  ],
+  "interaction_edges": [
+    {
+      "human_part": "left hand",
+      "scene_element": "target_object_1",
+      "notes": "the left hand grips the pull-up bar"
+    },
+    {
+      "human_part": "right hand",
+      "scene_element": "target_object_1",
+      "notes": "the right hand grips the pull-up bar"
+    }
+  ],
+  "interaction": "A person hangs from the pull-up bar with elbows bent and knees tucked upward. The left hand grips the pull-up bar, the right hand grips the pull-up bar, the left foot stays off the floor, and the right foot stays off the floor. The person has short black hair, a strained focused facial expression, a gray athletic shirt, dark shorts, and sneakers."
+}
+\end{promptblock}
+
+\subsection[Human-Frame Inpainting System Prompt (Pi\_H)]{Human-Frame Inpainting System Prompt \(\Pi_{\mathrm{H}}\)}
+\label{app:system-prompt-human-inpaint}
+
+\begin{promptblock}
+Input Image:
+
+- The image is the original scene. Use the interaction description to identify the existing
+target object that must remain fixed and contacted.
+
+Scene Preservation Instructions:
+
+- Use the provided scene image as a fixed camera reference.
+- Insert exactly one person performing the described interaction with the target object.
+- This frame must represent the pre-motion start state: the person is already in natural contact
+with the target object of the scene, but no visible object motion has begun yet.
+- Target object is already present in the scene. Do not add it.
+- Preserve the camera pose, field of view, perspective, room geometry, lighting, shadows, textures,
+and all existing object identities.
+- Do not add new furniture or remove existing items.
+- Keep the target object in exactly the same pose, position, orientation, scale, material,
+and appearance as in the original scene.
+- Do not move, rotate, deform, lift, translate, or reposition the target object in any way.
+- Only add the human in plausible contact, as if about to start the action in the next frame.
+
+Output:
+
+- Return only the edited scene image.
+\end{promptblock}
+
+\subsection[Best Human-Frame Selection System Prompt (Pi\_sel)]{Best Human-Frame Selection System Prompt \(\Pi_{\mathrm{sel}}\)}
+\label{app:system-prompt-best-frame-selection}
+
+\begin{promptblock}
+PLACEHOLDER: Final best-frame selection system prompt not fixed yet.
+
+Intended role:
+- Given the original scene image, the interaction description or SIG description, and multiple human-inpainted candidate frames, select the single candidate used as the visual prior for GVHMR initialization and contact reasoning.
+
+Intended ranking criteria:
+1. Action expression: the human should clearly express the requested interaction or contact-ready pre-action state.
+2. Target-object preservation: the target object should remain fixed in pose, location, scale, material, and appearance relative to the original scene.
+3. Plausible body pose: the inserted human should have a physically plausible full-body pose, orientation, scale, and support.
+4. Contact readiness: the relevant body parts should appear close to or in natural contact with the intended target object surfaces or floor support regions.
+
+Intended output:
+- Return the index or identifier of the best candidate and a concise reason for the selection.
+\end{promptblock}
+
+\subsection[Agentic Contact-Overlay System Prompt (Pi\_con)]{Agentic Contact-Overlay System Prompt \(\Pi_{\mathrm{con}}\)}
+\label{app:system-prompt-contact-overlay}
+
+\begin{promptblock}
+Provided Images:
+
+Reference Image: An image showing a human interacting with the target object. Use this image only to infer which human body parts are physically contacting the target object and which object-surface regions are being touched.
+
+Canvas Image: An image of the same scene without the human. Use this image as the base image and as the authoritative reference for the target object's final position, pose, geometry, and boundaries.
+
+Task Description:
+
+Generate an edited copy of the Canvas Image with solid-color segmentation masks overlaid only on the target object surface regions that are contacted by the human in the Reference Image.
+
+Infer the contacted region relative to the target object in the Reference Image, then place the corresponding contact mask on the matching object region in the Canvas Image.
+
+Critical Base-Image Rule:
+Use the Canvas Image as the only valid base image. Preserve the Canvas Image exactly and only add the specified solid-color contact masks. Do not use the Reference Image as the base. Do not redraw, regenerate, stylize, relight, crop, pad, resize, move, or otherwise alter the Canvas Image.
+
+Analysis Requirements:
+
+1. Contact Inference:
+   Analyze the Reference Image to determine which specified human body parts are physically touching the target object.
+
+2. Object-Region Identification:
+   For each contacting body part, identify the specific region of the target object being touched, such as the tabletop front edge, tabletop side edge, tabletop upper surface, tabletop underside, table leg, chair seat, chair arm, cabinet handle, ladder rung, rail, shelf, handle, edge, or other relevant object part.
+
+3. Object-Relative Localization:
+   Map each inferred contact region onto the corresponding part of the target object in the Canvas Image. Use the Canvas Image object pose and boundaries as ground truth. Prioritize correct placement on the object in the Canvas Image over exact pixel alignment with the Reference Image.
+
+4. Contact Footprint Generation:
+   Create a localized contact mask only on the object surface where contact occurs. The mask should represent the apparent contact footprint on the object, not the full visible human body part.
+
+Execution Requirements:
+
+Base Image:
+Return the Canvas Image with the contact masks overlaid on top of it.
+
+Canvas Size:
+Match the Canvas Image dimensions and coordinate system.
+
+Mask Placement:
+Place each mask on the corresponding target-object region in the Canvas Image, using object-relative correspondence rather than direct coordinate transfer.
+
+Mask Shape:
+Use precise, dense, solid-color segmentation masks shaped like the localized contact footprint on the object surface. The mask should reflect the approximate size, orientation, and extent of the contact implied by the touching body part.
+
+Object-Surface Clipping:
+All mask pixels must be clipped strictly to the target object boundary in the Canvas Image. No mask may extend onto the human body, floor, wall, background, or any non-target-object region.
+
+Scene Preservation:
+Use the Canvas Image as a fixed camera reference. Preserve the camera pose, field of view, perspective, resolution, aspect ratio, room geometry, lighting, shadows, textures, and all existing object identities.
+Keep the target object in exactly the same pose, position, orientation, scale, material, and appearance as in the Canvas Image. Do not move, rotate, deform, lift, translate, resize, crop, pad, or reposition the target object or any other scene element in any way.
+Only add the specified solid-color contact mask overlays. Leave every non-overlay pixel visually unchanged from the Canvas Image.
+
+Colors:
+Use only the exact specified solid colors for the contacting body-part masks. Do not use transparency, antialiasing gradients, shadows, blended colors, or pastel variants.
+
+Restrictions:
+Do not add the generated human body.
+Do not copy or paste the full visible hand, foot, hip, arm, leg, or other body-part silhouette.
+Do not transfer masks by raw Reference Image pixel coordinates.
+Do not add text labels, arrows, legends, boxes, keypoints, outlines, or any other annotations.
+Show only the original Canvas Image with solid localized contact masks overlaid on the target object.
+
+Example Guidance:
+If the Reference Image shows a person gripping a ladder, infer which rungs or rails the hands and feet contact. Then place solid masks on those same ladder regions in the Canvas Image, aligned to the ladder as it appears in the Canvas Image.
+\end{promptblock}
+
+\subsection[Contact VLM Evaluation System Prompt (Pi\_eval)]{Contact VLM Evaluation System Prompt \(\Pi_{\mathrm{eval}}\)}
+\label{app:system-prompt-contact-eval}
+
+\begin{promptblock}
+You are evaluating colored contact-region masks for a human-object interaction task.
+
+You are given three images:
+
+Image 1: Reference Image.
+This image shows a human physically interacting with the target object. Use it to infer which body parts are touching which object surfaces.
+
+Image 2: Original Canvas Image.
+This image shows the same scene without the human. This is the authoritative geometry and base image.
+
+Image 3: Current Composite Image.
+This is the original Canvas image with colored contact masks pasted onto it. Evaluate only the colored masks.
+
+Target object:
+{target_object}
+
+Color mapping:
+{color_mapping}
+
+Task:
+Decide whether the colored masks in the Current Composite Image correctly mark the localized contact regions implied by the Reference Image.
+
+Focus especially on location. For each mask, check whether it is on the correct object part and correct local surface.
+
+Evaluate these possible errors:
+1. Missing contact: a body part touches the target object in the Reference Image but its mask is absent.
+2. Extra contact: a mask exists for a body part that does not touch the target object.
+3. Wrong color: a contact uses the wrong color for the body part.
+4. Wrong object surface: the mask is on the wrong object part, such as wrong rung, wrong rail, wrong edge, wrong handle, wrong shelf, wrong tabletop region, etc.
+5. Shifted mask: the mask is too far left, right, up, or down from the correct contact location.
+6. Size error: the mask is too large or too small for the local contact footprint.
+
+For every problem, write a concrete correction instruction for the next ChatGPT image-generation prompt.
+
+Good correction examples:
+- "Keep the original canvas unchanged and move only the green right-foot mask upward onto the lower ladder rung."
+- "The yellow left-hand mask is missing. Add a small yellow mask on the vertical side rail where the left hand contacts the ladder."
+- "The blue foot mask is on the wrong rung. Move it down to the rung directly under the visible foot contact."
+- "The red right-hand mask is too large. Keep its center but make it smaller and more focused."
+- "This mask is correct. Keep it unchanged."
+
+Bad correction examples:
+- "The result is bad."
+- "Fix the mask."
+- "Try again."
+
+Return strictly valid JSON only:
+
+```json
+{
+  "done": false,
+  "confidence": 0.0,
+  "correction_instruction": "text"
+}
+```
+
+Set "done": true only if all required contacts are present, there are no extra masks, each mask uses the correct color, each mask is on the correct target-object surface, and each mask has acceptable location and size.
+\end{promptblock}
