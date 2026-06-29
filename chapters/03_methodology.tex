@@ -14,309 +14,836 @@
 \section{Overview}
 \label{sec:method-overview}
 
-The proposed method synthesizes a static 3D human-scene interaction from three inputs: a natural-language interaction instruction \(y\), a calibrated RGB image \(I\) of the scene, and a reconstructed scene mesh \(M_s\). The output is a single SMPL-X body, represented by optimized body parameters and exported meshes, aligned to the ScanNet++ scene coordinate frame \citep{yeshwanth2023scannetpp,pavlakos2019smplx}. The output is static: it represents the interaction state or contact-ready pre-action state, not a full motion sequence and not an edited object state.
+This chapter presents the proposed zero-shot pipeline for static 3D human--scene interaction synthesis. The method takes as input a natural-language interaction instruction $y$, a calibrated RGB view $I$ from a ScanNet++ scene, the corresponding camera intrinsics $K$, camera rotation $R$, camera translation $t$, and the reconstructed scene mesh $M_s$. The output is a single SMPL-X body placed in the ScanNet++ scene coordinate frame. The synthesized result is static: it represents the interaction state, or a contact-ready pre-action state, rather than a full motion sequence or an object-state change.
 
-\Cref{fig:method-pipeline} summarizes the pipeline. First, a vision-language model converts the instruction and scene image into a Scene Interaction Graph (SIG), which specifies the target object, the relevant human body parts, and the intended contact or support edges. Second, an image-editing model inserts one plausible human into the original RGB view while preserving the scene and target object. Third, an agentic contact-region inpainting stage uses the generated human frame and the original scene frame to produce VLM-accepted scene-side contact masks for the body parts named by the SIG. Fourth, these 2D contact masks are projected through the calibrated camera onto visible scene mesh regions, producing one 3D scene contact target per graph edge. In parallel, GVHMR initializes a SMPL-X body from the inpainted human image \citep{shen2024gvhmr}. The final stage optimizes SMPL-X translation, global orientation, scale, and body pose so that the relevant body contact regions approach the projected scene contact targets while preserving a plausible body and avoiding severe scene penetration.
+The method is designed to handle both underspecified and detailed interaction instructions. For example, the instruction ``a person lifting a table'' specifies the interaction at a high level, leaving the exact body configuration and contact layout to be inferred. Functional interactions are more demanding: an instruction such as ``a person opening a washing machine'' requires the method to infer that contact should occur near the functional door or handle region, not merely somewhere on the washing machine object. The method also supports more detailed instructions, such as ``a person on the treadmill with both hands on the side frames and one foot on the belt,'' where the user explicitly constrains the pose and the required body-part contacts. In all cases, the central challenge is the same: the language instruction must be converted into metric 3D contact constraints that are consistent with the reconstructed scene.
+
+A visually plausible generated image is not sufficient for this task, because the final body must also be geometrically compatible with the scene mesh. A generated person may appear reasonable in the input view while still floating above the floor, intersecting furniture, or contacting the wrong object part in 3D. The proposed method therefore combines foundation-model reasoning with explicit geometric grounding. Foundation models are used to infer semantic and visual interaction cues, while camera geometry and optimization convert these cues into explicit 3D contact targets and a physically plausible SMPL-X body.
+
+\Cref{fig:method-pipeline} illustrates the complete pipeline. The method consists of five main modules. First, the instruction and scene image are converted into a Scene Interaction Graph (SIG), which identifies the target object or floor, the relevant human body parts, and the required body-part--scene contact edges. Second, an image generation model inserts a plausible human into the original scene view according to the interaction instruction. This generated human frame acts as a visual hypothesis for body pose, orientation, laterality, and approximate contact layout. Third, the generated human frame, the original scene image, and the SIG are used to estimate scene-side contact regions. Each required contact region is marked on the original scene image using a distinct bright color, producing body-part-specific contact masks. When the interaction involves floor support, floor regions are obtained separately using SAM3. The accepted contact masks are then projected to the reconstructed scene mesh to form 3D scene contact targets.
+
+In parallel, the fourth module initializes the human body. The generated human frame is passed to GVHMR, which predicts an initial SMPL-X body. This initialization provides a plausible articulated pose and global body configuration, but it is not assumed to satisfy the scene contact constraints exactly. The fifth module refines the initialized body through scene-aware optimization. During this stage, the scene geometry and projected contact targets are kept fixed, while the SMPL-X translation, global orientation, and body pose are optimized. The objective combines contact attraction, penetration avoidance, and priors that keep the result close to the GVHMR initialization.
+
+The key idea of the proposed approach is that image generation is used not only to synthesize a plausible human interaction image, but also to localize fine-grained scene-side contact regions. These contact annotations are not treated as final outputs. Instead, they are converted into explicit 3D contact targets on the reconstructed mesh and used to guide SMPL-X optimization. In this way, the method combines the flexibility of open-vocabulary foundation models with the geometric accountability required for static 3D human--scene interaction synthesis.
+
+The full prompts used for the foundation-model stages are provided in \cref{app:system-prompts} for reproducibility. The methodology chapter describes the algorithmic role of each model call, while the appendix records the exact prompt wording used by the implementation.
 
 \begin{figure}[t]
   \centering
-  \setlength{\tabcolsep}{3pt}
-  \begin{tabular}{cccc}
-    \methodbox{0.21\textwidth}{Inputs\\instruction \(y\)\\calibrated image \(I\)\\scene mesh \(M_s\)}
-    &
-    \methodbox{0.21\textwidth}{Scene Interaction Graph\\target object(s)\\human parts\\contact edges}
-    &
-    \methodbox{0.21\textwidth}{Visual interaction prior\\human inpainted into the fixed scene}
-    &
-    \methodbox{0.21\textwidth}{Agentic contact masks\\VLM-accepted composites\\on the original scene crop}
-    \\
-    \multicolumn{4}{c}{\(\Downarrow\)}\\[-0.1cm]
-    \methodbox{0.21\textwidth}{2D-to-3D grounding\\visible mesh faces\\sampled contact points}
-    &
-    \methodbox{0.21\textwidth}{GVHMR initialization\\first-frame SMPL-X parameters}
-    &
-    \methodbox{0.21\textwidth}{Scene-aware optimization\\contact, priors, penetration}
-    &
-    \methodbox{0.21\textwidth}{Output\\optimized SMPL-X body\\world mesh}
-  \end{tabular}
-  \caption{Overview of the proposed zero-shot static HSI synthesis pipeline. Foundation models provide semantic and visual interaction priors; camera geometry and scene-aware SMPL-X optimization convert these priors into a metric 3D body placement.}
+
+  % TODO: Replace this placeholder with the final methodology diagram.
+  % Recommended layout: one horizontal pipeline using a single running example.
+  %
+  % Suggested panels:
+  % (a) Input ScanNet++ RGB view + instruction
+  % (b) Scene Interaction Graph (SIG)
+  % (c) Human-inpainted frame
+  % (d) Colored contact annotations on the original scene image
+  % (e) Projected 3D contact targets on the scene mesh
+  % (f) GVHMR SMPL-X initialization
+  % (g) Optimized SMPL-X body in the ScanNet++ scene
+  %
+  % Suggested examples:
+  % - Functional: ``a person opening a washing machine''
+  % - Detailed: ``a person on the treadmill with both hands on the side frames and one foot on the belt''
+
+  \fbox{
+    \begin{minipage}[c][0.28\textheight][c]{0.96\textwidth}
+      \centering
+      \textbf{Methodology Pipeline Placeholder}\\[1.0em]
+
+      \begin{tabular}{c@{\quad$\rightarrow$\quad}c@{\quad$\rightarrow$\quad}c@{\quad$\rightarrow$\quad}c}
+        \begin{minipage}{0.18\textwidth}
+          \centering
+          Input\\
+          \small RGB view $I$\\
+          instruction $y$\\
+          mesh $M_s$
+        \end{minipage}
+        &
+        \begin{minipage}{0.18\textwidth}
+          \centering
+          SIG\\
+          \small body parts\\
+          object/floor\\
+          contact edges
+        \end{minipage}
+        &
+        \begin{minipage}{0.18\textwidth}
+          \centering
+          Human frame\\
+          \small inpainted\\
+          interaction\\
+          image
+        \end{minipage}
+        &
+        \begin{minipage}{0.18\textwidth}
+          \centering
+          Contact masks\\
+          \small colored regions\\
+          on original\\
+          scene image
+        \end{minipage}
+      \end{tabular}
+
+      \vspace{1.2em}
+
+      \begin{tabular}{c@{\quad$\rightarrow$\quad}c@{\quad$\rightarrow$\quad}c}
+        \begin{minipage}{0.22\textwidth}
+          \centering
+          3D contact targets\\
+          \small projected to\\
+          ScanNet++ mesh
+        \end{minipage}
+        &
+        \begin{minipage}{0.22\textwidth}
+          \centering
+          GVHMR initialization\\
+          \small initial\\
+          SMPL-X body
+        \end{minipage}
+        &
+        \begin{minipage}{0.22\textwidth}
+          \centering
+          Optimization\\
+          \small final SMPL-X\\
+          in scene coordinates
+        \end{minipage}
+      \end{tabular}
+    \end{minipage}
+  }
+
+  \caption{
+  Overview of the proposed zero-shot static HSI synthesis pipeline. Given a natural-language instruction, a calibrated ScanNet++ RGB view, and the reconstructed scene mesh, the method generates a Scene Interaction Graph, synthesizes a human interaction image, estimates body-part-specific scene contact regions on the original scene image, projects these contacts to the scene mesh, initializes an SMPL-X body with GVHMR, and refines the body through scene-aware optimization.
+  }
   \label{fig:method-pipeline}
 \end{figure}
+
 
 \section{Problem Formulation}
 \label{sec:problem-formulation}
 
-Let \(I \in \mathbb{R}^{H \times W \times 3}\) be the selected RGB view of a ScanNet++ scene. The camera is defined by intrinsics \(K\), world-to-camera rotation \(R\), and world-to-camera translation \(t\). The reconstructed scene mesh is denoted
+Given a natural-language interaction instruction, a calibrated RGB image, and a reconstructed 3D scene, the goal is to synthesize a single human body that realizes the requested interaction in the original scene coordinate frame. Let $I$ denote the selected RGB view from a ScanNet++ scene. The image has spatial resolution
 \begin{equation}
-  M_s = (V_s, F_s),
+\label{eq:input-image}
+I \in \mathbb{R}^{H \times W \times 3}.
 \end{equation}
-where \(V_s \in \mathbb{R}^{N_s \times 3}\) are scene vertices in the world coordinate frame and \(F_s\) are triangular faces. The instruction \(y\) is a free-form text description such as ``a person lifting the white trash bin with both hands.'' The goal is to estimate SMPL-X parameters
+
+The camera calibration is defined by the intrinsic matrix $K$, the camera rotation $R$, and the camera translation $t$. The reconstructed scene mesh is denoted by
 \begin{equation}
-  \theta = \{\mathbf{T}, \mathbf{r}, \mathbf{p}, \boldsymbol{\beta}, s\},
+\label{eq:scene-mesh}
+M_s = (V_s, F_s),
 \end{equation}
-where \(\mathbf{T}\) is global translation, \(\mathbf{r}\) is global orientation, \(\mathbf{p}\) is body pose, \(\boldsymbol{\beta}\) is shape, and \(s\) is an additional global scale factor. Applying the SMPL-X model to \(\theta\) produces a human mesh \(M_h(\theta)=(V_h(\theta),F_h)\).
+where $V_s$ are the scene vertices in the ScanNet++ world coordinate frame and $F_s$ are the triangular faces. The scene vertices satisfy
+\begin{equation}
+\label{eq:scene-vertices}
+V_s \in \mathbb{R}^{N_s \times 3}.
+\end{equation}
 
-The method estimates a body that satisfies three task requirements. First, the body should express the action described by \(y\). Second, the body parts implied by the action should contact the correct target object surface or support surface. Third, the final body should avoid severe scene penetration. Since the task is static, object state changes are outside the scope of the method. For interactions such as opening a drawer or lifting a bin, the synthesized state is interpreted as the contact-ready state before visible object motion begins.
+The user instruction is denoted by $y$. It can be underspecified, such as ``a person lifting a table,'' functional, such as ``a person opening a washing machine,'' or detailed, such as ``a person on the treadmill with both hands on the side frames and one foot on the belt.'' In all cases, the method must infer a body configuration that is consistent with both the language instruction and the reconstructed scene geometry.
 
-The intermediate Scene Interaction Graph \(G=(\mathcal{H},\mathcal{S},\mathcal{E})\) makes the interaction constraints explicit. \(\mathcal{H}\) contains human body-part nodes, \(\mathcal{S}\) contains target scene nodes such as a target object or floor, and \(\mathcal{E}\) contains contact/support edges. Each edge \(e=(h_e,s_e)\) specifies that body part \(h_e\) should contact scene region \(s_e\). The synthesis problem can then be viewed as finding \(\theta\) such that the surface region of \(M_h(\theta)\) corresponding to each \(h_e\) is geometrically close to the scene surface region corresponding to \(s_e\), and the resulting body does not severely penetrate the scene mesh.
+The output of the method is a posed SMPL-X body in the same world coordinate frame as the reconstructed scene. SMPL-X represents the body as a differentiable parametric mesh. We denote the body parameters by
+\begin{equation}
+\label{eq:smplx-params}
+\theta =
+(
+\mathbf{T},
+\mathbf{r},
+\mathbf{p},
+\boldsymbol{\beta}
+).
+\end{equation}
+Here, $\mathbf{T}$ is the global translation, $\mathbf{r}$ is the global orientation, $\mathbf{p}$ is the articulated body pose, and $\boldsymbol{\beta}$ are the body shape parameters. Applying the SMPL-X model to these parameters produces the human mesh
+\begin{equation}
+\label{eq:human-mesh}
+M_h(\theta) = (V_h(\theta), F_h),
+\end{equation}
+where $V_h(\theta)$ are the posed body vertices and $F_h$ are the fixed SMPL-X mesh faces. The posed body vertices satisfy
+\begin{equation}
+\label{eq:human-vertices}
+V_h(\theta) \in \mathbb{R}^{N_h \times 3}.
+\end{equation}
 
-\section{Scene Interaction Graph and Body Contact Regions}
-\label{sec:sig-contact-regions}
+The synthesis target is not a motion sequence. The method estimates one static interaction state, or a contact-ready state, that expresses the instruction. For object-manipulation prompts such as opening a washing machine or lifting a table, the object itself remains fixed in the reconstructed scene. The goal is to synthesize the body configuration that makes the interaction visually and geometrically plausible, not to simulate subsequent object motion or state change.
 
-\subsection{Scene Interaction Graph}
-\label{subsec:sig}
+The instruction $y$ is converted into a set of body--scene contact requirements. These requirements are represented by a Scene Interaction Graph,
+\begin{equation}
+\label{eq:sig}
+G = (\mathcal{H}, \mathcal{S}, \mathcal{E}),
+\end{equation}
+where $\mathcal{H}$ is the set of human body-part nodes, $\mathcal{S}$ is the set of scene nodes, and $\mathcal{E}$ is the set of contact or support edges. Human nodes correspond to supported body parts such as hands, arms, feet, legs, hips, back, and head. Scene nodes correspond either to the target object or to the floor. Each edge is written as
+\begin{equation}
+\label{eq:sig-edge}
+e = (h_e, s_e),
+\qquad
+e \in \mathcal{E},
+\end{equation}
+and indicates that body part $h_e$ should contact scene element $s_e$.
 
-The Scene Interaction Graph is the symbolic interface between open-language instructions and metric optimization. Its canonical schema contains four fields:
+Each human node $h_e$ is associated with a fixed subset of SMPL-X contact vertices. We denote this body-side contact set by
+\begin{equation}
+\label{eq:body-contact-set}
+B_e \subset \{1,\ldots,N_h\}.
+\end{equation}
+For a given body configuration $\theta$, the corresponding body-side contact points are
+\begin{equation}
+\label{eq:body-contact-points}
+P_e^h(\theta)
+=
+\{V_h(\theta)_i \mid i \in B_e\}.
+\end{equation}
 
-\begin{itemize}
-  \item target object entries, each with an identifier such as \texttt{target\_object\_1} and a short noun-phrase label;
-  \item human part nodes, written as side-specific body parts such as \texttt{person 1, left hand};
-  \item scene nodes, restricted to active target objects and optionally the floor;
-  \item interaction edges, where each edge maps one human body part to one scene element and includes a short contact note.
-\end{itemize}
+The scene-side contact target is not manually annotated. Instead, it is estimated from generated visual contact annotations and projected to the reconstructed scene mesh. For each edge $e$, this produces a set of scene contact vertices or sampled surface points, denoted by
+\begin{equation}
+\label{eq:scene-contact-target}
+P_e^s \subset \mathbb{R}^{3}.
+\end{equation}
 
-The implementation validates the graph before it is used downstream. Target objects must be non-empty, graph edges must reference defined scene nodes, and human parts must come from the supported vocabulary: left hand, right hand, left arm, right arm, left leg, right leg, left foot, right foot, head, hips, and back. This constrained vocabulary is deliberately small. It keeps the graph compatible with the SMPL-X contact-region catalog and avoids introducing language-only body parts that cannot be grounded to mesh vertices.
+The optimization problem can therefore be stated as finding SMPL-X parameters $\theta$ such that the body-side contact points $P_e^h(\theta)$ are close to the corresponding scene-side contact targets $P_e^s$, while the body remains physically plausible and avoids severe penetration with the scene. The body is initialized using GVHMR from the generated human frame. Let the initial SMPL-X estimate be
+\begin{equation}
+\label{eq:smplx-init-params}
+\theta_0 =
+(
+\mathbf{T}_0,
+\mathbf{r}_0,
+\mathbf{p}_0,
+\boldsymbol{\beta}_0
+).
+\end{equation}
+
+During optimization, only the global translation $\mathbf{T}$, global orientation $\mathbf{r}$, and body pose $\mathbf{p}$ are updated. The shape parameters $\boldsymbol{\beta}$ are initialized from GVHMR and kept fixed.
+
+The final objective has the following general form:
+\begin{equation}
+\label{eq:method-total-loss}
+\mathcal{L}_{\mathrm{total}}(\theta)
+=
+\lambda_{\mathrm{contact}} \mathcal{L}_{\mathrm{contact}}(\theta)
++
+\lambda_{\mathrm{penetration}} \mathcal{L}_{\mathrm{penetration}}(\theta)
++
+\lambda_{\mathrm{pose}} \mathcal{L}_{\mathrm{pose}}(\theta)
++
+\lambda_{\mathrm{orient}} \mathcal{L}_{\mathrm{orient}}(\theta).
+\end{equation}
+
+The final body parameters are obtained by minimizing this objective with respect to the global translation, global orientation, and body pose:
+\begin{equation}
+\label{eq:method-optimization-problem}
+\theta^{\ast}
+=
+\operatorname*{arg\,min}_{\mathbf{T},\,\mathbf{r},\,\mathbf{p}}
+\mathcal{L}_{\mathrm{total}}(\theta).
+\end{equation}
+
+The contact term pulls the specified SMPL-X body regions toward the projected scene contact targets. The penetration term discourages intersections between the human body and the reconstructed scene. The pose and orientation priors keep the optimized body close to the GVHMR initialization so that contact refinement does not produce unnatural body configurations. The following sections describe how the graph $G$, the human initialization $\theta_0$, and the scene contact targets $P_e^s$ are obtained.
 
 \begin{table}[t]
   \centering
-  \caption{Example Scene Interaction Graph for the instruction ``a person lifting the white trash bin with both hands.''}
-  \label{tab:sig-example}
-  \begin{tabularx}{\textwidth}{@{}>{\bfseries}p{0.24\textwidth}X@{}}
+  \caption{Notation used in the methodology chapter.}
+  \label{tab:method-notation}
+  \begin{tabularx}{\textwidth}{@{}>{\bfseries}p{0.18\textwidth}X@{}}
     \toprule
-    Field & Example content \\
+    Symbol & Meaning \\
     \midrule
-    Target object & \texttt{target\_object\_1}: white trash bin \\
-    Human part nodes & left hand, right hand, left foot, right foot \\
-    Scene nodes & \texttt{target\_object\_1}, floor \\
-    Contact/support edges & left hand \(\rightarrow\) target object; right hand \(\rightarrow\) target object; left foot \(\rightarrow\) floor; right foot \(\rightarrow\) floor \\
-    Static description & A person is already in contact with the bin and supported by the floor, but the bin remains fixed in the scene. \\
+    $I$ & Calibrated RGB view from a ScanNet++ scene. \\
+    $K,R,t$ & Camera intrinsics, rotation, and translation. \\
+    $M_s=(V_s,F_s)$ & Reconstructed scene mesh in the ScanNet++ world coordinate frame. \\
+    $y$ & Natural-language interaction instruction. \\
+    $G=(\mathcal{H},\mathcal{S},\mathcal{E})$ & Scene Interaction Graph. \\
+    $e=(h_e,s_e)$ & Contact edge between body part $h_e$ and scene element $s_e$. \\
+    $B_e$ & SMPL-X vertex subset assigned to the body part in edge $e$. \\
+    $P_e^h(\theta)$ & Body-side contact points for edge $e$. \\
+    $P_e^s$ & Scene-side contact targets projected to the reconstructed scene mesh. \\
+    $\theta$ & SMPL-X parameters. \\
+    $\theta_0$ & GVHMR initialization. \\
     \bottomrule
   \end{tabularx}
 \end{table}
 
-\subsection{SMPL-X Contact Regions}
-\label{subsec:smplx-contact-regions}
 
-SMPL-X provides a dense differentiable body mesh, but its vertices are not directly named by interaction semantics. The method therefore defines a contact-region catalog over the 10,475-vertex SMPL-X body mesh. Each supported graph body part maps to a subset of vertices expected to participate in contact. The catalog includes hand contact regions, foot support regions, and regions for hips, back, and head contacts used in sitting, leaning, lying, and resting interactions.
+\section{Scene Interaction Graph Generation}
+\label{sec:method-sig}
 
-For a graph edge \(e=(h_e,s_e)\), let \(B_e \subset \{1,\ldots,N_h\}\) be the SMPL-X vertex indices assigned to the human part \(h_e\). During optimization, the current body contact points are
+The first module converts the open-language instruction into an explicit set of body--scene contact requirements. The purpose of this module is not to solve the full geometry of the interaction, but to determine which human body parts should contact which scene elements. This intermediate representation is called the Scene Interaction Graph (SIG). It provides the symbolic structure that later guides both contact-region estimation and SMPL-X optimization. The exact system prompt used for SIG generation is provided in \cref{app:system-prompt-sig}; the main text describes only the functional role of the prompt and the validated graph structure.
+
+The SIG is generated from the user instruction $y$ and the input scene image $I$. A language or vision-language model is prompted to identify the target object, the human body parts that are physically important for the interaction, and any required floor support. The output is parsed into a graph
 \begin{equation}
-  P_e^h(\theta)=\{V_h(\theta)_i \mid i \in B_e\}.
+\label{eq:sig-generation-output}
+G = (\mathcal{H}, \mathcal{S}, \mathcal{E}),
 \end{equation}
-The corresponding scene-side contact region is not manually annotated. It is inferred in image space, projected to the scene mesh, and represented by a sampled 3D point set \(P_e^s\), as described in \cref{sec:contact-grounding}.
+where $\mathcal{H}$ contains human body-part nodes, $\mathcal{S}$ contains scene nodes, and $\mathcal{E}$ contains contact or support edges. The scene nodes are deliberately restricted to the target object and, when required, the floor. The graph does not require explicit object-part labels such as handle, knob, rung, or edge. Instead, it specifies that a particular body part should contact the target object, while the exact functional contact region is estimated later from image-space contact annotations.
 
-\section{Foundation-Model Visual Reasoning}
-\label{sec:foundation-visual-reasoning}
+The supported human body-part vocabulary is fixed so that each graph node can be mapped to a predefined SMPL-X contact region. The supported parts are left hand, right hand, left arm, right arm, left leg, right leg, left foot, right foot, head, hips, and back. This restricted vocabulary prevents the graph from introducing body parts that cannot be grounded to SMPL-X vertices. It also keeps the downstream optimization well defined: every edge in the graph corresponds to one known body-side vertex set and one scene-side target.
 
-\subsection{System Prompts and Symbols}
-\label{subsec:system-prompt-symbols}
+The graph edges define the required contacts. For example, an underspecified prompt such as ``a person lifting a table'' may produce hand--table edges and foot--floor support edges. A functional prompt such as ``a person opening a washing machine'' may produce a hand--washing-machine edge together with foot--floor support. A detailed prompt such as ``a person on the treadmill with both hands on the side frames and one foot on the belt'' may produce separate left-hand--treadmill, right-hand--treadmill, left-foot--treadmill, and right-foot--floor edges, depending on the specified pose. These examples illustrate that the graph can represent both inferred contacts and user-specified contacts.
 
-The foundation-model calls are controlled by five system prompts, whose full text is provided in \cref{app:system-prompts}. The SIG system prompt is denoted \(\Pi_{\mathrm{SIG}}\). The human-frame image-editing system prompt is denoted \(\Pi_{\mathrm{H}}\). The VLM system prompt that selects the best human-frame candidate is denoted \(\Pi_{\mathrm{sel}}\); its final wording is not fixed yet, so the appendix records it as a placeholder. The agentic contact-overlay generation system prompt is denoted \(\Pi_{\mathrm{con}}\). The VLM evaluator system prompt for accepting or rejecting contact masks is denoted \(\Pi_{\mathrm{eval}}\).
+\begin{table}[t]
+  \centering
+  \caption{Example Scene Interaction Graphs for prompts with different levels of specificity.}
+  \label{tab:sig-examples}
+  \begin{tabularx}{\textwidth}{@{}p{0.29\textwidth}p{0.21\textwidth}X@{}}
+    \toprule
+    Prompt & Scene nodes & Contact/support edges \\
+    \midrule
+    ``A person lifting a table.'' &
+    target object: table; floor &
+    left hand $\rightarrow$ table;
+    right hand $\rightarrow$ table;
+    left foot $\rightarrow$ floor;
+    right foot $\rightarrow$ floor. \\
+    \addlinespace
+    ``A person opening a washing machine.'' &
+    target object: washing machine; floor &
+    right hand $\rightarrow$ washing machine;
+    left foot $\rightarrow$ floor;
+    right foot $\rightarrow$ floor. \\
+    \addlinespace
+    ``A person on the treadmill with both hands on the side frames and one foot on the belt.'' &
+    target object: treadmill; floor &
+    left hand $\rightarrow$ treadmill;
+    right hand $\rightarrow$ treadmill;
+    left foot $\rightarrow$ treadmill;
+    right foot $\rightarrow$ floor. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
 
-\subsection{SIG Generation}
-\label{subsec:sig-generation}
+After generation, the SIG is validated before being used by later modules. The validation checks that the graph contains at least one target object or floor node, that each human node belongs to the supported body-part vocabulary, and that every edge references a defined scene node. Duplicate edges and unsupported body parts are removed or rejected. If no usable contact edge remains, the pipeline cannot construct meaningful contact targets and the graph must be regenerated.
 
-The first model call uses \(\Pi_{\mathrm{SIG}}\) to convert the instruction and the selected scene image into a SIG. This system prompt asks the model to identify the target object or objects receiving direct human contact, select only physically important human body parts, include floor support when required, and describe the static contact-ready pose. The graph is then parsed as JSON and validated against the canonical schema. This validation step is important because later stages assume side-specific body parts and valid edge endpoints. If the graph contains unsupported parts, duplicate edges, undefined target objects, or no usable contact edges, the graph is rejected rather than silently propagated.
+Each valid graph edge $e = (h_e, s_e)$ is associated with a body-side contact region on SMPL-X. For a human body part $h_e$, the corresponding contact region is a fixed vertex subset $B_e$. These vertex subsets are manually defined from the SMPL-X mesh and represent the surfaces that are most likely to participate in physical contact. For example, hand contacts use palm-side vertices, foot contacts use support-facing foot vertices, and sitting or leaning contacts use appropriate regions on the hips, back, head, or legs. These details are fixed once for the whole method and are reused for all interactions.
 
-\subsection{Human-Frame Synthesis}
-\label{subsec:human-frame-synthesis}
+The SIG therefore connects language to geometry in a controlled way. It does not determine the final pose, and it does not localize the exact object surface that should be touched. Instead, it specifies the required body-part--scene relations. The following modules use this graph to generate a visual human interaction hypothesis, estimate the corresponding scene-side contact regions, and optimize the SMPL-X body so that the specified body regions contact the projected scene targets.
 
-The second model call uses \(\Pi_{\mathrm{H}}\) and the generated SIG description to edit the original scene image. The image-editing system prompt instructs the model to insert exactly one person performing the interaction while preserving the camera pose, field of view, room geometry, lighting, textures, and all existing objects. The target object must remain fixed: it must not be moved, lifted, opened, rotated, or deformed. This produces human-frame candidates that serve as visual hypotheses for human pose, body orientation, laterality, and approximate contact layout.
 
-These generated frames are not the final output. They are intermediate priors. For human-frame synthesis, sampling multiple edited candidates and selecting the best candidate \(\hat{I}\) with the VLM selection system prompt \(\Pi_{\mathrm{sel}}\) was empirically sufficient: the selected image mainly needs to provide a plausible action, body orientation, and contact layout for GVHMR initialization. Small visual imperfections in this frame are tolerable because the final metric body is produced only after contact grounding and SMPL-X optimization in the reconstructed scene.
+\section{Human Frame Generation}
+\label{sec:method-human-frame}
 
-\subsection{Agentic Contact-Region Inpainting}
-\label{subsec:contact-mask-estimation}
+The second module generates a visual hypothesis of the requested interaction in the input scene view. Given the original ScanNet++ image $I$, the user instruction $y$, and the Scene Interaction Graph $G$, an image generation model is prompted to insert a single human into the scene. The output is an edited image in which the generated person appears to perform the requested interaction while the scene remains otherwise unchanged. The full human-frame generation prompt is reported in \cref{app:system-prompt-human-inpaint}.
 
-The contact-region inpainting stage converts the visual interaction hypothesis into scene-side contact masks. It first localizes the generated person in \(\hat{I}\) with a SAM3 \texttt{person} mask. The resulting human bounding box is padded to include nearby object surfaces and, when needed, expanded to preserve the image aspect ratio. Let this crop window be \(\Omega\). The same crop is then applied to two images:
+The purpose of this module is not to produce the final result. The generated image is used as an intermediate visual prior for two downstream tasks. First, it provides the image evidence needed by GVHMR to initialize an SMPL-X body. Second, it shows the approximate pose, orientation, laterality, and contact layout that the contact-estimation module uses to infer scene-side contact regions. The final output of the method is produced only after contact grounding and 3D SMPL-X optimization.
+
+The image generation prompt is constructed to preserve the original scene as much as possible. The model is instructed to keep the camera viewpoint, room geometry, object layout, lighting, textures, and target object fixed. The prompt also specifies that exactly one person should be inserted. For object-manipulation instructions, the target object should not be moved, opened, lifted, rotated, or deformed by the image model. For example, for an instruction such as ``a person opening a washing machine,'' the desired output is an image of a person reaching for or contacting the washing-machine door or handle region, while the washing machine itself remains in its original closed state. This is important because the reconstructed scene mesh represents the original object geometry and cannot reflect image-only object edits.
+
+The generated human frame must also respect the body-part requirements encoded in the SIG. If the graph contains hand--object edges, the generated person should place the corresponding hands near the target object. If the graph contains foot--floor edges, the person should appear physically supported by the floor. If the instruction explicitly specifies asymmetric contacts, such as one foot on a treadmill belt and the other foot on the floor, the generated frame should preserve this laterality. These requirements make the generated image a useful visual bridge between language-level interaction intent and later metric optimization.
+
+In practice, the image generation model may produce multiple candidate frames. Let these candidates be denoted by
 \begin{equation}
-  I_{\mathrm{ref}} = \operatorname{crop}_{\Omega}(\hat{I}),
-  \qquad
-  I_{\mathrm{can}} = \operatorname{crop}_{\Omega}(I).
-  \label{eq:agentic-crops}
+\label{eq:human-frame-candidates}
+\mathcal{I}_{H}
+=
+\{
+\hat{I}^{(1)},
+\hat{I}^{(2)},
+\ldots,
+\hat{I}^{(N)}
+\}.
 \end{equation}
-Here \(I_{\mathrm{ref}}\) is the reference crop from the inpainted human image, and \(I_{\mathrm{can}}\) is the canvas crop from the original scene image. The canvas is therefore not an edited image. It is the original calibrated scene crop containing the empty target object.
+A vision-language evaluator is then used to choose the most suitable candidate from this set. The evaluator compares each candidate against the original image, the interaction instruction, and the expected contact structure. It favors candidates that express the requested interaction clearly, preserve the target object and surrounding scene, contain a plausible full-body pose, and expose the relevant body-part contacts for later reasoning. The prompt used for this candidate-selection step is provided in \cref{app:system-prompt-best-frame-selection}.
 
-The crop also updates the camera intrinsics used downstream. If the crop origin is \((x_0,y_0)\), the principal point is shifted by this offset while the world-to-camera extrinsics remain unchanged, as formalized in \cref{eq:crop-intrinsics}. All contact masks are produced in this cropped coordinate system.
-
-The reference crop \(I_{\mathrm{ref}}\) is used only to infer which human body parts touch the target object and which object surfaces they touch. The canvas crop \(I_{\mathrm{can}}\) is the authoritative image for the target object's pose, geometry, boundaries, appearance, lighting, and pixel coordinate system. Using the canvas crop has two purposes. First, it is easier for the image model to draw contacts on the empty object surface without the human body occluding the object. Second, it prevents image-editing errors in \(\hat{I}\) from becoming metric errors. The human-inpainting model may slightly alter the target object's pose, outline, or appearance. If contact masks were drawn on that altered object and then back-projected, the selected pixels could correspond to the wrong faces on the reconstructed scene mesh. Even visually reasonable contact overlays would then produce wrong 3D contact targets and damage the downstream optimization.
-
-The contact system prompt \(\Pi_{\mathrm{con}}\) is instantiated with the SIG and assigns a distinct solid color to each target-object contact body part. Let \(\mathcal{P}=\{(h,c_h)\}\) be this palette, where \(h\) is a body part and \(c_h\) is its RGB color. At agentic round \(r\), the image-editing model receives \(I_{\mathrm{ref}}\), \(I_{\mathrm{can}}\), \(\mathcal{P}\), \(\Pi_{\mathrm{con}}\), and any correction text from the previous round. It outputs a generated contact overlay \(O^{(r)}\). The masks in \(O^{(r)}\) must be localized contact footprints on the object surface, clipped to the target-object boundary, and must not include the human body silhouette, text labels, arrows, outlines, or changes to any non-mask pixel. This design matters because the optimizer consumes the mask as geometry: a mask on the wrong rung, handle, edge, or side surface creates a wrong 3D target even if the rendered human looks visually plausible.
-
-The raw generated contact overlay \(O^{(r)}\) is not trusted as an image of the scene. The image model can still slightly change the target object's pose, geometry, or appearance while drawing the masks. The implementation therefore extracts only pixels that match colors in \(\mathcal{P}\), producing a color-only mask layer
+The selected human frame is denoted by
 \begin{equation}
-  Z^{(r)} = \operatorname{extract}_{\mathcal{P}}\!\left(O^{(r)}\right).
-  \label{eq:contact-color-layer}
+\label{eq:selected-human-frame}
+\hat{I}
+=
+\hat{I}^{(j^\star)}.
 \end{equation}
-This layer is pasted onto a fresh copy of \(I_{\mathrm{can}}\), producing the current composite image
-\begin{equation}
-  C^{(r)} = I_{\mathrm{can}} \oplus Z^{(r)}.
-  \label{eq:contact-composite}
-\end{equation}
-Here \(\oplus\) denotes pixel-wise replacement only at the colored mask pixels. The composite \(C^{(r)}\) is the image evaluated by the VLM. It shows where the proposed masks actually land on the true scene crop, rather than where they appear to land on a possibly altered generated overlay.
+Minor visual artifacts in the selected frame are acceptable because the generated image is not used as a final rendering. However, candidates with severe object distortions, missing body parts, implausible body scale, incorrect laterality, or unrelated interaction geometry are rejected by the evaluator. This selection step improves the stability of the downstream stages because both GVHMR initialization and contact estimation depend on the generated human being visually consistent with the requested interaction.
+
+The selected human frame $\hat{I}$ remains in the same image coordinate system as the original view $I$, which allows it to be compared directly with the original scene image in the contact-estimation module. The generated human in $\hat{I}$ is used only as evidence for pose and contact reasoning. The authoritative scene geometry remains the reconstructed ScanNet++ mesh $M_s$, and the authoritative scene appearance for contact annotation remains the original image $I$.
 
 \begin{figure}[t]
   \centering
-  \setlength{\tabcolsep}{4pt}
-  \begin{tabular}{cccc}
-    \methodbox{0.20\textwidth}{Reference crop\\inpainted human\\shows likely contact}
-    &
-    \methodbox{0.20\textwidth}{Canvas crop\\original scene\\authoritative geometry}
-    &
-    \methodbox{0.20\textwidth}{Composite image\\canvas crop plus\\colored mask pixels}
-    &
-    \methodbox{0.20\textwidth}{3D target\\visible mesh faces\\sampled contact points}
-  \end{tabular}
-  \caption{Contact-grounding schematic. The generated human is used only to infer where contact should occur. The contact colors are extracted from the generated overlay, pasted onto the original canvas crop to form a composite image, and accepted only after VLM evaluation on that composite.}
-  \label{fig:contact-grounding}
+  % TODO: Replace with side-by-side images from one example.
+  % Suggested panels:
+  % (a) original ScanNet++ RGB image
+  % (b) generated candidate frames
+  % (c) VLM-selected human frame
+  % Use either a functional example such as "opening a washing machine"
+  % or a detailed pose example such as the treadmill prompt.
+
+  \fbox{
+    \begin{minipage}[c][0.22\textheight][c]{0.92\textwidth}
+      \centering
+      \textbf{Human frame generation placeholder}\\[0.8em]
+      Original scene image $I$
+      \quad $\rightarrow$ \quad
+      candidate human frames $\mathcal{I}_{H}$
+      \quad $\rightarrow$ \quad
+      selected frame $\hat{I}$
+    \end{minipage}
+  }
+
+  \caption{
+  Human frame generation and selection. The image model inserts one person into the original ScanNet++ view according to the interaction instruction while preserving the scene, camera viewpoint, and target object. When multiple candidates are generated, a vision-language evaluator selects the frame that best preserves the scene and expresses the required body--scene contacts. The selected frame is used as an intermediate visual hypothesis for GVHMR initialization and contact estimation.
+  }
+  \label{fig:human-frame-generation}
 \end{figure}
 
-The composite \(C^{(r)}\) is validated before any mask becomes a geometric constraint. A VLM evaluator \(\Phi_{\mathrm{eval}}\) receives three images: \(I_{\mathrm{ref}}\), \(I_{\mathrm{can}}\), and \(C^{(r)}\). It evaluates only the colored masks in the composite:
+\section{Agentic Diffusion-Based Contact Estimation}
+\label{sec:method-contact-estimation}
+
+The third module estimates the scene-side contact regions required by the interaction. This stage is the main bridge between open-vocabulary visual reasoning and metric 3D optimization. Given the selected human frame $\hat{I}$, the original scene image $I$, and the Scene Interaction Graph $G$, the goal is to obtain a set of body-part-specific contact masks on the original scene image. These masks are later projected to the reconstructed scene mesh and used as 3D contact targets.
+
+The key difficulty is that the image model can reason about contacts from the generated human frame, but its edited outputs are not geometrically reliable by themselves. When asked to draw contact overlays, the model may slightly change the target object, modify the background, alter image texture, or shift scene boundaries. The method therefore does not use the generated overlay image as the final annotated image. Instead, it extracts only the solid-color contact regions from the generated output and pastes those regions back onto the unchanged original scene image. The resulting image is called the contact composite. This ensures that the verified masks are always defined in the coordinate system of the calibrated input image $I$.
+
+\subsection{Reference, Canvas, and Contact-Overlay Images}
+\label{sec:method-contact-reference-canvas}
+
+For contact estimation, the selected human frame $\hat{I}$ serves as the reference image. It contains the generated person and therefore shows the approximate pose, body laterality, and visible contact configuration. The original ScanNet++ image $I$ serves as the canvas image. It contains the scene without the generated human and preserves the original target-object appearance, location, and boundaries.
+
+For every object-contact edge $e = (h_e, s_e)$ in the SIG, the model must identify the localized scene surface contacted by body part $h_e$. If the instruction is ``a person opening a washing machine,'' the corresponding hand contact should be localized near the functional door or handle region. If the instruction specifies a treadmill interaction with both hands on the side frames and one foot on the belt, the contact regions should be localized on the treadmill rails and belt rather than arbitrary treadmill surfaces.
+
+Each required contact edge is assigned a distinct bright color. Let $c_e$ denote the color assigned to edge $e$. At iteration $r$, the image model receives the reference image $\hat{I}$, the canvas image $I$, the target-object description, the current correction instruction if one exists, and the color mapping from contact edges to colors. It produces an overlay candidate
 \begin{equation}
-  \left(a^{(r)}, \gamma^{(r)}, d^{(r)}\right)
-  =
-  \Phi_{\mathrm{eval}}\!\left(I_{\mathrm{ref}}, I_{\mathrm{can}}, C^{(r)};\Pi_{\mathrm{eval}}\right),
-  \label{eq:vlm-contact-eval}
+\label{eq:contact-overlay-candidate}
+O^{(r)}
+=
+\Phi_{\mathrm{con}}
+(
+\hat{I},
+I,
+G,
+\{c_e\},
+a^{(r-1)}
+),
 \end{equation}
-where \(a^{(r)}\) is the accept/reject flag, \(\gamma^{(r)}\) is the evaluator confidence, and \(d^{(r)}\) is the natural-language correction instruction. Evaluating \(C^{(r)}\) catches cases where a mask looks correct in \(O^{(r)}\) because the target object was subtly changed, but after pixel-wise transfer to the original scene crop the same mask falls on the wrong object part, partly outside the object, or on the background. The evaluator checks for missing contacts, extra contacts, wrong body-part colors, placement on the wrong object surface, shifted masks, and contact footprints that are too large or too small.
+where $\Phi_{\mathrm{con}}$ denotes the contact-overlay generation model and $a^{(r-1)}$ is the correction instruction from the previous iteration. For the first iteration, no correction instruction is used. The full contact-overlay prompt is provided in \cref{app:system-prompt-contact-overlay}.
 
-If \(a^{(r)}\) is false, the correction instruction \(d^{(r)}\) is appended to the next contact-inpainting system prompt. The previous composite \(C^{(r)}\) is provided only as correction context; the original canvas crop \(I_{\mathrm{can}}\) remains the required base image for every round. This agentic behavior is important for contact estimation. Independent sampling can repeatedly produce the same type of unusable mask, for example contact regions that are too large or cover the wrong object surface. The evaluator instead tells the image model what is wrong and what should be changed. Because every correction round redraws the masks on a fresh copy of the unedited scene crop and the VLM judges them after transfer back onto that crop, any accidental target-object drift introduced in \(O^{(r)}\) cannot accumulate across rounds and cannot propagate into the 2D-to-3D grounding.
+The intended output $O^{(r)}$ is an edited copy of the canvas image with solid-color masks drawn only on the localized contact regions of the target object. However, because the generated image may also contain unintended changes to the scene, $O^{(r)}$ is treated only as a temporary source from which color masks are extracted.
 
-Let \(r^\star\) denote the first accepted round, i.e. \(a^{(r^\star)}=\mathrm{true}\). The accepted composite \(C^{(r^\star)}\) is converted into one binary mask per graph edge by nearest-color classification and connected-component filtering:
+\subsection{Overlay Extraction and Composite Construction}
+\label{sec:method-contact-composite}
+
+After the image model produces the overlay candidate $O^{(r)}$, the method extracts the pixels corresponding to each assigned contact color. For each object-contact edge $e$, the color extraction step produces a binary mask
 \begin{equation}
-  M_e^{2D} =
-  \operatorname{bin}_{e}\!\left(C^{(r^\star)}, \mathcal{P}\right).
-  \label{eq:accepted-contact-mask}
+\label{eq:color-extraction}
+Z_e^{(r)}
+=
+\operatorname{ExtractColor}
+(
+O^{(r)},
+c_e
+).
 \end{equation}
-These accepted masks are the only image-space contact constraints passed to 2D-to-3D grounding.
+The extracted mask $Z_e^{(r)}$ contains only pixels whose color matches the assigned body-part color $c_e$, within a small tolerance. This step discards all other content in the generated overlay image, including any accidental modifications to scene texture, object shape, lighting, or background.
 
-Floor support is handled separately. When the SIG contains foot-floor edges, SAM3 segments the floor in the original scene view \citep{carion2025sam3}. The floor mask is eroded slightly and used as the support target for the relevant foot contacts. This avoids forcing the image model to localize an arbitrary small foot footprint on a broad support surface when any nearby physically plausible floor support is acceptable.
-
-\section{2D-to-3D Contact Grounding}
-\label{sec:contact-grounding}
-
-The accepted contact masks \(M_e^{2D}\) are initially defined in the crop coordinate system, but the optimizer requires 3D scene targets. The method therefore converts each binary mask into visible scene mesh regions using the calibrated ScanNet++ camera.
-
-The crop used for contact-region inpainting determines the projection camera. If the crop begins at pixel \((x_0,y_0)\), the crop intrinsics are
+The extracted masks are then placed on top of the original unedited scene image $I$. This produces the contact composite
 \begin{equation}
-  K_{\mathrm{crop}} =
-  \begin{bmatrix}
-    f_x & 0 & c_x - x_0 \\
-    0 & f_y & c_y - y_0 \\
-    0 & 0 & 1
-  \end{bmatrix}.
-  \label{eq:crop-intrinsics}
+\label{eq:contact-composite}
+C^{(r)}
+=
+\operatorname{Composite}
+(
+I,
+\{Z_e^{(r)}\}
+).
 \end{equation}
-The camera extrinsics \(R,t\) are unchanged by the crop. Each accepted mask \(M_e^{2D}\) is interpreted with \(K_{\mathrm{crop}}\).
+The composite $C^{(r)}$ has the same camera coordinate system, resolution, and scene appearance as the original image $I$. The only difference is the addition of solid-color contact overlays. This design is important for projection: the final masks must correspond to pixels in the calibrated original image, not to a potentially altered image produced by the generative model.
 
-The scene mesh is transformed from world coordinates to the camera coordinate frame using \(R\) and \(t\). Only mesh faces visible under the crop camera are considered. For each edge mask \(M_e^{2D}\), candidate scene faces are rasterized or projected into the crop, and faces whose projected pixels overlap the mask are retained. Depth filtering removes faces inconsistent with the visible surface. The implementation uses a depth-jump tolerance, a nearby-depth tolerance, a minimum component size, and a maximum component-gap threshold to avoid selecting disconnected or occluded geometry behind the visible contact region.
+The composite also separates two roles that would otherwise be entangled. The image generation model is used to infer and draw candidate contact regions, while the original scene image remains the authoritative geometric canvas. Thus, even if the overlay candidate $O^{(r)}$ contains minor scene drift, the downstream verifier and projector only operate on the clean composite $C^{(r)}$.
 
-The remaining face set is converted into a point cloud. The method samples a fixed number of surface points per edge from the selected scene faces. This point cloud is the scene-side contact target \(P_e^s\). The final edge representation therefore contains the graph nodes, the SMPL-X body contact vertex set \(B_e\), the projected scene face and vertex ids, and the sampled target points \(P_e^s\). Bilateral contacts are spatially disambiguated when necessary so that left and right body parts are paired with the scene-side regions closest to their initialized body locations.
+\subsection{Agentic Contact Verification and Correction}
+\label{sec:method-agentic-contact-verification}
 
-\section{SMPL-X Initialization and Optimization}
-\label{sec:smplx-optimization}
+The extracted contact overlays are verified using a closed-loop vision-language evaluation stage. The evaluator receives three images: the selected human frame $\hat{I}$, the original scene image $I$, and the contact composite $C^{(r)}$. The selected human frame shows the intended human-object interaction, the original scene image provides the unmodified target-object geometry, and the composite shows the current proposed contact masks on that original scene.
 
-\subsection{GVHMR Initialization}
-\label{subsec:gvhmr-initialization}
+The evaluator checks whether the colored overlays in $C^{(r)}$ correctly mark the scene regions contacted by the generated human in $\hat{I}$. It verifies that all required contacts are present, that no extra contacts are added, that each color corresponds to the correct body part, that each mask lies on the correct object surface, and that each mask has an appropriate size and location. The evaluation prompt is provided in \cref{app:system-prompt-contact-eval}.
 
-The inpainted human frame \(\hat{I}\) provides the only image evidence of the generated person. To initialize a 3D body, the frame is repeated into a short static video clip and passed to GVHMR. GVHMR outputs SMPL-X parameters for the first frame. The first-frame vertices are initially in the camera coordinate frame and are transformed into the ScanNet++ world coordinate frame using the selected image's COLMAP pose. This initialization gives the optimizer a plausible full-body pose and approximate camera-space placement, but it is not assumed to satisfy the interaction constraints exactly.
+The evaluator returns either an acceptance decision or a correction instruction. This can be written as
+\begin{equation}
+\label{eq:vlm-contact-eval}
+(d^{(r)}, a^{(r)})
+=
+\Phi_{\mathrm{eval}}
+(
+\hat{I},
+I,
+C^{(r)},
+G,
+\{c_e\}
+),
+\end{equation}
+where $d^{(r)}$ is the decision and $a^{(r)}$ is a natural-language correction instruction. If the masks are correct, $d^{(r)}$ is accepted and the loop terminates. If the masks are rejected, the correction instruction is passed back to the contact-overlay generation model for the next iteration. For example, the instruction may ask the model to move a hand mask to the correct handle region, shrink an overly large contact footprint, add a missing contact, remove an extra mask, or correct a body-part color.
+
+This agentic loop is repeated for a limited number of iterations:
+\begin{equation}
+\label{eq:agentic-contact-loop}
+O^{(r)}
+\rightarrow
+\{Z_e^{(r)}\}
+\rightarrow
+C^{(r)}
+\rightarrow
+(d^{(r)}, a^{(r)})
+\rightarrow
+O^{(r+1)}.
+\end{equation}
+The first accepted composite is used as the final contact annotation. If no candidate is accepted within the maximum number of attempts, the best available composite is retained only when the contact locations are still usable for optimization; otherwise the interaction is marked as a failure case.
+
+Let $r^\star$ denote the selected iteration. The final object-contact masks are
+\begin{equation}
+\label{eq:final-object-contact-masks}
+M_e^{2D}
+=
+Z_e^{(r^\star)}
+\qquad
+\text{for all}
+\qquad
+e \in \mathcal{E}_{obj},
+\end{equation}
+where $\mathcal{E}_{obj}$ is the subset of SIG edges whose scene node is the target object. Small isolated components may be removed after extraction, and masks can be clipped to the visible target-object region when necessary.
+
+\subsection{Floor Support Masks}
+\label{sec:method-floor-support-masks}
+
+Floor contacts are handled separately from object contacts. For support edges such as left-foot--floor or right-foot--floor, the exact pixel location of the foot in the original image is less important than obtaining a geometrically valid support surface. The method therefore uses SAM3 to segment visible floor regions in the original scene image $I$. The resulting floor mask is projected to the reconstructed scene mesh and used as the scene-side support target for foot contacts.
+
+This separation avoids asking the contact-overlay model to hallucinate precise foot footprints on an empty floor region in the original image. For standing, walking, or balancing interactions, the projected floor region provides a stable support surface, while the SMPL-X optimization determines the final precise foot placement subject to contact, penetration, and pose priors.
+
+Let $\mathcal{E}_{floor}$ denote the subset of SIG edges whose scene node is the floor. For each floor-support edge $e$, the corresponding 2D support mask is denoted by
+\begin{equation}
+\label{eq:floor-mask-2d}
+M_e^{2D}
+=
+M_{floor}^{2D}
+\qquad
+\text{for}
+\qquad
+e \in \mathcal{E}_{floor}.
+\end{equation}
+The same floor mask can be reused for multiple foot-support edges, since the distinction between left and right foot is enforced on the body side during optimization.
+
+\subsection{Projection to 3D Contact Targets}
+\label{sec:method-contact-projection}
+
+The verified 2D contact masks are projected to the reconstructed scene mesh using the calibrated camera. For a 3D scene point $x$ in the ScanNet++ world coordinate frame, its image projection is
+\begin{equation}
+\label{eq:scene-point-projection}
+\tilde{u}
+=
+K
+(
+R x + t
+),
+\end{equation}
+followed by perspective division to obtain the pixel coordinate $u = (u_x,u_y)$. A scene vertex or sampled scene point is assigned to contact edge $e$ if its projected pixel lies inside the final mask $M_e^{2D}$ and passes visibility filtering for the selected camera view.
+
+This projection converts each image-space mask into a metric scene-side contact target:
+\begin{equation}
+\label{eq:projected-contact-target}
+P_e^s
+=
+\{x \in M_s \mid \pi(x;K,R,t) \in M_e^{2D}\}.
+\end{equation}
+Here, $\pi(x;K,R,t)$ denotes the calibrated projection from the scene coordinate frame to the image plane. In practice, $P_e^s$ is represented as a set of scene vertices or sampled surface points on the reconstructed mesh. These points remain fixed during optimization and serve as the target regions that the corresponding SMPL-X contact vertices should approach.
+
+The final output of the contact-estimation module is the set of projected contact targets
+\begin{equation}
+\label{eq:projected-contact-target-set}
+\mathcal{P}^{s}
+=
+\{P_e^s \mid e \in \mathcal{E}\}.
+\end{equation}
+Each element of this set is linked to one SIG edge and therefore to one body-side SMPL-X contact region. The next modules use these targets to initialize and optimize the human body in the reconstructed scene.
+
+\begin{figure}[t]
+  \centering
+  % TODO: Replace with real panels from one example.
+  % Recommended panels:
+  % (a) original ScanNet++ image I
+  % (b) selected generated human frame \hat{I}
+  % (c) generated contact-overlay candidate O^{(r)}
+  % (d) extracted masks pasted onto original image: composite C^{(r)}
+  % (e) VLM correction / accepted composite
+  % (f) projected 3D contact targets on the scene mesh
+
+  \fbox{
+    \begin{minipage}[c][0.28\textheight][c]{0.94\textwidth}
+      \centering
+      \textbf{Agentic contact estimation placeholder}\\[0.8em]
+      Human frame $\hat{I}$
+      \quad $+$ \quad
+      original image $I$
+      \quad $\rightarrow$ \quad
+      overlay candidate $O^{(r)}$
+      \quad $\rightarrow$ \quad
+      extracted masks $Z_e^{(r)}$
+      \quad $\rightarrow$ \quad
+      composite $C^{(r)}$\\[0.8em]
+      VLM verification
+      \quad $\rightarrow$ \quad
+      correction loop or accepted masks
+      \quad $\rightarrow$ \quad
+      3D contact targets $P_e^s$
+    \end{minipage}
+  }
+
+  \caption{
+  Agentic diffusion-based contact estimation. The image model proposes colored contact overlays using the selected human frame as reference and the original scene image as canvas. Since the generated overlay image may still alter the underlying scene appearance or geometry, only the colored mask pixels are extracted and recomposited onto the untouched original image. A vision-language evaluator checks the composite against the human frame and original scene image, then either accepts the masks or returns a correction instruction for another generation attempt. Accepted masks are projected to the reconstructed scene mesh to obtain body-part-specific 3D contact targets.
+  }
+  \label{fig:agentic-contact-estimation}
+\end{figure}
+
+\section{SMPL-X Pose Initialization}
+\label{sec:method-pose-init}
+
+The fourth module initializes the human body from the selected generated frame. The contact-estimation stage provides scene-side contact targets, but these targets alone do not determine a complete articulated body. The method therefore uses GVHMR to obtain an initial SMPL-X estimate from the generated human image $\hat{I}$. This initialization provides a plausible full-body pose, body orientation, translation, and shape before scene-aware refinement.
+
+GVHMR is designed for monocular human reconstruction from image or video input. Since the proposed setting uses a single static generated frame, the selected image $\hat{I}$ is converted into a short static clip by repeating the same frame:
+\begin{equation}
+\label{eq:static-human-clip}
+\mathcal{V}_{\hat{I}}
+=
+(
+\hat{I},
+\hat{I},
+\ldots,
+\hat{I}
+).
+\end{equation}
+This allows the frame to be processed by the GVHMR pipeline while preserving the static nature of the target interaction. The first reconstructed frame is used as the initialization for the downstream optimization.
+
+Applying GVHMR to the static clip produces an initial SMPL-X estimate in the camera coordinate frame:
+\begin{equation}
+\label{eq:gvhmr-camera-init}
+\theta^{cam}_0
+=
+(
+\mathbf{T}^{cam}_0,
+\mathbf{r}^{cam}_0,
+\mathbf{p}_0,
+\boldsymbol{\beta}_0
+).
+\end{equation}
+Here, $\mathbf{T}^{cam}_0$ is the initial global body translation in camera coordinates, $\mathbf{r}^{cam}_0$ is the initial global body orientation, $\mathbf{p}_0$ is the articulated body pose, and $\boldsymbol{\beta}_0$ is the estimated SMPL-X body shape. The shape estimate is used as a fixed body identity during optimization.
+
+The final optimization is performed in the ScanNet++ scene coordinate frame, so the GVHMR initialization is transformed from camera coordinates to world coordinates using the selected image camera pose. With the projection convention
+\begin{equation}
+\label{eq:camera-transform-convention}
+x^{cam}
+=
+R x^{world} + t,
+\end{equation}
+the inverse transform maps camera-frame points into the ScanNet++ world frame. The initial translation is converted as
+\begin{equation}
+\label{eq:init-translation-world}
+\mathbf{T}_0
+=
+R^{\top}
+(
+\mathbf{T}^{cam}_0 - t
+).
+\end{equation}
+The global body orientation is converted by applying the inverse camera rotation to the camera-frame body orientation. If $\mathbf{R}^{cam}_0$ denotes the rotation matrix corresponding to $\mathbf{r}^{cam}_0$, the world-frame orientation is
+\begin{equation}
+\label{eq:init-orientation-world}
+\mathbf{R}_0
+=
+R^{\top}
+\mathbf{R}^{cam}_0.
+\end{equation}
+The corresponding axis-angle representation is denoted by $\mathbf{r}_0$.
+
+The resulting initialization in the scene coordinate frame is
+\begin{equation}
+\label{eq:gvhmr-world-init}
+\theta_0
+=
+(
+\mathbf{T}_0,
+\mathbf{r}_0,
+\mathbf{p}_0,
+\boldsymbol{\beta}_0
+).
+\end{equation}
+This initialization is visually plausible because it is estimated from the generated human frame, but it is not guaranteed to satisfy the projected contact targets or avoid collisions with the reconstructed scene mesh. In particular, the generated image may contain small inconsistencies in scale, depth, contact location, or body placement. The role of the next stage is therefore to refine $\mathbf{T}_0$, $\mathbf{r}_0$, and $\mathbf{p}_0$ using the scene geometry and the contact targets obtained from the previous module.
+
+During optimization, the shape parameters $\boldsymbol{\beta}_0$ are kept fixed. This avoids using contact refinement to compensate for geometric errors by changing body identity. The optimized variables are limited to global translation, global orientation, and articulated body pose, while the reconstructed scene mesh and projected contact targets remain fixed.
+
+\section{Scene-Aware SMPL-X Optimization}
+\label{sec:method-optimization}
+
+The final module refines the initialized SMPL-X body using the reconstructed scene geometry and the projected contact targets. The GVHMR estimate provides a plausible human pose from the generated image, but it is not guaranteed to satisfy the contact requirements in 3D. In particular, the body may be slightly offset from the target object, may contact an incorrect surface, or may intersect the reconstructed scene. The optimization stage corrects these errors while preserving the plausibility of the initial body pose.
 
 \subsection{Optimized Variables}
-\label{subsec:optimized-variables}
+\label{sec:method-optimized-variables}
 
-The scene mesh, camera calibration, and graph-derived contact targets are fixed during optimization. The optimized body variables are translation, global orientation, body pose, and global scale. Shape parameters are initialized from GVHMR and kept as part of the recovered body state, while the additional scale variable allows the canonical SMPL-X height to fit a reasonable human-height range. The optimizer exports the world-frame mesh together with the optimized parameter file.
-
-\subsection{Objective}
-\label{subsec:objective}
-
-The optimization objective combines graph-derived contact terms, a penetration penalty, and priors that keep the body close to the GVHMR initialization:
+The optimization starts from the world-frame initialization
 \begin{equation}
-  \begin{aligned}
-  \mathcal{L}(\theta) =
-  &\lambda_{\mathrm{contact}}\mathcal{L}_{\mathrm{contact}}
-  + \lambda_{\mathrm{penetration}}\mathcal{L}_{\mathrm{penetration}}
-  + \lambda_{\mathrm{pose}}\mathcal{L}_{\mathrm{pose}}
-  + \lambda_{\mathrm{orient}}\mathcal{L}_{\mathrm{orient}} \\
-  &+ \lambda_{\mathrm{height}}\mathcal{L}_{\mathrm{height}}.
-  \end{aligned}
-  \label{eq:optimization-objective}
+\label{eq:optimization-init}
+\theta_0
+=
+(
+\mathbf{T}_0,
+\mathbf{r}_0,
+\mathbf{p}_0,
+\boldsymbol{\beta}_0
+).
+\end{equation}
+Only the global translation $\mathbf{T}$, global orientation $\mathbf{r}$, and articulated body pose $\mathbf{p}$ are optimized. The body shape $\boldsymbol{\beta}_0$ is kept fixed throughout the optimization. The optimized body parameters are therefore
+\begin{equation}
+\label{eq:optimized-theta}
+\theta
+=
+(
+\mathbf{T},
+\mathbf{r},
+\mathbf{p},
+\boldsymbol{\beta}_0
+).
+\end{equation}
+Keeping the shape fixed prevents the optimizer from satisfying contact constraints by changing the body identity or body proportions. The optimization is instead forced to explain the interaction through pose and placement.
+
+For any current parameter state $\theta$, the SMPL-X model produces a posed human mesh
+\begin{equation}
+\label{eq:optimized-human-mesh}
+M_h(\theta)
+=
+(
+V_h(\theta),
+F_h
+).
+\end{equation}
+The scene mesh $M_s$ and the projected contact targets $P_e^s$ remain fixed. Thus, the optimization changes only the human body, not the reconstructed scene or the estimated scene-side contact regions.
+
+\subsection{Contact Objective}
+\label{sec:method-contact-objective}
+
+The contact objective attracts the specified SMPL-X body regions toward the corresponding projected scene contact targets. For each SIG edge $e$, the body-side contact vertices are given by the fixed vertex subset $B_e$, and the corresponding scene-side target is $P_e^s$. The body-side contact points under the current pose are
+\begin{equation}
+\label{eq:body-contact-current}
+P_e^h(\theta)
+=
+\{V_h(\theta)_i \mid i \in B_e\}.
 \end{equation}
 
-The contact loss attracts the selected SMPL-X contact vertices to the projected scene contact points:
+The contact loss is defined as a nearest-neighbor distance from the selected body contact vertices to the projected scene contact targets:
 \begin{equation}
-  \mathcal{L}_{\mathrm{contact}}
-  =
-  \frac{1}{|\mathcal{E}|}
-  \sum_{e \in \mathcal{E}}
-  d\left(P_e^h(\theta), P_e^s\right),
-  \label{eq:contact-loss}
+\label{eq:contact-loss}
+\mathcal{L}_{\mathrm{contact}}(\theta)
+=
+\sum_{e \in \mathcal{E}}
+\frac{1}{|B_e|}
+\sum_{i \in B_e}
+\operatorname*{min}_{q \in P_e^s}
+\left\|
+V_h(\theta)_i - q
+\right\|_2^2.
 \end{equation}
-where \(d(\cdot,\cdot)\) is a nearest-neighbor point-cloud distance with an edge-specific reduction. The implementation reports the square root of this value as a contact distance in meters for interpretability.
+This loss is edge-specific: hand vertices are pulled toward hand contact targets, foot vertices toward floor or object support targets, and so on. The SIG therefore determines which body region should be attracted to which scene region, while the projected masks determine the metric 3D location of the target.
 
-The penetration loss samples points on the scene surface and queries their signed distance to the posed SMPL-X body using VolumetricSMPL \citep{mihajlovic2025volumetricsmpl}. Let \(q_j\) be sampled scene points and \(\mathrm{SDF}_{h,\theta}(q_j)\) be their signed distance to the human body. With clearance margin \(m\),
+The one-sided nearest-neighbor formulation is useful because the scene target can contain multiple vertices or sampled surface points. The body contact region is encouraged to approach the nearest compatible part of the target region without requiring a fixed point-to-point correspondence between SMPL-X vertices and scene vertices.
+
+\subsection{Penetration Objective}
+\label{sec:method-penetration-objective}
+
+Contact attraction alone can produce physically invalid solutions if the body moves into the scene geometry. To discourage intersections, the optimization includes a penetration objective based on a signed distance representation of the SMPL-X body. The method uses VolumetricSMPL to query whether sampled scene points lie inside the current posed body.
+
+Let $\mathcal{Q}_s$ denote a set of scene points sampled from the reconstructed mesh near the current body. Let $\phi_{\theta}(x)$ be the signed distance from a scene point $x$ to the posed SMPL-X body, with negative values indicating that $x$ lies inside the body volume. The penetration loss is
 \begin{equation}
-  \mathcal{L}_{\mathrm{penetration}}
-  =
-  \frac{1}{|\mathcal{Q}^{+}|}
-  \sum_{q_j \in \mathcal{Q}^{+}}
-  \max(0, m - \mathrm{SDF}_{h,\theta}(q_j)),
-  \quad
-  \mathcal{Q}^{+}=\{q_j \mid m - \mathrm{SDF}_{h,\theta}(q_j)>0\}.
-  \label{eq:penetration-loss}
+\label{eq:penetration-loss}
+\mathcal{L}_{\mathrm{penetration}}(\theta)
+=
+\frac{1}{|\mathcal{Q}_s|}
+\sum_{x \in \mathcal{Q}_s}
+\left[
+\operatorname*{max}
+(
+0,
+-\phi_{\theta}(x)
+)
+\right]^2.
 \end{equation}
-This term penalizes scene points that lie inside the body or within the configured clearance margin.
+This term penalizes scene points that are inside the human body and assigns zero cost to points outside the body. It therefore discourages severe body-scene interpenetration while still allowing nearby contact.
 
-The pose prior penalizes deviations from the GVHMR body pose. The orientation prior penalizes the relative axis-angle rotation between the current global orientation and the initialization. The height prior constrains the scaled canonical body height to a plausible interval around a target height.
+\subsection{Pose and Orientation Priors}
+\label{sec:method-pose-orientation-priors}
 
-\begin{table}[t]
-  \centering
-  \caption{Optimization terms used by the scene-aware SMPL-X fitting stage.}
-  \label{tab:optimization-terms}
-  \begin{tabularx}{\textwidth}{@{}>{\bfseries\raggedright\arraybackslash}p{0.22\textwidth}p{0.13\textwidth}X@{}}
-    \toprule
-    Term & Status & Purpose \\
-    \midrule
-    \(\mathcal{L}_{\mathrm{contact}}\) & default & Pulls each body contact region toward the corresponding projected scene contact target. \\
-    \(\mathcal{L}_{\mathrm{penetration}}\) & default & Penalizes scene points inside or too close to the posed SMPL-X body. \\
-    \(\mathcal{L}_{\mathrm{pose}}\) & default & Keeps the optimized body pose close to the GVHMR initialization. \\
-    \(\mathcal{L}_{\mathrm{orient}}\) & default & Prevents implausible global rotations away from the initialized body orientation. \\
-    \(\mathcal{L}_{\mathrm{height}}\) & default & Keeps the scaled body within a plausible human-height range. \\
-    \bottomrule
-  \end{tabularx}
-\end{table}
+The contact and penetration losses are not sufficient to guarantee a natural human pose. Since the initialization from GVHMR is visually plausible, the optimization includes priors that keep the refined body close to the initial estimate. The pose prior penalizes large deviations from the initial articulated pose:
+\begin{equation}
+\label{eq:pose-prior-loss}
+\mathcal{L}_{\mathrm{pose}}(\theta)
+=
+\left\|
+\mathbf{p}
+-
+\mathbf{p}_0
+\right\|_2^2.
+\end{equation}
 
-\subsection{Optimization Schedule}
-\label{subsec:optimization-schedule}
+The orientation prior penalizes large changes in the global body orientation. Let $\mathbf{R}(\mathbf{r})$ and $\mathbf{R}(\mathbf{r}_0)$ be the rotation matrices corresponding to the current and initial global orientations. The orientation prior is defined using the geodesic distance on rotations:
+\begin{equation}
+\label{eq:orientation-prior-loss}
+\mathcal{L}_{\mathrm{orient}}(\theta)
+=
+\left\|
+\operatorname{Log}
+\left(
+\mathbf{R}(\mathbf{r}_0)^{\top}
+\mathbf{R}(\mathbf{r})
+\right)
+\right\|_2^2.
+\end{equation}
+Here, $\operatorname{Log}$ maps a rotation matrix to its axis-angle vector. This term prevents the optimizer from satisfying contacts through unrealistic global rotations that are inconsistent with the generated human frame.
 
-The optimizer uses Adam with a typical learning rate of \(10^{-3}\). A typical run uses 2000 iterations. The optimization is stage-wise. In the rigid stage, translation and scale are trainable while global orientation and body pose are frozen. Empirically, the GVHMR initialization provides a reliable global body orientation for the calibrated input views, so the first stage preserves this orientation while aligning the body to the scene contact targets. In the pose stage, translation, global orientation, scale, and body pose are all trainable. This allows the body to refine its local articulation while remaining regularized by the GVHMR pose and orientation priors.
+\subsection{Total Objective}
+\label{sec:method-total-objective}
 
-The implementation samples approximately 700,000 scene surface points for the penetration loss in a typical run and samples 2048 scene contact points per graph edge. It saves per-iteration loss logs, depth visualizations, penetration debug artifacts, optimized SMPL-X parameters, and the final world-coordinate mesh.
+The final optimization objective combines contact attraction, penetration avoidance, and the initialization priors:
+\begin{equation}
+\label{eq:optimization-total-loss}
+\mathcal{L}(\theta)
+=
+\lambda_{\mathrm{contact}}
+\mathcal{L}_{\mathrm{contact}}(\theta)
++
+\lambda_{\mathrm{penetration}}
+\mathcal{L}_{\mathrm{penetration}}(\theta)
++
+\lambda_{\mathrm{pose}}
+\mathcal{L}_{\mathrm{pose}}(\theta)
++
+\lambda_{\mathrm{orient}}
+\mathcal{L}_{\mathrm{orient}}(\theta).
+\end{equation}
+The optimized parameters are obtained by
+\begin{equation}
+\label{eq:optimization-argmin}
+\theta^{\ast}
+=
+\operatorname*{arg\,min}_{\mathbf{T},\,\mathbf{r},\,\mathbf{p}}
+\mathcal{L}(\theta),
+\qquad
+\boldsymbol{\beta} = \boldsymbol{\beta}_0.
+\end{equation}
 
-\section{Implementation Details and Artifacts}
-\label{sec:implementation-details}
+The contact term enforces the functional body--scene relationships inferred by the previous modules. The penetration term prevents the body from achieving contact by moving through scene geometry. The pose and orientation priors preserve the plausibility of the GVHMR initialization. Together, these terms refine the initial SMPL-X estimate into a geometrically grounded static interaction state.
 
-\begin{table}[t]
-  \centering
-  \caption{Main intermediate and final artifacts produced by the methodology pipeline.}
-  \label{tab:method-artifacts}
-  \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.36\textwidth}X@{}}
-    \toprule
-    Artifact & Role in the pipeline \\
-    \midrule
-    \path{sig.json} & Validated Scene Interaction Graph with target object labels, body parts, and contact/support edges. \\
-    \path{inpainted_frame_resized.png} & Image-editing output resized to the original calibrated view; used for contact inference and GVHMR initialization. \\
-    \path{rounds/round_*/} & Agentic contact-inpainting system-prompt packages, generated overlays \(O^{(r)}\), color layers \(Z^{(r)}\), composites \(C^{(r)}\), and VLM evaluations \((a^{(r)},\gamma^{(r)},d^{(r)})\). \\
-    \path{agentic_summary.json} & Contact-mask acceptance state, accepted round \(r^\star\), palette \(\mathcal{P}\), target object label, and latest VLM evaluation. \\
-    \path{contact_overlay.png} & Accepted composite \(C^{(r^\star)}\): original canvas crop with contact-color pixels pasted onto it. \\
-    \path{contact_masks/*.png} & Binary masks \(M_e^{2D}\) corresponding to the accepted composite for each body-part contact edge in the cropped canvas coordinate system. \\
-    \path{contact_spec.json} & Crop-adjusted camera intrinsics \(K_{\mathrm{crop}}\) and color palette \(\mathcal{P}\) for contact-mask extraction. \\
-    \path{hmr4d_results.pt} & GVHMR output containing the initial SMPL-X parameters. \\
-    \path{optimized_frame_0000.pt} & Optimized SMPL-X translation, orientation, body pose, shape, and scale. \\
-    \path{frame_0000_world.ply} & Final human mesh transformed to the ScanNet++ world coordinate frame. \\
-    \bottomrule
-  \end{tabularx}
-\end{table}
+\subsection{Optimization Procedure}
+\label{sec:method-optimization-procedure}
 
-The implementation combines ScanNet++ camera and mesh data, SAM3 concept-prompted segmentation, Gemini-style image editing for human insertion and agentic contact-region inpainting, a Gemini VLM evaluator for contact-mask acceptance, GVHMR for monocular SMPL-X initialization, SMPL-X for the differentiable body model, VolumetricSMPL for body signed-distance queries, and PyTorch/PyTorch3D utilities for optimization, projection, and rasterization. Blender is used later to render optimized interactions for qualitative inspection and semantic evaluation, but rendering and evaluation metrics are part of the experimental protocol in \cref{chap:experiments}, not the core synthesis method.
+The optimization is initialized with $\theta_0$ from GVHMR. At each iteration, the SMPL-X mesh is recomputed, body contact vertices are matched to their corresponding scene contact targets, penetration is evaluated against nearby scene samples, and gradients are backpropagated through the differentiable SMPL-X model. The scene mesh, projected contact targets, and body shape remain fixed.
 
-This chapter intentionally stops at the production of the optimized static 3D human-scene interaction. Dataset selection, interaction counts, baselines, quantitative metrics, rendered-view evaluation, and numerical results are defined in the following chapters.
+The optimization returns the final parameters
+\begin{equation}
+\label{eq:final-optimized-body}
+\theta^{\ast}
+=
+(
+\mathbf{T}^{\ast},
+\mathbf{r}^{\ast},
+\mathbf{p}^{\ast},
+\boldsymbol{\beta}_0
+).
+\end{equation}
+The final output mesh is
+\begin{equation}
+\label{eq:final-human-mesh}
+M_h^{\ast}
+=
+M_h(\theta^{\ast}),
+\end{equation}
+which is already expressed in the ScanNet++ scene coordinate frame. This mesh is the final synthesized static human--scene interaction result.
+
+The optimization is carried out using Adam for a fixed budget of 2000 iterations. This fixed optimization budget is used across all interactions.
