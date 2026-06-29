@@ -1,0 +1,65 @@
+{
+  "interaction_name": "interaction_02",
+  "done": true,
+  "accepted_round": 3,
+  "latest_round": 3,
+  "max_rounds": 10,
+  "provider": "gemini",
+  "model": "gemini-3.1-flash-lite",
+  "target_object": "brown small wooden table",
+  "human_parts": [
+    "hips",
+    "left hand",
+    "right hand"
+  ],
+  "floor_parts": [
+    "left foot",
+    "right foot"
+  ],
+  "palette": [
+    {
+      "part": "hips",
+      "label": "Hips",
+      "hex": "#FF0000",
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "color_name": "pure red"
+    },
+    {
+      "part": "left hand",
+      "label": "Left Hand",
+      "hex": "#00FF00",
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "color_name": "pure green"
+    },
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#FF00FF",
+      "rgb": [
+        255,
+        0,
+        255
+      ],
+      "color_name": "pure magenta"
+    }
+  ],
+  "required_contacts": "- Hips: required contact with target object 'brown small wooden table'. Use #FF0000 / RGB(255, 0, 0) (pure red). SIG note: the hips rest on the table surface while sitting\n- Left Hand: required contact with target object 'brown small wooden table'. Use #00FF00 / RGB(0, 255, 0) (pure green). SIG note: the left hand rests on the table for balance\n- Right Hand: required contact with target object 'brown small wooden table'. Use #FF00FF / RGB(255, 0, 255) (pure magenta). SIG note: the right hand rests on the table for balance\n- Interaction description: A person sits on the brown small wooden table positioned in front of the whiteboard. The hips rest on the table surface, while the legs are bent with both feet planted firmly on the grey floor. The hands rest on the table surface for stability. The person has short black hair, a neutral facial expression, a gray shirt, blue jeans, and white sneakers. The room features white walls, a blue door, and a grey floor.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_02/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_02/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_02/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/vlm_prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "confidence": 1.0,
+    "correction_instruction": "The masks are correctly placed on the table surface to represent the contact points for the hips (red), left hand (green), and right hand (magenta) as inferred from the reference image."
+  }
+}

@@ -35,6 +35,7 @@ from common import (  # noqa: E402
     load_json,
     load_rgb,
     normalize_label,
+    normalize_scene_element,
     normalize_overlay_to_canvas,
     pad_bbox,
     read_api_key,
@@ -199,10 +200,108 @@ def color_mapping_text(palette: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+def required_contact_facts_text(
+    sig_payload: dict[str, Any],
+    target_label: str,
+    human_parts: list[str],
+    palette: list[dict[str, Any]],
+) -> str:
+    notes_by_part: dict[str, list[str]] = {}
+    for edge in sig_payload.get("interaction_edges", []):
+        if not isinstance(edge, dict):
+            continue
+        scene_element = normalize_scene_element(
+            str(edge.get("scene_element", ""))
+        )
+        if scene_element != "target_object":
+            continue
+        part = normalize_label(str(edge.get("human_part", "")))
+        if not part:
+            continue
+        note = str(edge.get("notes", "")).strip()
+        notes_by_part.setdefault(part, [])
+        if note:
+            notes_by_part[part].append(note)
+
+    palette_by_part = {
+        normalize_label(str(item["part"])): item
+        for item in palette
+    }
+    lines: list[str] = []
+    for part in human_parts:
+        normalized = normalize_label(part)
+        color_info = palette_by_part.get(normalized)
+        if color_info is None:
+            color_text = "the assigned body-part color"
+            label = normalized
+        else:
+            rgb = color_info["rgb"]
+            color_text = (
+                f"{color_info['hex']} / RGB({rgb[0]}, {rgb[1]}, {rgb[2]}) "
+                f"({color_info['color_name']})"
+            )
+            label = str(color_info["label"])
+        notes = notes_by_part.get(normalized) or ["No SIG note provided."]
+        lines.append(
+            f"- {label}: required contact with target object "
+            f"'{target_label}'. Use {color_text}. SIG note: "
+            + " ".join(notes)
+        )
+
+    interaction = str(sig_payload.get("interaction", "")).strip()
+    if interaction:
+        lines.append(f"- Interaction description: {interaction}")
+    return "\n".join(lines)
+
+
+def add_required_contacts_to_prompt(
+    prompt: str,
+    required_contacts: str,
+) -> str:
+    section_header = "Required target-object contacts from SIG:"
+    if section_header in prompt:
+        return prompt.rstrip()
+    return (
+        prompt.rstrip()
+        + "\n\n"
+        + section_header
+        + "\n"
+        + required_contacts.strip()
+    )
+
+
 def open_rgb_image(path: Path) -> Any:
     from PIL import Image
 
     return Image.open(path).convert("RGB")
+
+
+def save_gemini_evaluation_artifact(
+    artifact_path: Path,
+    prompt: str,
+    raw_response: str,
+    model: str,
+    image_paths: list[Path],
+    temperature: float,
+    seed: int,
+    max_output_tokens: int,
+    parsed_response: dict[str, Any] | None = None,
+) -> None:
+    payload: dict[str, Any] = {
+        "prompt": prompt,
+        "raw_response": raw_response,
+        "model": model,
+        "image_paths": [str(path) for path in image_paths],
+        "generation_config": {
+            "temperature": float(temperature),
+            "seed": int(seed),
+            "max_output_tokens": int(max_output_tokens),
+            "response_mime_type": "application/json",
+        },
+    }
+    if parsed_response is not None:
+        payload["parsed_response"] = parsed_response
+    save_json(artifact_path, payload)
 
 
 def response_chunk_text(chunk: Any) -> str:
@@ -227,16 +326,25 @@ def gemini_generate_json(
     temperature: float,
     seed: int,
     max_output_tokens: int,
-    raw_response_path: Path,
+    artifact_path: Path,
 ) -> str:
     from google import genai
     from google.genai import types
 
-    raw_response_path.parent.mkdir(parents=True, exist_ok=True)
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
     content_chunks: list[str] = []
 
     def write_accumulated() -> None:
-        raw_response_path.write_text("".join(content_chunks), encoding="utf-8")
+        save_gemini_evaluation_artifact(
+            artifact_path=artifact_path,
+            prompt=user_prompt,
+            raw_response="".join(content_chunks),
+            model=model,
+            image_paths=image_paths,
+            temperature=temperature,
+            seed=seed,
+            max_output_tokens=max_output_tokens,
+        )
 
     client = genai.Client(api_key=api_key)
     config = types.GenerateContentConfig(
@@ -260,8 +368,8 @@ def gemini_generate_json(
     content = "".join(content_chunks)
     if not content.strip():
         raise RuntimeError(
-            "Gemini response did not contain text content. Raw response path: "
-            f"{raw_response_path}."
+            "Gemini response did not contain text content. Evaluation artifact: "
+            f"{artifact_path}."
         )
     return content.strip()
 
@@ -283,9 +391,12 @@ def render_vlm_prompt(
     template: str,
     target_label: str,
     palette: list[dict[str, Any]],
+    required_contacts: str,
 ) -> str:
-    return template.replace("{target_object}", target_label).replace(
-        "{color_mapping}", color_mapping_text(palette)
+    return (
+        template.replace("{target_object}", target_label)
+        .replace("{color_mapping}", color_mapping_text(palette))
+        .replace("{required_contacts}", required_contacts)
     )
 
 
@@ -295,21 +406,28 @@ def evaluate_round(
     vlm_prompt_template: str,
     target_label: str,
     palette: list[dict[str, Any]],
+    required_contacts: str,
     reference_path: Path,
     canvas_path: Path,
     composite_path: Path,
-    raw_response_path: Path,
+    artifact_path: Path,
 ) -> tuple[dict[str, Any], str]:
-    prompt = render_vlm_prompt(vlm_prompt_template, target_label, palette)
+    image_paths = [reference_path, canvas_path, composite_path]
+    prompt = render_vlm_prompt(
+        vlm_prompt_template,
+        target_label,
+        palette,
+        required_contacts,
+    )
     raw_response = gemini_generate_json(
         api_key=api_key,
         model=args.model,
         user_prompt=prompt,
-        image_paths=[reference_path, canvas_path, composite_path],
+        image_paths=image_paths,
         temperature=float(args.temperature),
         seed=int(args.seed),
         max_output_tokens=int(args.max_output_tokens),
-        raw_response_path=raw_response_path,
+        artifact_path=artifact_path,
     )
     parsed = parse_json_response(raw_response)
     if "done" not in parsed:
@@ -326,6 +444,17 @@ def evaluate_round(
     parsed["correction_instruction"] = str(
         parsed["correction_instruction"]
     ).strip()
+    save_gemini_evaluation_artifact(
+        artifact_path=artifact_path,
+        prompt=prompt,
+        raw_response=raw_response,
+        model=args.model,
+        image_paths=image_paths,
+        temperature=float(args.temperature),
+        seed=int(args.seed),
+        max_output_tokens=int(args.max_output_tokens),
+        parsed_response=parsed,
+    )
     return parsed, raw_response
 
 
@@ -341,6 +470,7 @@ def prepare_assets(
     contact_spec_path = output_root / "contact_spec.json"
     base_prompt_path = assets_dir / "base_prompt.md"
     sig_payload = load_json(paths["sig_json"])
+    target_label = target_object_label(sig_payload)
     human_parts = target_object_human_parts(sig_payload)
     floor_parts = floor_contact_human_parts(sig_payload)
 
@@ -352,9 +482,23 @@ def prepare_assets(
         and base_prompt_path.exists()
         and (not floor_parts or floor_mask_crop_path.exists())
     ):
+        palette = contact_palette_from_spec(
+            contact_spec_path,
+            human_parts,
+        )
+        required_contacts = required_contact_facts_text(
+            sig_payload=sig_payload,
+            target_label=target_label,
+            human_parts=human_parts,
+            palette=palette,
+        )
+        base_prompt = add_required_contacts_to_prompt(
+            base_prompt_path.read_text(encoding="utf-8"),
+            required_contacts,
+        )
         return {
             "sig_payload": sig_payload,
-            "target_label": target_object_label(sig_payload),
+            "target_label": target_label,
             "human_parts": human_parts,
             "floor_parts": floor_parts,
             "reference_crop_path": reference_crop_path,
@@ -362,15 +506,13 @@ def prepare_assets(
             "floor_mask_crop_path": floor_mask_crop_path,
             "contact_spec_path": contact_spec_path,
             "base_prompt_path": base_prompt_path,
-            "base_prompt": base_prompt_path.read_text(encoding="utf-8"),
+            "base_prompt": base_prompt,
             "vlm_prompt_path": paths["vlm_prompt"],
             "vlm_prompt_template": paths["vlm_prompt"].read_text(
                 encoding="utf-8"
             ),
-            "palette": contact_palette_from_spec(
-                contact_spec_path,
-                human_parts,
-            ),
+            "palette": palette,
+            "required_contacts": required_contacts,
         }
 
     output_root.mkdir(parents=True, exist_ok=True)
@@ -487,13 +629,22 @@ def prepare_assets(
         scene_rgb=canvas_crop,
         avoid_mask=None,
     )
+    required_contacts = required_contact_facts_text(
+        sig_payload=sig_payload,
+        target_label=target_label,
+        human_parts=human_parts,
+        palette=palette,
+    )
     save_contact_spec(contact_spec_path, contact_intrinsics, palette)
-    base_prompt = build_contact_prompt(system_prompt, human_parts, palette)
+    base_prompt = add_required_contacts_to_prompt(
+        build_contact_prompt(system_prompt, human_parts, palette),
+        required_contacts,
+    )
     save_text(base_prompt_path, base_prompt + "\n")
 
     return {
         "sig_payload": sig_payload,
-        "target_label": target_object_label(sig_payload),
+        "target_label": target_label,
         "human_parts": human_parts,
         "floor_parts": floor_parts,
         "reference_crop_path": reference_crop_path,
@@ -505,6 +656,7 @@ def prepare_assets(
         "vlm_prompt_path": paths["vlm_prompt"],
         "vlm_prompt_template": vlm_prompt_template,
         "palette": palette,
+        "required_contacts": required_contacts,
     }
 
 
@@ -766,6 +918,7 @@ def run_agentic_loop(args: argparse.Namespace, assets: dict[str, Any]) -> int:
     human_parts = list(assets["human_parts"])
     floor_parts = list(assets["floor_parts"])
     palette = list(assets["palette"])
+    required_contacts = str(assets["required_contacts"])
     reference_path = Path(assets["reference_crop_path"])
     canvas_path = Path(assets["canvas_crop_path"])
     floor_mask_path = Path(assets["floor_mask_crop_path"])
@@ -783,10 +936,13 @@ def run_agentic_loop(args: argparse.Namespace, assets: dict[str, Any]) -> int:
             round_dir / "generated_contact_overlay_resized.png"
         )
         composite_path = round_dir / "composite.png"
-        raw_response_path = round_dir / "gemini_raw_response.txt"
+        gemini_artifact_path = round_dir / "gemini_evaluation.json"
+        legacy_raw_response_path = round_dir / "gemini_raw_response.txt"
         stale_round_masks_dir = round_dir / "contact_masks"
         if stale_round_masks_dir.exists():
             shutil.rmtree(stale_round_masks_dir)
+        if legacy_raw_response_path.exists():
+            legacy_raw_response_path.unlink()
 
         prompt = build_round_prompt(base_prompt, correction_instruction)
         previous_composite = (
@@ -838,20 +994,20 @@ def run_agentic_loop(args: argparse.Namespace, assets: dict[str, Any]) -> int:
         for attempt_index in range(1, max_attempts + 1):
             print(
                 f"Gemini evaluation attempt {attempt_index}/{max_attempts}; "
-                f"raw response: {raw_response_path}"
+                f"artifact: {gemini_artifact_path}"
             )
             try:
-                raw_response_path.write_text("", encoding="utf-8")
                 evaluation, raw_response = evaluate_round(
                     args=args,
                     api_key=api_key,
                     vlm_prompt_template=vlm_prompt_template,
                     target_label=str(assets["target_label"]),
                     palette=palette,
+                    required_contacts=required_contacts,
                     reference_path=reference_path,
                     canvas_path=canvas_path,
                     composite_path=composite_path,
-                    raw_response_path=raw_response_path,
+                    artifact_path=gemini_artifact_path,
                 )
                 break
             except Exception as exc:
@@ -888,6 +1044,7 @@ def run_agentic_loop(args: argparse.Namespace, assets: dict[str, Any]) -> int:
             "human_parts": human_parts,
             "floor_parts": floor_parts,
             "palette": palette,
+            "required_contacts": required_contacts,
             "composite_includes_floor_contacts": False,
             "reference_crop": str(reference_path),
             "canvas_crop": str(canvas_path),
