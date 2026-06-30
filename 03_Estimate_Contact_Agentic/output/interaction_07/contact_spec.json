@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "camera": {
+    "intrinsics_3x3": [
+      [
+        464.8389101903156,
+        0.0,
+        -4.0
+      ],
+      [
+        0.0,
+        466.0625325612137,
+        286.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ]
+  },
+  "palette": {
+    "parts": [
+      {
+        "part": "right hand",
+        "label": "Right Hand",
+        "hex": "#00FFFF",
+        "rgb": [
+          0,
+          255,
+          255
+        ],
+        "color_name": "pure cyan"
+      }
+    ]
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "interaction_name": "interaction_14",
+  "done": true,
+  "accepted_round": 1,
+  "latest_round": 1,
+  "max_rounds": 10,
+  "provider": "gemini",
+  "model": "gemini-3.1-flash-lite",
+  "target_object": "bicycle",
+  "human_parts": [
+    "hips",
+    "left hand",
+    "right hand"
+  ],
+  "floor_parts": [],
+  "palette": [
+    {
+      "part": "hips",
+      "label": "Hips",
+      "hex": "#FFFF00",
+      "rgb": [
+        255,
+        255,
+        0
+      ],
+      "color_name": "pure yellow"
+    },
+    {
+      "part": "left hand",
+      "label": "Left Hand",
+      "hex": "#FF00FF",
+      "rgb": [
+        255,
+        0,
+        255
+      ],
+      "color_name": "pure magenta"
+    },
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#00FF00",
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "color_name": "pure green"
+    }
+  ],
+  "required_contacts": "- Hips: required contact with target object 'bicycle'. Use #FFFF00 / RGB(255, 255, 0) (pure yellow). SIG note: the hips rest on the bicycle saddle\n- Left Hand: required contact with target object 'bicycle'. Use #FF00FF / RGB(255, 0, 255) (pure magenta). SIG note: the left hand grips the handlebar\n- Right Hand: required contact with target object 'bicycle'. Use #00FF00 / RGB(0, 255, 0) (pure green). SIG note: the right hand grips the handlebar\n- Interaction description: A person sits on the bicycle with hips resting on the saddle. Both hands grasp the handlebars in a riding position. The person has short black hair, a neutral focused facial expression, a gray shirt, blue jeans, and white sneakers.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_14/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_14/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_14/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/vlm_prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "correction_instruction": "All contact masks are correctly positioned on the bicycle saddle and handlebars as indicated by the reference image."
+  }
+}

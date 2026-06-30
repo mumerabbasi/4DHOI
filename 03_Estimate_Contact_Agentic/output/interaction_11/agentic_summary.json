@@ -1,0 +1,52 @@
+{
+  "interaction_name": "interaction_11",
+  "done": true,
+  "accepted_round": 1,
+  "latest_round": 1,
+  "max_rounds": 10,
+  "provider": "gemini",
+  "model": "gemini-3.1-flash-lite",
+  "target_object": "brown small wooden table",
+  "human_parts": [
+    "left hand",
+    "right hand"
+  ],
+  "floor_parts": [
+    "left foot",
+    "right foot"
+  ],
+  "palette": [
+    {
+      "part": "left hand",
+      "label": "Left Hand",
+      "hex": "#FF0000",
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "color_name": "pure red"
+    },
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#FF00FF",
+      "rgb": [
+        255,
+        0,
+        255
+      ],
+      "color_name": "pure magenta"
+    }
+  ],
+  "required_contacts": "- Left Hand: required contact with target object 'brown small wooden table'. Use #FF0000 / RGB(255, 0, 0) (pure red). SIG note: the left hand grips the table edge to lift\n- Right Hand: required contact with target object 'brown small wooden table'. Use #FF00FF / RGB(255, 0, 255) (pure magenta). SIG note: the right hand grips the opposite table edge to lift\n- Interaction description: A person stands with their back facing the camera, positioned in front of a small brown wooden table. Both hands firmly grasp the edges of the table as they engage in a lifting motion. The person maintains a stable standing posture with both feet planted on the gray carpeted floor. They have short dark hair, a focused facial expression, a gray shirt, blue jeans, and white sneakers.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_11/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_11/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_11/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/vlm_prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "correction_instruction": "The masks correctly represent the contact points where the hands grip the edges of the table as shown in the reference image."
+  }
+}

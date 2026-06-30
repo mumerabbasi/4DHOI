@@ -1,0 +1,41 @@
+{
+  "interaction_name": "interaction_04",
+  "done": true,
+  "accepted_round": 1,
+  "latest_round": 1,
+  "max_rounds": 10,
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "target_object": "wooden door",
+  "human_parts": [
+    "left hand"
+  ],
+  "floor_parts": [
+    "left foot",
+    "right foot"
+  ],
+  "palette": [
+    {
+      "part": "left hand",
+      "label": "Left Hand",
+      "hex": "#00FF00",
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "color_name": "pure green"
+    }
+  ],
+  "required_contacts": "- Left Hand: required contact with target object 'wooden door'. Use #00FF00 / RGB(0, 255, 0) (pure green). SIG note: the left hand grasps the door handle to open it\n- Interaction description: A person stands facing the wooden door, reaching out with their left hand to grasp the silver handle. The hand is positioned to turn the handle or push the door open. The left arm hangs naturally by the side. Both feet are planted on the dark floor in a balanced stance. The person has short dark hair, a neutral focused expression, and wears a light shirt, dark pants, and dark shoes. The room is a clean indoor space with white walls, a whiteboard, and a table.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_04/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_04/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_04/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/vlm_prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "confidence": 1.0,
+    "correction_instruction": "This mask is correct. Keep it unchanged."
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "interaction_name": "interaction_18",
+  "done": true,
+  "accepted_round": 1,
+  "latest_round": 1,
+  "max_rounds": 5,
+  "provider": "manual",
+  "model": null,
+  "target_object": "bunk bed ladder, top bed",
+  "human_parts": [
+    "left foot",
+    "right foot",
+    "left hand",
+    "right hand"
+  ],
+  "floor_parts": [],
+  "palette": [
+    {
+      "part": "left foot",
+      "label": "Left Foot",
+      "hex": "#0000FF",
+      "rgb": [
+        0,
+        0,
+        255
+      ],
+      "color_name": "pure blue"
+    },
+    {
+      "part": "right foot",
+      "label": "Right Foot",
+      "hex": "#FF00FF",
+      "rgb": [
+        255,
+        0,
+        255
+      ],
+      "color_name": "pure magenta"
+    },
+    {
+      "part": "left hand",
+      "label": "Left Hand",
+      "hex": "#00FF00",
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "color_name": "pure green"
+    },
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#00FFFF",
+      "rgb": [
+        0,
+        255,
+        255
+      ],
+      "color_name": "pure cyan"
+    }
+  ],
+  "required_contacts": "- Left Foot: required contact with target object 'bunk bed ladder, top bed'. Use #0000FF / RGB(0, 0, 255) (pure blue). SIG note: the left foot presses on the bunk bed ladder while climbing\n- Right Foot: required contact with target object 'bunk bed ladder, top bed'. Use #FF00FF / RGB(255, 0, 255) (pure magenta). SIG note: the right foot steps onto the top bed during the climb\n- Left Hand: required contact with target object 'bunk bed ladder, top bed'. Use #00FF00 / RGB(0, 255, 0) (pure green). SIG note: the left hand holds the ladder for balance\n- Right Hand: required contact with target object 'bunk bed ladder, top bed'. Use #00FFFF / RGB(0, 255, 255) (pure cyan). SIG note: the right hand grips the top bed frame while climbing up\n- Interaction description: A person stands on the wooden staircase between the white side walls. Both feet are placed on the stair treads while both hands touch the nearby walls for balance and support. The person has short black hair, a careful focused facial expression, a gray shirt, blue jeans, and white sneakers.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_18/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_18/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_18/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/vlm_prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "correction_instruction": "",
+    "manual_accept": true
+  }
+}

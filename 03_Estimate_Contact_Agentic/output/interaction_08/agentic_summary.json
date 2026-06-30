@@ -1,0 +1,52 @@
+{
+  "interaction_name": "interaction_08",
+  "done": true,
+  "accepted_round": 2,
+  "latest_round": 2,
+  "max_rounds": 10,
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "target_object": "coffee maker",
+  "human_parts": [
+    "left hand",
+    "right hand"
+  ],
+  "floor_parts": [
+    "left foot",
+    "right foot"
+  ],
+  "palette": [
+    {
+      "part": "left hand",
+      "label": "Left Hand",
+      "hex": "#0000FF",
+      "rgb": [
+        0,
+        0,
+        255
+      ],
+      "color_name": "pure blue"
+    },
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#00FF00",
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "color_name": "pure green"
+    }
+  ],
+  "required_contacts": "- Left Hand: required contact with target object 'coffee maker'. Use #0000FF / RGB(0, 0, 255) (pure blue). SIG note: the left hand steadies or holds the coffee maker area\n- Right Hand: required contact with target object 'coffee maker'. Use #00FF00 / RGB(0, 255, 0) (pure green). SIG note: the right hand operates the coffee maker\n- Interaction description: A person stands at the kitchen counter making coffee with the coffee maker. The right hand operates the coffee maker controls or cup area while the left hand steadies the machine or counter nearby. The torso leans slightly forward toward the counter and both feet remain planted on the wooden floor. The person has short dark hair, a calm focused expression, a gray shirt, blue jeans, and light sneakers. The bright kitchen has white cabinets, a sink, a stovetop hood, a towel hanging from the counter, a trash bin, and light wooden flooring.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_08/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_08/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_08/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/vlm_prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "correction_instruction": "All masks are correct. Keep them unchanged."
+  }
+}

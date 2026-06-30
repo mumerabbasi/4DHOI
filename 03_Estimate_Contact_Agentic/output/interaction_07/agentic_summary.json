@@ -1,0 +1,40 @@
+{
+  "interaction_name": "interaction_07",
+  "done": true,
+  "accepted_round": 2,
+  "latest_round": 2,
+  "max_rounds": 10,
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "target_object": "curtain",
+  "human_parts": [
+    "right hand"
+  ],
+  "floor_parts": [
+    "left foot",
+    "right foot"
+  ],
+  "palette": [
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#00FFFF",
+      "rgb": [
+        0,
+        255,
+        255
+      ],
+      "color_name": "pure cyan"
+    }
+  ],
+  "required_contacts": "- Right Hand: required contact with target object 'curtain'. Use #00FFFF / RGB(0, 255, 255) (pure cyan). SIG note: the right hand grasps the curtain to pull it open\n- Interaction description: A person stands beside the dark curtain in the living room and opens it with the right hand. The right hand grips the curtain fabric and pulls it sideways while the left arm hangs naturally or balances the body. Both feet remain on the wooden floor, with the torso turned toward the window. The person has short dark hair, a neutral focused expression, a gray shirt, blue jeans, and light sneakers. The room contains a dark sofa, pillows, a rug, a low table, wall art, a television stand, wooden flooring, and dark curtains over the window.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_07/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_07/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_07/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/vlm_prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "correction_instruction": "The cyan right-hand mask is correctly placed on the curtain where the hand is grasping it in the reference image. Keep it unchanged."
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "interaction_name": "interaction_20",
+  "done": true,
+  "accepted_round": 1,
+  "latest_round": 1,
+  "max_rounds": 5,
+  "provider": "gemini",
+  "model": "gemini-3.1-flash-lite",
+  "target_object": "bed, bedside lamp",
+  "human_parts": [
+    "hips",
+    "left leg",
+    "right leg",
+    "right hand"
+  ],
+  "floor_parts": [],
+  "palette": [
+    {
+      "part": "hips",
+      "label": "Hips",
+      "hex": "#0000FF",
+      "rgb": [
+        0,
+        0,
+        255
+      ],
+      "color_name": "pure blue"
+    },
+    {
+      "part": "left leg",
+      "label": "Left Leg",
+      "hex": "#FF00FF",
+      "rgb": [
+        255,
+        0,
+        255
+      ],
+      "color_name": "pure magenta"
+    },
+    {
+      "part": "right leg",
+      "label": "Right Leg",
+      "hex": "#00FF00",
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "color_name": "pure green"
+    },
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#00FFFF",
+      "rgb": [
+        0,
+        255,
+        255
+      ],
+      "color_name": "pure cyan"
+    }
+  ],
+  "required_contacts": "- Hips: required contact with target object 'bed, bedside lamp'. Use #0000FF / RGB(0, 0, 255) (pure blue). SIG note: the hips are supported by the bed while sitting\n- Left Leg: required contact with target object 'bed, bedside lamp'. Use #FF00FF / RGB(255, 0, 255) (pure magenta). SIG note: the left leg rests on the bed surface\n- Right Leg: required contact with target object 'bed, bedside lamp'. Use #00FF00 / RGB(0, 255, 0) (pure green). SIG note: the right leg rests on the bed surface\n- Right Hand: required contact with target object 'bed, bedside lamp'. Use #00FFFF / RGB(0, 255, 255) (pure cyan). SIG note: the right hand reaches to press or turn the bedside lamp switch\n- Interaction description: A person sits on the bed with the hips and legs supported by the mattress while the right hand reaches toward the bedside lamp to turn it off. The torso leans slightly toward the lamp. The person has short black hair, a calm sleepy expression, a gray top, comfortable pants, and socks.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_20/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_20/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_20/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/vlm_prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "correction_instruction": "The masks are correctly positioned and colored. No further changes needed."
+  }
+}

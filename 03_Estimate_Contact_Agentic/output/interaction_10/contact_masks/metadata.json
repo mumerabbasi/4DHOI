@@ -1,0 +1,34 @@
+{
+  "palette": [
+    {
+      "part": "left hand",
+      "label": "Left Hand",
+      "hex": "#FF0000",
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "color_name": "pure red"
+    },
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#00FF00",
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "color_name": "pure green"
+    }
+  ],
+  "color_max_distance": 90.0,
+  "min_component_area": 0,
+  "keep_components": 1,
+  "floor_parts": [
+    "left foot",
+    "right foot"
+  ],
+  "floor_mask_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_10/floor_mask_crop.png"
+}

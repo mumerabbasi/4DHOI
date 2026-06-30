@@ -53,10 +53,10 @@ Are the relevant body parts plausibly interacting with the correct scene element
 4. Physical Plausibility:
 Is the pose and body-object relation plausible, without severe floating, penetration, impossible support, or nonsensical placement?
 
-5. Visibility and Evidence:
+5. Visibility and Evidence: (Probably need to remove this, professor suggested this)
 Do the views provide enough visual evidence to judge the interaction?
 
-6. Metric Consistency:
+6. Metric Consistency: (Probably need to remove this, professor suggested this)
 Are the quantitative metrics consistent with the visual evidence?
 
 7. Overall:

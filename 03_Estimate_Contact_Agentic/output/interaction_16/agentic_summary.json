@@ -1,0 +1,61 @@
+{
+  "interaction_name": "interaction_16",
+  "done": true,
+  "accepted_round": 1,
+  "latest_round": 1,
+  "max_rounds": 10,
+  "provider": "gemini",
+  "model": "gemini-3.1-flash-lite",
+  "target_object": "wooden shelf",
+  "human_parts": [
+    "hips",
+    "left hand",
+    "right hand"
+  ],
+  "floor_parts": [],
+  "palette": [
+    {
+      "part": "hips",
+      "label": "Hips",
+      "hex": "#00FFFF",
+      "rgb": [
+        0,
+        255,
+        255
+      ],
+      "color_name": "pure cyan"
+    },
+    {
+      "part": "left hand",
+      "label": "Left Hand",
+      "hex": "#FF00FF",
+      "rgb": [
+        255,
+        0,
+        255
+      ],
+      "color_name": "pure magenta"
+    },
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#0000FF",
+      "rgb": [
+        0,
+        0,
+        255
+      ],
+      "color_name": "pure blue"
+    }
+  ],
+  "required_contacts": "- Hips: required contact with target object 'wooden shelf'. Use #00FFFF / RGB(0, 255, 255) (pure cyan). SIG note: the hips are supported by the wooden shelf while sitting\n- Left Hand: required contact with target object 'wooden shelf'. Use #FF00FF / RGB(255, 0, 255) (pure magenta). SIG note: the left hand presses on the shelf to support the seated body\n- Right Hand: required contact with target object 'wooden shelf'. Use #0000FF / RGB(0, 0, 255) (pure blue). SIG note: the right hand presses on the shelf for balance and support\n- Interaction description: A person sits on the wooden shelf with the hips supported by the shelf surface. Both hands press down on the shelf beside the body for balance, while both legs hang down freely in front without touching the floor. The person has short dark hair, a neutral focused facial expression, a gray shirt, blue jeans, and white sneakers.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_16/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_16/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_16/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/vlm_prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "correction_instruction": "The colored masks correctly identify the contact locations for the hips (cyan), left hand (magenta), and right hand (blue) on the wooden shelf as observed in the reference image. No further corrections are required."
+  }
+}

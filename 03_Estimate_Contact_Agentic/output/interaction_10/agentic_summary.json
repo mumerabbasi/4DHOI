@@ -1,0 +1,52 @@
+{
+  "interaction_name": "interaction_10",
+  "done": true,
+  "accepted_round": 4,
+  "latest_round": 4,
+  "max_rounds": 10,
+  "provider": "gemini",
+  "model": "gemini-3.1-flash-lite",
+  "target_object": "vacuum cleaner",
+  "human_parts": [
+    "left hand",
+    "right hand"
+  ],
+  "floor_parts": [
+    "left foot",
+    "right foot"
+  ],
+  "palette": [
+    {
+      "part": "left hand",
+      "label": "Left Hand",
+      "hex": "#FF0000",
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "color_name": "pure red"
+    },
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#00FF00",
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "color_name": "pure green"
+    }
+  ],
+  "required_contacts": "- Left Hand: required contact with target object 'vacuum cleaner'. Use #FF0000 / RGB(255, 0, 0) (pure red). SIG note: the left hand grips the vacuum cleaner to pull it out\n- Right Hand: required contact with target object 'vacuum cleaner'. Use #00FF00 / RGB(0, 255, 0) (pure green). SIG note: the right hand assists in gripping the vacuum cleaner\n- Interaction description: A person stands beside the white shelving unit and prepares to take out the vacuum cleaner stored behind it using both hands. The left and right hands firmly grasp the vacuum cleaner's handle or body to pull it forward. Both feet are planted on the grey tiled floor in a balanced standing stance, with the torso slightly leaning towards the object. The person has short black hair, a neutral focused facial expression, a gray shirt, blue jeans, and white sneakers. The room features white walls, a window on the left, and a washing machine on the right.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_10/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_10/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_10/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/vlm_prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "correction_instruction": "The masks correctly identify the contact points where the hands grip the vacuum cleaner handle as shown in the reference image."
+  }
+}

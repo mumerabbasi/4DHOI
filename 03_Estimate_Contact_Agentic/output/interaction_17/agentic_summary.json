@@ -1,0 +1,73 @@
+{
+  "interaction_name": "interaction_17",
+  "done": true,
+  "accepted_round": 2,
+  "latest_round": 2,
+  "max_rounds": 10,
+  "provider": "gemini",
+  "model": "gemini-3.1-flash-lite",
+  "target_object": "wooden staircase, side walls",
+  "human_parts": [
+    "left foot",
+    "right foot",
+    "left hand",
+    "right hand"
+  ],
+  "floor_parts": [],
+  "palette": [
+    {
+      "part": "left foot",
+      "label": "Left Foot",
+      "hex": "#0000FF",
+      "rgb": [
+        0,
+        0,
+        255
+      ],
+      "color_name": "pure blue"
+    },
+    {
+      "part": "right foot",
+      "label": "Right Foot",
+      "hex": "#00FFFF",
+      "rgb": [
+        0,
+        255,
+        255
+      ],
+      "color_name": "pure cyan"
+    },
+    {
+      "part": "left hand",
+      "label": "Left Hand",
+      "hex": "#FF00FF",
+      "rgb": [
+        255,
+        0,
+        255
+      ],
+      "color_name": "pure magenta"
+    },
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#00FF00",
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "color_name": "pure green"
+    }
+  ],
+  "required_contacts": "- Left Foot: required contact with target object 'wooden staircase, side walls'. Use #0000FF / RGB(0, 0, 255) (pure blue). SIG note: the left foot stands on a stair tread\n- Right Foot: required contact with target object 'wooden staircase, side walls'. Use #00FFFF / RGB(0, 255, 255) (pure cyan). SIG note: the right foot stands on another stair tread for support\n- Left Hand: required contact with target object 'wooden staircase, side walls'. Use #FF00FF / RGB(255, 0, 255) (pure magenta). SIG note: the left hand touches a side wall for balance\n- Right Hand: required contact with target object 'wooden staircase, side walls'. Use #00FF00 / RGB(0, 255, 0) (pure green). SIG note: the right hand touches the opposite side wall for support\n- Interaction description: A person stands at the end of the wooden staircase with both feet planted on the stair treads. Both arms reach outward so the left and right hands touch the side walls for balance and support. The person has short dark hair, a steady focused facial expression, a gray shirt, blue jeans, and white sneakers.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_17/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_17/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_17/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/vlm_prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "correction_instruction": "The masks are correctly placed on the respective surfaces of the wooden staircase as shown in the reference image. The magenta mask is on the left wall, the green mask is on the right wall, the blue mask is on the bottom stair tread, and the cyan mask is on the higher stair tread."
+  }
+}

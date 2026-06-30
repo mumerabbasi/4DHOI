@@ -77,7 +77,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--scannet-root", default=None)
     parser.add_argument("--system-prompt", default=None)
     parser.add_argument("--vlm-prompt", default=None)
-    parser.add_argument("--max-rounds", type=int, default=10)
+    parser.add_argument("--max-rounds", type=int, default=5)
     parser.add_argument(
         "--api-key-file",
         default=str(PROJECT_DIR / ".secrets" / "gemini_api_key"),
@@ -86,8 +86,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--max-output-tokens", type=int, default=2048)
     parser.add_argument("--gemini-retries", type=int, default=3)
     parser.add_argument("--gemini-retry-sleep-s", type=float, default=8.0)
-    parser.add_argument("--temperature", type=float, default=0.0)
-    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--temperature", type=float, default=0.7)
+    parser.add_argument("--seed", type=int, default=72)
     parser.add_argument("--padding-frac", type=float, default=0.25)
     parser.add_argument(
         "--disable-aspect-ratio-crop",
@@ -102,7 +102,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--sam3-device", default=get_default_sam3_device())
     parser.add_argument("--sam3-confidence-threshold", type=float, default=0.5)
     parser.add_argument("--no-sam3-hf-download", action="store_true")
-    parser.add_argument("--color-max-distance", type=float, default=90.0)
+    parser.add_argument("--color-max-distance", type=float, default=180.0)
     parser.add_argument("--min-component-area", type=int, default=0)
     parser.add_argument("--keep-components", type=int, default=1)
     parser.add_argument("--overwrite", action="store_true")
@@ -280,28 +280,16 @@ def save_gemini_evaluation_artifact(
     artifact_path: Path,
     prompt: str,
     raw_response: str,
-    model: str,
-    image_paths: list[Path],
-    temperature: float,
-    seed: int,
-    max_output_tokens: int,
-    parsed_response: dict[str, Any] | None = None,
 ) -> None:
-    payload: dict[str, Any] = {
-        "prompt": prompt,
-        "raw_response": raw_response,
-        "model": model,
-        "image_paths": [str(path) for path in image_paths],
-        "generation_config": {
-            "temperature": float(temperature),
-            "seed": int(seed),
-            "max_output_tokens": int(max_output_tokens),
-            "response_mime_type": "application/json",
-        },
-    }
-    if parsed_response is not None:
-        payload["parsed_response"] = parsed_response
-    save_json(artifact_path, payload)
+    text = (
+        "PROMPT\n"
+        "======\n"
+        f"{prompt.rstrip()}\n\n"
+        "RAW RESPONSE\n"
+        "============\n"
+        f"{raw_response.rstrip()}\n"
+    )
+    save_text(artifact_path, text)
 
 
 def response_chunk_text(chunk: Any) -> str:
@@ -339,11 +327,6 @@ def gemini_generate_json(
             artifact_path=artifact_path,
             prompt=user_prompt,
             raw_response="".join(content_chunks),
-            model=model,
-            image_paths=image_paths,
-            temperature=temperature,
-            seed=seed,
-            max_output_tokens=max_output_tokens,
         )
 
     client = genai.Client(api_key=api_key)
@@ -432,28 +415,18 @@ def evaluate_round(
     parsed = parse_json_response(raw_response)
     if "done" not in parsed:
         parsed["done"] = False
-    if "confidence" not in parsed:
-        parsed["confidence"] = 0.0
     if "correction_instruction" not in parsed:
         parsed["correction_instruction"] = ""
-    parsed["done"] = bool(parsed["done"])
-    try:
-        parsed["confidence"] = float(parsed["confidence"])
-    except (TypeError, ValueError):
-        parsed["confidence"] = 0.0
-    parsed["correction_instruction"] = str(
-        parsed["correction_instruction"]
-    ).strip()
+    parsed = {
+        "done": bool(parsed["done"]),
+        "correction_instruction": str(
+            parsed["correction_instruction"]
+        ).strip(),
+    }
     save_gemini_evaluation_artifact(
         artifact_path=artifact_path,
         prompt=prompt,
         raw_response=raw_response,
-        model=args.model,
-        image_paths=image_paths,
-        temperature=float(args.temperature),
-        seed=int(args.seed),
-        max_output_tokens=int(args.max_output_tokens),
-        parsed_response=parsed,
     )
     return parsed, raw_response
 
@@ -741,15 +714,19 @@ def write_round_prompt_package(
     return prompt_path
 
 
-def wait_for_generated_image(generated_path: Path) -> None:
+def wait_for_generated_image(generated_path: Path) -> bool:
     from PIL import Image
 
     while True:
-        input(
+        response = input(
             "\nSave the ChatGPT-generated image to:\n"
             f"{generated_path}\n"
-            "Press Enter after saving it."
-        )
+            "Press Enter to run Gemini evaluation, or type 'a' to accept it "
+            "manually."
+        ).strip().lower()
+        if response not in {"", "a"}:
+            print("Unrecognized input. Press Enter or type 'a'.")
+            continue
         if not generated_path.exists():
             print(f"Generated image not found yet: {generated_path}")
             continue
@@ -759,7 +736,7 @@ def wait_for_generated_image(generated_path: Path) -> None:
         except Exception as exc:
             print(f"Generated image is not readable ({exc}). Save it again.")
             continue
-        return
+        return response == "a"
 
 
 def extract_contact_masks_from_overlay(
@@ -936,11 +913,14 @@ def run_agentic_loop(args: argparse.Namespace, assets: dict[str, Any]) -> int:
             round_dir / "generated_contact_overlay_resized.png"
         )
         composite_path = round_dir / "composite.png"
-        gemini_artifact_path = round_dir / "gemini_evaluation.json"
+        gemini_artifact_path = round_dir / "gemini_evaluation.txt"
+        stale_gemini_json_path = round_dir / "gemini_evaluation.json"
         legacy_raw_response_path = round_dir / "gemini_raw_response.txt"
         stale_round_masks_dir = round_dir / "contact_masks"
         if stale_round_masks_dir.exists():
             shutil.rmtree(stale_round_masks_dir)
+        if stale_gemini_json_path.exists():
+            stale_gemini_json_path.unlink()
         if legacy_raw_response_path.exists():
             legacy_raw_response_path.unlink()
 
@@ -968,7 +948,7 @@ def run_agentic_loop(args: argparse.Namespace, assets: dict[str, Any]) -> int:
                 f"{round_prompt_dir / '03_previous_composite.png'}"
             )
         print(f"Save ChatGPT result as: {generated_path}")
-        wait_for_generated_image(generated_path)
+        manual_accept = wait_for_generated_image(generated_path)
 
         contact_masks = extract_contact_masks_from_overlay(
             overlay_path=generated_path,
@@ -986,6 +966,49 @@ def run_agentic_loop(args: argparse.Namespace, assets: dict[str, Any]) -> int:
             palette=palette,
             output_path=composite_path,
         )
+
+        if manual_accept:
+            latest_composite_path = composite_path
+            latest_masks_by_part = contact_masks
+            latest_summary = {
+                "interaction_name": args.interaction_name,
+                "done": True,
+                "accepted_round": round_index,
+                "latest_round": round_index,
+                "max_rounds": int(args.max_rounds),
+                "provider": "manual",
+                "model": None,
+                "target_object": assets["target_label"],
+                "human_parts": human_parts,
+                "floor_parts": floor_parts,
+                "palette": palette,
+                "required_contacts": required_contacts,
+                "composite_includes_floor_contacts": False,
+                "reference_crop": str(reference_path),
+                "canvas_crop": str(canvas_path),
+                "contact_spec": str(assets["contact_spec_path"]),
+                "vlm_prompt": str(assets["vlm_prompt_path"]),
+                "latest_evaluation": {
+                    "done": True,
+                    "correction_instruction": "",
+                    "manual_accept": True,
+                },
+            }
+            publish_round_outputs(
+                output_root=output_root,
+                composite_path=composite_path,
+                canvas_path=canvas_path,
+                masks_by_part=contact_masks,
+                palette=palette,
+                floor_parts=floor_parts,
+                floor_mask_path=floor_mask_path,
+                color_max_distance=float(args.color_max_distance),
+                min_component_area=int(args.min_component_area),
+                keep_components=int(args.keep_components),
+                summary=latest_summary,
+            )
+            print(f"Manually accepted contact masks at round {round_index:02d}.")
+            return 0
 
         print(f"Composite for VLM evaluation: {composite_path}")
         evaluation = None
@@ -1022,11 +1045,7 @@ def run_agentic_loop(args: argparse.Namespace, assets: dict[str, Any]) -> int:
                 time.sleep(sleep_s)
         if evaluation is None or raw_response is None:
             raise RuntimeError("Gemini evaluation did not produce a response.")
-        print(
-            "VLM result: "
-            f"done={evaluation['done']} "
-            f"confidence={evaluation['confidence']:.3f}"
-        )
+        print(f"VLM result: done={evaluation['done']}")
         if evaluation["correction_instruction"]:
             print(f"Correction: {evaluation['correction_instruction']}")
 

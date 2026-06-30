@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "camera": {
+    "intrinsics_3x3": [
+      [
+        469.8606350451475,
+        0.0,
+        242.0
+      ],
+      [
+        0.0,
+        471.1590811418314,
+        292.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ]
+  },
+  "palette": {
+    "parts": [
+      {
+        "part": "left hand",
+        "label": "Left Hand",
+        "hex": "#00FF00",
+        "rgb": [
+          0,
+          255,
+          0
+        ],
+        "color_name": "pure green"
+      }
+    ]
+  }
+}

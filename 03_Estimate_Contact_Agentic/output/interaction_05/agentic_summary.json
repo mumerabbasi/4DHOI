@@ -1,0 +1,41 @@
+{
+  "interaction_name": "interaction_05",
+  "done": true,
+  "accepted_round": 2,
+  "latest_round": 2,
+  "max_rounds": 10,
+  "provider": "gemini",
+  "model": "gemini-3.1-flash-lite",
+  "target_object": "bathroom faucet",
+  "human_parts": [
+    "right hand"
+  ],
+  "floor_parts": [
+    "left foot",
+    "right foot"
+  ],
+  "palette": [
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#FF0000",
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "color_name": "pure red"
+    }
+  ],
+  "required_contacts": "- Right Hand: required contact with target object 'bathroom faucet'. Use #FF0000 / RGB(255, 0, 0) (pure red). SIG note: the right hand turns the bathroom faucet handle\n- Interaction description: A person stands at the bathroom sink and turns on the bathroom faucet with the right hand. The right hand touches the faucet handle, the torso leans slightly toward the sink, and the left arm rests naturally by the side. Both feet remain on the gray tile floor in a stable stance. The person has short dark hair, a neutral focused expression, a gray shirt, blue jeans, and light sneakers. The bathroom has white walls, a window, a glass shower enclosure, a toilet, shelves, a sink, a mirror, a potted plant, and gray floor tiles.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_05/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_05/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_05/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/vlm_prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "confidence": 1.0,
+    "correction_instruction": "The red right-hand mask is correctly placed on the faucet handle where the hand interacts with the object."
+  }
+}

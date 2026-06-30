@@ -1,0 +1,61 @@
+{
+  "interaction_name": "interaction_09",
+  "done": true,
+  "accepted_round": 2,
+  "latest_round": 2,
+  "max_rounds": 10,
+  "provider": "gemini",
+  "model": "gemini-3.1-flash-lite",
+  "target_object": "shower stall",
+  "human_parts": [
+    "left foot",
+    "right foot",
+    "right hand"
+  ],
+  "floor_parts": [],
+  "palette": [
+    {
+      "part": "left foot",
+      "label": "Left Foot",
+      "hex": "#FF0000",
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "color_name": "pure red"
+    },
+    {
+      "part": "right foot",
+      "label": "Right Foot",
+      "hex": "#00FF00",
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "color_name": "pure green"
+    },
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#0000FF",
+      "rgb": [
+        0,
+        0,
+        255
+      ],
+      "color_name": "pure blue"
+    }
+  ],
+  "required_contacts": "- Left Foot: required contact with target object 'shower stall'. Use #FF0000 / RGB(255, 0, 0) (pure red). SIG note: the left foot stands on the shower floor\n- Right Foot: required contact with target object 'shower stall'. Use #00FF00 / RGB(0, 255, 0) (pure green). SIG note: the right foot stands on the shower floor\n- Right Hand: required contact with target object 'shower stall'. Use #0000FF / RGB(0, 0, 255) (pure blue). SIG note: the right hand touches the shower control or glass door\n- Interaction description: A person stands inside the shower stall taking a shower. Both feet are on the shower floor within the glass enclosure, and the right hand reaches toward the shower control or glass door while the body faces the shower wall. The torso is upright and relaxed, with the head angled forward as if under the shower area. The person has short dark hair and a calm neutral expression. The bathroom is bright with white walls, gray tile flooring, a window, a toilet, a sink, open shelving, a mirror, and a potted plant near the vanity.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_09/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_09/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_09/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/vlm_prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "correction_instruction": "The masks are correctly placed. The red mask for the left foot and green mask for the right foot are on the shower floor, and the blue mask for the right hand is on the shower control."
+  }
+}

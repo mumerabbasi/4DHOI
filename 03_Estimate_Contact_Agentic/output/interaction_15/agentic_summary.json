@@ -1,0 +1,64 @@
+{
+  "interaction_name": "interaction_15",
+  "done": true,
+  "accepted_round": 1,
+  "latest_round": 1,
+  "max_rounds": 10,
+  "provider": "gemini",
+  "model": "gemini-3.1-flash-lite",
+  "target_object": "sofa, potted plant",
+  "human_parts": [
+    "hips",
+    "left hand",
+    "right hand"
+  ],
+  "floor_parts": [
+    "left foot",
+    "right foot"
+  ],
+  "palette": [
+    {
+      "part": "hips",
+      "label": "Hips",
+      "hex": "#FF00FF",
+      "rgb": [
+        255,
+        0,
+        255
+      ],
+      "color_name": "pure magenta"
+    },
+    {
+      "part": "left hand",
+      "label": "Left Hand",
+      "hex": "#00FF00",
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "color_name": "pure green"
+    },
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#FF0000",
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "color_name": "pure red"
+    }
+  ],
+  "required_contacts": "- Hips: required contact with target object 'sofa, potted plant'. Use #FF00FF / RGB(255, 0, 255) (pure magenta). SIG note: the hips rest on the side cushion of the sofa while sitting\n- Left Hand: required contact with target object 'sofa, potted plant'. Use #00FF00 / RGB(0, 255, 0) (pure green). SIG note: the left hand touches and plays with the plant leaves\n- Right Hand: required contact with target object 'sofa, potted plant'. Use #FF0000 / RGB(255, 0, 0) (pure red). SIG note: the right hand touches and plays with the plant leaves\n- Interaction description: A person sits on the side of the grey sofa with hips supported by the side cushion and both feet planted on the wooden floor. The body faces the nearby potted plant, and both hands reach toward the leaves as if gently playing with them. The person has short dark hair, a calm engaged facial expression, a light-colored shirt, dark pants, and casual shoes.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_15/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_15/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_15/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/vlm_prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "correction_instruction": "The masks are correctly placed: the magenta mask is on the sofa cushion where the hips are supported, and the green and red masks are placed on the plant leaves where the hands are interacting with them."
+  }
+}
