@@ -1,0 +1,58 @@
+{
+  "interaction_name": "interaction_27",
+  "done": false,
+  "accepted_round": null,
+  "latest_round": 4,
+  "max_rounds": 10,
+  "provider": "openai",
+  "model": "gpt-5.5",
+  "image_provider": "openai",
+  "image_model": "gpt-image-2",
+  "image_quality": "low",
+  "image_size": "auto",
+  "evaluator_provider": "openai",
+  "evaluator_model": "gpt-5.5",
+  "target_object": "bathtub, side glass",
+  "human_parts": [
+    "left hand",
+    "left foot"
+  ],
+  "floor_parts": [
+    "right foot"
+  ],
+  "palette": [
+    {
+      "part": "left hand",
+      "label": "Left Hand",
+      "hex": "#00FF00",
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "color_name": "pure green"
+    },
+    {
+      "part": "left foot",
+      "label": "Left Foot",
+      "hex": "#0000FF",
+      "rgb": [
+        0,
+        0,
+        255
+      ],
+      "color_name": "pure blue"
+    }
+  ],
+  "required_contacts": "- Left Hand: required contact with target object 'bathtub, side glass'. Use #00FF00 / RGB(0, 255, 0) (pure green). SIG note: the left hand grips the side glass for balance\n- Left Foot: required contact with target object 'bathtub, side glass'. Use #0000FF / RGB(0, 0, 255) (pure blue). SIG note: the left foot presses inside the bathtub while stepping over the wall\n- Interaction description: A person steps over the bathtub wall in a careful balancing pose. The left hand grips the side glass, the left foot presses inside the bathtub, and the right foot is planted on the floor outside the tub. The person has short black hair, a focused facial expression, a gray shirt, rolled-up pants, and bare feet.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_27/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_27/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_27/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": false,
+    "correction_instruction": "Move the blue left-foot mask upward and slightly right to the actual foot contact on the top/inside bathtub rim area where the raised foot rests in the Reference Image, rather than low on the hanging towel. Keep the green left-hand mask on the side glass grip location unchanged."
+  },
+  "stopped_reason": "done"
+}

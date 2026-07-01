@@ -1,0 +1,57 @@
+{
+  "interaction_name": "interaction_21",
+  "done": true,
+  "accepted_round": 1,
+  "latest_round": 1,
+  "max_rounds": 10,
+  "provider": "gemini",
+  "model": "gemini-3.1-flash-lite",
+  "image_provider": "openai",
+  "image_model": "gpt-image-2",
+  "image_quality": "low",
+  "image_size": "auto",
+  "evaluator_provider": "gemini",
+  "target_object": "bed, Milka chocolate",
+  "human_parts": [
+    "hips",
+    "right hand"
+  ],
+  "floor_parts": [
+    "left foot",
+    "right foot"
+  ],
+  "palette": [
+    {
+      "part": "hips",
+      "label": "Hips",
+      "hex": "#0000FF",
+      "rgb": [
+        0,
+        0,
+        255
+      ],
+      "color_name": "pure blue"
+    },
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#00FF00",
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "color_name": "pure green"
+    }
+  ],
+  "required_contacts": "- Hips: required contact with target object 'bed, Milka chocolate'. Use #0000FF / RGB(0, 0, 255) (pure blue). SIG note: the hips are supported by the bed while sitting\n- Right Hand: required contact with target object 'bed, Milka chocolate'. Use #00FF00 / RGB(0, 255, 0) (pure green). SIG note: the right hand reaches to grasp the Milka chocolate\n- Interaction description: A person sits on the edge of the bed like sitting in a chair, with the hips supported by the mattress and both feet planted on the floor. The torso leans outward while the right hand reaches toward the nearby Milka chocolate. The person has short black hair, a casual focused expression, a gray shirt, comfortable pants, and socks.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_21/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_21/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_21/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/vlm_prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "correction_instruction": "The masks for the hips and the right hand are correctly positioned and sized according to the reference image."
+  }
+}

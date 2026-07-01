@@ -1,0 +1,64 @@
+{
+  "interaction_name": "interaction_22",
+  "done": true,
+  "accepted_round": 2,
+  "latest_round": 2,
+  "max_rounds": 5,
+  "provider": "manual",
+  "model": null,
+  "target_object": "bicycle, bicycle stand",
+  "human_parts": [
+    "left hand",
+    "right hand",
+    "right foot"
+  ],
+  "floor_parts": [
+    "left foot"
+  ],
+  "palette": [
+    {
+      "part": "left hand",
+      "label": "Left Hand",
+      "hex": "#0000FF",
+      "rgb": [
+        0,
+        0,
+        255
+      ],
+      "color_name": "pure blue"
+    },
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#00FF00",
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "color_name": "pure green"
+    },
+    {
+      "part": "right foot",
+      "label": "Right Foot",
+      "hex": "#00FFFF",
+      "rgb": [
+        0,
+        255,
+        255
+      ],
+      "color_name": "pure cyan"
+    }
+  ],
+  "required_contacts": "- Left Hand: required contact with target object 'bicycle, bicycle stand'. Use #0000FF / RGB(0, 0, 255) (pure blue). SIG note: the left hand holds the bicycle handlebar or frame\n- Right Hand: required contact with target object 'bicycle, bicycle stand'. Use #00FF00 / RGB(0, 255, 0) (pure green). SIG note: the right hand steadies the bicycle frame\n- Right Foot: required contact with target object 'bicycle, bicycle stand'. Use #00FFFF / RGB(0, 255, 255) (pure cyan). SIG note: the right foot pushes the bicycle stand\n- Interaction description: A person stands beside the bicycle, holding it with both hands while one foot pushes the bicycle stand to remove it from support. The other foot stays on the floor for balance. The person has short dark hair, a focused expression, a casual top, long pants, and sneakers.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_22/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_22/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_22/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "correction_instruction": "",
+    "manual_accept": true
+  }
+}

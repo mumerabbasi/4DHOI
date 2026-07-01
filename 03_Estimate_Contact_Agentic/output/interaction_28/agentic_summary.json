@@ -1,0 +1,67 @@
+{
+  "interaction_name": "interaction_28",
+  "done": true,
+  "accepted_round": 1,
+  "latest_round": 1,
+  "max_rounds": 10,
+  "provider": "openai",
+  "model": "gpt-5.5",
+  "image_provider": "openai",
+  "image_model": "gpt-image-2",
+  "image_quality": "low",
+  "image_size": "auto",
+  "evaluator_provider": "openai",
+  "evaluator_model": "gpt-5.5",
+  "target_object": "treadmill",
+  "human_parts": [
+    "left hand",
+    "right hand",
+    "left foot"
+  ],
+  "floor_parts": [],
+  "palette": [
+    {
+      "part": "left hand",
+      "label": "Left Hand",
+      "hex": "#00FFFF",
+      "rgb": [
+        0,
+        255,
+        255
+      ],
+      "color_name": "pure cyan"
+    },
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#0000FF",
+      "rgb": [
+        0,
+        0,
+        255
+      ],
+      "color_name": "pure blue"
+    },
+    {
+      "part": "left foot",
+      "label": "Left Foot",
+      "hex": "#FF00FF",
+      "rgb": [
+        255,
+        0,
+        255
+      ],
+      "color_name": "pure magenta"
+    }
+  ],
+  "required_contacts": "- Left Hand: required contact with target object 'treadmill'. Use #00FFFF / RGB(0, 255, 255) (pure cyan). SIG note: the left hand lightly holds the left side handle of the treadmill\n- Right Hand: required contact with target object 'treadmill'. Use #0000FF / RGB(0, 0, 255) (pure blue). SIG note: the right hand lightly holds the right side handle of the treadmill\n- Left Foot: required contact with target object 'treadmill'. Use #FF00FF / RGB(255, 0, 255) (pure magenta). SIG note: the left foot lands on the moving belt of the treadmill\n- Interaction description: A person runs on the treadmill in a forward-moving exercise pose. The left hand lightly holds the left side handle of the treadmill, the right hand lightly holds the right side handle of the treadmill, and the left foot lands on the moving belt of the treadmill while the right leg lifts behind. The person has tied-back dark hair, a focused facial expression, an athletic top, leggings, and running shoes.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_28/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_28/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_28/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "correction_instruction": "All masks are correct. Keep them unchanged."
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "interaction_name": "interaction_24",
+  "done": true,
+  "accepted_round": 4,
+  "latest_round": 4,
+  "max_rounds": 5,
+  "provider": "gemini",
+  "model": "gemini-3.1-flash-lite",
+  "target_object": "step ladder, cupboard",
+  "human_parts": [
+    "right hand",
+    "left foot",
+    "right foot"
+  ],
+  "floor_parts": [],
+  "palette": [
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#00FFFF",
+      "rgb": [
+        0,
+        255,
+        255
+      ],
+      "color_name": "pure cyan"
+    },
+    {
+      "part": "left foot",
+      "label": "Left Foot",
+      "hex": "#FF00FF",
+      "rgb": [
+        255,
+        0,
+        255
+      ],
+      "color_name": "pure magenta"
+    },
+    {
+      "part": "right foot",
+      "label": "Right Foot",
+      "hex": "#0000FF",
+      "rgb": [
+        0,
+        0,
+        255
+      ],
+      "color_name": "pure blue"
+    }
+  ],
+  "required_contacts": "- Right Hand: required contact with target object 'step ladder, cupboard'. Use #00FFFF / RGB(0, 255, 255) (pure cyan). SIG note: the right hand reaches to touch the top of the cupboard\n- Left Foot: required contact with target object 'step ladder, cupboard'. Use #FF00FF / RGB(255, 0, 255) (pure magenta). SIG note: the left foot presses on a step of the step ladder\n- Right Foot: required contact with target object 'step ladder, cupboard'. Use #0000FF / RGB(0, 0, 255) (pure blue). SIG note: the right foot presses on a step of the step ladder\n- Interaction description: A person climbs the step ladder while reaching toward the top of the cupboard. Both left foot and right press on a step of the step ladder and the right hand touches the top of the cupboard. The person has short black hair, a focused facial expression, a gray shirt, dark pants, and sneakers.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_24/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_24/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_24/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "correction_instruction": "The masks are correctly positioned according to the reference image: the cyan mask is on the cupboard where the right hand touches, and the magenta and blue masks are correctly placed on the step ladder rungs where the left and right feet make contact."
+  }
+}

@@ -1,0 +1,67 @@
+Attached images are provided in this order:
+Image 1: 01_reference_image.png - Reference Image
+Image 2: 02_canvas_image.png - Original Canvas Image
+Image 3: composite.png - Current Composite Image
+
+Provided Images:
+
+Image 1: Reference Image.
+This image shows the ground-truth human-object interaction. Use the visible human pose and target-object geometry in this image as the ground truth for which body parts contact the target object and where those contacts occur on the object surfaces.
+
+Image 2: Original Canvas Image.
+This image shows the same scene without the human. This is the authoritative geometry and base image.
+
+Image 3: Current Composite Image.
+This is the original Canvas image with colored contact masks pasted onto it. Evaluate only the colored masks.
+
+Target object:
+{target_object}
+
+Color mapping:
+{color_mapping}
+
+Required target-object contacts from SIG:
+{required_contacts}
+
+Task Description:
+Decide whether the colored masks in the Current Composite Image correctly reproduce the localized target-object contact positions observed in the Reference Image. Masks represent the contact footprints on the object, not the full visible human body part.
+
+Focus especially on reference alignment. For each mask, first identify where the corresponding body part contacts the target object in the Reference Image, then check whether the mask is placed on the matching object part and local surface in the Current Composite Image.
+
+The required target-object contacts from SIG identify which body parts must be checked, but the Reference Image is authoritative for contact location. Do not accept a mask merely because it is plausible; accept it only if its position matches the contact location shown by the Reference Image, mapped onto the same object region in the Original Canvas Image.
+
+For partially occluded contacts, use the visible body pose, object boundaries, and contact context in the Reference Image to determine the most likely ground-truth contact footprint. Do not invent a different plausible contact location on the object if the Reference Image indicates a specific contacted surface or region.
+
+Evaluate these possible errors:
+1. Missing contact: a required SIG target-object contact is absent, or a body part visibly touches the target object in the Reference Image but its mask is absent.
+2. Extra contact: a mask exists for a body part that is not a required SIG target-object contact and does not visibly touch the target object.
+3. Wrong color: a contact uses the wrong color for the body part.
+4. Wrong object surface: the mask is not on the same object part or surface region contacted in the Reference Image, such as wrong rung, wrong rail, wrong edge, wrong handle, wrong shelf, wrong tabletop region, etc.
+5. Shifted mask: the mask is too far left, right, up, or down from the reference contact location after mapping that location to the Original Canvas Image.
+6. Size error: the mask is too large or too small for the local contact footprint visible or indicated by the Reference Image.
+
+For every problem, write a concrete correction instruction for the next ChatGPT image-generation prompt.
+
+Good correction examples:
+- "Keep the original canvas unchanged and move only the green right-foot mask upward onto the lower ladder rung."
+- "The yellow left-hand mask is missing. Add a small yellow mask on the vertical side rail where the left hand contacts the ladder."
+- "The yellow left-hand mask is not placed at the location where the left hand is touching the object in the Reference Image."
+- "The blue foot mask is on the wrong rung. Move it down to the rung directly under the visible foot contact."
+- "The red right-hand mask is too large. Keep its center but make it smaller and more focused."
+- "This mask is correct. Keep it unchanged."
+
+Bad correction examples:
+- "The result is bad."
+- "Fix the mask."
+- "Try again."
+
+Return strictly valid JSON only:
+
+```json
+{
+  "done": false,
+  "correction_instruction": "text"
+}
+```
+
+Set "done": true only if all required SIG target-object contacts are present, there are no extra masks, each mask uses the correct color, and each mask matches the contact surface, location, and size indicated by the Reference Image when mapped onto the Original Canvas Image.

@@ -1,11 +1,18 @@
-Attach the images from this folder in this exact order:
-1. 01_reference_image.png - Reference Image: Human interacting with the target object; use only to infer contact locations.
-2. 02_canvas_image.png - Canvas Image: Authoritative base image to preserve exactly.
+Attached images are provided in this order:
+Image 1: 01_reference_image.png - Reference Image
+Image 2: 02_canvas_image.png - Canvas Image
+Image 3: 03_previous_composite.png - Previous Composite
+
 Provided Images:
 
-Reference Image: An image showing a human interacting with the target object. Use this image only to infer which human body parts are physically contacting the target object and which object-surface regions are being touched.
+Image 1: Reference Image
+An image showing a human interacting with the target object. Use this image only to infer which human body parts are physically contacting the target object and which object-surface regions are being touched.
 
-Canvas Image: An image of the same scene without the human. Use this image as the base image and as the authoritative reference for the target object's final position, pose, geometry, and boundaries.
+Image 2: Canvas Image
+An image of the same scene without the human. Use this image as the base image and as the authoritative reference for the target object's final position, pose, geometry, and boundaries.
+
+Optional Image 3: Previous Composite
+If provided, this image shows the previous round's Canvas Image with generated colored contact masks. Use it only as correction context for the VLM evaluator's feedback. If the evaluator says its masks are correct, copy the correct masks from it to the corresponding locations onto the Canvas Image. Also, draw the new corrected masks, according to the evaluator instructions, onto the Canvas Image.
 
 Task Description:
 
@@ -55,16 +62,6 @@ Only add the specified solid-color contact mask overlays. Leave every non-overla
 Colors:
 Use only the exact specified solid colors for the contacting body-part masks. Do not use transparency, antialiasing gradients, shadows, blended colors, or pastel variants.
 
-Restrictions:
-Do not add the generated human body.
-Do not copy or paste the full visible hand, foot, hip, arm, leg, or other body-part silhouette.
-Do not transfer masks by raw Reference Image pixel coordinates.
-Do not add text labels, arrows, legends, boxes, keypoints, outlines, or any other annotations.
-Show only the original Canvas Image with solid localized contact masks overlaid on the target object.
-
-Example Guidance:
-If the Reference Image shows a person gripping a ladder, infer which rungs or rails the hands and feet contact. Then place solid masks on those same ladder regions in the Canvas Image, aligned to the ladder as it appears in the Canvas Image.
-
 Color Mapping for ContactMasks:
 Hips: The hips is in contact with the target object. Use solid #FF0000 / RGB(255, 0, 0) (pure red).
 Left Hand: The left hand is in contact with the target object. Use solid #00FF00 / RGB(0, 255, 0) (pure green).
@@ -75,3 +72,13 @@ Required target-object contacts from SIG:
 - Left Hand: required contact with target object 'brown small wooden table'. Use #00FF00 / RGB(0, 255, 0) (pure green). SIG note: the left hand rests on the table for balance
 - Right Hand: required contact with target object 'brown small wooden table'. Use #FF00FF / RGB(255, 0, 255) (pure magenta). SIG note: the right hand rests on the table for balance
 - Interaction description: A person sits on the brown small wooden table positioned in front of the whiteboard. The hips rest on the table surface, while the legs are bent with both feet planted firmly on the grey floor. The hands rest on the table surface for stability. The person has short black hair, a neutral facial expression, a gray shirt, blue jeans, and white sneakers. The room features white walls, a blue door, and a grey floor.
+
+Restrictions:
+Do not add the generated human body.
+Do not copy or paste the full visible hand, foot, hip, arm, leg, or other body-part silhouette.
+Do not transfer masks by raw Reference Image pixel coordinates.
+Do not add text labels, arrows, legends, boxes, keypoints, outlines, or any other annotations.
+Show only the original Canvas Image with solid localized contact masks overlaid on the target object.
+
+Example Guidance:
+If the Reference Image shows a person gripping a ladder, infer which rungs or rails the hands and feet contact. Then place solid masks on those same ladder regions in the Canvas Image, aligned to the ladder as it appears in the Canvas Image.

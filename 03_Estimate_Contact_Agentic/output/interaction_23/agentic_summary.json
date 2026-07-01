@@ -1,0 +1,53 @@
+{
+  "interaction_name": "interaction_23",
+  "done": true,
+  "accepted_round": 2,
+  "latest_round": 2,
+  "max_rounds": 5,
+  "provider": "manual",
+  "model": null,
+  "target_object": "lower cabinet, counter edge",
+  "human_parts": [
+    "left hand",
+    "right hand"
+  ],
+  "floor_parts": [
+    "left foot",
+    "right foot"
+  ],
+  "palette": [
+    {
+      "part": "left hand",
+      "label": "Left Hand",
+      "hex": "#FF0000",
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "color_name": "pure red"
+    },
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#00FF00",
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "color_name": "pure green"
+    }
+  ],
+  "required_contacts": "- Left Hand: required contact with target object 'lower cabinet, counter edge'. Use #FF0000 / RGB(255, 0, 0) (pure red). SIG note: the left hand pulls the lower cabinet door open\n- Right Hand: required contact with target object 'lower cabinet, counter edge'. Use #00FF00 / RGB(0, 255, 0) (pure green). SIG note: the right hand holds the counter edge for balance\n- Interaction description: A person bending down in front of the lower drawer cabinet, pulling the drawer handle with the left hand while holding the counter edge with the right hand for balance. Both feet remain on the floor in a stable squat. The person has short black hair, a concentrated expression, a casual shirt, pants, and sneakers.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_23/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_23/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_23/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "correction_instruction": "",
+    "manual_accept": true
+  }
+}

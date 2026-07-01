@@ -1,0 +1,55 @@
+{
+  "interaction_name": "interaction_26",
+  "done": true,
+  "accepted_round": 2,
+  "latest_round": 2,
+  "max_rounds": 10,
+  "provider": "openai",
+  "model": "gpt-5.5",
+  "image_provider": "openai",
+  "image_model": "gpt-image-2",
+  "image_quality": "low",
+  "image_size": "auto",
+  "evaluator_provider": "openai",
+  "evaluator_model": "gpt-5.5",
+  "target_object": "pull-up bar",
+  "human_parts": [
+    "left hand",
+    "right hand"
+  ],
+  "floor_parts": [],
+  "palette": [
+    {
+      "part": "left hand",
+      "label": "Left Hand",
+      "hex": "#00FFFF",
+      "rgb": [
+        0,
+        255,
+        255
+      ],
+      "color_name": "pure cyan"
+    },
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#0000FF",
+      "rgb": [
+        0,
+        0,
+        255
+      ],
+      "color_name": "pure blue"
+    }
+  ],
+  "required_contacts": "- Left Hand: required contact with target object 'pull-up bar'. Use #00FFFF / RGB(0, 255, 255) (pure cyan). SIG note: the left hand grips the pull-up bar\n- Right Hand: required contact with target object 'pull-up bar'. Use #0000FF / RGB(0, 0, 255) (pure blue). SIG note: the right hand grips the pull-up bar\n- Interaction description: A person hangs from the pull-up bar with elbows bent and knees tucked upward. The left hand grips the pull-up bar, the right hand grips the pull-up bar, the left foot stays off the floor, and the right foot stays off the floor. The person has short black hair, a strained focused facial expression, a gray athletic shirt, dark shorts, and sneakers.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_26/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_26/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_26/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "correction_instruction": "This mask is correct. Keep it unchanged."
+  }
+}

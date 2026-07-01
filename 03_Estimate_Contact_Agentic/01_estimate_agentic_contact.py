@@ -54,13 +54,6 @@ from common import (  # noqa: E402
 )
 
 
-NEXT_ROUND_BASE_REMINDER = """Use the original Canvas image as the base again.
-If a previous composite is provided, use it only as correction context.
-Do not use the previous composite or generated image as the base.
-Keep the canvas unchanged.
-Only fix the specified colored contact masks."""
-
-
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
@@ -90,9 +83,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=72)
     parser.add_argument("--padding-frac", type=float, default=0.25)
     parser.add_argument(
-        "--disable-aspect-ratio-crop",
+        "--preserve-aspect-ratio-crop",
         action="store_true",
-        help="Skip expanding the human crop to the source image aspect ratio.",
+        help="Expand the human crop to the source image aspect ratio.",
     )
     parser.add_argument("--human-sam3-prompt", default="person")
     parser.add_argument("--floor-sam3-prompt", default="floor")
@@ -102,7 +95,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--sam3-device", default=get_default_sam3_device())
     parser.add_argument("--sam3-confidence-threshold", type=float, default=0.5)
     parser.add_argument("--no-sam3-hf-download", action="store_true")
-    parser.add_argument("--color-max-distance", type=float, default=180.0)
+    parser.add_argument("--color-max-distance", type=float, default=90.0)
     parser.add_argument("--min-component-area", type=int, default=0)
     parser.add_argument("--keep-components", type=int, default=1)
     parser.add_argument("--overwrite", action="store_true")
@@ -151,12 +144,12 @@ def resolve_paths(args: argparse.Namespace) -> dict[str, Path]:
     system_prompt_path = (
         Path(args.system_prompt).resolve()
         if args.system_prompt
-        else SCRIPT_DIR / "system_prompt_estimate_contact_agentic.md"
+        else SCRIPT_DIR / "prompt_estimate_contact.md"
     )
     vlm_prompt_path = (
         Path(args.vlm_prompt).resolve()
         if args.vlm_prompt
-        else SCRIPT_DIR / "vlm_prompt_evaluate_contact.md"
+        else SCRIPT_DIR / "prompt_evaluate_contact.md"
     )
     return {
         "output_root": output_root,
@@ -254,6 +247,16 @@ def required_contact_facts_text(
     return "\n".join(lines)
 
 
+def remove_required_contacts_from_prompt(prompt: str) -> str:
+    section_header = "Required target-object contacts from SIG:"
+    marker = "\n\n" + section_header
+    if marker in prompt:
+        return prompt.split(marker, 1)[0].rstrip()
+    if prompt.lstrip().startswith(section_header):
+        return ""
+    return prompt.rstrip()
+
+
 def add_required_contacts_to_prompt(
     prompt: str,
     required_contacts: str,
@@ -268,6 +271,57 @@ def add_required_contacts_to_prompt(
         + "\n"
         + required_contacts.strip()
     )
+
+
+def generation_color_mapping_text(
+    human_parts: list[str],
+    palette: list[dict[str, Any]],
+) -> str:
+    palette_by_part = {
+        normalize_label(str(item["part"])): item
+        for item in palette
+    }
+    lines: list[str] = []
+    for part in human_parts:
+        part_label = normalize_label(part)
+        color_info = palette_by_part[part_label]
+        rgb = color_info["rgb"]
+        lines.append(
+            f"{part_label.title()}: The {part_label} is in contact with the "
+            f"target object. Use solid {color_info['hex']} / "
+            f"RGB({rgb[0]}, {rgb[1]}, {rgb[2]}) "
+            f"({color_info['color_name']})."
+        )
+    return "\n".join(lines)
+
+
+def render_generation_prompt(
+    template: str,
+    human_parts: list[str],
+    palette: list[dict[str, Any]],
+    required_contacts: str,
+) -> str:
+    prompt = template.strip()
+    color_placeholder = "{color_mapping_for_contact_masks}"
+    contacts_placeholder = "{required_contacts}"
+
+    if color_placeholder in prompt:
+        prompt = prompt.replace(
+            color_placeholder,
+            generation_color_mapping_text(human_parts, palette),
+        )
+    else:
+        prompt = build_contact_prompt(prompt, human_parts, palette)
+
+    if contacts_placeholder in prompt:
+        prompt = prompt.replace(
+            contacts_placeholder,
+            required_contacts.strip(),
+        )
+    else:
+        prompt = add_required_contacts_to_prompt(prompt, required_contacts)
+
+    return prompt.rstrip()
 
 
 def open_rgb_image(path: Path) -> Any:
@@ -465,9 +519,11 @@ def prepare_assets(
             human_parts=human_parts,
             palette=palette,
         )
-        base_prompt = add_required_contacts_to_prompt(
-            base_prompt_path.read_text(encoding="utf-8"),
-            required_contacts,
+        base_prompt = render_generation_prompt(
+            template=paths["system_prompt"].read_text(encoding="utf-8"),
+            human_parts=human_parts,
+            palette=palette,
+            required_contacts=required_contacts,
         )
         return {
             "sig_payload": sig_payload,
@@ -543,13 +599,12 @@ def prepare_assets(
         image_height=image_h,
         padding_frac=args.padding_frac,
     )
-    if not args.disable_aspect_ratio_crop:
+    if args.preserve_aspect_ratio_crop:
         crop_xyxy = fit_bbox_to_image_aspect(
             crop_xyxy,
             image_width=image_w,
             image_height=image_h,
         )
-
     reference_crop = crop_array(inpainted_rgb, crop_xyxy)
     canvas_crop = crop_array(scene_rgb, crop_xyxy)
 
@@ -609,9 +664,11 @@ def prepare_assets(
         palette=palette,
     )
     save_contact_spec(contact_spec_path, contact_intrinsics, palette)
-    base_prompt = add_required_contacts_to_prompt(
-        build_contact_prompt(system_prompt, human_parts, palette),
-        required_contacts,
+    base_prompt = render_generation_prompt(
+        template=system_prompt,
+        human_parts=human_parts,
+        palette=palette,
+        required_contacts=required_contacts,
     )
     save_text(base_prompt_path, base_prompt + "\n")
 
@@ -642,10 +699,8 @@ def build_round_prompt(
     return (
         base_prompt.rstrip()
         + "\n\n"
-        + "Correction instructions from the VLM evaluator:\n"
+        + "Correction Instructions from an Evaluator:\n"
         + correction_instruction.strip()
-        + "\n\n"
-        + NEXT_ROUND_BASE_REMINDER
         + "\n"
     )
 
@@ -663,53 +718,19 @@ def write_round_prompt_package(
     shutil.copy2(reference_path, reference_copy)
     shutil.copy2(canvas_path, canvas_copy)
 
-    attachments = [
-        {
-            "order": 1,
-            "path": reference_copy.name,
-            "role": "Reference Image",
-            "description": (
-                "Human interacting with the target object; use only to infer "
-                "contact locations."
-            ),
-        },
-        {
-            "order": 2,
-            "path": canvas_copy.name,
-            "role": "Canvas Image",
-            "description": "Authoritative base image to preserve exactly.",
-        },
-    ]
     if (
         previous_composite_path is not None
         and previous_composite_path.exists()
     ):
         previous_copy = prompt_dir / "03_previous_composite.png"
         shutil.copy2(previous_composite_path, previous_copy)
-        attachments.append(
-            {
-                "order": 3,
-                "path": previous_copy.name,
-                "role": "Previous Composite",
-                "description": (
-                    "Correction context only; do not use as the base image."
-                ),
-            }
-        )
+    else:
+        previous_copy = None
 
-    attachment_lines = [
-        "Attach the images from this folder in this exact order:",
-        *[
-            f"{item['order']}. {item['path']} - "
-            f"{item['role']}: {item['description']}"
-            for item in attachments
-        ],
-        "",
-    ]
     prompt_path = prompt_dir / "prompt.md"
     save_text(
         prompt_path,
-        "\n".join(attachment_lines) + prompt.rstrip() + "\n",
+        prompt.rstrip() + "\n",
     )
     return prompt_path
 
