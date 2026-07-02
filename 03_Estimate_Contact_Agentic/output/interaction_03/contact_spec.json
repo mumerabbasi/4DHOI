@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "camera": {
+    "intrinsics_3x3": [
+      [
+        469.8606350451475,
+        0.0,
+        578.0
+      ],
+      [
+        0.0,
+        471.1590811418314,
+        227.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ]
+  },
+  "palette": {
+    "parts": [
+      {
+        "part": "left hand",
+        "label": "Left Hand",
+        "hex": "#00FFFF",
+        "rgb": [
+          0,
+          255,
+          255
+        ],
+        "color_name": "pure cyan"
+      },
+      {
+        "part": "right hand",
+        "label": "Right Hand",
+        "hex": "#FF00FF",
+        "rgb": [
+          255,
+          0,
+          255
+        ],
+        "color_name": "pure magenta"
+      }
+    ]
+  }
+}

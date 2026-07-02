@@ -1,0 +1,54 @@
+{
+  "interaction_name": "interaction_03",
+  "done": true,
+  "accepted_round": 1,
+  "latest_round": 1,
+  "max_rounds": 1,
+  "provider": "manual",
+  "model": null,
+  "target_object": "wooden chair",
+  "human_parts": [
+    "left hand",
+    "right hand"
+  ],
+  "floor_parts": [
+    "left foot",
+    "right foot"
+  ],
+  "palette": [
+    {
+      "part": "left hand",
+      "label": "Left Hand",
+      "hex": "#00FFFF",
+      "rgb": [
+        0,
+        255,
+        255
+      ],
+      "color_name": "pure cyan"
+    },
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#FF00FF",
+      "rgb": [
+        255,
+        0,
+        255
+      ],
+      "color_name": "pure magenta"
+    }
+  ],
+  "required_contacts": "- Left Hand: required contact with target object 'wooden chair'. Use #00FFFF / RGB(0, 255, 255) (pure cyan). SIG note: the left hand grips the top of the chair backrest\n- Right Hand: required contact with target object 'wooden chair'. Use #FF00FF / RGB(255, 0, 255) (pure magenta). SIG note: the right hand grips the top of the chair backrest\n- Interaction description: A person stands beside a wooden chair at the round table, in the process of pulling it back to sit down. Both hands firmly grip the top edge of the chair's backrest, applying force to move it away from the table. The person is in a standing posture with both feet planted on the dark grey floor. They have short black hair, a neutral focused expression, and are wearing a gray shirt, blue jeans, and white sneakers. The room is a bright indoor space with white walls, a whiteboard on the right, and a round table surrounded by matching chairs.",
+  "composite_includes_floor_contacts": false,
+  "reference_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_03/assets/reference_inpainted_crop.png",
+  "canvas_crop": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_03/assets/target_scene_crop.png",
+  "contact_spec": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_03/contact_spec.json",
+  "vlm_prompt": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/prompt_evaluate_contact.md",
+  "latest_evaluation": {
+    "done": true,
+    "correction_instruction": "",
+    "manual_accept": true,
+    "source": "migrated_from_03_Estimate_Contact"
+  }
+}
