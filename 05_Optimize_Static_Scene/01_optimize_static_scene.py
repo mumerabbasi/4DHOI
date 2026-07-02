@@ -377,18 +377,18 @@ def build_shared_default_paths(interaction_name: str) -> dict[str, Path]:
         "output" /
         interaction_name,
         "contact_masks_dir": PROJECT_DIR /
-        "03_Estimate_Contact" /
+        "03_Estimate_Contact_Agentic" /
         "output" /
         interaction_name /
         "contact_masks",
         "contact_canvas_path": PROJECT_DIR /
-        "03_Estimate_Contact" /
+        "03_Estimate_Contact_Agentic" /
         "output" /
         interaction_name /
-        "prompt" /
+        "assets" /
         "target_scene_crop.png",
         "contact_spec": PROJECT_DIR /
-        "03_Estimate_Contact" /
+        "03_Estimate_Contact_Agentic" /
         "output" /
         interaction_name /
         "contact_spec.json",
