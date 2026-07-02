@@ -1,0 +1,274 @@
+{
+  "interaction_name": "interaction_16",
+  "scene_id": "c173f62b15",
+  "target_object": {
+    "label": "wooden shelf"
+  },
+  "optimizer": {
+    "adam_iters": 2000,
+    "adam_lr": 0.001,
+    "stage_iters": {
+      "rigid": 400,
+      "pose": 1600
+    },
+    "stage_trainable": {
+      "rigid": {
+        "transl": true,
+        "global_orient": false,
+        "scale": true,
+        "body_pose": false
+      },
+      "pose": {
+        "transl": true,
+        "global_orient": true,
+        "scale": true,
+        "body_pose": true
+      }
+    },
+    "loss_weights": {
+      "orient_gvhmr": 100.0,
+      "pose_gvhmr": 250.0,
+      "height_prior": 1.0,
+      "scene_intersect": {
+        "start": 60.0,
+        "end": 60.0,
+        "clearance_margin_m": 0.0,
+        "surface_samples": 700000,
+        "debug": true
+      },
+      "human_scene_depth": {
+        "start": 0.0,
+        "end": 0.0,
+        "penetration_tolerance_m": 0.0,
+        "min_valid_weight": 0.25
+      },
+      "nocontact": {
+        "start": 800.0,
+        "end": 800.0
+      },
+      "self_intersect": {
+        "start": 0.0,
+        "end": 0.0
+      }
+    },
+    "height_prior": {
+      "target_m": 1.8288,
+      "min_m": 1.778,
+      "max_m": 1.8796,
+      "sigma_m": 0.0508,
+      "target_ft_in": "6 ft 0 in",
+      "min_ft_in": "5 ft 10 in",
+      "max_ft_in": "6 ft 2 in"
+    }
+  },
+  "scene": {
+    "num_contact_crop_faces": 1100641,
+    "num_contact_crop_vertices": 549525
+  },
+  "human": {
+    "optimization": {
+      "final_iter": 2000,
+      "final_total_loss": 2.9222612380981445,
+      "stage_iters": {
+        "rigid": 400,
+        "pose": 1600
+      },
+      "scene_intersect_sampling": {
+        "mode": "scene_surface",
+        "num_scene_faces_total": 1100641,
+        "num_sampled_points": 700000,
+        "source_camera": "contact"
+      },
+      "scene_intersect_stats": {
+        "num_scene_collision_points": 700000,
+        "num_sdf_query_points": 700000,
+        "num_inside_or_margin_points": 369
+      },
+      "human_scene_depth_stats": {},
+      "scene_intersect_debug": {
+        "init": {
+          "stage": "init",
+          "scene_point_colors": {
+            "red": "inside SMPL-X human SDF; contributes to scene_intersect",
+            "orange": "outside but within scene_intersect clearance margin",
+            "blue_gray": "outside clearance margin"
+          },
+          "sdf_grid_colors": {
+            "red_intensity": "inside SMPL-X; stronger red means more negative SDF",
+            "white": "near zero SDF surface",
+            "blue_intensity": "outside SMPL-X; stronger blue means larger positive SDF"
+          },
+          "clearance_margin_m": 0.0,
+          "scene_points": {
+            "num_scene_collision_points": 700000,
+            "num_sdf_query_points": 700000,
+            "num_visualized_points": 700000,
+            "num_inside_points": 121,
+            "num_margin_points": 0,
+            "min_sdf_m": -0.011121715418994427,
+            "max_sdf_m": 3.176856279373169
+          },
+          "sdf_grid": {
+            "num_grid_points": 262144,
+            "grid_shape": [
+              64,
+              64,
+              64
+            ],
+            "min_sdf_m": -0.11079888045787811,
+            "max_sdf_m": 0.7400025725364685,
+            "num_inside_grid_points": 8692,
+            "num_near_surface_grid_points": 0,
+            "color_clamp_m": 0.05
+          }
+        },
+        "final": {
+          "stage": "final",
+          "scene_point_colors": {
+            "red": "inside SMPL-X human SDF; contributes to scene_intersect",
+            "orange": "outside but within scene_intersect clearance margin",
+            "blue_gray": "outside clearance margin"
+          },
+          "sdf_grid_colors": {
+            "red_intensity": "inside SMPL-X; stronger red means more negative SDF",
+            "white": "near zero SDF surface",
+            "blue_intensity": "outside SMPL-X; stronger blue means larger positive SDF"
+          },
+          "clearance_margin_m": 0.0,
+          "scene_points": {
+            "num_scene_collision_points": 700000,
+            "num_sdf_query_points": 700000,
+            "num_visualized_points": 700000,
+            "num_inside_points": 366,
+            "num_margin_points": 0,
+            "min_sdf_m": -0.02011706866323948,
+            "max_sdf_m": 3.0753297805786133
+          },
+          "sdf_grid": {
+            "num_grid_points": 262144,
+            "grid_shape": [
+              64,
+              64,
+              64
+            ],
+            "min_sdf_m": -0.10293643921613693,
+            "max_sdf_m": 0.8709867596626282,
+            "num_inside_grid_points": 7277,
+            "num_near_surface_grid_points": 0,
+            "color_clamp_m": 0.05
+          }
+        }
+      }
+    },
+    "init_frame_0": {
+      "interaction_edges": [
+        {
+          "node_a": "human.hips",
+          "node_b": "wooden shelf",
+          "moving_entity_name": "human",
+          "moving_part_name": "hips",
+          "moving_segment_id": "hips_contact",
+          "moving_segment_name": "hips contact",
+          "moving_vertex_count": 92,
+          "fixed_entity_name": "wooden shelf",
+          "fixed_part_name": "wooden shelf",
+          "fixed_point_count": 2048,
+          "reduction": "mean",
+          "nocontact_raw": 0.005397811532020569,
+          "nocontact_distance_m": 0.0734698001359781
+        },
+        {
+          "node_a": "human.left_hand",
+          "node_b": "wooden shelf",
+          "moving_entity_name": "human",
+          "moving_part_name": "left hand",
+          "moving_segment_id": "left_hand_contact",
+          "moving_segment_name": "left hand contact",
+          "moving_vertex_count": 371,
+          "fixed_entity_name": "wooden shelf",
+          "fixed_part_name": "wooden shelf",
+          "fixed_point_count": 2048,
+          "reduction": "mean",
+          "nocontact_raw": 0.09268466383218765,
+          "nocontact_distance_m": 0.304441560619091
+        },
+        {
+          "node_a": "human.right_hand",
+          "node_b": "wooden shelf",
+          "moving_entity_name": "human",
+          "moving_part_name": "right hand",
+          "moving_segment_id": "right_hand_contact",
+          "moving_segment_name": "right hand contact",
+          "moving_vertex_count": 373,
+          "fixed_entity_name": "wooden shelf",
+          "fixed_part_name": "wooden shelf",
+          "fixed_point_count": 2048,
+          "reduction": "mean",
+          "nocontact_raw": 0.02878502570092678,
+          "nocontact_distance_m": 0.16966150329679028
+        }
+      ]
+    },
+    "final_frame_0": {
+      "interaction_edges": [
+        {
+          "node_a": "human.hips",
+          "node_b": "wooden shelf",
+          "moving_entity_name": "human",
+          "moving_part_name": "hips",
+          "moving_segment_id": "hips_contact",
+          "moving_segment_name": "hips contact",
+          "moving_vertex_count": 92,
+          "fixed_entity_name": "wooden shelf",
+          "fixed_part_name": "wooden shelf",
+          "fixed_point_count": 2048,
+          "reduction": "mean",
+          "nocontact_raw": 0.0020791091956198215,
+          "nocontact_distance_m": 0.04559724986904168
+        },
+        {
+          "node_a": "human.left_hand",
+          "node_b": "wooden shelf",
+          "moving_entity_name": "human",
+          "moving_part_name": "left hand",
+          "moving_segment_id": "left_hand_contact",
+          "moving_segment_name": "left hand contact",
+          "moving_vertex_count": 371,
+          "fixed_entity_name": "wooden shelf",
+          "fixed_part_name": "wooden shelf",
+          "fixed_point_count": 2048,
+          "reduction": "mean",
+          "nocontact_raw": 0.002139696851372719,
+          "nocontact_distance_m": 0.04625685734431943
+        },
+        {
+          "node_a": "human.right_hand",
+          "node_b": "wooden shelf",
+          "moving_entity_name": "human",
+          "moving_part_name": "right hand",
+          "moving_segment_id": "right_hand_contact",
+          "moving_segment_name": "right hand contact",
+          "moving_vertex_count": 373,
+          "fixed_entity_name": "wooden shelf",
+          "fixed_part_name": "wooden shelf",
+          "fixed_point_count": 2048,
+          "reduction": "mean",
+          "nocontact_raw": 0.0022207051515579224,
+          "nocontact_distance_m": 0.04712435836759926
+        }
+      ]
+    },
+    "artifacts": {
+      "camera_mesh": "/my_workspace/4DHHOI/4DHSI/05_Optimize_Static_Scene/output/interaction_16/meshes/frame_0000_camera.ply",
+      "world_mesh": "/my_workspace/4DHHOI/4DHSI/05_Optimize_Static_Scene/output/interaction_16/meshes/frame_0000_world.ply",
+      "init_depth_vis": "/my_workspace/4DHHOI/4DHSI/05_Optimize_Static_Scene/output/interaction_16/debug/overlays/frame_0000_init_depth_vis.png",
+      "final_depth_vis": "/my_workspace/4DHHOI/4DHSI/05_Optimize_Static_Scene/output/interaction_16/debug/overlays/frame_0000_final_depth_vis.png",
+      "optimized_params": "/my_workspace/4DHHOI/4DHSI/05_Optimize_Static_Scene/output/interaction_16/debug/params/optimized_frame_0000.pt",
+      "scene_intersect_debug": "/my_workspace/4DHHOI/4DHSI/05_Optimize_Static_Scene/output/interaction_16/debug/scene_intersect",
+      "csv": {
+        "iter_metrics": "/my_workspace/4DHHOI/4DHSI/05_Optimize_Static_Scene/output/interaction_16/debug/csv/iter_metrics.csv",
+        "final_loss_summary": "/my_workspace/4DHHOI/4DHSI/05_Optimize_Static_Scene/output/interaction_16/debug/csv/final_loss_summary.csv"
+      }
+    }
+  }
+}

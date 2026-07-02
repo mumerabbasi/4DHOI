@@ -1606,8 +1606,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--human_scene_depth_min_valid_weight", type=float, default=0.25)
     parser.add_argument("--nocontact_weight_start", type=float, default=800.0)
     parser.add_argument("--nocontact_weight_end", type=float, default=800.0)
-    parser.add_argument("--self_intersect_weight_start", type=float, default=0.0)
-    parser.add_argument("--self_intersect_weight_end", type=float, default=0.0)  # Original 1e-3
+    parser.add_argument("--self_intersect_weight_start", type=float, default=1e-3)
+    parser.add_argument("--self_intersect_weight_end", type=float, default=1e-3)  # Original 1e-3
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--log_every", type=int, default=200)
     parser.add_argument("--contact_masks_dir", type=str, default=None)
