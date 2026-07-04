@@ -1,7 +1,7 @@
 \chapter{Methodology}
 \label{chap:methodology}
 
-\chapterabstract{This chapter describes the proposed zero-shot static human-scene interaction synthesis pipeline. The method converts a natural-language instruction, a posed ScanNet++ RGB view, and a reconstructed scene mesh into a single SMPL-X body placed in the scene coordinate frame.}
+This chapter presents the proposed zero-shot pipeline for static human--scene interaction synthesis, which converts a natural-language instruction, a single posed ScanNet++ RGB view, and a reconstructed scene mesh into one SMPL-X body placed in the scene coordinate frame. \Cref{sec:method-overview} gives an overview of the pipeline and its five modules, and \cref{sec:problem-formulation} states the problem formulation and notation. The remaining sections describe the modules in turn: Scene Interaction Graph generation (\cref{sec:method-sig}), human frame generation (\cref{sec:method-human-frame}), agentic contact estimation (\cref{sec:method-contact-estimation}), SMPL-X pose initialization (\cref{sec:method-pose-init}), and scene-aware optimization (\cref{sec:method-optimization}).
 
 \section{Overview}
 \label{sec:method-overview}
