@@ -84,4 +84,4 @@ Example Guidance:
 If the Reference Image shows a person gripping a ladder, infer which rungs or rails the hands and feet contact. Then place solid masks on those same ladder regions in the Canvas Image, aligned to the ladder as it appears in the Canvas Image.
 
 Correction Instructions from an Evaluator:
-The green mask for the right hand is currently on the frame; it must be moved to the saddle where the right hand is holding. Keep other two masks same, as they are correct.
+The current contact masks are incorrect. First, move the blue left-hand mask from the handlebar to the actual contact point on the handlebar grip where the left hand is placed in the reference image. Second, remove the green mask from the bicycle frame. Third, add a green right-hand mask on the right-side handlebar grip where the right hand is placed. Finally, add a cyan right-foot mask on the bicycle kickstand where the right foot is pressing down in the reference image.

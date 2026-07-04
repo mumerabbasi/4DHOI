@@ -1,0 +1,28 @@
+{
+  "palette": [
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#00FFFF",
+      "rgb": [
+        0,
+        255,
+        255
+      ],
+      "color_name": "pure cyan"
+    }
+  ],
+  "color_max_distance": 90.0,
+  "min_component_area": 0,
+  "keep_components": 1,
+  "source_round": 1,
+  "source_overlay_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_07/rounds/round_01/generated_contact_overlay.png",
+  "source_canvas_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_07/assets/target_scene_crop.png",
+  "source_contact_spec_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_07/contact_spec.json",
+  "source_summary_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_07/agentic_summary.json",
+  "floor_parts": [
+    "left foot",
+    "right foot"
+  ],
+  "floor_mask_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_07/floor_mask_crop.png"
+}

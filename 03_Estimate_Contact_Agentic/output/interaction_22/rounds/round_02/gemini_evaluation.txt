@@ -77,5 +77,5 @@ RAW RESPONSE
 ============
 {
   "done": false,
-  "correction_instruction": "The masks for the left hand and right hand are incorrectly placed. In the reference image, both hands are gripping the handlebars. The blue left-hand mask should be moved from the handlebar grip to the left handlebar grip, and the green right-hand mask should be moved from the seat to the right handlebar grip. The cyan right-foot mask on the bicycle stand is correct and should remain."
+  "correction_instruction": "The masks are incorrectly placed. In the reference image, the person is holding the bicycle handlebars with both hands and pushing the kickstand with the right foot. Remove the existing masks. Add a blue mask (#0000FF) on the left handlebar, a green mask (#00FF00) on the right handlebar, and a cyan mask (#00FFFF) on the bicycle kickstand where the foot makes contact."
 }
