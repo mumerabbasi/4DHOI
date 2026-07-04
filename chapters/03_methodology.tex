@@ -27,7 +27,7 @@ A natural approach to solve this problem is to inpaint a human performing the in
 \;\rightarrow\;
 \text{optimization} .
 \end{equation*}
-The first module converts the instruction and the view into a \emph{Scene Interaction Graph} (SIG), which specifies the target object or floor, the relevant human body parts, and the required body-part--scene contact edges. The second module uses an image generation model to insert a single plausible human into the view according to the interaction instruction, producing a visual interaction hypothesis that captures pose, orientation, laterality, and approximate contact layout. This generated human frame then feeds two branches that run in parallel. In the first branch, the third module estimates scene-side contact regions: it marks each required contact on the original view with a distinct color to obtain body-part-specific contact masks, obtains floor-support regions separately with SAM3 when the interaction requires them, and projects the accepted masks onto the reconstructed mesh to form 3D contact targets. In the second branch, the fourth module initializes the body by passing the generated frame to GVHMR, which predicts an SMPL-X body conditioned on the camera focal length of the posed view. The fifth module refines this initialization through scene-aware optimization, holding the scene geometry and the projected contact targets fixed while optimizing the SMPL-X translation, orientation, and pose under a combination of contact attraction, penetration avoidance, and priors that keep the result close to the GVHMR estimate.
+The first module converts the instruction and the view into a \emph{Scene Interaction Graph} (SIG), which specifies the target object or floor, the relevant human body parts, and the required body-part--scene contact edges. The second module uses an image generation model to insert a single plausible human into the view according to the interaction instruction, producing a visual interaction hypothesis that captures pose, orientation, laterality, and approximate contact layout. This generated human frame then feeds two branches that run in parallel. In the first branch, the third module estimates scene-side contact regions: it marks each required contact on the original view with a distinct color to obtain body-part-specific contact masks, obtains floor-support regions separately with SAM3 when the interaction requires them, and projects the accepted masks onto the reconstructed mesh to form 3D contact targets. In the second branch, the fourth module initializes the body by passing the generated frame to GVHMR, which predicts an SMPL-X body conditioned on the camera focal length of the posed view. The fifth module refines this initialization through scene-aware optimization, holding the scene geometry and the projected contact targets fixed while optimizing the SMPL-X translation, orientation, pose, and a bounded global scale under a combination of contact attraction, penetration avoidance, and priors that keep the result close to the GVHMR estimate.
 
 The full prompts used for the foundation-model stages are listed in \cref{app:foundation-model-prompts}, and the concrete model versions, hyperparameters, and iteration budgets are reported in the implementation details of \cref{sec:implementation-details}. This chapter describes the algorithmic role of each component; the appendix and the experiments chapter record the exact prompt wording and numerical settings.
 
@@ -70,9 +70,9 @@ The instruction $y$ may range from underspecified to detailed, as in the example
 The output is a posed SMPL-X body expressed in the same coordinate frame as the reconstructed scene. SMPL-X is a differentiable parametric body model whose parameters are denoted
 \begin{equation}
 \label{eq:smplx-params}
-\theta = (\mathbf{T},\, \mathbf{r},\, \mathbf{p},\, \boldsymbol{\beta}),
+\theta = (\mathbf{T},\, \mathbf{r},\, \mathbf{p},\, \boldsymbol{\beta},\, s),
 \end{equation}
-where $\mathbf{T}$ is the global translation, $\mathbf{r}$ the global orientation in axis-angle form, $\mathbf{p}$ the articulated body pose, and $\boldsymbol{\beta}$ the body shape. Evaluating the model yields the human mesh $M_h(\theta) = (V_h(\theta), F_h)$ with posed vertices $V_h(\theta) \in \mathbb{R}^{N_h \times 3}$ and fixed faces $F_h$.
+where $\mathbf{T}$ is the global translation, $\mathbf{r}$ the global orientation in axis-angle form, $\mathbf{p}$ the articulated body pose, $\boldsymbol{\beta}$ the body shape, and $s$ a global isotropic scale applied to the body about its translation. Evaluating the model yields the human mesh $M_h(\theta) = (V_h(\theta), F_h)$ with posed vertices $V_h(\theta) \in \mathbb{R}^{N_h \times 3}$ and fixed faces $F_h$.
 
 The synthesis target is a single static interaction state rather than a motion sequence. For object-manipulation instructions, the object remains in its reconstructed configuration; the method synthesizes the body that makes the interaction geometrically and visually plausible and does not simulate any subsequent object motion or state change.
 
@@ -95,12 +95,12 @@ P_e^h(\theta) = \{\, V_h(\theta)_i \mid i \in B_e \,\}.
 \end{equation}
 The scene-side contact target for edge $e$ is not annotated manually. It is estimated from generated visual contact annotations and projected onto the reconstructed mesh, yielding a set of scene points $P_e^s \subset \mathbb{R}^{3}$.
 
-The body is initialized from the generated human frame using GVHMR, giving an initial estimate $\theta_0 = (\mathbf{T}_0, \mathbf{r}_0, \mathbf{p}_0, \boldsymbol{\beta}_0)$. During optimization, only the global translation $\mathbf{T}$, global orientation $\mathbf{r}$, and body pose $\mathbf{p}$ are updated; the shape $\boldsymbol{\beta}_0$ is taken from GVHMR and held fixed, so that contact is explained through placement and pose rather than through a change of body identity.
+The body is initialized from the generated human frame using GVHMR, giving an initial estimate $\theta_0 = (\mathbf{T}_0, \mathbf{r}_0, \mathbf{p}_0, \boldsymbol{\beta}_0, s_0)$. During optimization, the global translation $\mathbf{T}$, global orientation $\mathbf{r}$, body pose $\mathbf{p}$, and global scale $s$ are updated, while the shape $\boldsymbol{\beta}_0$ is taken from GVHMR and held fixed. Fixing $\boldsymbol{\beta}_0$ prevents the optimizer from distorting body identity to satisfy contact, while the single scale degree of freedom absorbs the residual overall size error inherent in monocular recovery; together, contact is explained through placement, pose, and a bounded change of overall size rather than through a change of body identity.
 
-The synthesis problem is then to find SMPL-X parameters whose body-side contact points $P_e^h(\theta)$ approach the corresponding scene-side targets $P_e^s$, while the body remains physically plausible and avoids penetrating the scene. This is expressed as a scene-aware objective $\mathcal{L}_{\mathrm{total}}$ that combines a contact term, a penetration term, and pose and orientation priors, each defined in \cref{sec:method-optimization}. The final body is obtained by
+The synthesis problem is then to find SMPL-X parameters whose body-side contact points $P_e^h(\theta)$ approach the corresponding scene-side targets $P_e^s$, while the body remains physically plausible and avoids penetrating the scene. This is expressed as a scene-aware objective $\mathcal{L}_{\mathrm{total}}$ that combines \emph{data terms}, which tie the body to the observed scene through contact and penetration, with \emph{regularization terms}, which keep the body plausible and close to the GVHMR initialization; both groups are defined in \cref{sec:method-optimization}. The final body is obtained by
 \begin{equation}
 \label{eq:method-optimization-problem}
-\theta^{\ast} = \operatorname*{arg\,min}_{\mathbf{T},\, \mathbf{r},\, \mathbf{p}} \; \mathcal{L}_{\mathrm{total}}(\theta),
+\theta^{\ast} = \operatorname*{arg\,min}_{\mathbf{T},\, \mathbf{r},\, \mathbf{p},\, s} \; \mathcal{L}_{\mathrm{total}}(\theta),
 \qquad \boldsymbol{\beta} = \boldsymbol{\beta}_0.
 \end{equation}
 The following sections describe how the graph $G$, the human initialization $\theta_0$, and the scene-side contact targets $P_e^s$ are obtained.
@@ -127,7 +127,7 @@ The following sections describe how the graph $G$, the human initialization $\th
     $\mathcal{E}_{\mathrm{obj}},\, \mathcal{E}_{\mathrm{floor}}$ & Object-contact and floor-support edge subsets. \\
     \addlinespace
     \multicolumn{2}{@{}l}{\emph{Body and contact}}\\
-    $\theta = (\mathbf{T}, \mathbf{r}, \mathbf{p}, \boldsymbol{\beta})$ & SMPL-X parameters: translation, orientation, pose, shape. \\
+    $\theta = (\mathbf{T}, \mathbf{r}, \mathbf{p}, \boldsymbol{\beta}, s)$ & SMPL-X parameters: translation, orientation, pose, shape, scale. \\
     $M_h(\theta) = (V_h(\theta), F_h)$ & Posed SMPL-X mesh. \\
     $B_e$ & Fixed SMPL-X contact-vertex subset for the body part in edge $e$. \\
     $P_e^h(\theta)$ & Body-side contact points for edge $e$. \\
@@ -412,7 +412,146 @@ and the global orientation by applying the inverse camera rotation. Writing $\ma
 whose axis-angle form is $\mathbf{r}_0$. The initialization in the scene frame is then
 \begin{equation}
 \label{eq:gvhmr-world-init}
-\theta_0 = \bigl( \mathbf{T}_0,\, \mathbf{r}_0,\, \mathbf{p}_0,\, \boldsymbol{\beta}_0 \bigr).
+\theta_0 = \bigl( \mathbf{T}_0,\, \mathbf{r}_0,\, \mathbf{p}_0,\, \boldsymbol{\beta}_0,\, s_0 \bigr),
+\end{equation}
+where the global scale is initialized to $s_0 = 1$.
+
+While the recovered pose is realistic, it is estimated from the human frame alone and is therefore unaware of the reconstructed scene: it is not guaranteed to satisfy the projected contact targets or to avoid intersecting the mesh, and the frame may carry small errors in scale, depth, or contact placement. The role of the final module is to refine the translation $\mathbf{T}_0$, orientation $\mathbf{r}_0$, pose $\mathbf{p}_0$, and global scale $s_0$ against the scene geometry and the contact targets, starting from this strong initialization. Throughout that refinement the shape $\boldsymbol{\beta}_0$ is held fixed, so that identity is preserved: contact is explained by placement, pose, and a bounded overall scale rather than by altering body identity, while the single scale degree of freedom absorbs the residual size error of the monocular estimate. The reconstructed mesh and the projected targets likewise remain fixed.
+
+\section{Scene-Aware SMPL-X Optimization}
+\label{sec:method-optimization}
+
+The fifth module refines the GVHMR initialization into the final body. The initialization is a plausible, well-articulated pose, but it is unaware of the scene: it need not satisfy the projected contact targets, and it may intersect the reconstructed mesh. This module corrects those errors by minimizing a scene-aware objective while holding the scene fixed. The objective combines two \emph{data terms}, which tie the body to the observed scene through contact and non-penetration, with four \emph{regularization terms}, which keep the body plausible and anchored to the trusted initialization. The scene mesh $M_s$ and the projected contact targets $\{P_e^s\}$ remain fixed throughout; only the body is optimized.
+
+\subsection{Optimized Variables}
+\label{sec:method-optimized-variables}
+
+The optimization starts from the world-frame initialization $\theta_0 = (\mathbf{T}_0, \mathbf{r}_0, \mathbf{p}_0, \boldsymbol{\beta}_0, s_0)$ of \cref{sec:method-pose-init} and updates the global translation $\mathbf{T}$, global orientation $\mathbf{r}$, articulated pose $\mathbf{p}$, and global scale $s$, while the shape $\boldsymbol{\beta}_0$ is held fixed:
+\begin{equation}
+\label{eq:optimized-theta}
+\theta = (\mathbf{T},\, \mathbf{r},\, \mathbf{p},\, \boldsymbol{\beta}_0,\, s).
+\end{equation}
+Fixing $\boldsymbol{\beta}_0$ preserves body identity, so that contact is achieved through placement, articulation, and a bounded change of overall size rather than by distorting the body's proportions. The global orientation is optimized through a continuous six-dimensional rotation representation, which avoids the discontinuities of the axis-angle parameterization and yields a stable gradient for the orientation update. For any parameter state, the SMPL-X model produces the posed mesh $M_h(\theta) = (V_h(\theta), F_h)$, whose contact vertices are compared against the fixed scene targets.
+
+\subsection{Data Terms}
+\label{sec:method-data-terms}
+
+\paragraph{Contact objective.} The contact term attracts each body-side contact region toward its projected scene-side target. For edge $e$, the body-side contact points $P_e^h(\theta) = \{ V_h(\theta)_i \mid i \in B_e \}$ are pulled toward the target $P_e^s$ by a mean one-sided nearest-neighbor distance:
+\begin{equation}
+\label{eq:contact-loss}
+\mathcal{L}_{\mathrm{contact}}(\theta)
+=
+\frac{1}{|\mathcal{E}|}
+\sum_{e \in \mathcal{E}}
+\frac{1}{|B_e|}
+\sum_{i \in B_e}
+\min_{q \in P_e^s}
+\bigl\lVert V_h(\theta)_i - q \bigr\rVert_2^2 .
+\end{equation}
+The distance is measured in one direction only, from the body to the scene: each body contact vertex is drawn to its nearest point in the scene target, but scene points are under no obligation to be reached. This direction reflects the geometry of the problem. The body-side set $B_e$ is a small, fixed region whose every vertex should make contact, whereas the scene-side target $P_e^s$ is a broad projected region of which only a part is actually touched, since a palm covers a small patch of a handle and a sole a small patch of the belt. A symmetric distance, which would also pull each scene point toward the body, would therefore penalize the uncovered remainder of the target and try to spread the body across the entire region rather than let it rest naturally on a portion of it. Matching only from the body to the scene also removes any need for a fixed body-to-scene vertex correspondence and lets the target act as a region the contact vertices may settle anywhere within. Averaging over the whole set $B_e$, rather than taking a single closest vertex, then encourages the entire contact region to meet the surface: for the treadmill example, this draws the full palms toward the two handles and the sole toward the belt.
+
+\paragraph{Penetration objective.} The contact term alone can pull the body through the scene surface, so a penetration term discourages the body from occupying scene geometry. Using VolumetricSMPL~\cite{mihajlovic2025volumetricsmpl}, which equips the posed SMPL-X body with a differentiable signed-distance field, the method queries the signed distance $\phi_\theta(x)$ from each of a set of scene points $\mathcal{Q}_s$, sampled from the reconstructed mesh near the body, to the body surface, with $\phi_\theta(x) < 0$ indicating that $x$ lies inside the body. The term penalizes scene points that fall inside the body or within a small clearance margin $\delta \ge 0$:
+\begin{equation}
+\label{eq:penetration-loss}
+\mathcal{L}_{\mathrm{pen}}(\theta)
+=
+\frac{1}{|\mathcal{Q}_s|}
+\sum_{x \in \mathcal{Q}_s}
+\operatorname{ReLU}\!\bigl( \delta - \phi_\theta(x) \bigr).
+\end{equation}
+Points comfortably outside the body contribute nothing, so the term acts only where the body would otherwise intersect the scene, allowing contact while forbidding interpenetration.
+
+\subsection{Regularization Terms}
+\label{sec:method-regularization-terms}
+
+\paragraph{Pose prior.} Because the GVHMR pose is already realistic, the articulated pose is kept close to its initial value, so that contact is satisfied by small adjustments rather than by drifting into an unnatural configuration:
+\begin{equation}
+\label{eq:pose-prior-loss}
+\mathcal{L}_{\mathrm{pose}}(\theta)
+=
+\lVert \mathbf{p} - \mathbf{p}_0 \rVert_2^2.
 \end{equation}
 
-While the recovered pose is realistic, it is estimated from the human frame alone and is therefore unaware of the reconstructed scene: it is not guaranteed to satisfy the projected contact targets or to avoid intersecting the mesh, and the frame may carry small errors in scale, depth, or contact placement. The role of the final module is to refine $\mathbf{T}_0$, $\mathbf{r}_0$, and $\mathbf{p}_0$ against the scene geometry and the contact targets, starting from this strong initialization. Throughout that refinement the shape $\boldsymbol{\beta}_0$ is held fixed, so that contact is explained by placement and pose rather than by altering body identity; the reconstructed mesh and the projected targets likewise remain fixed.
+\paragraph{Orientation prior.} The global orientation is likewise anchored to the initialization, penalized by the geodesic distance between the current and initial rotations:
+\begin{equation}
+\label{eq:orientation-prior-loss}
+\mathcal{L}_{\mathrm{orient}}(\theta)
+=
+\bigl\lVert
+\operatorname{Log}\!\bigl( \mathbf{R}(\mathbf{r}_0)^{\top}\, \mathbf{R}(\mathbf{r}) \bigr)
+\bigr\rVert_2^2,
+\end{equation}
+where $\mathbf{R}(\cdot)$ is the rotation matrix of an axis-angle vector and $\operatorname{Log}: SO(3) \to \mathbb{R}^3$ returns the axis-angle vector of a rotation. This prevents the optimizer from satisfying contact through large, unrealistic global rotations inconsistent with the human frame.
+
+\paragraph{Height prior.} The global scale $s$ is free to correct the overall size of the monocular estimate, but it must not drive the body to an implausible stature. Writing the body's metric height as $h(\theta) = s\, h_{\mathrm{can}}$, where $h_{\mathrm{can}}$ is the height of the fixed-shape body at unit scale, the height prior keeps this stature near a target $h_{\mathrm{tgt}}$:
+\begin{equation}
+\label{eq:height-prior-loss}
+\mathcal{L}_{\mathrm{height}}(\theta)
+=
+\left( \frac{h(\theta) - h_{\mathrm{tgt}}}{\sigma_h} \right)^{2},
+\end{equation}
+with $\sigma_h$ setting the tolerated deviation. Together with a bounded parameterization of the scale (\cref{sec:implementation-details}), this term confines $s$ to a realistic human height range, so that the size correction resolves the residual scale error of monocular recovery without introducing an implausibly small or large body.
+
+\paragraph{Self-intersection prior.} Finally, a self-intersection term discourages the body mesh from penetrating itself, for instance an arm passing through the torso. Following~\cite{tzionas2016capturing}, the colliding triangles of the posed body are first detected with a bounding-volume hierarchy~\cite{karras2012bvh}, giving a set $\mathcal{C}(\theta)$ of intersecting triangle pairs; a local conic distance-field penalty $\psi$ then measures the interpenetration of each colliding pair and pushes them apart:
+\begin{equation}
+\label{eq:self-intersection-loss}
+\mathcal{L}_{\mathrm{self}}(\theta)
+=
+\frac{1}{|\mathcal{C}(\theta)|}
+\sum_{(a, b) \in \mathcal{C}(\theta)}
+\psi\bigl( T_a(\theta),\, T_b(\theta) \bigr),
+\end{equation}
+where $T_a(\theta)$ and $T_b(\theta)$ are the posed triangles of a colliding pair and $\psi$ vanishes when they are disjoint. Only colliding pairs contribute, so the term is active solely where the body would otherwise intersect itself, keeping the refined body physically coherent without affecting collision-free regions. The parameters of $\psi$ are given in \cref{sec:implementation-details}.
+
+\subsection{Total Objective}
+\label{sec:method-total-objective}
+
+The full objective is the weighted sum of the two data terms and the four regularization terms:
+\begin{equation}
+\label{eq:optimization-total-loss}
+\mathcal{L}_{\mathrm{total}}(\theta)
+=
+\underbrace{
+\lambda_{\mathrm{contact}} \mathcal{L}_{\mathrm{contact}}
++
+\lambda_{\mathrm{pen}} \mathcal{L}_{\mathrm{pen}}
+}_{\text{data terms}}
++
+\underbrace{
+\lambda_{\mathrm{pose}} \mathcal{L}_{\mathrm{pose}}
++
+\lambda_{\mathrm{orient}} \mathcal{L}_{\mathrm{orient}}
++
+\lambda_{\mathrm{height}} \mathcal{L}_{\mathrm{height}}
++
+\lambda_{\mathrm{self}} \mathcal{L}_{\mathrm{self}}
+}_{\text{regularization terms}} ,
+\end{equation}
+and the final body is obtained by
+\begin{equation}
+\label{eq:optimization-argmin}
+\theta^{\ast}
+=
+\operatorname*{arg\,min}_{\mathbf{T},\, \mathbf{r},\, \mathbf{p},\, s}
+\mathcal{L}_{\mathrm{total}}(\theta),
+\qquad
+\boldsymbol{\beta} = \boldsymbol{\beta}_0.
+\end{equation}
+The data terms enforce the functional body--scene relationships inferred by the earlier modules while forbidding interpenetration, and the regularization terms keep the result close to the trusted initialization and within a plausible human range. The loss weights $\lambda_{(\cdot)}$ are reported in \cref{sec:implementation-details}.
+
+\subsection{Optimization Procedure}
+\label{sec:method-optimization-procedure}
+
+The objective is minimized with Adam in two stages, following a coarse-to-fine schedule that exploits the quality of the initialization. In the first, \emph{rigid} stage, only the global translation and scale are optimized, while the orientation and articulated pose are frozen; this places and sizes the trusted GVHMR body against the scene without deforming its pose, and the self-intersection term is disabled since the pose cannot change. In the second, \emph{pose} stage, all variables, translation, orientation, pose, and scale, are optimized under the full objective, allowing local articulation to refine the contacts. Separating placement from articulation keeps the optimizer near the plausible initialization for as long as possible and reduces the risk of settling in a poor local minimum.
+
+At each iteration the SMPL-X mesh is recomputed, the body contact vertices are matched to their fixed scene targets, penetration is evaluated against the sampled scene points, and gradients are backpropagated through the differentiable body model; the scene mesh, the projected contact targets, and the body shape stay fixed. The optimizer returns the final parameters
+\begin{equation}
+\label{eq:final-optimized-body}
+\theta^{\ast} = (\mathbf{T}^{\ast},\, \mathbf{r}^{\ast},\, \mathbf{p}^{\ast},\, \boldsymbol{\beta}_0,\, s^{\ast}),
+\end{equation}
+and the final synthesized interaction is the posed mesh
+\begin{equation}
+\label{eq:final-human-mesh}
+M_h^{\ast} = M_h(\theta^{\ast}),
+\end{equation}
+already expressed in the ScanNet++ scene coordinate frame. The stage lengths, learning rate, gradient clipping, and total iteration budget are reported in \cref{sec:implementation-details}.
