@@ -349,7 +349,31 @@ def resolve_path(raw_path: str | None, default_path: Path) -> Path:
     return default_path if raw_path is None else Path(raw_path).resolve()
 
 
-def build_shared_default_paths(interaction_name: str) -> dict[str, Path]:
+def build_shared_default_paths(
+    interaction_name: str,
+    contact_mask_mode: str,
+) -> dict[str, Path]:
+    agentic_contact_root = (
+        PROJECT_DIR /
+        "03_Estimate_Contact_Agentic" /
+        "output" /
+        interaction_name
+    )
+    if contact_mask_mode == "accepted":
+        contact_masks_dir = agentic_contact_root / "contact_masks"
+    elif contact_mask_mode == "round1":
+        contact_masks_dir = (
+            agentic_contact_root /
+            "rounds" /
+            "round_01" /
+            "contact_masks"
+        )
+    else:
+        raise ValueError(
+            f"Unsupported contact_mask_mode '{contact_mask_mode}'. "
+            "Expected 'accepted' or 'round1'."
+        )
+
     return {
         "generated_root": PROJECT_DIR /
         "02_Generate_Human_Frame" /
@@ -376,22 +400,11 @@ def build_shared_default_paths(interaction_name: str) -> dict[str, Path]:
         "output_root": SCRIPT_DIR /
         "output" /
         interaction_name,
-        "contact_masks_dir": PROJECT_DIR /
-        "03_Estimate_Contact_Agentic" /
-        "output" /
-        interaction_name /
-        "contact_masks",
-        "contact_canvas_path": PROJECT_DIR /
-        "03_Estimate_Contact_Agentic" /
-        "output" /
-        interaction_name /
-        "assets" /
-        "target_scene_crop.png",
-        "contact_spec": PROJECT_DIR /
-        "03_Estimate_Contact_Agentic" /
-        "output" /
-        interaction_name /
-        "contact_spec.json",
+        "contact_masks_dir": contact_masks_dir,
+        "contact_canvas_path": (
+            agentic_contact_root / "assets" / "target_scene_crop.png"
+        ),
+        "contact_spec": agentic_contact_root / "contact_spec.json",
     }
 
 
@@ -1517,9 +1530,15 @@ class SelfIntersectionHelper:
         return torch.mean(self.dfp_loss(triangles, collision_idxs))
 
 
-def build_default_paths(interaction_name: str) -> dict[str, Path]:
-    defaults = build_shared_default_paths(interaction_name)
-    defaults["output_root"] = SCRIPT_DIR / "output" / interaction_name
+def build_default_paths(
+    interaction_name: str,
+    contact_mask_mode: str,
+) -> dict[str, Path]:
+    defaults = build_shared_default_paths(interaction_name, contact_mask_mode)
+    output_dir_name = (
+        "output_round1" if contact_mask_mode == "round1" else "output"
+    )
+    defaults["output_root"] = SCRIPT_DIR / output_dir_name / interaction_name
     defaults["smpl_folder"] = (
         SCRIPT_DIR.parent.parent / "GVHMR" / "inputs" / "checkpoints" / "body_models"
     )
@@ -1542,6 +1561,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--scannet_root", type=str, default=None)
     parser.add_argument("--smpl_folder", type=str, default=None)
     parser.add_argument("--output_root", type=str, default=None)
+    parser.add_argument(
+        "--contact_mask_mode",
+        choices=("accepted", "round1"),
+        default="accepted",
+        help=(
+            "Use accepted final agentic masks, or round-1 masks for "
+            "no-agentic-verification ablations."
+        ),
+    )
     parser.add_argument("--smpl_param_key", type=str, default="smpl_params_incam")
     parser.add_argument(
         "--device",
@@ -2734,7 +2762,7 @@ def optimize_track(
 
 def main() -> None:
     args = parse_args()
-    defaults = build_default_paths(args.interaction_name)
+    defaults = build_default_paths(args.interaction_name, args.contact_mask_mode)
     generated_root = resolve_path(args.generated_root, defaults["generated_root"])
     input_scene_json_path = resolve_path(args.input_scene_json, defaults["input_scene_json"])
     human_pose_root = resolve_path(args.human_pose_root, defaults["human_pose_root"])
@@ -3065,6 +3093,7 @@ def main() -> None:
         summary_json_path,
         {
             "interaction_name": args.interaction_name,
+            "contact_mask_mode": args.contact_mask_mode,
             "scene_id": scene_context["scene_id"],
             "target_object": {
                 "label": target_object_name,
@@ -3133,6 +3162,7 @@ def main() -> None:
             "scene": {
                 "num_contact_crop_faces": int(contact_scene_faces_render.shape[0]),
                 "num_contact_crop_vertices": int(contact_scene_verts_camera.shape[0]),
+                "contact_masks_dir": str(contact_masks_dir),
             },
             "human": human_summary,
         },
