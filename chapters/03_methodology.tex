@@ -249,3 +249,170 @@ The selected human frame $\hat{I}$ provides the visual evidence used by the foll
   \caption{Human frame generation and selection. The image model inpaints one person into the posed ScanNet++ view according to the interaction description $\hat{y}$, preserving the scene, camera viewpoint, and target object. A vision-language evaluator then selects the candidate that best preserves the scene and expresses the required body--scene contacts. The selected frame $\hat{I}$ is the shared input to GVHMR initialization and contact estimation.}
   \label{fig:human-frame-generation}
 \end{figure}
+
+\section{Agentic Contact Estimation}
+\label{sec:method-contact-estimation}
+
+The third module estimates the scene-side contact regions required by the interaction and grounds them on the reconstructed mesh. Given the human frame $\hat{I}$, the posed view $I$, and the graph $G$, it produces, for each contact edge, a verified 2D contact mask on the view $I$ and projects it to the mesh to obtain the scene-side target $P_e^s$. This module is the bridge between the open-vocabulary visual reasoning of the foundation models and the metric optimization that follows: it is where the functional contact regions left unresolved by the SIG (the handles and the belt, in the treadmill example) are finally localized in the calibrated image and lifted into 3D.
+
+The graph $G$ re-enters the pipeline at this point. While human-frame generation is driven by the elaborated description $\hat{y}$, contact estimation is driven by the graph, since it needs the explicit per-edge structure: one mask, and later one 3D target, per contact edge.
+
+Two distinct difficulties must be overcome, and the module addresses them by separate means. First, image generation is a powerful way to \emph{reason} about where contact occurs but an unreliable way to \emph{record} it: asked to paint contact regions onto the scene, an image model may silently alter the object, the background, or the image boundaries, and such drift would be fatal here, since the masks are projected to the mesh through the calibrated camera and must correspond pixel-for-pixel to the view $I$. This is handled structurally, by using the image model only to propose colored regions, extracting those colored pixels, and compositing them onto the untouched view $I$; the resulting \emph{contact composite} carries the proposed contacts while retaining, by construction, the exact appearance and geometry of the calibrated view. Second, even on an untouched canvas the localization itself may be wrong: a required contact may be missing, a spurious one may appear, a mask may sit on the wrong object surface, or a footprint may be misplaced or wrongly sized. This is handled procedurally, by a closed-loop vision-language evaluator that inspects each composite and, when necessary, issues a correction for another round. The first mechanism guarantees geometric fidelity of the annotated image; the second, the \emph{agentic} verify-and-correct loop, guarantees the correctness of the contacts drawn on it.
+
+\subsection{Contact-Overlay Generation}
+\label{sec:method-contact-overlay}
+
+Contact estimation uses two images in complementary and authoritative roles. The human frame $\hat{I}$ is the \emph{reference}: it is used solely to infer which body parts contact the target object and where those contacts fall on the object surface. The posed view $I$ is the \emph{canvas}: it is the base image and the authority for the target object's position, geometry, and boundaries. This division is enforced throughout the module: the reference determines \emph{where contact occurs}, and the canvas determines \emph{where the object is}, so that masks are always aligned to the geometry the projection step will use.
+
+Each object-contact edge $e \in \mathcal{E}_{\mathrm{obj}}$ is assigned a distinct, saturated color $c_e$, where $\mathcal{E}_{\mathrm{obj}}$ is the subset of edges whose scene node is the target object. For the treadmill example, the left-hand, right-hand, and left-foot edges receive three different colors, so that their masks can be separated unambiguously after generation. At round $r$, the contact-overlay model receives the reference, the canvas, the graph, the color assignment, the previous composite $C^{(r-1)}$, and the correction instruction $a^{(r-1)}$, and produces an overlay candidate
+\begin{equation}
+\label{eq:contact-overlay-candidate}
+O^{(r)} = \Phi_{\mathrm{con}}\bigl( \hat{I},\, I,\, G,\, \{c_e\},\, C^{(r-1)},\, a^{(r-1)} \bigr),
+\end{equation}
+where $\Phi_{\mathrm{con}}$ denotes the contact-overlay generation model. The first round uses neither a previous composite nor a correction instruction. When they are present, the model preserves the masks the evaluator has already accepted, copying them forward from $C^{(r-1)}$, and redraws only the regions the correction instruction identifies; this prevents already-correct masks from being regenerated and drifting between rounds.
+
+Each mask is drawn as the localized \emph{contact footprint} on the object surface, representing the apparent extent of contact rather than the silhouette of the touching body part, and every mask pixel is clipped strictly to the target-object boundary in the canvas, so that no mask extends onto the person, floor, wall, or background. The intended $O^{(r)}$ is thus a copy of the canvas bearing only these solid-color footprints; because it may nonetheless carry unintended edits to the scene, it is treated only as a source of colored regions, from which the masks are extracted next. The overlay prompt is given in \cref{app:foundation-model-prompts}.
+
+\subsection{Mask Extraction and Composite Construction}
+\label{sec:method-contact-composite}
+
+For each object-contact edge, the pixels matching the assigned color are extracted from the overlay candidate, yielding a binary mask
+\begin{equation}
+\label{eq:color-extraction}
+Z_e^{(r)} = \operatorname{ExtractColor}\bigl( O^{(r)},\, c_e \bigr).
+\end{equation}
+Matching is performed within a small color tolerance, and small isolated components may be discarded. This step keeps only the painted footprints and discards everything else in $O^{(r)}$, including any incidental changes to object shape, texture, lighting, or background.
+
+The extracted masks are then composited onto the untouched view $I$, producing the contact composite
+\begin{equation}
+\label{eq:contact-composite}
+C^{(r)} = \operatorname{Composite}\bigl( I,\, \{ Z_e^{(r)} \} \bigr).
+\end{equation}
+By construction, $C^{(r)}$ shares the resolution, camera calibration, and scene appearance of $I$, and differs from it only by the added contact overlays. This is what makes the composite, rather than the raw overlay, the authoritative annotated image: the image model is used only for its strength of proposing where contact occurs, while the calibrated view remains the sole geometric authority, and any scene drift in $O^{(r)}$ is discarded with the unmatched pixels.
+
+\subsection{Agentic Verification and Correction}
+\label{sec:method-agentic-contact-verification}
+
+The contact composite is verified by a vision-language evaluator in a closed loop. The evaluator receives the reference $\hat{I}$, the canvas $I$, and the current composite $C^{(r)}$: the reference is authoritative for which body parts contact the object and where, the canvas is authoritative for the object geometry, and the composite carries the masks under review. Crucially, a mask is not accepted merely because it lies plausibly on the object; it is accepted only if its location matches the contact shown in the reference, mapped onto the same object region in the canvas. Against this standard the evaluator checks for the characteristic failure modes: a missing required contact, an extra contact, a wrong body-part color, a mask on the wrong object surface, a mask shifted from the reference location, and a footprint of the wrong size. It returns a decision together with a natural-language correction instruction,
+\begin{equation}
+\label{eq:vlm-contact-eval}
+\bigl( d^{(r)},\, a^{(r)} \bigr) = \Phi_{\mathrm{eval}}\bigl( \hat{I},\, I,\, C^{(r)},\, G,\, \{c_e\} \bigr),
+\end{equation}
+where $d^{(r)}$ is the accept/reject decision and $a^{(r)}$ is a single consolidated instruction covering every mask to be corrected; for example, moving a hand mask onto the correct handle, shrinking an oversized footprint, adding a missing contact, or removing a spurious one. Acceptance requires that all required contacts are present, no extra masks exist, every color is correct, and every footprint matches the surface, location, and size indicated by the reference. The evaluation prompt is given in \cref{app:foundation-model-prompts}.
+
+On acceptance, the loop terminates and the current composite is used. On rejection, the correction instruction and the current composite are passed to the overlay model for the next round, giving the cycle
+\begin{equation}
+\label{eq:agentic-contact-loop}
+O^{(r)} \;\rightarrow\; \{ Z_e^{(r)} \} \;\rightarrow\; C^{(r)} \;\rightarrow\; \bigl( d^{(r)}, a^{(r)} \bigr) \;\rightarrow\; O^{(r+1)}.
+\end{equation}
+The loop runs for a fixed maximum number of rounds. It stops as soon as the evaluator accepts a composite; if the maximum is reached without acceptance, the masks from the final round are taken as the result, so that the procedure always returns a usable annotation. The maximum number of rounds is reported in \cref{sec:implementation-details}.
+
+Let $r^{\star}$ denote the selected round. The final object-contact masks are
+\begin{equation}
+\label{eq:final-object-contact-masks}
+\Omega_e^{2D} = Z_e^{(r^{\star})}, \qquad e \in \mathcal{E}_{\mathrm{obj}}.
+\end{equation}
+
+\subsection{Floor-Support Masks}
+\label{sec:method-floor-support-masks}
+
+Floor contacts are handled separately from object contacts. For a support edge such as a foot on the floor, the precise pixel footprint matters less than a geometrically valid support surface, and asking the overlay model to paint a footprint on an empty stretch of floor invites hallucinated placement. Instead, SAM3 segments the visible floor in the view $I$, and the resulting region serves as the scene-side support surface; the optimizer then determines the exact foot placement on it, subject to the contact, penetration, and pose terms of \cref{sec:method-optimization}.
+
+Let $\mathcal{E}_{\mathrm{floor}}$ denote the edges whose scene node is the floor, and let $\Omega_{\mathrm{floor}}^{2D}$ be the segmented floor mask. Each floor-support edge takes this mask as its 2D contact region,
+\begin{equation}
+\label{eq:floor-mask-2d}
+\Omega_e^{2D} = \Omega_{\mathrm{floor}}^{2D}, \qquad e \in \mathcal{E}_{\mathrm{floor}},
+\end{equation}
+and the same mask may be shared across several foot-support edges, since the distinction between left and right foot is enforced on the body side during optimization. The treadmill example has no floor edge, as its supporting foot rests on the belt; an interaction such as a person standing to open a washing machine, whose graph includes two foot--floor edges, would use this floor mask for both.
+
+\subsection{Projection to 3D Contact Targets}
+\label{sec:method-contact-projection}
+
+The verified 2D masks are lifted to the reconstructed mesh through the calibrated camera. A scene point $x \in \mathbb{R}^3$ in the scene coordinate frame projects to the image as
+\begin{equation}
+\label{eq:scene-point-projection}
+\tilde{u} = K \bigl( R_c\, x + t_c \bigr),
+\end{equation}
+followed by perspective division to give the pixel coordinate $u$; write this calibrated projection as $\pi(x; K, R_c, t_c)$. A scene vertex or sampled surface point is assigned to edge $e$ when its projection falls inside the mask $\Omega_e^{2D}$ and it is visible in the view. The scene-side contact target for edge $e$ is therefore
+\begin{equation}
+\label{eq:projected-contact-target}
+P_e^s = \bigl\{\, x \in M_s \;\big|\; \pi(x; K, R_c, t_c) \in \Omega_e^{2D} \text{ and } x \text{ visible} \,\bigr\},
+\end{equation}
+represented in practice as a set of scene vertices or sampled surface points. These points are fixed for the remainder of the pipeline and act as the regions that the corresponding SMPL-X contact vertices are drawn toward. Collecting the targets over all edges gives the output of the module,
+\begin{equation}
+\label{eq:projected-contact-target-set}
+\mathcal{P}^{s} = \bigl\{\, P_e^s \;\big|\; e \in \mathcal{E} \,\bigr\},
+\end{equation}
+in which each element is linked, through its edge, to one body-side contact set $B_e$. The next module initializes the SMPL-X body, after which optimization brings the two sides into contact.
+
+\begin{figure}[t]
+  \centering
+  % TODO: Replace with real panels from the treadmill running example.
+  % (a) posed view I (empty treadmill)  +  human frame \hat{I} (person running)
+  % (b) overlay candidate O^{(r)} (colored footprints painted on the canvas, possibly with scene drift)
+  % (c) extracted masks Z_e^{(r)} composited onto I -> composite C^{(r)}
+  %     (L hand / R hand on the two handles, L foot on the belt, three distinct colors)
+  % (d) evaluator correction -> accepted composite
+  % (e) projected 3D contact targets P_e^s on the treadmill mesh
+  \fbox{%
+    \begin{minipage}[c][0.28\textheight][c]{0.94\textwidth}
+      \centering
+      \textbf{Agentic contact estimation placeholder (treadmill running example)}\\[0.8em]
+      reference $\hat{I}$ \;$+$\; canvas $I$
+      \quad$\rightarrow$\quad overlay $O^{(r)}$
+      \quad$\rightarrow$\quad extracted masks $Z_e^{(r)}$
+      \quad$\rightarrow$\quad composite $C^{(r)}$\\[0.8em]
+      evaluator: accept or correct
+      \quad$\rightarrow$\quad final masks $\Omega_e^{2D}$
+      \quad$\rightarrow$\quad 3D targets $P_e^s$
+    \end{minipage}%
+  }
+  \caption{Agentic contact estimation. Using the human frame $\hat{I}$ as reference and the posed view $I$ as canvas, the overlay model paints colored contact footprints, of which only the colored pixels are extracted and composited back onto the untouched view $I$. A vision-language evaluator checks the composite against the reference and the canvas and either accepts it or returns a correction for another round. Accepted masks are projected through the calibrated camera to the reconstructed mesh to yield body-part-specific 3D contact targets $P_e^s$. For the treadmill example, the left hand, right hand, and left foot receive distinct colors and are localized on the two handles and the belt.}
+  \label{fig:agentic-contact-estimation}
+\end{figure}
+
+\section{SMPL-X Pose Initialization}
+\label{sec:method-pose-init}
+
+The fourth module initializes the SMPL-X body from the human frame. This is the second of the two branches fed by $\hat{I}$: while contact estimation localizes the scene-side targets, this module recovers a complete articulated body to place against them. The scene-side targets constrain only where a few body regions should end up and do not by themselves determine a full pose. A good initial body is therefore essential, and not merely convenient: the scene-aware objective of \cref{sec:method-optimization} is non-convex, so the quality of its solution depends heavily on where it starts. An initialization close to the intended interaction lets the optimizer make small, local adjustments, whereas a naive or arbitrary starting body would leave it prone to poor local minima. The method obtains this initialization with GVHMR.
+
+GVHMR performs monocular human recovery, predicting an SMPL-X body in the camera frame. As it is trained for this task, the body it recovers is a realistic, well-articulated pose that already captures the coarse configuration of the interaction shown in the human frame: the bend of the limbs, the global orientation, and the overall body arrangement are close to correct before any scene-aware refinement. This is precisely the property the optimization needs. Because the initial body already sits near a plausible solution, the subsequent refinement adjusts placement and pose only locally, which keeps it clear of the poor local minima that a weaker initialization would invite.
+
+Two calibration details keep this initialization metrically consistent with the rest of the pipeline. First, GVHMR is conditioned on the camera focal length, which is read from the intrinsics $K$ of the posed view; supplying the true focal length rather than a default keeps the recovered body consistent with the calibrated camera. Second, the camera-frame estimate is transformed into the scene coordinate frame using the extrinsics $(R_c, t_c)$ of the same view, so that the initial body is placed in the same frame as the reconstructed mesh and the projected contact targets, expressed through the very geometry used to project those targets.
+
+Since the setting provides a single static frame rather than a video, the frame is repeated to form a short static clip,
+\begin{equation}
+\label{eq:static-human-clip}
+\mathcal{V}_{\hat{I}} = \bigl( \hat{I},\, \hat{I},\, \ldots,\, \hat{I} \bigr),
+\end{equation}
+which GVHMR processes as an ordinary sequence; the first recovered frame is taken as the initialization. Repeating the frame preserves the static nature of the target interaction while satisfying the model's sequence input.
+
+Applying GVHMR to the clip yields an initial SMPL-X estimate in the camera frame,
+\begin{equation}
+\label{eq:gvhmr-camera-init}
+\theta_0^{\mathrm{cam}} = \bigl( \mathbf{T}_0^{\mathrm{cam}},\, \mathbf{r}_0^{\mathrm{cam}},\, \mathbf{p}_0,\, \boldsymbol{\beta}_0 \bigr),
+\end{equation}
+with global translation $\mathbf{T}_0^{\mathrm{cam}}$ and orientation $\mathbf{r}_0^{\mathrm{cam}}$ expressed relative to the camera, articulated pose $\mathbf{p}_0$, and shape $\boldsymbol{\beta}_0$. The pose and shape are frame-relative rather than camera-relative and are carried over unchanged; only the global translation and orientation must be moved into the scene coordinate frame.
+
+The optimization runs in the scene frame, so the initialization is transformed from camera to world coordinates using the pose of the selected view. With the convention
+\begin{equation}
+\label{eq:camera-transform-convention}
+x^{\mathrm{cam}} = R_c\, x^{\mathrm{world}} + t_c,
+\end{equation}
+a camera-frame point maps to the world frame by the inverse transform. The global translation is converted as
+\begin{equation}
+\label{eq:init-translation-world}
+\mathbf{T}_0 = R_c^{\top} \bigl( \mathbf{T}_0^{\mathrm{cam}} - t_c \bigr),
+\end{equation}
+and the global orientation by applying the inverse camera rotation. Writing $\mathbf{R}(\cdot)$ for the rotation matrix of an axis-angle vector, the world-frame orientation matrix is
+\begin{equation}
+\label{eq:init-orientation-world}
+\mathbf{R}(\mathbf{r}_0) = R_c^{\top}\, \mathbf{R}\bigl( \mathbf{r}_0^{\mathrm{cam}} \bigr),
+\end{equation}
+whose axis-angle form is $\mathbf{r}_0$. The initialization in the scene frame is then
+\begin{equation}
+\label{eq:gvhmr-world-init}
+\theta_0 = \bigl( \mathbf{T}_0,\, \mathbf{r}_0,\, \mathbf{p}_0,\, \boldsymbol{\beta}_0 \bigr).
+\end{equation}
+
+While the recovered pose is realistic, it is estimated from the human frame alone and is therefore unaware of the reconstructed scene: it is not guaranteed to satisfy the projected contact targets or to avoid intersecting the mesh, and the frame may carry small errors in scale, depth, or contact placement. The role of the final module is to refine $\mathbf{T}_0$, $\mathbf{r}_0$, and $\mathbf{p}_0$ against the scene geometry and the contact targets, starting from this strong initialization. Throughout that refinement the shape $\boldsymbol{\beta}_0$ is held fixed, so that contact is explained by placement and pose rather than by altering body identity; the reconstructed mesh and the projected targets likewise remain fixed.
