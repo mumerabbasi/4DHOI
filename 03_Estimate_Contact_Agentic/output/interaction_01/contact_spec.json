@@ -5,12 +5,12 @@
       [
         464.4887489958974,
         0.0,
-        212.0
+        -15.0
       ],
       [
         0.0,
         465.1582406190884,
-        36.0
+        38.0
       ],
       [
         0.0,
@@ -24,13 +24,13 @@
       {
         "part": "left hand",
         "label": "Left Hand",
-        "hex": "#FF00FF",
+        "hex": "#0000FF",
         "rgb": [
-          255,
+          0,
           0,
           255
         ],
-        "color_name": "pure magenta"
+        "color_name": "pure blue"
       },
       {
         "part": "right hand",

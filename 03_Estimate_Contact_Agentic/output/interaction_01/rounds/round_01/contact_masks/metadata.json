@@ -3,13 +3,13 @@
     {
       "part": "left hand",
       "label": "Left Hand",
-      "hex": "#FF00FF",
+      "hex": "#0000FF",
       "rgb": [
-        255,
+        0,
         0,
         255
       ],
-      "color_name": "pure magenta"
+      "color_name": "pure blue"
     },
     {
       "part": "right hand",
@@ -23,17 +23,11 @@
       "color_name": "pure red"
     }
   ],
-  "color_max_distance": 90.0,
-  "min_component_area": 0,
+  "color_max_distance": 30.0,
+  "color_hue_tolerance": 10.0,
+  "min_color_saturation": 80,
+  "min_color_value": 40,
+  "min_component_area": 50,
   "keep_components": 1,
-  "source_round": 1,
-  "source_overlay_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_01/rounds/round_01/generated_contact_overlay.png",
-  "source_canvas_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_01/assets/target_scene_crop.png",
-  "source_contact_spec_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_01/contact_spec.json",
-  "source_summary_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_01/agentic_summary.json",
-  "floor_parts": [
-    "left foot",
-    "right foot"
-  ],
-  "floor_mask_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_01/floor_mask_crop.png"
+  "target_mask_erode_pixels": 0
 }
