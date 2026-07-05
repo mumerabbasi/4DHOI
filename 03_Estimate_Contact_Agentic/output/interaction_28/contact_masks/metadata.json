@@ -38,5 +38,10 @@
   "min_component_area": 0,
   "keep_components": 1,
   "floor_parts": [],
-  "floor_mask_path": null
+  "floor_mask_path": null,
+  "source_round": 2,
+  "source_overlay_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_28/rounds/round_02/generated_contact_overlay.png",
+  "source_canvas_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_28/assets/target_scene_crop.png",
+  "source_contact_spec_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_28/contact_spec.json",
+  "source_summary_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_28/agentic_summary.json"
 }

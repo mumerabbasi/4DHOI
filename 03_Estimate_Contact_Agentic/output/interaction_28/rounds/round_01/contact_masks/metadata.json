@@ -42,6 +42,19 @@
   "source_canvas_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_28/assets/target_scene_crop.png",
   "source_contact_spec_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_28/contact_spec.json",
   "source_summary_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_28/agentic_summary.json",
+  "source_estimate_contact_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact/output/interaction_28",
+  "crop_box_xyxy": [
+    310,
+    1,
+    949,
+    840
+  ],
   "floor_parts": [],
-  "floor_mask_path": null
+  "floor_mask_path": null,
+  "empty_masks": [
+    "left hand"
+  ],
+  "empty_mask_pixels": {
+    "left hand": 0
+  }
 }

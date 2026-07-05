@@ -40,7 +40,7 @@
       "human_scene_depth": {
         "start": 0.0,
         "end": 0.0,
-        "penetration_tolerance_m": 0.0,
+        "penetration_tolerance_m": 0.03,
         "min_valid_weight": 0.25
       },
       "nocontact": {
@@ -70,7 +70,7 @@
   "human": {
     "optimization": {
       "final_iter": 2000,
-      "final_total_loss": 1.224729299545288,
+      "final_total_loss": 1.4636448621749878,
       "stage_iters": {
         "rigid": 400,
         "pose": 1600
@@ -84,7 +84,7 @@
       "scene_intersect_stats": {
         "num_scene_collision_points": 700000,
         "num_sdf_query_points": 700000,
-        "num_inside_or_margin_points": 134
+        "num_inside_or_margin_points": 34
       },
       "human_scene_depth_stats": {},
       "scene_intersect_debug": {
@@ -107,7 +107,7 @@
             "num_visualized_points": 700000,
             "num_inside_points": 474,
             "num_margin_points": 0,
-            "min_sdf_m": -0.02016221359372139,
+            "min_sdf_m": -0.020565195009112358,
             "max_sdf_m": 1.3148009777069092
           },
           "sdf_grid": {
@@ -117,9 +117,9 @@
               64,
               64
             ],
-            "min_sdf_m": -0.0966455340385437,
+            "min_sdf_m": -0.09724777936935425,
             "max_sdf_m": 0.9553292989730835,
-            "num_inside_grid_points": 6594,
+            "num_inside_grid_points": 6588,
             "num_near_surface_grid_points": 0,
             "color_clamp_m": 0.05
           }
@@ -141,10 +141,10 @@
             "num_scene_collision_points": 700000,
             "num_sdf_query_points": 700000,
             "num_visualized_points": 700000,
-            "num_inside_points": 143,
+            "num_inside_points": 44,
             "num_margin_points": 0,
-            "min_sdf_m": -0.009568224661052227,
-            "max_sdf_m": 1.3856382369995117
+            "min_sdf_m": -0.007612843532115221,
+            "max_sdf_m": 1.383952260017395
           },
           "sdf_grid": {
             "num_grid_points": 262144,
@@ -153,9 +153,9 @@
               64,
               64
             ],
-            "min_sdf_m": -0.09282173961400986,
-            "max_sdf_m": 0.9474025368690491,
-            "num_inside_grid_points": 5435,
+            "min_sdf_m": -0.09127463400363922,
+            "max_sdf_m": 0.95289146900177,
+            "num_inside_grid_points": 6009,
             "num_near_surface_grid_points": 0,
             "color_clamp_m": 0.05
           }
@@ -165,21 +165,6 @@
     "init_frame_0": {
       "interaction_edges": [
         {
-          "node_a": "human.left_hand",
-          "node_b": "treadmill",
-          "moving_entity_name": "human",
-          "moving_part_name": "left hand",
-          "moving_segment_id": "left_hand_contact",
-          "moving_segment_name": "left hand contact",
-          "moving_vertex_count": 371,
-          "fixed_entity_name": "treadmill",
-          "fixed_part_name": "treadmill",
-          "fixed_point_count": 2048,
-          "reduction": "mean",
-          "nocontact_raw": 0.020519200712442398,
-          "nocontact_distance_m": 0.1432452467359472
-        },
-        {
           "node_a": "human.right_hand",
           "node_b": "treadmill",
           "moving_entity_name": "human",
@@ -191,8 +176,8 @@
           "fixed_part_name": "treadmill",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.005002169869840145,
-          "nocontact_distance_m": 0.0707260197511506
+          "nocontact_raw": 0.006311297882348299,
+          "nocontact_distance_m": 0.07944367742211018
         },
         {
           "node_a": "human.left_foot",
@@ -206,29 +191,14 @@
           "fixed_part_name": "treadmill",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.005117140244692564,
-          "nocontact_distance_m": 0.07153418934112948
+          "nocontact_raw": 0.003421277739107609,
+          "nocontact_distance_m": 0.05849168948754694
         }
       ]
     },
     "final_frame_0": {
       "interaction_edges": [
         {
-          "node_a": "human.left_hand",
-          "node_b": "treadmill",
-          "moving_entity_name": "human",
-          "moving_part_name": "left hand",
-          "moving_segment_id": "left_hand_contact",
-          "moving_segment_name": "left hand contact",
-          "moving_vertex_count": 371,
-          "fixed_entity_name": "treadmill",
-          "fixed_part_name": "treadmill",
-          "fixed_point_count": 2048,
-          "reduction": "mean",
-          "nocontact_raw": 0.001173906377516687,
-          "nocontact_distance_m": 0.034262317165023835
-        },
-        {
           "node_a": "human.right_hand",
           "node_b": "treadmill",
           "moving_entity_name": "human",
@@ -240,8 +210,8 @@
           "fixed_part_name": "treadmill",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.001332436571829021,
-          "nocontact_distance_m": 0.036502555689006504
+          "nocontact_raw": 0.0019984086975455284,
+          "nocontact_distance_m": 0.044703564707364536
         },
         {
           "node_a": "human.left_foot",
@@ -255,8 +225,8 @@
           "fixed_part_name": "treadmill",
           "fixed_point_count": 2048,
           "reduction": "mean",
-          "nocontact_raw": 0.00045189366210252047,
-          "nocontact_distance_m": 0.021257790621382094
+          "nocontact_raw": 0.0009626195533201098,
+          "nocontact_distance_m": 0.03102611083136444
         }
       ]
     },

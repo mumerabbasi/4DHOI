@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "palette": {
+    "parts": [
+      {
+        "part": "left hand",
+        "label": "Left Hand",
+        "hex": "#0000FF",
+        "rgb": [
+          0,
+          0,
+          255
+        ],
+        "color_name": "pure blue"
+      },
+      {
+        "part": "right hand",
+        "label": "Right Hand",
+        "hex": "#FF0000",
+        "rgb": [
+          255,
+          0,
+          0
+        ],
+        "color_name": "pure red"
+      }
+    ]
+  }
+}

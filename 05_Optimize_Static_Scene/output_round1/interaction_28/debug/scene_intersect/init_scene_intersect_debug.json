@@ -17,7 +17,7 @@
     "num_visualized_points": 700000,
     "num_inside_points": 474,
     "num_margin_points": 0,
-    "min_sdf_m": -0.02016221359372139,
+    "min_sdf_m": -0.020565195009112358,
     "max_sdf_m": 1.3148009777069092
   },
   "sdf_grid": {
@@ -27,9 +27,9 @@
       64,
       64
     ],
-    "min_sdf_m": -0.0966455340385437,
+    "min_sdf_m": -0.09724777936935425,
     "max_sdf_m": 0.9553292989730835,
-    "num_inside_grid_points": 6594,
+    "num_inside_grid_points": 6588,
     "num_near_surface_grid_points": 0,
     "color_clamp_m": 0.05
   }
