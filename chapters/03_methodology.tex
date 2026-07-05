@@ -33,28 +33,7 @@ The full prompts used for the foundation-model stages are listed in \cref{app:fo
 
 \begin{figure}[t]
   \centering
-  % TODO: Replace with the final methodology diagram, driven by the treadmill running example.
-  % Single horizontal pipeline, one example throughout:
-  % (a) Input posed ScanNet++ view I + instruction y
-  % (b) Scene Interaction Graph (two hand->treadmill edges, one left-foot->treadmill edge)
-  % (c) Generated human frame (person running on the treadmill)
-  % (d) Colored contact masks on the original view (L/R hand on handles, L foot on belt)
-  % (e) Projected 3D contact targets on the treadmill mesh
-  % (f) GVHMR SMPL-X initialization (focal-length-conditioned)
-  % (g) Optimized SMPL-X body in the ScanNet++ scene frame
-  \fbox{%
-    \begin{minipage}[c][0.24\textheight][c]{0.96\textwidth}
-      \centering
-      \textbf{Methodology pipeline placeholder (treadmill running example)}\\[0.8em]
-      posed view $I$ + instruction $y$
-      \;$\rightarrow$\; SIG
-      \;$\rightarrow$\; human frame $\hat{I}$
-      \;$\rightarrow$\; contact masks
-      \;$\rightarrow$\; 3D contact targets $P_e^s$
-      \;$\rightarrow$\; GVHMR init $\theta_0$
-      \;$\rightarrow$\; optimized body $\theta^{\ast}$
-    \end{minipage}%
-  }
+  \includegraphics[width=\textwidth]{figures/methodology_31.pdf}
   \caption{Overview of the proposed zero-shot static HSI synthesis pipeline. Given a natural-language instruction, a posed ScanNet++ RGB view, and the reconstructed scene mesh, the method generates a Scene Interaction Graph, synthesizes a human interaction image, estimates body-part-specific scene contact regions on the original view, projects these regions onto the scene mesh, initializes an SMPL-X body with GVHMR, and refines it through scene-aware optimization.}
   \label{fig:method-pipeline}
 \end{figure}
@@ -179,21 +158,8 @@ The SIG is generated from the instruction $y$ and the posed view $I$. A vision-l
 
 \begin{figure}[t]
   \centering
-  % TODO: Replace with the SMPL-X contact-region figure.
-  % Neutral SMPL-X template body, contact-vertex subsets B_e color-coded per body part,
-  % with a legend for the full vocabulary (L/R hand, L/R arm, L/R leg, L/R foot, head, hips, back).
-  % Optionally emphasize the three regions activated by the treadmill SIG (L hand, R hand, L foot),
-  % e.g. via outline or a callout, to tie the fixed vocabulary to the running example.
-  \fbox{%
-    \begin{minipage}[c][0.26\textheight][c]{0.9\textwidth}
-      \centering
-      \textbf{SMPL-X contact-region placeholder}\\[0.8em]
-      Fixed contact-vertex subsets $B_e$ on the SMPL-X template,\\
-      color-coded per body-part node in the SIG vocabulary\\
-      (treadmill example activates left hand, right hand, left foot)
-    \end{minipage}%
-  }
-  \caption{Predefined SMPL-X contact regions for the supported body-part vocabulary. Each body-part node in the Scene Interaction Graph maps to a fixed vertex subset $B_e$ on the SMPL-X template, shown here color-coded. These subsets are defined once and reused for all interactions; the treadmill running example activates the left-hand, right-hand, and left-foot regions.}
+  \includegraphics[width=\textwidth]{figures/methodology_32.pdf}
+  \caption{Predefined SMPL-X contact regions for the supported body-part vocabulary (left hand, right hand, left arm, right arm, left leg, right leg, left foot, right foot, head, back, hips). Each body-part node in the Scene Interaction Graph maps to a fixed vertex subset $B_e$ on the SMPL-X template, shown here color-coded. These subsets are defined once and reused for all interactions; the treadmill running example activates the left-hand, right-hand, and left-foot regions.}
   \label{fig:smplx-contact-regions}
 \end{figure}
 
@@ -248,21 +214,7 @@ The selected human frame $\hat{I}$ provides the visual evidence used by the foll
 
 \begin{figure}[t]
   \centering
-  % TODO: Replace with real panels from the treadmill running example.
-  % (a) original posed ScanNet++ view I (empty treadmill)
-  % (b) candidate human frames \mathcal{I}_H (person inpainted running on the treadmill)
-  % (c) VLM-selected frame \hat{I} (both hands on handles, left foot on belt, right leg lifted)
-  \fbox{%
-    \begin{minipage}[c][0.22\textheight][c]{0.92\textwidth}
-      \centering
-      \textbf{Human frame generation placeholder (treadmill running example)}\\[0.8em]
-      posed view $I$
-      \quad$\rightarrow$\quad
-      candidate frames $\mathcal{I}_{H}$
-      \quad$\rightarrow$\quad
-      selected frame $\hat{I}$
-    \end{minipage}%
-  }
+  \includegraphics[width=\textwidth]{figures/methodology_33.pdf}
   \caption{Human frame generation and selection. The image model inpaints one person into the posed ScanNet++ view according to the interaction description $\hat{y}$, preserving the scene, camera viewpoint, and target object. A vision-language evaluator then selects the candidate that best preserves the scene and expresses the required body--scene contacts. The selected frame $\hat{I}$ is the shared input to GVHMR initialization and contact estimation.}
   \label{fig:human-frame-generation}
 \end{figure}
@@ -364,27 +316,8 @@ in which each element is linked, through its edge, to one body-side contact set 
 
 \begin{figure}[t]
   \centering
-  % TODO: Replace with real panels from the treadmill running example.
-  % (a) posed view I (empty treadmill)  +  human frame \hat{I} (person running)
-  % (b) overlay candidate O^{(r)} (colored footprints painted on the canvas, possibly with scene drift)
-  % (c) extracted masks Z_e^{(r)} composited onto I -> composite C^{(r)}
-  %     (L hand / R hand on the two handles, L foot on the belt, three distinct colors)
-  % (d) evaluator correction -> accepted composite
-  % (e) projected 3D contact targets P_e^s on the treadmill mesh
-  \fbox{%
-    \begin{minipage}[c][0.28\textheight][c]{0.94\textwidth}
-      \centering
-      \textbf{Agentic contact estimation placeholder (treadmill running example)}\\[0.8em]
-      reference $\hat{I}$ \;$+$\; canvas $I$
-      \quad$\rightarrow$\quad overlay $O^{(r)}$
-      \quad$\rightarrow$\quad extracted masks $Z_e^{(r)}$
-      \quad$\rightarrow$\quad composite $C^{(r)}$\\[0.8em]
-      evaluator: accept or correct
-      \quad$\rightarrow$\quad final masks $\Omega_e^{\mathrm{2D}}$
-      \quad$\rightarrow$\quad 3D targets $P_e^s$
-    \end{minipage}%
-  }
-  \caption{Agentic contact estimation. Using the human frame $\hat{I}$ as reference and the posed view $I$ as canvas, the overlay model paints colored contact footprints, of which only the colored pixels are extracted and composited back onto the untouched view $I$. A vision-language evaluator checks the composite against the reference and the canvas and either accepts it or returns a correction for another round. Accepted masks are projected through the calibrated camera to the reconstructed mesh to yield body-part-specific 3D contact targets $P_e^s$. For the treadmill example, the left hand, right hand, and left foot receive distinct colors and are localized on the two handles and the belt.}
+  \includegraphics[width=\textwidth]{figures/methodology_34.pdf}
+  \caption{Agentic contact estimation. Linearized the agentic verification loop for easier interpretation. Using the human frame $\hat{I}$ as reference and the posed view $I$ as canvas, the image diffusion model paints colored contact footprints, of which only the colored pixels are extracted and composited back onto the untouched view $I$. A vision-language evaluator checks the composite against the reference and the canvas and either accepts it or returns a correction for another round. Accepted masks are projected through the calibrated camera to the reconstructed mesh to yield body-part-specific 3D contact targets $P_e^s$. For the treadmill example, the left hand, right hand, and left foot receive distinct colors and are localized on the two handles and the belt.}
   \label{fig:agentic-contact-estimation}
 \end{figure}
 
