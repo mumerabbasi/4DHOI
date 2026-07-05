@@ -1629,7 +1629,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--human_scene_depth_penetration_tolerance_m",
         type=float,
-        default=0.00,
+        default=0.03,
     )
     parser.add_argument("--human_scene_depth_min_valid_weight", type=float, default=0.25)
     parser.add_argument("--nocontact_weight_start", type=float, default=800.0)
