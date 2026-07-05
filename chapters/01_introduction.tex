@@ -4,29 +4,7 @@
 \section{Motivation}
 \label{sec:intro-motivation}
 
-\begin{figure}[t]
-  \centering
-  % TODO: Replace with the real teaser result from the method (treadmill running example).
-  % Left:   input posed ScanNet++ view I (empty treadmill in the reconstructed scene)
-  % Right:  final optimized SMPL-X body running on the treadmill, placed in the scene
-  %         coordinate frame (both hands on the side rails, left foot on the belt, right leg lifted)
-  % Set the instruction as a strip between or beneath the two panels.
-  % Ideally render the output from a viewpoint close to I so the contact is legible.
-  \fbox{%
-    \begin{minipage}[c][0.26\textheight][c]{0.95\textwidth}
-      \centering
-      \textbf{Teaser placeholder (treadmill running example)}\\[1em]
-      \emph{Input:} posed ScanNet++ view $I$ (empty treadmill) $+$ instruction\\[0.4em]
-      ``a person running on the treadmill''\\[1em]
-      $\Longrightarrow$\\[1em]
-      \emph{Output:} SMPL-X body in correct contact, placed in the scene coordinate frame
-    \end{minipage}%
-  }
-  \caption{Given a single posed RGB view of a reconstructed scene and a natural-language instruction, the proposed method synthesizes a static human--scene interaction: a single SMPL-X body placed in the scene's coordinate frame, in correct physical contact with the geometry. Here, the empty treadmill on the left is populated with a person running on it, whose hands meet the side rails and whose foot lands on the belt.}
-  \label{fig:teaser}
-\end{figure}
-
-Advances in 3D scanning and reconstruction have made detailed digital replicas of real environments widely available. Datasets such as ScanNet++~\cite{yeshwanth2023scannetpp} provide high-fidelity reconstructions of indoor spaces, and modern reconstruction pipelines can turn ordinary captures into accurate 3D scene meshes. Yet these reconstructed environments are, almost without exception, empty: they faithfully capture rooms, furniture, and objects, but not the people who give a space its purpose. A gym is reconstructed without anyone running on its treadmill; a kitchen is reconstructed without anyone opening its appliances. Bridging this gap, populating reconstructed scenes with believable humans that genuinely \emph{interact} with their surroundings, is the problem this thesis addresses (\cref{fig:teaser}).
+Advances in 3D scanning and reconstruction have made detailed digital replicas of real environments widely available. Datasets such as ScanNet++~\cite{yeshwanth2023scannetpp} provide high-fidelity reconstructions of indoor spaces, and modern reconstruction pipelines can turn ordinary captures into accurate 3D scene meshes. Yet these reconstructed environments are, almost without exception, empty: they faithfully capture rooms, furniture, and objects, but not the people who give a space its purpose. A gym is reconstructed without anyone running on its treadmill; a kitchen is reconstructed without anyone opening its appliances. Bridging this gap, populating reconstructed scenes with believable humans that genuinely \emph{interact} with their surroundings, is the problem this thesis addresses.
 
 The ability to place plausible interacting humans into arbitrary 3D scenes is valuable across several domains. In embodied AI and robotics, agents must anticipate how people occupy and act within an environment in order to navigate and assist safely, and synthetic humans placed in reconstructed scenes provide training and evaluation data for this reasoning. In virtual and augmented reality, animation, and games, populating captured or designed environments with lifelike interacting characters is a recurring need. And across computer vision more broadly, human--scene interactions rendered in known 3D scenes offer a scalable source of annotated data, with ground-truth body pose and contact, for tasks such as human pose and contact estimation, where real annotated data is expensive to capture. In each case, the requirement is not merely a human placed somewhere in the scene, but a human placed \emph{in interaction with it}: contacting the right surfaces, in a pose that the interaction demands.
 
