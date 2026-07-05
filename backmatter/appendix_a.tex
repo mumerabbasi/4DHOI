@@ -16,9 +16,9 @@ This appendix records the system prompts used by the foundation-model stages in 
     \midrule
     \(\Pi_{\mathrm{SIG}}\) & SIG generation & \path{4DHSI/01_Generate_SIG/system_prompt_sig.md} \\
     \(\Pi_{\mathrm{H}}\) & Human-frame inpainting & \path{4DHSI/02_Generate_Human_Frame/system_prompt_human_inpaint.md} \\
-    \(\Pi_{\mathrm{sel}}\) & Best human-frame selection & Placeholder; final system prompt not fixed yet. \\
-    \(\Pi_{\mathrm{con}}\) & Contact overlay generation & \path{4DHSI/03_Estimate_Contact_Agentic/system_prompt_estimate_contact_agentic.md} \\
-    \(\Pi_{\mathrm{eval}}\) & Contact VLM evaluation & \path{4DHSI/03_Estimate_Contact_Agentic/vlm_prompt_evaluate_contact.md} \\
+    \(\Pi_{\mathrm{sel}}\) & Best human-frame selection & \path{4DHSI/02_Generate_Human_Frame/prompt_select_best_human_frame.md} \\
+    \(\Pi_{\mathrm{con}}\) & Contact overlay generation & \path{4DHSI/03_Estimate_Contact_Agentic/prompt_estimate_contact.md} \\
+    \(\Pi_{\mathrm{eval}}\) & Contact VLM evaluation & \path{4DHSI/03_Estimate_Contact_Agentic/prompt_evaluate_contact.md} \\
     \bottomrule
   \end{tabularx}
 \end{table}
@@ -394,30 +394,80 @@ Output:
 \label{app:system-prompt-best-frame-selection}
 
 \begin{promptblock}
-PLACEHOLDER: Final best-frame selection system prompt not fixed yet.
+Attached images are provided in this order:
+{candidate_listing}
 
-Intended role:
-- Given the original scene image, the interaction description or SIG description, and multiple human-inpainted candidate frames, select the single candidate used as the visual prior for GVHMR initialization and contact reasoning.
+Provided Images:
 
-Intended ranking criteria:
-1. Action expression: the human should clearly express the requested interaction or contact-ready pre-action state.
-2. Target-object preservation: the target object should remain fixed in pose, location, scale, material, and appearance relative to the original scene.
-3. Plausible body pose: the inserted human should have a physically plausible full-body pose, orientation, scale, and support.
-4. Contact readiness: the relevant body parts should appear close to or in natural contact with the intended target object surfaces or floor support regions.
+Each image is a candidate generated human-frame result for the same fixed scene and the same human-object interaction.
 
-Intended output:
-- Return the index or identifier of the best candidate and a concise reason for the selection.
+Task Description:
+
+Select the single candidate image that best matches the intended interaction and is most usable as the human frame for downstream contact estimation and static-scene optimization.
+
+Interaction:
+{interaction}
+
+Evaluation Requirements:
+
+1. Human Visibility:
+   Prefer images where the main human is fully visible from head to feet, clearly inside the frame, and not cropped by image borders.
+
+2. Human Anatomy:
+   Prefer normal human body proportions and body parts. Reject candidates with distorted, duplicated, missing, or anatomically implausible limbs, hands, feet, torso, or head.
+
+3. Interaction Match:
+   Prefer the image where the human-object interaction most directly matches the interaction text.
+
+4. Contact Correctness:
+   Prefer physically correct human contact with the target object. The contacting body parts should touch the intended object surface or object part without gaps, floating limbs, penetration artifacts, or impossible support.
+
+5. Plausible Pose and Support:
+   Prefer a natural, stable pose that could occur immediately before the interaction motion begins. Avoid floating humans, unsupported body weight, impossible leaning, and unnatural body-object relationships.
+
+6. Scene and Object Preservation:
+   The scene geometry must remain unchanged. The target object of interaction must keep the same shape, texture, appearance, pose, position, orientation, scale, material, and visible structure. Reject candidates where the target object is moved, deformed, duplicated, removed, retextured, or replaced.
+
+7. Image Quality:
+   Prefer clear, sharp images. Avoid motion blur, smeared body parts, severe generation artifacts, or visual clutter that makes the contact ambiguous.
+
+8. Realistic Style:
+   Prefer photographic or realistic images over cartoons, drawings, illustrations, or highly stylized images.
+
+9. Tie Break:
+   After detailed inspection, if all candidate images are effectively the same quality and none is clearly better, choose frame_00.png.
+
+Return strictly valid JSON only:
+
+```json
+{
+  "selected_frame": "frame_XX.png",
+  "reason": "short reason"
+}
+```
+
+The selected_frame value must be exactly one filename from the provided candidate list.
 \end{promptblock}
 
 \subsection[Agentic Contact-Overlay System Prompt (Pi\_con)]{Agentic Contact-Overlay System Prompt \(\Pi_{\mathrm{con}}\)}
 \label{app:system-prompt-contact-overlay}
 
 \begin{promptblock}
+Attached images are provided in this order:
+Image 1: 01_reference_image.png - Reference Image
+Image 2: 02_canvas_image.png - Canvas Image
+Image 3: 03_previous_composite.png - Previous Composite
+
 Provided Images:
 
-Reference Image: An image showing a human interacting with the target object. Use this image only to infer which human body parts are physically contacting the target object and which object-surface regions are being touched.
+Image 1: Reference Image
+An image showing a human interacting with the target object. Use this image only to infer which human body parts are physically contacting the target object and which object-surface regions are being touched.
 
-Canvas Image: An image of the same scene without the human. Use this image as the base image and as the authoritative reference for the target object's final position, pose, geometry, and boundaries.
+Image 2: Canvas Image
+An image of the same scene without the human. Use this image as the base image and as the authoritative reference for the target object's final position, pose, geometry, and boundaries.
+
+Optional Image 3: Previous Composite
+If provided, this image shows the previous round's Canvas Image with generated colored contact masks. Use it only as correction context for the VLM evaluator's feedback. If the evaluator says its masks are correct, copy the correct masks from it to the corresponding locations onto the Canvas Image. Also, draw the new corrected masks, according to the evaluator instructions, onto the Canvas Image.
 
 Task Description:
 
@@ -467,6 +517,12 @@ Only add the specified solid-color contact mask overlays. Leave every non-overla
 Colors:
 Use only the exact specified solid colors for the contacting body-part masks. Do not use transparency, antialiasing gradients, shadows, blended colors, or pastel variants.
 
+Color Mapping for ContactMasks:
+{color_mapping_for_contact_masks}
+
+Required target-object contacts from SIG:
+{required_contacts}
+
 Restrictions:
 Do not add the generated human body.
 Do not copy or paste the full visible hand, foot, hip, arm, leg, or other body-part silhouette.
@@ -482,12 +538,15 @@ If the Reference Image shows a person gripping a ladder, infer which rungs or ra
 \label{app:system-prompt-contact-eval}
 
 \begin{promptblock}
-You are evaluating colored contact-region masks for a human-object interaction task.
+Attached images are provided in this order:
+Image 1: 01_reference_image.png - Reference Image
+Image 2: 02_canvas_image.png - Original Canvas Image
+Image 3: composite.png - Current Composite Image
 
-You are given three images:
+Provided Images:
 
 Image 1: Reference Image.
-This image shows a human physically interacting with the target object. Use it to infer which body parts are touching which object surfaces.
+This image shows the ground-truth human-object interaction. Use the visible human pose and target-object geometry in this image as the ground truth for which body parts contact the target object and where those contacts occur on the object surfaces.
 
 Image 2: Original Canvas Image.
 This image shows the same scene without the human. This is the authoritative geometry and base image.
@@ -501,24 +560,32 @@ Target object:
 Color mapping:
 {color_mapping}
 
-Task:
-Decide whether the colored masks in the Current Composite Image correctly mark the localized contact regions implied by the Reference Image.
+Required target-object contacts from SIG:
+{required_contacts}
 
-Focus especially on location. For each mask, check whether it is on the correct object part and correct local surface.
+Task Description:
+Decide whether the colored masks in the Current Composite Image correctly reproduce the localized target-object contact positions observed in the Reference Image. Masks represent the contact footprints on the object, not the full visible human body part.
+
+Focus especially on reference alignment. For each mask, first identify where the corresponding body part contacts the target object in the Reference Image, then check whether the mask is placed on the matching object part and local surface in the Current Composite Image.
+
+The required target-object contacts from SIG identify which body parts must be checked, but the Reference Image is authoritative for contact location. Do not accept a mask merely because it is plausible; accept it only if its position matches the contact location shown by the Reference Image, mapped onto the same object region in the Original Canvas Image.
+
+For partially occluded contacts, use the visible body pose, object boundaries, and contact context in the Reference Image to determine the most likely ground-truth contact footprint. Do not invent a different plausible contact location on the object if the Reference Image indicates a specific contacted surface or region.
 
 Evaluate these possible errors:
-1. Missing contact: a body part touches the target object in the Reference Image but its mask is absent.
-2. Extra contact: a mask exists for a body part that does not touch the target object.
+1. Missing contact: a required SIG target-object contact is absent, or a body part visibly touches the target object in the Reference Image but its mask is absent.
+2. Extra contact: a mask exists for a body part that is not a required SIG target-object contact and does not visibly touch the target object.
 3. Wrong color: a contact uses the wrong color for the body part.
-4. Wrong object surface: the mask is on the wrong object part, such as wrong rung, wrong rail, wrong edge, wrong handle, wrong shelf, wrong tabletop region, etc.
-5. Shifted mask: the mask is too far left, right, up, or down from the correct contact location.
-6. Size error: the mask is too large or too small for the local contact footprint.
+4. Wrong object surface: the mask is not on the same object part or surface region contacted in the Reference Image, such as wrong rung, wrong rail, wrong edge, wrong handle, wrong shelf, wrong tabletop region, etc.
+5. Shifted mask: the mask is too far left, right, up, or down from the reference contact location after mapping that location to the Original Canvas Image.
+6. Size error: the mask is too large or too small for the local contact footprint visible or indicated by the Reference Image.
 
 For every problem, write a concrete correction instruction for the next ChatGPT image-generation prompt.
 
 Good correction examples:
 - "Keep the original canvas unchanged and move only the green right-foot mask upward onto the lower ladder rung."
 - "The yellow left-hand mask is missing. Add a small yellow mask on the vertical side rail where the left hand contacts the ladder."
+- "The yellow left-hand mask is not placed at the location where the left hand is touching the object in the Reference Image."
 - "The blue foot mask is on the wrong rung. Move it down to the rung directly under the visible foot contact."
 - "The red right-hand mask is too large. Keep its center but make it smaller and more focused."
 - "This mask is correct. Keep it unchanged."
@@ -533,10 +600,9 @@ Return strictly valid JSON only:
 ```json
 {
   "done": false,
-  "confidence": 0.0,
   "correction_instruction": "text"
 }
 ```
 
-Set "done": true only if all required contacts are present, there are no extra masks, each mask uses the correct color, each mask is on the correct target-object surface, and each mask has acceptable location and size.
+Set "done": true only if all required SIG target-object contacts are present, there are no extra masks, each mask uses the correct color, and each mask matches the contact surface, location, and size indicated by the Reference Image when mapped onto the Original Canvas Image.
 \end{promptblock}
