@@ -4,27 +4,27 @@
 \section{Foundation Model Prompts}
 \label{app:foundation-model-prompts}
 
-This appendix records the system prompts used by the foundation-model stages in \cref{chap:methodology}. The symbols below are used in the methodology chapter.
+This appendix records the prompts used by the foundation-model stages in \cref{chap:methodology}. The symbols below are used in the methodology chapter.
 
 \begin{table}[h]
   \centering
-  \caption{System-prompt symbols used in the methodology.}
-  \label{tab:system-prompt-symbols}
-  \begin{tabularx}{\textwidth}{@{}>{\bfseries}p{0.16\textwidth}p{0.24\textwidth}X@{}}
+  \caption{Prompt symbols used in the methodology.}
+  \label{tab:prompt-symbols}
+  \begin{tabularx}{\textwidth}{@{}>{\bfseries}p{0.24\textwidth}X@{}}
     \toprule
-    Symbol & Stage & Source or status \\
+    Symbol & Stage \\
     \midrule
-    \(\Pi_{\mathrm{SIG}}\) & SIG generation & \path{4DHSI/01_Generate_SIG/system_prompt_sig.md} \\
-    \(\Pi_{\mathrm{H}}\) & Human-frame inpainting & \path{4DHSI/02_Generate_Human_Frame/system_prompt_human_inpaint.md} \\
-    \(\Pi_{\mathrm{sel}}\) & Best human-frame selection & \path{4DHSI/02_Generate_Human_Frame/prompt_select_best_human_frame.md} \\
-    \(\Pi_{\mathrm{con}}\) & Contact overlay generation & \path{4DHSI/03_Estimate_Contact_Agentic/prompt_estimate_contact.md} \\
-    \(\Pi_{\mathrm{eval}}\) & Contact VLM evaluation & \path{4DHSI/03_Estimate_Contact_Agentic/prompt_evaluate_contact.md} \\
+    \(\Pi_{\mathrm{sig}}\) & SIG generation \\
+    \(\Pi_{\mathrm{h}}\) & Human-frame inpainting \\
+    \(\Pi_{\mathrm{h\_sel}}\) & Best human-frame selection \\
+    \(\Pi_{\mathrm{con}}\) & Contact overlay generation \\
+    \(\Pi_{\mathrm{con\_eval}}\) & Contact VLM evaluation \\
     \bottomrule
   \end{tabularx}
 \end{table}
 
-\subsection[SIG Generation System Prompt (Pi\_SIG)]{SIG Generation System Prompt \(\Pi_{\mathrm{SIG}}\)}
-\label{app:system-prompt-sig}
+\subsection[SIG Generation Prompt (Pi\_sig)]{SIG Generation Prompt \(\Pi_{\mathrm{sig}}\)}
+\label{app:prompt-sig}
 
 \begin{promptblock}
 You generate a Scene Interaction Graph (SIG) for a static human-scene interaction.
@@ -361,8 +361,8 @@ Example 5 output:
 }
 \end{promptblock}
 
-\subsection[Human-Frame Inpainting System Prompt (Pi\_H)]{Human-Frame Inpainting System Prompt \(\Pi_{\mathrm{H}}\)}
-\label{app:system-prompt-human-inpaint}
+\subsection[Human-Frame Inpainting Prompt (Pi\_h)]{Human-Frame Inpainting Prompt \(\Pi_{\mathrm{h}}\)}
+\label{app:prompt-human-inpaint}
 
 \begin{promptblock}
 Input Image:
@@ -390,8 +390,8 @@ Output:
 - Return only the edited scene image.
 \end{promptblock}
 
-\subsection[Best Human-Frame Selection System Prompt (Pi\_sel)]{Best Human-Frame Selection System Prompt \(\Pi_{\mathrm{sel}}\)}
-\label{app:system-prompt-best-frame-selection}
+\subsection[Best Human-Frame Selection Prompt (Pi\_h\_sel)]{Best Human-Frame Selection Prompt \(\Pi_{\mathrm{h\_sel}}\)}
+\label{app:prompt-best-frame-selection}
 
 \begin{promptblock}
 Attached images are provided in this order:
@@ -449,8 +449,8 @@ Return strictly valid JSON only:
 The selected_frame value must be exactly one filename from the provided candidate list.
 \end{promptblock}
 
-\subsection[Agentic Contact-Overlay System Prompt (Pi\_con)]{Agentic Contact-Overlay System Prompt \(\Pi_{\mathrm{con}}\)}
-\label{app:system-prompt-contact-overlay}
+\subsection[Agentic Contact-Overlay Prompt (Pi\_con)]{Agentic Contact-Overlay Prompt \(\Pi_{\mathrm{con}}\)}
+\label{app:prompt-contact-overlay}
 
 \begin{promptblock}
 Attached images are provided in this order:
@@ -534,8 +534,8 @@ Example Guidance:
 If the Reference Image shows a person gripping a ladder, infer which rungs or rails the hands and feet contact. Then place solid masks on those same ladder regions in the Canvas Image, aligned to the ladder as it appears in the Canvas Image.
 \end{promptblock}
 
-\subsection[Contact VLM Evaluation System Prompt (Pi\_eval)]{Contact VLM Evaluation System Prompt \(\Pi_{\mathrm{eval}}\)}
-\label{app:system-prompt-contact-eval}
+\subsection[Contact VLM Evaluation Prompt (Pi\_con\_eval)]{Contact VLM Evaluation Prompt \(\Pi_{\mathrm{con\_eval}}\)}
+\label{app:prompt-contact-eval}
 
 \begin{promptblock}
 Attached images are provided in this order:
