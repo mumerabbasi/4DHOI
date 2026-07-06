@@ -26,6 +26,8 @@ from PIL import Image
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 WORKSPACE_ROOT = PROJECT_DIR.parent
 GENZI_ROOT = WORKSPACE_ROOT / "GenZI"
+MODULE_DIR = Path(__file__).resolve().parent
+DEFAULT_OUTPUT_BASE = MODULE_DIR / "output"
 
 if str(GENZI_ROOT) not in sys.path:
     sys.path.insert(0, str(GENZI_ROOT))
@@ -207,7 +209,7 @@ def resolve_scannet_root(raw_scannet_root: str | None) -> Path:
 
 def build_paths(interaction_name: str, output_base: Path | None = None) -> Paths:
     if output_base is None:
-        output_base = PROJECT_DIR / "05_Optimize_Static_Scene" / "output_genzi_singleview"
+        output_base = DEFAULT_OUTPUT_BASE
     agentic_root = PROJECT_DIR / "03_Estimate_Contact_Agentic" / "output" / interaction_name
     return Paths(
         generated_root=PROJECT_DIR / "02_Generate_Human_Frame" / "output" / interaction_name,
@@ -1050,7 +1052,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.all_interactions:
         output_base = Path(args.output_base).resolve() if args.output_base else None
         interaction_names, skipped = discover_interactions(output_base=output_base)
-        output_root = output_base or PROJECT_DIR / "05_Optimize_Static_Scene" / "output_genzi_singleview"
+        output_root = output_base or DEFAULT_OUTPUT_BASE
         save_json(output_root / "genzi_singleview_skip_report.json", skipped)
     else:
         interaction_names = [args.interaction_name]
@@ -1075,7 +1077,7 @@ def main(argv: list[str] | None = None) -> None:
             if not args.all_interactions:
                 raise
 
-    output_base = Path(args.output_base).resolve() if args.output_base else PROJECT_DIR / "05_Optimize_Static_Scene" / "output_genzi_singleview"
+    output_base = Path(args.output_base).resolve() if args.output_base else DEFAULT_OUTPUT_BASE
     save_json(
         output_base / "genzi_singleview_batch_summary.json",
         {
