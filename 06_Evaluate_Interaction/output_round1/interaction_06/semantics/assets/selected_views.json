@@ -26,10 +26,12 @@
     "vertex_count": 613,
     "missing_human_parts": []
   },
+  "camera_source": "baseline_output",
+  "camera_source_config_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_06/semantics/assets/render_config.json",
   "reference_view_used": true,
   "synthetic_view_count": 2,
   "min_total_views": 3,
-  "max_total_views": 6,
+  "max_total_views": 3,
   "target_total_views": 3,
   "covered_contact_parts": [
     "left foot",
@@ -47,7 +49,7 @@
     "uncovered_contact_parts": [],
     "coverage_relaxed": false,
     "requested_min_synthetic_views": 2,
-    "requested_max_synthetic_views": 5,
+    "requested_max_synthetic_views": 2,
     "selected_synthetic_views": 2
   },
   "contact_spec_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_06/contact_spec.json",
@@ -67,7 +69,7 @@
       "nearest_scene_distance_m": 0.34502500477647846,
       "human_visible_fraction": 0.9013842482100238,
       "human_in_frame_fraction": 1.0,
-      "human_center_offset": 0.18249604837935154,
+      "human_center_offset": 0.1824961031679199,
       "human_bbox_fill": 0.6253925745056645,
       "scene_depth_finite_fraction": 0.9999898274739584,
       "interaction_part_visible_fraction": 0.3499999999999999,
@@ -110,22 +112,22 @@
       "width": 1113,
       "height": 742,
       "camera_center_world": [
-        11.553360939025879,
-        4.038907527923584,
-        1.8360165357589722
+        11.565895080566406,
+        4.02741003036499,
+        1.836016297340393
       ],
-      "nearest_scene_distance_m": 0.16376589325028512,
-      "human_visible_fraction": 0.8946062052505966,
+      "nearest_scene_distance_m": 0.1535420604244395,
+      "human_visible_fraction": 0.8943198090692124,
       "human_in_frame_fraction": 1.0,
-      "human_center_offset": 0.05271381996952471,
-      "human_bbox_fill": 0.7486814103036556,
+      "human_center_offset": 0.05486565062808622,
+      "human_bbox_fill": 0.7553155595722867,
       "scene_depth_finite_fraction": 1.0,
-      "interaction_part_visible_fraction": 0.7666666666666666,
+      "interaction_part_visible_fraction": 0.7694444444444445,
       "interaction_part_filter_available": true,
       "contact_part_visible_fractions": {
         "right hand": 1.0,
         "left foot": 0.35,
-        "right foot": 0.95
+        "right foot": 0.9583333333333334
       },
       "contact_part_in_frame_fractions": {
         "right hand": 1.0,
@@ -135,19 +137,19 @@
       "contact_part_scene_visible_fractions": {
         "right hand": 1.0,
         "left foot": 0.0,
-        "right foot": 0.95
+        "right foot": 0.9583333333333334
       },
       "contact_part_self_visible_fractions": {
         "right hand": 0.0,
         "left foot": 0.0,
-        "right foot": 0.7666666666666667
+        "right foot": 0.7583333333333333
       },
       "covered_contact_parts": [
         "left foot",
         "right foot",
         "right hand"
       ],
-      "quality": 0.9056556686235266,
+      "quality": 0.9022529148103016,
       "renderable": true,
       "valid": true,
       "relaxed_valid": true,
@@ -160,20 +162,20 @@
       "width": 1113,
       "height": 742,
       "camera_center_world": [
-        10.879844665527344,
-        3.66569447517395,
-        1.8360174894332886
+        10.890159606933594,
+        3.6582305431365967,
+        1.83601713180542
       ],
-      "nearest_scene_distance_m": 0.643908106827284,
-      "human_visible_fraction": 0.8910739856801909,
+      "nearest_scene_distance_m": 0.6440027336078522,
+      "human_visible_fraction": 0.8911694510739857,
       "human_in_frame_fraction": 1.0,
-      "human_center_offset": 0.021478617415224655,
-      "human_bbox_fill": 0.7749570245048749,
+      "human_center_offset": 0.02379139162081312,
+      "human_bbox_fill": 0.7805554577603816,
       "scene_depth_finite_fraction": 1.0,
-      "interaction_part_visible_fraction": 0.6500074471254096,
+      "interaction_part_visible_fraction": 0.6482201370271076,
       "interaction_part_filter_available": true,
       "contact_part_visible_fractions": {
-        "right hand": 0.6916890080428955,
+        "right hand": 0.6863270777479893,
         "left foot": 0.35,
         "right foot": 0.9083333333333333
       },
@@ -183,21 +185,21 @@
         "right foot": 1.0
       },
       "contact_part_scene_visible_fractions": {
-        "right hand": 0.6916890080428955,
+        "right hand": 0.6863270777479893,
         "left foot": 0.0,
         "right foot": 0.9083333333333333
       },
       "contact_part_self_visible_fractions": {
-        "right hand": 0.2520107238605898,
+        "right hand": 0.26273458445040215,
         "left foot": 0.0,
-        "right foot": 0.75
+        "right foot": 0.7416666666666667
       },
       "covered_contact_parts": [
         "left foot",
         "right foot",
         "right hand"
       ],
-      "quality": 0.9312649766037804,
+      "quality": 0.9279909738986591,
       "renderable": true,
       "valid": true,
       "relaxed_valid": true,

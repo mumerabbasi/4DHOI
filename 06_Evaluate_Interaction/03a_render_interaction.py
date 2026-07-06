@@ -570,6 +570,63 @@ def blender_camera_matrix_world(
     return matrix
 
 
+def camera_extrinsics_from_blender_matrix_world(
+    camera_matrix_world: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    matrix = np.asarray(camera_matrix_world, dtype=np.float32)
+    if matrix.shape != (4, 4):
+        raise ValueError(f"camera_matrix_world must be 4x4; got {matrix.shape}.")
+    opencv_to_blender = np.diag([1.0, -1.0, -1.0]).astype(np.float32)
+    rotation_blender_to_world = matrix[:3, :3]
+    camera_center_world = matrix[:3, 3]
+    rotation_camera_to_world = rotation_blender_to_world @ opencv_to_blender
+    rotation_world_to_camera = rotation_camera_to_world.T.astype(np.float32)
+    translation_world_to_camera = (
+        -rotation_world_to_camera @ camera_center_world
+    ).astype(np.float32)
+    return rotation_world_to_camera, translation_world_to_camera
+
+
+def load_output_camera_config(interaction_name: str) -> tuple[Path, dict[str, Any]] | None:
+    config_path = (
+        SCRIPT_DIR
+        / "output"
+        / interaction_name
+        / "semantics"
+        / "assets"
+        / "render_config.json"
+    )
+    if not config_path.exists():
+        return None
+    payload = load_json(config_path)
+    views = payload.get("views")
+    if not isinstance(views, list) or not views:
+        raise ValueError(f"Reusable camera config has no views: {config_path}")
+    for index, view in enumerate(views):
+        if not isinstance(view, dict):
+            raise ValueError(f"Reusable camera view {index} is malformed: {config_path}")
+        matrix = np.asarray(view.get("camera_matrix_world"), dtype=np.float32)
+        if matrix.shape != (4, 4):
+            raise ValueError(
+                f"Reusable camera view {index} has invalid camera_matrix_world "
+                f"shape {matrix.shape}: {config_path}"
+            )
+        intrinsics = np.asarray(
+            view.get("intrinsics", payload.get("intrinsics")),
+            dtype=np.float32,
+        )
+        if intrinsics.shape != (3, 3):
+            raise ValueError(
+                f"Reusable camera view {index} has invalid intrinsics shape "
+                f"{intrinsics.shape}: {config_path}"
+            )
+        if "width" not in view and "width" not in payload:
+            raise ValueError(f"Reusable camera view {index} missing width: {config_path}")
+        if "height" not in view and "height" not in payload:
+            raise ValueError(f"Reusable camera view {index} missing height: {config_path}")
+    return config_path, payload
+
+
 def camera_center_from_extrinsics(
     rotation_world_to_camera: np.ndarray,
     translation_world_to_camera: np.ndarray,
@@ -1851,89 +1908,192 @@ def render_interaction(
         )
         scene_depth_points_world = scene_depth_points_world[choice]
     scene_vertex_tree = cKDTree(scene_verts_world)
-    contact_view = evaluate_render_view(
-        label="contact_spec_camera",
-        yaw_deg=0.0,
-        rotation_world_to_camera=rotation_world_to_camera,
-        translation_world_to_camera=translation_world_to_camera,
-        focus=focus_world,
-        human_vertices_world=human_vertices_world,
-        contact_part_vertices_world=contact_part_vertices_world,
-        scene_depth_points_world=scene_depth_points_world,
-        scene_vertex_tree=scene_vertex_tree,
-        intrinsics=contact_intrinsics,
-        width=contact_width,
-        image_height=contact_height,
-        min_camera_scene_distance_m=float(args.min_camera_scene_distance_m),
-        min_human_visible_fraction=float(args.min_human_visible_fraction),
-        min_human_in_frame_fraction=float(args.min_human_in_frame_fraction),
-        max_human_center_offset=float(args.max_human_center_offset),
-        min_human_bbox_fill=float(args.min_human_bbox_fill),
-        max_human_bbox_fill=float(args.max_human_bbox_fill),
-        min_interaction_part_visible_fraction=float(
-            args.min_interaction_part_visible_fraction
-        ),
-        min_contact_part_visible_fraction=float(args.min_contact_part_visible_fraction),
-        visibility_depth_width=int(args.visibility_depth_width),
-        visibility_depth_tolerance_m=float(args.visibility_depth_tolerance_m),
-        scene_depth_sample_spacing_m=float(args.scene_depth_sample_spacing_m),
-        scene_depth_max_splat_radius_px=int(args.scene_depth_max_splat_radius_px),
-        human_depth_sample_spacing_m=float(args.human_depth_sample_spacing_m),
-        human_depth_max_splat_radius_px=int(args.human_depth_max_splat_radius_px),
-        max_depth_m=float(args.max_depth_m),
+    reusable_camera_config = (
+        load_output_camera_config(interaction_name)
+        if bool(args.reuse_output_cameras)
+        else None
     )
-    contact_view["render_name"] = "view_00"
-    contact_view["contact_spec_path"] = str(contact_spec_json_path)
-    contact_view["reference_image_path"] = str(contact_render_image_path)
-    initial_views = [contact_view]
-    if args.num_views is not None:
-        max_total_views = 1 + max(0, int(args.num_views))
-    else:
-        max_total_views = max(1, int(args.max_views))
-    min_total_views = max(1, min(int(args.min_views), max_total_views))
-    min_synthetic_views = max(0, min_total_views - 1)
-    max_synthetic_views = max(0, max_total_views - 1)
+    camera_source = "generated"
+    camera_source_config_path: str | None = None
 
-    synthetic_views, coverage_metadata = build_candidate_views(
-        original_rotation_world_to_camera=rotation_world_to_camera,
-        original_translation_world_to_camera=translation_world_to_camera,
-        focus=focus_world,
-        human_vertices_world=human_vertices_world,
-        contact_part_vertices_world=contact_part_vertices_world,
-        initial_views=initial_views,
-        scene_depth_points_world=scene_depth_points_world,
-        scene_vertex_tree=scene_vertex_tree,
-        intrinsics=contact_intrinsics,
-        width=contact_width,
-        image_height=contact_height,
-        min_num_views=min_synthetic_views,
-        max_num_views=max_synthetic_views,
-        min_camera_scene_distance_m=float(args.min_camera_scene_distance_m),
-        min_human_visible_fraction=float(args.min_human_visible_fraction),
-        min_human_in_frame_fraction=float(args.min_human_in_frame_fraction),
-        max_human_center_offset=float(args.max_human_center_offset),
-        min_human_bbox_fill=float(args.min_human_bbox_fill),
-        max_human_bbox_fill=float(args.max_human_bbox_fill),
-        min_interaction_part_visible_fraction=float(
-            args.min_interaction_part_visible_fraction
-        ),
-        min_contact_part_visible_fraction=float(args.min_contact_part_visible_fraction),
-        camera_radius_m=float(args.camera_radius_m),
-        visibility_depth_width=int(args.visibility_depth_width),
-        visibility_depth_tolerance_m=float(args.visibility_depth_tolerance_m),
-        scene_depth_sample_spacing_m=float(args.scene_depth_sample_spacing_m),
-        scene_depth_max_splat_radius_px=int(args.scene_depth_max_splat_radius_px),
-        human_depth_sample_spacing_m=float(args.human_depth_sample_spacing_m),
-        human_depth_max_splat_radius_px=int(args.human_depth_max_splat_radius_px),
-        min_view_angular_separation_deg=float(args.min_view_angular_separation_deg),
-        max_depth_m=float(args.max_depth_m),
-    )
-    for index, view in enumerate(synthetic_views, start=1):
-        view["render_name"] = f"view_{index:02d}"
-        view["intrinsics"] = contact_intrinsics.astype(np.float32)
-        view["width"] = int(contact_width)
-        view["height"] = int(contact_height)
-    selected_views = [contact_view, *synthetic_views]
+    if reusable_camera_config is not None:
+        camera_config_path, camera_config_payload = reusable_camera_config
+        print(f"Reusing semantic cameras from: {camera_config_path}")
+        camera_source = "baseline_output"
+        camera_source_config_path = str(camera_config_path.resolve())
+        source_selected_views_path = camera_config_path.with_name("selected_views.json")
+        source_selected_views = (
+            load_json(source_selected_views_path)
+            if source_selected_views_path.exists()
+            else {}
+        )
+        source_view_metadata = {
+            str(view.get("name")): view
+            for view in source_selected_views.get("views", [])
+            if isinstance(view, dict) and view.get("name") is not None
+        }
+        selected_views = []
+        covered_contact_parts: set[str] = set()
+        for index, render_view in enumerate(camera_config_payload["views"]):
+            render_name = str(
+                render_view.get("name")
+                or Path(str(render_view.get("render_path", ""))).stem
+                or f"view_{index:02d}"
+            )
+            camera_matrix_world_payload = render_view["camera_matrix_world"]
+            camera_matrix_world = np.asarray(camera_matrix_world_payload, dtype=np.float32)
+            view_intrinsics = np.asarray(
+                render_view.get("intrinsics", camera_config_payload.get("intrinsics")),
+                dtype=np.float32,
+            )
+            view_width = int(render_view.get("width", camera_config_payload.get("width")))
+            view_height = int(
+                render_view.get("height", camera_config_payload.get("height"))
+            )
+            view_rotation, view_translation = camera_extrinsics_from_blender_matrix_world(
+                camera_matrix_world
+            )
+            source_metadata = source_view_metadata.get(render_name, {})
+            view = evaluate_render_view(
+                label=str(source_metadata.get("source_label", "output_camera")),
+                yaw_deg=float(source_metadata.get("yaw_deg", 0.0)),
+                rotation_world_to_camera=view_rotation,
+                translation_world_to_camera=view_translation,
+                focus=focus_world,
+                human_vertices_world=human_vertices_world,
+                contact_part_vertices_world=contact_part_vertices_world,
+                scene_depth_points_world=scene_depth_points_world,
+                scene_vertex_tree=scene_vertex_tree,
+                intrinsics=view_intrinsics,
+                width=view_width,
+                image_height=view_height,
+                min_camera_scene_distance_m=float(args.min_camera_scene_distance_m),
+                min_human_visible_fraction=float(args.min_human_visible_fraction),
+                min_human_in_frame_fraction=float(args.min_human_in_frame_fraction),
+                max_human_center_offset=float(args.max_human_center_offset),
+                min_human_bbox_fill=float(args.min_human_bbox_fill),
+                max_human_bbox_fill=float(args.max_human_bbox_fill),
+                min_interaction_part_visible_fraction=float(
+                    args.min_interaction_part_visible_fraction
+                ),
+                min_contact_part_visible_fraction=float(
+                    args.min_contact_part_visible_fraction
+                ),
+                visibility_depth_width=int(args.visibility_depth_width),
+                visibility_depth_tolerance_m=float(args.visibility_depth_tolerance_m),
+                scene_depth_sample_spacing_m=float(args.scene_depth_sample_spacing_m),
+                scene_depth_max_splat_radius_px=int(args.scene_depth_max_splat_radius_px),
+                human_depth_sample_spacing_m=float(args.human_depth_sample_spacing_m),
+                human_depth_max_splat_radius_px=int(args.human_depth_max_splat_radius_px),
+                max_depth_m=float(args.max_depth_m),
+            )
+            view["render_name"] = render_name
+            view["camera_matrix_world"] = camera_matrix_world_payload
+            view["reused_camera_config_path"] = camera_source_config_path
+            selected_views.append(view)
+            covered_contact_parts.update(
+                contact_parts_covered_by_view(
+                    view,
+                    float(args.min_contact_part_visible_fraction),
+                )
+            )
+
+        synthetic_views = selected_views[1:]
+        min_total_views = len(selected_views)
+        max_total_views = len(selected_views)
+        target_parts = set(contact_part_vertices_world)
+        coverage_metadata = {
+            "covered_contact_parts": sorted(covered_contact_parts & target_parts),
+            "uncovered_contact_parts": sorted(target_parts - covered_contact_parts),
+            "coverage_relaxed": False,
+            "requested_min_synthetic_views": int(max(0, len(selected_views) - 1)),
+            "requested_max_synthetic_views": int(max(0, len(selected_views) - 1)),
+            "selected_synthetic_views": int(max(0, len(selected_views) - 1)),
+        }
+    else:
+        contact_view = evaluate_render_view(
+            label="contact_spec_camera",
+            yaw_deg=0.0,
+            rotation_world_to_camera=rotation_world_to_camera,
+            translation_world_to_camera=translation_world_to_camera,
+            focus=focus_world,
+            human_vertices_world=human_vertices_world,
+            contact_part_vertices_world=contact_part_vertices_world,
+            scene_depth_points_world=scene_depth_points_world,
+            scene_vertex_tree=scene_vertex_tree,
+            intrinsics=contact_intrinsics,
+            width=contact_width,
+            image_height=contact_height,
+            min_camera_scene_distance_m=float(args.min_camera_scene_distance_m),
+            min_human_visible_fraction=float(args.min_human_visible_fraction),
+            min_human_in_frame_fraction=float(args.min_human_in_frame_fraction),
+            max_human_center_offset=float(args.max_human_center_offset),
+            min_human_bbox_fill=float(args.min_human_bbox_fill),
+            max_human_bbox_fill=float(args.max_human_bbox_fill),
+            min_interaction_part_visible_fraction=float(
+                args.min_interaction_part_visible_fraction
+            ),
+            min_contact_part_visible_fraction=float(args.min_contact_part_visible_fraction),
+            visibility_depth_width=int(args.visibility_depth_width),
+            visibility_depth_tolerance_m=float(args.visibility_depth_tolerance_m),
+            scene_depth_sample_spacing_m=float(args.scene_depth_sample_spacing_m),
+            scene_depth_max_splat_radius_px=int(args.scene_depth_max_splat_radius_px),
+            human_depth_sample_spacing_m=float(args.human_depth_sample_spacing_m),
+            human_depth_max_splat_radius_px=int(args.human_depth_max_splat_radius_px),
+            max_depth_m=float(args.max_depth_m),
+        )
+        contact_view["render_name"] = "view_00"
+        contact_view["contact_spec_path"] = str(contact_spec_json_path)
+        contact_view["reference_image_path"] = str(contact_render_image_path)
+        initial_views = [contact_view]
+        if args.num_views is not None:
+            max_total_views = 1 + max(0, int(args.num_views))
+        else:
+            max_total_views = max(1, int(args.max_views))
+        min_total_views = max(1, min(int(args.min_views), max_total_views))
+        min_synthetic_views = max(0, min_total_views - 1)
+        max_synthetic_views = max(0, max_total_views - 1)
+
+        synthetic_views, coverage_metadata = build_candidate_views(
+            original_rotation_world_to_camera=rotation_world_to_camera,
+            original_translation_world_to_camera=translation_world_to_camera,
+            focus=focus_world,
+            human_vertices_world=human_vertices_world,
+            contact_part_vertices_world=contact_part_vertices_world,
+            initial_views=initial_views,
+            scene_depth_points_world=scene_depth_points_world,
+            scene_vertex_tree=scene_vertex_tree,
+            intrinsics=contact_intrinsics,
+            width=contact_width,
+            image_height=contact_height,
+            min_num_views=min_synthetic_views,
+            max_num_views=max_synthetic_views,
+            min_camera_scene_distance_m=float(args.min_camera_scene_distance_m),
+            min_human_visible_fraction=float(args.min_human_visible_fraction),
+            min_human_in_frame_fraction=float(args.min_human_in_frame_fraction),
+            max_human_center_offset=float(args.max_human_center_offset),
+            min_human_bbox_fill=float(args.min_human_bbox_fill),
+            max_human_bbox_fill=float(args.max_human_bbox_fill),
+            min_interaction_part_visible_fraction=float(
+                args.min_interaction_part_visible_fraction
+            ),
+            min_contact_part_visible_fraction=float(args.min_contact_part_visible_fraction),
+            camera_radius_m=float(args.camera_radius_m),
+            visibility_depth_width=int(args.visibility_depth_width),
+            visibility_depth_tolerance_m=float(args.visibility_depth_tolerance_m),
+            scene_depth_sample_spacing_m=float(args.scene_depth_sample_spacing_m),
+            scene_depth_max_splat_radius_px=int(args.scene_depth_max_splat_radius_px),
+            human_depth_sample_spacing_m=float(args.human_depth_sample_spacing_m),
+            human_depth_max_splat_radius_px=int(args.human_depth_max_splat_radius_px),
+            min_view_angular_separation_deg=float(args.min_view_angular_separation_deg),
+            max_depth_m=float(args.max_depth_m),
+        )
+        for index, view in enumerate(synthetic_views, start=1):
+            view["render_name"] = f"view_{index:02d}"
+            view["intrinsics"] = contact_intrinsics.astype(np.float32)
+            view["width"] = int(contact_width)
+            view["height"] = int(contact_height)
+        selected_views = [contact_view, *synthetic_views]
     view_metadata = [
         {
             "name": str(view["render_name"]),
@@ -1991,6 +2151,8 @@ def render_interaction(
         assets_dir / "selected_views.json",
         {
             "interaction_parts": interaction_part_metadata,
+            "camera_source": camera_source,
+            "camera_source_config_path": camera_source_config_path,
             "reference_view_used": True,
             "synthetic_view_count": int(len(synthetic_views)),
             "min_total_views": int(min_total_views),
@@ -2060,9 +2222,15 @@ def render_interaction(
         {
             "name": str(view["render_name"]),
             "render_path": str((renders_dir / f"{view['render_name']}.png").resolve()),
-            "camera_matrix_world": blender_camera_matrix_world(
-                view["rotation_world_to_camera"],
-                view["translation_world_to_camera"],
+            "camera_matrix_world": np.asarray(
+                view.get(
+                    "camera_matrix_world",
+                    blender_camera_matrix_world(
+                        view["rotation_world_to_camera"],
+                        view["translation_world_to_camera"],
+                    ),
+                ),
+                dtype=float,
             ).tolist(),
             "intrinsics": view["intrinsics"].astype(float).tolist(),
             "width": int(view["width"]),
@@ -2075,6 +2243,8 @@ def render_interaction(
         "human_mesh_world": str(human_mesh_world_path.resolve()),
         "blend_path": str(blend_path.resolve()),
         "views": render_views,
+        "camera_source": camera_source,
+        "camera_source_config_path": camera_source_config_path,
         "intrinsics": contact_intrinsics.astype(float).tolist(),
         "width": int(contact_width),
         "height": int(contact_height),
@@ -2202,6 +2372,16 @@ def parse_args() -> argparse.Namespace:
         "--overwrite_scene_crop",
         action=argparse.BooleanOptionalAction,
         default=True,
+    )
+    parser.add_argument(
+        "--reuse_output_cameras",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Reuse baseline 06_Evaluate_Interaction/output cameras when "
+            "render_config.json exists; use --no-reuse_output_cameras to "
+            "force fresh view selection."
+        ),
     )
     return parser.parse_args()
 
