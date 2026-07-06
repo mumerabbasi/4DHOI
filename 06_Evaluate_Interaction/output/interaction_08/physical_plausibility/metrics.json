@@ -3,42 +3,56 @@
     "node_a": "human.left_hand",
     "node_b": "coffee maker",
     "contact": {
-      "min_distance_m": 0.001028724480420351,
-      "max_distance_m": 0.07800275087356567,
-      "mean_distance_m": 0.035428643226623535
+      "min_distance_m": 0.011248107068240643,
+      "max_distance_m": 0.1440025120973587,
+      "mean_distance_m": 0.06117508187890053
     },
     "collision": {
-      "ncs": 0.9982257142857143,
-      "mean_penetration_m": 0.006259750574827194,
-      "max_penetration_m": 0.025724492967128754
+      "ncs": 0.9999842857142857,
+      "mean_penetration_m": 0.0022818059660494328,
+      "max_penetration_m": 0.004275094717741013
+    }
+  },
+  {
+    "node_a": "human.right_hand",
+    "node_b": "coffee maker",
+    "contact": {
+      "min_distance_m": 0.10873252153396606,
+      "max_distance_m": 0.2174466848373413,
+      "mean_distance_m": 0.16296160221099854
+    },
+    "collision": {
+      "ncs": 0.9999842857142857,
+      "mean_penetration_m": 0.0022818059660494328,
+      "max_penetration_m": 0.004275094717741013
     }
   },
   {
     "node_a": "human.left_foot",
     "node_b": "floor",
     "contact": {
-      "min_distance_m": 0.0011453062761574984,
-      "max_distance_m": 0.02638472430408001,
-      "mean_distance_m": 0.01115164440125227
+      "min_distance_m": 0.003193807089701295,
+      "max_distance_m": 0.0337851457297802,
+      "mean_distance_m": 0.016036124899983406
     },
     "collision": {
-      "ncs": 0.9982257142857143,
-      "mean_penetration_m": 0.006259750574827194,
-      "max_penetration_m": 0.025724492967128754
+      "ncs": 0.9999842857142857,
+      "mean_penetration_m": 0.0022818059660494328,
+      "max_penetration_m": 0.004275094717741013
     }
   },
   {
     "node_a": "human.right_foot",
     "node_b": "floor",
     "contact": {
-      "min_distance_m": 0.00179232656955719,
-      "max_distance_m": 0.03439243510365486,
-      "mean_distance_m": 0.010806182399392128
+      "min_distance_m": 0.002418897347524762,
+      "max_distance_m": 0.04526244103908539,
+      "mean_distance_m": 0.019412534311413765
     },
     "collision": {
-      "ncs": 0.9982257142857143,
-      "mean_penetration_m": 0.006259750574827194,
-      "max_penetration_m": 0.025724492967128754
+      "ncs": 0.9999842857142857,
+      "mean_penetration_m": 0.0022818059660494328,
+      "max_penetration_m": 0.004275094717741013
     }
   }
 ]

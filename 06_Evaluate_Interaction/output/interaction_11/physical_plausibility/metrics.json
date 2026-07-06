@@ -1,0 +1,58 @@
+[
+  {
+    "node_a": "human.left_hand",
+    "node_b": "brown small wooden table",
+    "contact": {
+      "min_distance_m": 0.001449061557650566,
+      "max_distance_m": 0.1120307520031929,
+      "mean_distance_m": 0.031264591962099075
+    },
+    "collision": {
+      "ncs": 0.9985271428571428,
+      "mean_penetration_m": 0.011223912239074707,
+      "max_penetration_m": 0.027900250628590584
+    }
+  },
+  {
+    "node_a": "human.right_hand",
+    "node_b": "brown small wooden table",
+    "contact": {
+      "min_distance_m": 0.0008819515351206064,
+      "max_distance_m": 0.10502905398607254,
+      "mean_distance_m": 0.031178753823041916
+    },
+    "collision": {
+      "ncs": 0.9985271428571428,
+      "mean_penetration_m": 0.011223912239074707,
+      "max_penetration_m": 0.027900250628590584
+    }
+  },
+  {
+    "node_a": "human.left_foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.013158055022358894,
+      "max_distance_m": 0.04915541037917137,
+      "mean_distance_m": 0.0324690043926239
+    },
+    "collision": {
+      "ncs": 0.9985271428571428,
+      "mean_penetration_m": 0.011223912239074707,
+      "max_penetration_m": 0.027900250628590584
+    }
+  },
+  {
+    "node_a": "human.right_foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.0157864298671484,
+      "max_distance_m": 0.05243445560336113,
+      "mean_distance_m": 0.03427696228027344
+    },
+    "collision": {
+      "ncs": 0.9985271428571428,
+      "mean_penetration_m": 0.011223912239074707,
+      "max_penetration_m": 0.027900250628590584
+    }
+  }
+]

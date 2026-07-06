@@ -56,9 +56,12 @@ METRIC_CSV_FIELDNAMES = [
 COMBINED_CSV_FIELDNAMES = [
     "interaction_name",
     "num_edges",
+    "mean_min_contact_distance_m",
+    "mean_max_contact_distance_m",
     "mean_contact_distance_m",
     "ncs",
     "mean_penetration_m",
+    "max_penetration_m",
 ]
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -95,6 +98,7 @@ class DynamicInteractionEdge:
     reduction: str
     fixed_face_ids: np.ndarray | None = None
     fixed_vertex_ids: np.ndarray | None = None
+    projected_mask: np.ndarray | None = None
 
 
 @dataclass
@@ -184,7 +188,15 @@ def resolve_sig_target_label(sig_payload: dict[str, Any]) -> str:
     raise ValueError("SIG target_object.label must be non-empty.")
 
 
-def build_default_paths(interaction_name: str) -> dict[str, Path]:
+def build_default_paths(
+    interaction_name: str,
+    output_mode: str = "output",
+) -> dict[str, Path]:
+    if output_mode not in {"output", "output_round1"}:
+        raise ValueError(
+            f"Unsupported output_mode '{output_mode}'. "
+            "Expected 'output' or 'output_round1'."
+        )
     return {
         "input_scene_json": PROJECT_DIR
         / "01_Generate_SIG"
@@ -205,36 +217,36 @@ def build_default_paths(interaction_name: str) -> dict[str, Path]:
         / "assets"
         / "smplx_vert_segmentation.json",
         "contact_masks_dir": PROJECT_DIR
-        / "03_Estimate_Contact"
+        / "00_Annotate_GT_Contact"
         / "output"
         / interaction_name
-        / "contact_masks",
+        / "contact_masks_gt",
         "contact_canvas_path": PROJECT_DIR
-        / "03_Estimate_Contact"
+        / "00_Annotate_GT_Contact"
         / "output"
         / interaction_name
-        / "prompt"
+        / "assets"
         / "target_scene_crop.png",
         "contact_spec": PROJECT_DIR
-        / "03_Estimate_Contact"
+        / "00_Annotate_GT_Contact"
         / "output"
         / interaction_name
         / "contact_spec.json",
         "human_mesh_camera": PROJECT_DIR
         / "05_Optimize_Static_Scene"
-        / "output"
+        / output_mode
         / interaction_name
         / "meshes"
         / "frame_0000_camera.ply",
         "optimized_params": PROJECT_DIR
         / "05_Optimize_Static_Scene"
-        / "output"
+        / output_mode
         / interaction_name
         / "debug"
         / "params"
         / "optimized_frame_0000.pt",
         "output_root": SCRIPT_DIR
-        / "output"
+        / output_mode
         / interaction_name
         / "physical_plausibility",
         "smpl_folder": PROJECT_DIR.parent
@@ -753,7 +765,7 @@ def project_mask_to_depth_filtered_scene_faces(
     min_component_pixels: int,
     nearby_depth_m: float,
     max_component_gap_px: float,
-) -> tuple[np.ndarray, dict[str, Any]]:
+) -> tuple[np.ndarray, dict[str, Any], np.ndarray]:
     depth, _, pix_to_face = rasterize_depth_and_mask(
         scene_verts_camera,
         scene_faces_compact,
@@ -832,7 +844,7 @@ def project_mask_to_depth_filtered_scene_faces(
         "max_component_gap_px": float(max_gap),
         "components": component_summaries,
     }
-    return kept_faces, stats
+    return kept_faces, stats, kept_mask
 
 
 def expand_face_set_along_surface(
@@ -1093,7 +1105,7 @@ def build_dynamic_interaction_edges(
                 f"{scene_element}: contact mask is empty"
             )
             continue
-        seed_face_ids, projection_filter_stats = (
+        seed_face_ids, projection_filter_stats, projected_mask = (
             project_mask_to_depth_filtered_scene_faces(
                 contact_mask,
                 scene_verts_camera,
@@ -1166,6 +1178,7 @@ def build_dynamic_interaction_edges(
                 reduction=_get_reduction((moving_node, fixed_node)),
                 fixed_face_ids=expanded_face_ids,
                 fixed_vertex_ids=fixed_vertex_ids,
+                projected_mask=projected_mask,
             )
         )
 
@@ -1397,6 +1410,87 @@ def compute_interaction_non_collision_metrics(
     }
 
 
+def projected_mask_color(index: int) -> tuple[int, int, int]:
+    palette = (
+        (255, 0, 0),
+        (0, 170, 0),
+        (0, 80, 255),
+        (255, 140, 0),
+        (180, 0, 255),
+        (0, 190, 190),
+        (255, 0, 160),
+        (120, 220, 0),
+    )
+    return palette[index % len(palette)]
+
+
+def save_projected_contact_scene_ply(
+    output_root: Path,
+    scene_verts_camera: np.ndarray,
+    scene_faces_compact: np.ndarray,
+    edges: list[DynamicInteractionEdge],
+) -> tuple[Path, Path] | None:
+    if scene_faces_compact.shape[0] == 0:
+        raise ValueError("Cannot export projected contact scene with zero faces.")
+
+    face_colors = np.tile(
+        np.asarray([170, 170, 170, 255], dtype=np.uint8),
+        (scene_faces_compact.shape[0], 1),
+    )
+    legend: list[dict[str, Any]] = []
+
+    for edge_index, edge in enumerate(edges):
+        if edge.fixed_face_ids is None or edge.fixed_face_ids.size == 0:
+            continue
+        face_ids = np.unique(np.asarray(edge.fixed_face_ids, dtype=np.int64))
+        face_ids = face_ids[
+            (face_ids >= 0) & (face_ids < int(scene_faces_compact.shape[0]))
+        ]
+        if face_ids.size == 0:
+            continue
+
+        color_rgb = projected_mask_color(edge_index)
+        face_colors[face_ids] = np.asarray(
+            [color_rgb[0], color_rgb[1], color_rgb[2], 255],
+            dtype=np.uint8,
+        )
+
+        legend.append(
+            {
+                "node_a": edge.node_a.raw_node,
+                "node_b": edge.node_b.raw_node,
+                "moving_part": edge.moving_part_name,
+                "fixed_node": edge.fixed_node.raw_node,
+                "rgb": [int(value) for value in color_rgb],
+                "colored_faces": int(face_ids.size),
+            }
+        )
+
+    if not legend:
+        return None
+
+    ply_path = output_root / "projected_contact_scene.ply"
+    legend_path = output_root / "projected_contact_scene.json"
+    ensure_dir(ply_path.parent)
+    mesh = trimesh.Trimesh(
+        vertices=scene_verts_camera,
+        faces=scene_faces_compact,
+        process=False,
+    )
+    mesh.visual.face_colors = face_colors
+    mesh.export(str(ply_path))
+    save_json(
+        legend_path,
+        {
+            "ply_path": str(ply_path),
+            "coordinate_frame": "camera",
+            "base_rgb": [170, 170, 170],
+            "edges": legend,
+        },
+    )
+    return ply_path, legend_path
+
+
 def save_csv_rows(
     path: Path,
     rows: list[dict[str, Any]],
@@ -1413,12 +1507,13 @@ def save_csv_rows(
         writer.writerows(rows)
 
 
-def discover_optimized_interactions() -> list[str]:
-    output_root = PROJECT_DIR / "05_Optimize_Static_Scene" / "output"
+def discover_optimized_interactions(output_mode: str) -> list[str]:
+    output_root = PROJECT_DIR / "05_Optimize_Static_Scene" / output_mode
     if not output_root.is_dir():
         raise FileNotFoundError(f"Optimization output directory not found: {output_root}")
 
     interaction_names: list[str] = []
+    skipped_missing_eval_inputs: list[str] = []
     for interaction_dir in sorted(output_root.iterdir()):
         if not interaction_dir.is_dir():
             continue
@@ -1426,9 +1521,31 @@ def discover_optimized_interactions() -> list[str]:
             continue
         if not (interaction_dir / "debug" / "params" / "optimized_frame_0000.pt").exists():
             continue
+        defaults = build_default_paths(interaction_dir.name, output_mode)
+        missing_eval_inputs = [
+            path
+            for path in (
+                defaults["contact_masks_dir"],
+                defaults["contact_canvas_path"],
+                defaults["contact_spec"],
+            )
+            if not path.exists()
+        ]
+        if missing_eval_inputs:
+            skipped_missing_eval_inputs.append(interaction_dir.name)
+            continue
         interaction_names.append(interaction_dir.name)
+    if skipped_missing_eval_inputs:
+        print(
+            "Skipping optimized interaction(s) without default eval contact "
+            "inputs: "
+            + ", ".join(skipped_missing_eval_inputs)
+        )
     if not interaction_names:
-        raise RuntimeError(f"No optimized interactions found under {output_root}.")
+        raise RuntimeError(
+            "No evaluable optimized interactions found under "
+            f"{output_root} with default contact inputs."
+        )
     return interaction_names
 
 
@@ -1480,20 +1597,32 @@ def write_combined_metric_files(
     combined_csv_path = output_root / "physical_plausibility.csv"
     combined_json_path = output_root / "physical_plausibility.json"
     mean_ncs = float(np.mean([row["ncs"] for row in interaction_summaries]))
+    mean_min_contact = float(
+        np.mean([row["mean_min_contact_distance_m"] for row in interaction_summaries])
+    )
+    mean_max_contact = float(
+        np.mean([row["mean_max_contact_distance_m"] for row in interaction_summaries])
+    )
     mean_contact = float(
         np.mean([row["mean_contact_distance_m"] for row in interaction_summaries])
     )
     mean_penetration = float(
         np.mean([row["mean_penetration_m"] for row in interaction_summaries])
     )
+    mean_max_penetration = float(
+        np.mean([row["max_penetration_m"] for row in interaction_summaries])
+    )
     combined_rows = list(interaction_summaries)
     combined_rows.append(
         {
             "interaction_name": "__mean__",
             "num_edges": int(sum(int(row["num_edges"]) for row in interaction_summaries)),
+            "mean_min_contact_distance_m": mean_min_contact,
+            "mean_max_contact_distance_m": mean_max_contact,
             "mean_contact_distance_m": mean_contact,
             "ncs": mean_ncs,
             "mean_penetration_m": mean_penetration,
+            "max_penetration_m": mean_max_penetration,
         }
     )
     save_csv_rows(
@@ -1508,12 +1637,135 @@ def write_combined_metric_files(
             "aggregate": {
                 "num_interactions": int(len(interaction_summaries)),
                 "mean_ncs": mean_ncs,
+                "mean_of_mean_min_contact_distance_m": mean_min_contact,
+                "mean_of_mean_max_contact_distance_m": mean_max_contact,
                 "mean_of_mean_contact_distance_m": mean_contact,
                 "mean_penetration_m": mean_penetration,
+                "mean_max_penetration_m": mean_max_penetration,
             },
         },
     )
     return combined_csv_path, combined_json_path
+
+
+def interaction_sort_key(interaction_name: str) -> tuple[int, str]:
+    prefix = "interaction_"
+    if interaction_name.startswith(prefix):
+        suffix = interaction_name[len(prefix):]
+        if suffix.isdigit():
+            return int(suffix), interaction_name
+    return 10**9, interaction_name
+
+
+def summarize_metrics_json(
+    interaction_name: str,
+    metrics_json_path: Path,
+) -> dict[str, Any]:
+    rows = load_json(metrics_json_path)
+    if not isinstance(rows, list) or not rows:
+        raise ValueError(f"Expected non-empty metrics list in {metrics_json_path}")
+
+    contact_mins: list[float] = []
+    contact_maxes: list[float] = []
+    contact_means: list[float] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ValueError(f"Malformed metrics row in {metrics_json_path}")
+        contact = row.get("contact")
+        if not isinstance(contact, dict):
+            raise ValueError(f"Missing contact metrics in {metrics_json_path}")
+        contact_mins.append(float(contact["min_distance_m"]))
+        contact_maxes.append(float(contact["max_distance_m"]))
+        contact_means.append(float(contact["mean_distance_m"]))
+
+    first_collision = rows[0].get("collision")
+    if not isinstance(first_collision, dict):
+        raise ValueError(f"Missing collision metrics in {metrics_json_path}")
+
+    return {
+        "interaction_name": interaction_name,
+        "num_edges": int(len(rows)),
+        "mean_min_contact_distance_m": float(np.mean(contact_mins)),
+        "mean_max_contact_distance_m": float(np.mean(contact_maxes)),
+        "mean_contact_distance_m": float(np.mean(contact_means)),
+        "ncs": float(first_collision["ncs"]),
+        "mean_penetration_m": float(first_collision["mean_penetration_m"]),
+        "max_penetration_m": float(first_collision["max_penetration_m"]),
+    }
+
+
+def discover_completed_interaction_summaries(
+    output_base: Path,
+) -> list[dict[str, Any]]:
+    summaries: list[dict[str, Any]] = []
+    for metrics_json_path in sorted(
+        output_base.glob("interaction_*/physical_plausibility/metrics.json"),
+        key=lambda path: interaction_sort_key(path.parents[1].name),
+    ):
+        summaries.append(
+            summarize_metrics_json(
+                interaction_name=metrics_json_path.parents[1].name,
+                metrics_json_path=metrics_json_path,
+            )
+        )
+    if not summaries:
+        raise RuntimeError(
+            f"No per-interaction metrics found under {output_base}"
+        )
+    return summaries
+
+
+def resolve_single_interaction_output_paths(
+    args: argparse.Namespace,
+    interaction_name: str,
+) -> tuple[Path, Path | None]:
+    defaults = build_default_paths(interaction_name, args.output_mode)
+    if not args.update_combined:
+        return resolve_path(args.output_root, defaults["output_root"]), None
+
+    output_base = resolve_path(
+        args.output_root,
+        SCRIPT_DIR / args.output_mode,
+    )
+    return (
+        output_base / interaction_name / "physical_plausibility",
+        output_base,
+    )
+
+
+def update_combined_from_existing_metrics(output_base: Path) -> tuple[Path, Path]:
+    summaries = discover_completed_interaction_summaries(output_base)
+    combined_csv, combined_json = write_combined_metric_files(
+        output_root=ensure_dir(output_base),
+        interaction_summaries=summaries,
+    )
+    mean_ncs = float(np.mean([row["ncs"] for row in summaries]))
+    mean_min_contact = float(
+        np.mean([row["mean_min_contact_distance_m"] for row in summaries])
+    )
+    mean_max_contact = float(
+        np.mean([row["mean_max_contact_distance_m"] for row in summaries])
+    )
+    mean_contact = float(
+        np.mean([row["mean_contact_distance_m"] for row in summaries])
+    )
+    mean_penetration = float(
+        np.mean([row["mean_penetration_m"] for row in summaries])
+    )
+    mean_max_penetration = float(
+        np.mean([row["max_penetration_m"] for row in summaries])
+    )
+    print("\nUpdated combined metrics from existing per-interaction files")
+    print(f"  interactions={len(summaries)}")
+    print(f"  mean_ncs={mean_ncs:.6f}")
+    print(f"  mean_of_mean_min_contact_distance_m={mean_min_contact:.5f}m")
+    print(f"  mean_of_mean_max_contact_distance_m={mean_max_contact:.5f}m")
+    print(f"  mean_of_mean_contact_distance_m={mean_contact:.5f}m")
+    print(f"  mean_penetration_m={mean_penetration:.5f}m")
+    print(f"  mean_max_penetration_m={mean_max_penetration:.5f}m")
+    print(f"  csv={combined_csv}")
+    print(f"  json={combined_json}")
+    return combined_csv, combined_json
 
 
 def parse_args() -> argparse.Namespace:
@@ -1530,7 +1782,7 @@ def parse_args() -> argparse.Namespace:
         default=True,
         help=(
             "Evaluate every optimized interaction found under "
-            "05_Optimize_Static_Scene/output."
+            "the selected 05_Optimize_Static_Scene output folder."
         ),
     )
     parser.add_argument("--input_scene_json", type=str, default=None)
@@ -1545,6 +1797,27 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--human_mesh_camera", type=str, default=None)
     parser.add_argument("--optimized_params", type=str, default=None)
     parser.add_argument("--output_root", type=str, default=None)
+    parser.add_argument(
+        "--output_mode",
+        choices=("output", "output_round1"),
+        default="output",
+        help=(
+            "Choose the matching optimization/evaluation output set. "
+            "'output' uses 05_Optimize_Static_Scene/output and writes to "
+            "06_Evaluate_Interaction/output by default; 'output_round1' "
+            "uses/writes the output_round1 ablation folders."
+        ),
+    )
+    parser.add_argument(
+        "--update_combined",
+        action="store_true",
+        help=(
+            "In single-interaction mode, rewrite combined metrics from all "
+            "existing per-interaction metrics in the same output base after "
+            "the requested interaction finishes. With this flag, --output_root "
+            "is treated as the output base, not the exact metrics directory."
+        ),
+    )
     parser.add_argument("--smpl_param_key", type=str, default="smpl_params_incam")
     parser.add_argument("--device", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=0)
@@ -1576,7 +1849,7 @@ def evaluate_interaction(
     smplx_layer: Any,
     output_root: Path,
 ) -> dict[str, Any]:
-    defaults = build_default_paths(interaction_name)
+    defaults = build_default_paths(interaction_name, args.output_mode)
     input_scene_json_path = resolve_path(args.input_scene_json, defaults["input_scene_json"])
     human_pose_root = resolve_path(args.human_pose_root, defaults["human_pose_root"])
     sig_json_path = resolve_path(args.sig_json, defaults["sig_json"])
@@ -1699,6 +1972,16 @@ def evaluate_interaction(
             args.contact_projection_max_component_gap_px
         ),
     )
+    projected_scene_paths = save_projected_contact_scene_ply(
+        output_root=output_root,
+        scene_verts_camera=contact_scene_verts_camera,
+        scene_faces_compact=contact_scene_faces_render,
+        edges=interaction_edges,
+    )
+    if projected_scene_paths is not None:
+        projected_scene_path, legend_path = projected_scene_paths
+        print(f"Wrote projected contact scene PLY: {projected_scene_path}")
+        print(f"Wrote projected contact scene legend: {legend_path}")
 
     contact_rows = compute_contact_metrics(
         evaluated_vertices=evaluated_vertices,
@@ -1746,13 +2029,18 @@ def evaluate_interaction(
         f"max_penetration={interaction_metrics['max_penetration_m']:.5f}m"
     )
     print(f"\nDone. Evaluation outputs saved to: {output_root}")
+    mean_min_contact = float(np.mean([row["min_distance_m"] for row in contact_rows]))
+    mean_max_contact = float(np.mean([row["max_distance_m"] for row in contact_rows]))
     mean_contact = float(np.mean([row["mean_distance_m"] for row in contact_rows]))
     return {
         "interaction_name": interaction_name,
         "num_edges": int(len(contact_rows)),
+        "mean_min_contact_distance_m": mean_min_contact,
+        "mean_max_contact_distance_m": mean_max_contact,
         "mean_contact_distance_m": mean_contact,
         "ncs": interaction_metrics["ncs"],
         "mean_penetration_m": interaction_metrics["mean_penetration_m"],
+        "max_penetration_m": interaction_metrics["max_penetration_m"],
     }
 
 
@@ -1780,14 +2068,14 @@ def main() -> None:
     all_mode = bool(args.all_interactions) or normalize_label(args.interaction_name) == "all"
     if all_mode:
         _ensure_all_mode_compatible_args(args)
-        interaction_names = discover_optimized_interactions()
-        output_base = resolve_path(args.output_root, SCRIPT_DIR / "output")
+        interaction_names = discover_optimized_interactions(args.output_mode)
+        output_base = resolve_path(args.output_root, SCRIPT_DIR / args.output_mode)
     else:
         interaction_names = [args.interaction_name]
         output_base = None
 
     device = parse_device(args.device)
-    smpl_defaults = build_default_paths(interaction_names[0])
+    smpl_defaults = build_default_paths(interaction_names[0], args.output_mode)
     smpl_folder = resolve_path(args.smpl_folder, smpl_defaults["smpl_folder"])
     smplx_layer = build_smplx_layer(smpl_folder, device)
 
@@ -1798,8 +2086,10 @@ def main() -> None:
                 output_base / interaction_name / "physical_plausibility"
             )
         else:
-            defaults = build_default_paths(interaction_name)
-            interaction_output_root = resolve_path(args.output_root, defaults["output_root"])
+            interaction_output_root, output_base = resolve_single_interaction_output_paths(
+                args,
+                interaction_name,
+            )
         summaries.append(
             evaluate_interaction(
                 args=args,
@@ -1816,15 +2106,31 @@ def main() -> None:
             interaction_summaries=summaries,
         )
         mean_ncs = float(np.mean([row["ncs"] for row in summaries]))
+        mean_min_contact = float(
+            np.mean([row["mean_min_contact_distance_m"] for row in summaries])
+        )
+        mean_max_contact = float(
+            np.mean([row["mean_max_contact_distance_m"] for row in summaries])
+        )
         mean_contact = float(np.mean([row["mean_contact_distance_m"] for row in summaries]))
         mean_penetration = float(np.mean([row["mean_penetration_m"] for row in summaries]))
+        mean_max_penetration = float(
+            np.mean([row["max_penetration_m"] for row in summaries])
+        )
         print("\nCombined metrics")
         print(f"  interactions={len(summaries)}")
         print(f"  mean_ncs={mean_ncs:.6f}")
+        print(f"  mean_of_mean_min_contact_distance_m={mean_min_contact:.5f}m")
+        print(f"  mean_of_mean_max_contact_distance_m={mean_max_contact:.5f}m")
         print(f"  mean_of_mean_contact_distance_m={mean_contact:.5f}m")
         print(f"  mean_penetration_m={mean_penetration:.5f}m")
+        print(f"  mean_max_penetration_m={mean_max_penetration:.5f}m")
         print(f"  csv={combined_csv}")
         print(f"  json={combined_json}")
+    elif args.update_combined:
+        if output_base is None:
+            raise RuntimeError("Cannot update combined metrics without an output base.")
+        update_combined_from_existing_metrics(output_base)
 
 
 if __name__ == "__main__":

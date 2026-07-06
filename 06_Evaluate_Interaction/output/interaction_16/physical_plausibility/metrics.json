@@ -1,0 +1,44 @@
+[
+  {
+    "node_a": "human.hips",
+    "node_b": "wooden shelf",
+    "contact": {
+      "min_distance_m": 0.0020251756068319082,
+      "max_distance_m": 0.10155678540468216,
+      "mean_distance_m": 0.03678159788250923
+    },
+    "collision": {
+      "ncs": 0.9997257142857143,
+      "mean_penetration_m": 0.0031618920620530844,
+      "max_penetration_m": 0.015130291692912579
+    }
+  },
+  {
+    "node_a": "human.left_hand",
+    "node_b": "wooden shelf",
+    "contact": {
+      "min_distance_m": 0.0020034934859722853,
+      "max_distance_m": 0.14705781638622284,
+      "mean_distance_m": 0.05546298250555992
+    },
+    "collision": {
+      "ncs": 0.9997257142857143,
+      "mean_penetration_m": 0.0031618920620530844,
+      "max_penetration_m": 0.015130291692912579
+    }
+  },
+  {
+    "node_a": "human.right_hand",
+    "node_b": "wooden shelf",
+    "contact": {
+      "min_distance_m": 0.0016578021459281445,
+      "max_distance_m": 0.12417392432689667,
+      "mean_distance_m": 0.038964372128248215
+    },
+    "collision": {
+      "ncs": 0.9997257142857143,
+      "mean_penetration_m": 0.0031618920620530844,
+      "max_penetration_m": 0.015130291692912579
+    }
+  }
+]

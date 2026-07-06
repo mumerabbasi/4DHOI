@@ -3,42 +3,42 @@
     "node_a": "human.right_hand",
     "node_b": "curtain",
     "contact": {
-      "min_distance_m": 0.000780836446210742,
-      "max_distance_m": 0.10196026414632797,
-      "mean_distance_m": 0.025995925068855286
+      "min_distance_m": 0.0009313510381616652,
+      "max_distance_m": 0.10085910558700562,
+      "mean_distance_m": 0.025209125131368637
     },
     "collision": {
-      "ncs": 0.9992828571428571,
-      "mean_penetration_m": 0.004114477429538965,
-      "max_penetration_m": 0.012521983124315739
+      "ncs": 0.9998642857142858,
+      "mean_penetration_m": 0.0032144133001565933,
+      "max_penetration_m": 0.009734813123941422
     }
   },
   {
     "node_a": "human.left_foot",
     "node_b": "floor",
     "contact": {
-      "min_distance_m": 0.005121422465890646,
-      "max_distance_m": 0.039045970886945724,
-      "mean_distance_m": 0.01628972962498665
+      "min_distance_m": 0.003950625192373991,
+      "max_distance_m": 0.04020256549119949,
+      "mean_distance_m": 0.017214547842741013
     },
     "collision": {
-      "ncs": 0.9992828571428571,
-      "mean_penetration_m": 0.004114477429538965,
-      "max_penetration_m": 0.012521983124315739
+      "ncs": 0.9998642857142858,
+      "mean_penetration_m": 0.0032144133001565933,
+      "max_penetration_m": 0.009734813123941422
     }
   },
   {
     "node_a": "human.right_foot",
     "node_b": "floor",
     "contact": {
-      "min_distance_m": 0.0012199507327750325,
-      "max_distance_m": 0.038542717695236206,
-      "mean_distance_m": 0.016646981239318848
+      "min_distance_m": 0.0013650641776621342,
+      "max_distance_m": 0.03734230995178223,
+      "mean_distance_m": 0.01714840531349182
     },
     "collision": {
-      "ncs": 0.9992828571428571,
-      "mean_penetration_m": 0.004114477429538965,
-      "max_penetration_m": 0.012521983124315739
+      "ncs": 0.9998642857142858,
+      "mean_penetration_m": 0.0032144133001565933,
+      "max_penetration_m": 0.009734813123941422
     }
   }
 ]

@@ -1818,7 +1818,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--all_interactions",
         action=argparse.BooleanOptionalAction,
-        default=False,
+        default=True,
     )
     parser.add_argument("--input_scene_json", type=str, default=None)
     parser.add_argument("--sig_json", type=str, default=None)
