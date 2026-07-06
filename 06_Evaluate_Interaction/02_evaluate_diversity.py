@@ -146,13 +146,24 @@ def parse_args() -> argparse.Namespace:
         )
     )
     parser.add_argument(
+        "--output_mode",
+        choices=("output", "output_round1"),
+        default="output",
+        help=(
+            "Choose the matching optimization/evaluation output set. "
+            "'output' uses 05_Optimize_Static_Scene/output and writes to "
+            "06_Evaluate_Interaction/output by default; 'output_round1' "
+            "uses/writes the output_round1 ablation folders."
+        ),
+    )
+    parser.add_argument(
         "--optimization_output_root",
         type=str,
         default=None,
-        help="Defaults to 05_Optimize_Static_Scene/output.",
+        help="Defaults to 05_Optimize_Static_Scene/<output_mode>.",
     )
     parser.add_argument("--output_root", type=str, default=None)
-    parser.add_argument("--num_clusters", type=int, default=20)
+    parser.add_argument("--num_clusters", type=int, default=15)
     parser.add_argument("--kmeans_iters", type=int, default=100)
     parser.add_argument(
         "--no_standardize",
@@ -166,9 +177,11 @@ def main() -> None:
     args = parse_args()
     optimization_output_root = resolve_path(
         args.optimization_output_root,
-        PROJECT_DIR / "05_Optimize_Static_Scene" / "output",
+        PROJECT_DIR / "05_Optimize_Static_Scene" / args.output_mode,
     )
-    output_root = ensure_dir(resolve_path(args.output_root, SCRIPT_DIR / "output"))
+    output_root = ensure_dir(
+        resolve_path(args.output_root, SCRIPT_DIR / args.output_mode)
+    )
 
     param_items = discover_optimized_param_paths(optimization_output_root)
     interaction_names = [name for name, _path in param_items]

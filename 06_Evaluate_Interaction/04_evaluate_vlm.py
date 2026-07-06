@@ -65,8 +65,11 @@ def load_text(path: Path) -> str:
     return text
 
 
-def build_default_paths(interaction_name: str) -> dict[str, Path]:
-    interaction_output = SCRIPT_DIR / "output" / interaction_name
+def build_default_paths(
+    interaction_name: str,
+    output_mode: str = "output",
+) -> dict[str, Path]:
+    interaction_output = SCRIPT_DIR / output_mode / interaction_name
     return {
         "input_scene_json": PROJECT_DIR
         / "01_Generate_SIG"
@@ -86,8 +89,8 @@ def build_default_paths(interaction_name: str) -> dict[str, Path]:
     }
 
 
-def discover_interactions() -> list[str]:
-    output_root = PROJECT_DIR / "05_Optimize_Static_Scene" / "output"
+def discover_interactions(output_mode: str) -> list[str]:
+    output_root = PROJECT_DIR / "05_Optimize_Static_Scene" / output_mode
     names = [
         path.name
         for path in sorted(output_root.glob("interaction_*"))
@@ -383,7 +386,7 @@ def evaluate_interaction_vlm(
     system_prompt: str,
     system_prompt_path: Path,
 ) -> dict[str, Any]:
-    defaults = build_default_paths(interaction_name)
+    defaults = build_default_paths(interaction_name, args.output_mode)
     input_scene_json_path = resolve_path(
         args.input_scene_json,
         defaults["input_scene_json"],
@@ -470,6 +473,17 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--interaction_name", type=str, default="interaction_01")
     parser.add_argument(
+        "--output_mode",
+        choices=("output", "output_round1"),
+        default="output",
+        help=(
+            "Choose the matching optimization/evaluation output set. "
+            "'output' uses 05_Optimize_Static_Scene/output and reads/writes "
+            "06_Evaluate_Interaction/output by default; 'output_round1' "
+            "uses/reads/writes the output_round1 ablation folders."
+        ),
+    )
+    parser.add_argument(
         "--all_interactions",
         action=argparse.BooleanOptionalAction,
         default=False,
@@ -511,7 +525,7 @@ def main() -> None:
                 "--all_interactions cannot be combined with per-interaction "
                 "input/render/output overrides."
             )
-        interaction_names = discover_interactions()
+        interaction_names = discover_interactions(args.output_mode)
     else:
         interaction_names = [args.interaction_name]
 
@@ -526,7 +540,7 @@ def main() -> None:
     ]
 
     if all_mode:
-        output_root = SCRIPT_DIR / "output"
+        output_root = SCRIPT_DIR / args.output_mode
         save_csv_rows(output_root / "vlm.csv", rows, CSV_FIELDNAMES)
         overall_scores = [
             float(row["overall_score"])

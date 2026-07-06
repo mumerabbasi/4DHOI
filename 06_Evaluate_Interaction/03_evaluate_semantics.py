@@ -52,20 +52,23 @@ def save_csv_rows(
         writer.writerows(rows)
 
 
-def build_default_paths(interaction_name: str) -> dict[str, Path]:
+def build_default_paths(
+    interaction_name: str,
+    output_mode: str = "output",
+) -> dict[str, Path]:
     return {
         "input_scene_json": PROJECT_DIR
         / "01_Generate_SIG"
         / "input_prompts"
         / interaction_name
         / "input_scene.json",
-        "render_root": SCRIPT_DIR / "output" / interaction_name / "semantics",
-        "output_root": SCRIPT_DIR / "output" / interaction_name / "semantics",
+        "render_root": SCRIPT_DIR / output_mode / interaction_name / "semantics",
+        "output_root": SCRIPT_DIR / output_mode / interaction_name / "semantics",
     }
 
 
-def discover_interactions() -> list[str]:
-    output_root = PROJECT_DIR / "05_Optimize_Static_Scene" / "output"
+def discover_interactions(output_mode: str) -> list[str]:
+    output_root = PROJECT_DIR / "05_Optimize_Static_Scene" / output_mode
     names = [
         path.name
         for path in sorted(output_root.glob("interaction_*"))
@@ -155,7 +158,7 @@ def evaluate_interaction_semantics(
     processor: CLIPProcessor,
     device: torch.device,
 ) -> dict[str, Any]:
-    defaults = build_default_paths(interaction_name)
+    defaults = build_default_paths(interaction_name, args.output_mode)
     input_scene_json_path = resolve_path(
         args.input_scene_json,
         defaults["input_scene_json"],
@@ -209,6 +212,17 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--interaction_name", type=str, default="interaction_01")
     parser.add_argument(
+        "--output_mode",
+        choices=("output", "output_round1"),
+        default="output",
+        help=(
+            "Choose the matching optimization/evaluation output set. "
+            "'output' uses 05_Optimize_Static_Scene/output and reads/writes "
+            "06_Evaluate_Interaction/output by default; 'output_round1' "
+            "uses/reads/writes the output_round1 ablation folders."
+        ),
+    )
+    parser.add_argument(
         "--all_interactions",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -233,8 +247,8 @@ def main() -> None:
                 "--all_interactions cannot be combined with per-interaction "
                 "input/render/output overrides."
             )
-        interaction_names = discover_interactions()
-        combined_output_root = ensure_dir(SCRIPT_DIR / "output")
+        interaction_names = discover_interactions(args.output_mode)
+        combined_output_root = ensure_dir(SCRIPT_DIR / args.output_mode)
     else:
         interaction_names = [args.interaction_name]
         combined_output_root = None

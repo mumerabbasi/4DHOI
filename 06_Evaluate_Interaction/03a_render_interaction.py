@@ -66,7 +66,10 @@ def build_blender_env(gpu_index: str | None) -> dict[str, str]:
     return env
 
 
-def build_default_paths(interaction_name: str) -> dict[str, Path]:
+def build_default_paths(
+    interaction_name: str,
+    output_mode: str = "output",
+) -> dict[str, Path]:
     return {
         "input_scene_json": PROJECT_DIR
         / "01_Generate_SIG"
@@ -84,7 +87,7 @@ def build_default_paths(interaction_name: str) -> dict[str, Path]:
         / "smplx_vert_segmentation.json",
         "human_mesh_world": PROJECT_DIR
         / "05_Optimize_Static_Scene"
-        / "output"
+        / output_mode
         / interaction_name
         / "meshes"
         / "frame_0000_world.ply",
@@ -99,7 +102,7 @@ def build_default_paths(interaction_name: str) -> dict[str, Path]:
         / interaction_name
         / "assets"
         / "target_scene_crop.png",
-        "output_root": SCRIPT_DIR / "output" / interaction_name / "semantics",
+        "output_root": SCRIPT_DIR / output_mode / interaction_name / "semantics",
     }
 
 
@@ -1502,7 +1505,7 @@ def render_interaction(
     interaction_name: str,
     args: argparse.Namespace,
 ) -> dict[str, Any]:
-    defaults = build_default_paths(interaction_name)
+    defaults = build_default_paths(interaction_name, args.output_mode)
     input_scene_json_path = resolve_path(args.input_scene_json, defaults["input_scene_json"])
     sig_json_path = resolve_path(args.sig_json, defaults["sig_json"])
     smpl_seg_json_path = resolve_path(args.smpl_seg_json, defaults["smpl_seg_json"])
@@ -1795,8 +1798,8 @@ def render_interaction(
     }
 
 
-def discover_interactions() -> list[str]:
-    output_root = PROJECT_DIR / "05_Optimize_Static_Scene" / "output"
+def discover_interactions(output_mode: str) -> list[str]:
+    output_root = PROJECT_DIR / "05_Optimize_Static_Scene" / output_mode
     names = [
         path.name
         for path in sorted(output_root.glob("interaction_*"))
@@ -1815,6 +1818,17 @@ def parse_args() -> argparse.Namespace:
         )
     )
     parser.add_argument("--interaction_name", type=str, default="interaction_01")
+    parser.add_argument(
+        "--output_mode",
+        choices=("output", "output_round1"),
+        default="output",
+        help=(
+            "Choose the matching optimization/evaluation output set. "
+            "'output' uses 05_Optimize_Static_Scene/output and writes to "
+            "06_Evaluate_Interaction/output by default; 'output_round1' "
+            "uses/writes the output_round1 ablation folders."
+        ),
+    )
     parser.add_argument(
         "--all_interactions",
         action=argparse.BooleanOptionalAction,
@@ -1880,7 +1894,7 @@ def main() -> None:
                 "--all_interactions cannot be combined with per-interaction "
                 "input/output overrides."
             )
-        interaction_names = discover_interactions()
+        interaction_names = discover_interactions(args.output_mode)
     else:
         interaction_names = [args.interaction_name]
 
@@ -1889,7 +1903,7 @@ def main() -> None:
         records.append(render_interaction(interaction_name, args))
 
     if len(records) > 1:
-        save_json(SCRIPT_DIR / "output" / "semantics_renders.json", records)
+        save_json(SCRIPT_DIR / args.output_mode / "semantics_renders.json", records)
 
 
 if __name__ == "__main__":
