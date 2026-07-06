@@ -296,6 +296,32 @@ def iter_interaction_human_parts(sig_payload: dict[str, Any]) -> list[str]:
     return parts
 
 
+def iter_interaction_human_parts_by_scene(
+    sig_payload: dict[str, Any],
+    scene_elements: set[str],
+) -> list[str]:
+    target_label = resolve_sig_target_label(sig_payload)
+    parts: list[str] = []
+    seen: set[str] = set()
+    interactions = sig_payload.get("interaction_edges", [])
+    if not isinstance(interactions, list):
+        return parts
+    for interaction in interactions:
+        if not isinstance(interaction, dict):
+            continue
+        scene_element = normalize_scene_element(
+            str(interaction.get("scene_element", "")),
+            target_label,
+        )
+        if scene_element not in scene_elements:
+            continue
+        human_part = normalize_label(str(interaction.get("human_part", "")))
+        if human_part and human_part not in seen:
+            parts.append(human_part)
+            seen.add(human_part)
+    return parts
+
+
 def load_smpl_body_segments(seg_path: Path) -> tuple[int, dict[str, np.ndarray], set[str]]:
     payload = load_json(seg_path)
     raw_segments = payload.get("segments")
@@ -322,14 +348,13 @@ def load_smpl_body_segments(seg_path: Path) -> tuple[int, dict[str, np.ndarray],
     return vertex_count, segments, contact_ids
 
 
-def build_interaction_part_vertices(
+def build_interaction_part_vertex_ids(
     sig_payload: dict[str, Any],
     smpl_segments: dict[str, np.ndarray],
     contact_segment_ids: set[str],
-    human_vertices_world: np.ndarray,
 ) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
     part_names = iter_interaction_human_parts(sig_payload)
-    part_vertices: dict[str, np.ndarray] = {}
+    part_vertex_ids: dict[str, np.ndarray] = {}
     part_records: list[dict[str, Any]] = []
     missing_parts: list[str] = []
     for part_name in part_names:
@@ -339,7 +364,7 @@ def build_interaction_part_vertices(
             missing_parts.append(part_name)
             continue
         vertex_ids = np.asarray(smpl_segments[segment_id], dtype=np.int64)
-        part_vertices[part_name] = human_vertices_world[vertex_ids].astype(np.float32)
+        part_vertex_ids[part_name] = vertex_ids
         part_records.append(
             {
                 "part": part_name,
@@ -348,7 +373,7 @@ def build_interaction_part_vertices(
             }
         )
 
-    if not part_vertices:
+    if not part_vertex_ids:
         return {}, {
             "available": False,
             "human_parts": part_names,
@@ -357,7 +382,7 @@ def build_interaction_part_vertices(
             "missing_human_parts": missing_parts,
         }
 
-    return part_vertices, {
+    return part_vertex_ids, {
         "available": True,
         "human_parts": part_names,
         "parts": part_records,
@@ -366,6 +391,23 @@ def build_interaction_part_vertices(
         ),
         "missing_human_parts": missing_parts,
     }
+
+
+def build_interaction_part_vertices(
+    sig_payload: dict[str, Any],
+    smpl_segments: dict[str, np.ndarray],
+    contact_segment_ids: set[str],
+    human_vertices_world: np.ndarray,
+) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
+    part_vertex_ids, metadata = build_interaction_part_vertex_ids(
+        sig_payload=sig_payload,
+        smpl_segments=smpl_segments,
+        contact_segment_ids=contact_segment_ids,
+    )
+    part_vertices: dict[str, np.ndarray] = {}
+    for part_name, vertex_ids in part_vertex_ids.items():
+        part_vertices[part_name] = human_vertices_world[vertex_ids].astype(np.float32)
+    return part_vertices, metadata
 
 
 def transform_world_to_camera(
@@ -660,6 +702,34 @@ def human_focus_point(human_vertices_world: np.ndarray) -> np.ndarray:
     return focus.astype(np.float32)
 
 
+def interaction_focus_point(
+    sig_payload: dict[str, Any],
+    human_vertices_world: np.ndarray,
+    contact_part_vertices_world: dict[str, np.ndarray],
+) -> np.ndarray:
+    body_focus = human_focus_point(human_vertices_world)
+    if not contact_part_vertices_world:
+        return body_focus
+
+    preferred_parts = iter_interaction_human_parts_by_scene(
+        sig_payload,
+        scene_elements={"target_object"},
+    )
+    preferred_vertices = [
+        contact_part_vertices_world[part_name]
+        for part_name in preferred_parts
+        if part_name in contact_part_vertices_world
+    ]
+    if not preferred_vertices:
+        preferred_vertices = list(contact_part_vertices_world.values())
+    contact_focus = np.concatenate(preferred_vertices, axis=0).mean(axis=0)
+    focus = (0.58 * body_focus + 0.42 * contact_focus).astype(np.float32)
+    vmin = human_vertices_world.min(axis=0)
+    vmax = human_vertices_world.max(axis=0)
+    focus[2] = float(np.clip(focus[2], vmin[2] + 0.22, vmax[2] - 0.12))
+    return focus
+
+
 def project_camera_points_to_image(
     points_camera: np.ndarray,
     intrinsics: np.ndarray,
@@ -680,6 +750,8 @@ def make_scene_depth_buffer(
     height: int,
     max_depth_m: float,
     depth_width: int,
+    depth_sample_spacing_m: float = 0.0,
+    max_splat_radius_px: int = 0,
 ) -> tuple[np.ndarray, float]:
     scale = min(1.0, float(depth_width) / float(width))
     depth_h = max(1, int(round(float(height) * scale)))
@@ -710,6 +782,56 @@ def make_scene_depth_buffer(
     np.minimum.at(depth, (vi, ui), z[valid].astype(np.float32))
 
     finite = np.isfinite(depth)
+    if np.any(finite) and depth_sample_spacing_m > 0.0 and max_splat_radius_px > 0:
+        dense_depth = np.full_like(depth, np.inf)
+        sentinel = np.float32(float(max_depth_m) + 1.0)
+        focal = max(float(intrinsics[0, 0]), float(intrinsics[1, 1]))
+        bin_edges = np.asarray(
+            [
+                0.01,
+                0.35,
+                0.55,
+                0.85,
+                1.25,
+                1.75,
+                2.50,
+                3.50,
+                5.00,
+                7.50,
+                10.00,
+                float(max_depth_m),
+            ],
+            dtype=np.float32,
+        )
+        bin_edges = np.unique(
+            np.clip(bin_edges, 0.01, float(max_depth_m)).astype(np.float32)
+        )
+        if bin_edges[-1] < float(max_depth_m):
+            bin_edges = np.concatenate(
+                [bin_edges, np.asarray([float(max_depth_m)], dtype=np.float32)]
+            )
+        for z_min, z_max in zip(bin_edges[:-1], bin_edges[1:]):
+            bin_mask = finite & (depth >= float(z_min)) & (depth < float(z_max))
+            if not np.any(bin_mask):
+                continue
+            radius = int(
+                np.ceil(
+                    float(depth_sample_spacing_m)
+                    * focal
+                    * scale
+                    / max(float(z_min), 0.08)
+                )
+            )
+            radius = int(np.clip(radius, 1, int(max_splat_radius_px)))
+            kernel = np.ones((radius * 2 + 1, radius * 2 + 1), dtype=np.uint8)
+            depth_for_bin = np.where(bin_mask, depth, sentinel).astype(np.float32)
+            eroded = cv2.erode(depth_for_bin, kernel)
+            eroded[eroded >= sentinel] = np.inf
+            dense_depth = np.minimum(dense_depth, eroded)
+        if np.any(np.isfinite(dense_depth)):
+            depth = dense_depth
+            finite = np.isfinite(depth)
+
     if np.any(finite):
         filled = np.where(finite, depth, np.float32(max_depth_m))
         depth = cv2.erode(filled, np.ones((5, 5), dtype=np.uint8))
@@ -906,9 +1028,14 @@ def evaluate_render_view(
     max_human_center_offset: float,
     min_human_bbox_fill: float,
     max_human_bbox_fill: float,
+    min_interaction_part_visible_fraction: float,
     min_contact_part_visible_fraction: float,
     visibility_depth_width: int,
     visibility_depth_tolerance_m: float,
+    scene_depth_sample_spacing_m: float,
+    scene_depth_max_splat_radius_px: int,
+    human_depth_sample_spacing_m: float,
+    human_depth_max_splat_radius_px: int,
     max_depth_m: float,
 ) -> dict[str, Any]:
     camera_center = camera_center_from_extrinsics(
@@ -925,6 +1052,11 @@ def evaluate_render_view(
         height=image_height,
         max_depth_m=max_depth_m,
         depth_width=visibility_depth_width,
+        depth_sample_spacing_m=scene_depth_sample_spacing_m,
+        max_splat_radius_px=scene_depth_max_splat_radius_px,
+    )
+    scene_depth_finite_fraction = float(
+        np.count_nonzero(np.isfinite(scene_depth)) / max(scene_depth.size, 1)
     )
     human_depth, _ = make_scene_depth_buffer(
         scene_depth_points_world=human_vertices_world,
@@ -935,6 +1067,8 @@ def evaluate_render_view(
         height=image_height,
         max_depth_m=max_depth_m,
         depth_width=visibility_depth_width,
+        depth_sample_spacing_m=human_depth_sample_spacing_m,
+        max_splat_radius_px=human_depth_max_splat_radius_px,
     )
     human_visible_fraction = point_visibility_fraction_from_depth(
         human_vertices_world,
@@ -957,8 +1091,32 @@ def evaluate_render_view(
         image_height,
     )
     contact_part_visible_fractions: dict[str, float] = {}
+    contact_part_in_frame_fractions: dict[str, float] = {}
+    contact_part_scene_visible_fractions: dict[str, float] = {}
+    contact_part_self_visible_fractions: dict[str, float] = {}
     for part_name, vertices in contact_part_vertices_world.items():
-        contact_part_visible_fractions[part_name] = point_visibility_fraction_from_depth(
+        part_framing_metrics = projection_framing_metrics(
+            vertices,
+            rotation_world_to_camera,
+            translation_world_to_camera,
+            intrinsics,
+            width,
+            image_height,
+        )
+        part_in_frame_fraction = float(part_framing_metrics["in_frame_fraction"])
+        scene_visible_fraction = point_visibility_fraction_from_depth(
+            vertices,
+            rotation_world_to_camera,
+            translation_world_to_camera,
+            intrinsics,
+            width,
+            image_height,
+            scene_depth=scene_depth,
+            depth_scale=depth_scale,
+            depth_tolerance_m=visibility_depth_tolerance_m,
+            require_scene_depth=False,
+        )
+        self_visible_fraction = point_visibility_fraction_from_depth(
             vertices,
             rotation_world_to_camera,
             translation_world_to_camera,
@@ -972,6 +1130,17 @@ def evaluate_render_view(
             occluder_depth=human_depth,
             occluder_depth_tolerance_m=visibility_depth_tolerance_m,
             require_occluder_depth=True,
+        )
+        contact_part_in_frame_fractions[part_name] = part_in_frame_fraction
+        contact_part_scene_visible_fractions[part_name] = scene_visible_fraction
+        contact_part_self_visible_fractions[part_name] = self_visible_fraction
+        contact_part_visible_fractions[part_name] = min(
+            part_in_frame_fraction,
+            max(
+                self_visible_fraction,
+                scene_visible_fraction,
+                0.35 * part_in_frame_fraction,
+            ),
         )
     if contact_part_visible_fractions:
         interaction_part_visible_fraction = float(
@@ -992,6 +1161,14 @@ def evaluate_render_view(
         and framing_metrics["center_offset"] <= float(max_human_center_offset)
         and framing_metrics["bbox_fill"] >= float(min_human_bbox_fill)
         and framing_metrics["bbox_fill"] <= float(max_human_bbox_fill)
+        and interaction_part_visible_fraction
+        >= float(min_interaction_part_visible_fraction)
+    )
+    renderable = (
+        human_visible_fraction >= 0.50
+        and framing_metrics["in_frame_fraction"] >= 0.75
+        and framing_metrics["bbox_fill"] >= 0.20
+        and framing_metrics["center_offset"] <= 0.45
     )
     relaxed_valid = (
         nearest_distance >= max(0.05, float(min_camera_scene_distance_m) - 0.05)
@@ -1001,6 +1178,9 @@ def evaluate_render_view(
         and framing_metrics["center_offset"] <= float(max_human_center_offset) + 0.12
         and framing_metrics["bbox_fill"] >= max(0.20, float(min_human_bbox_fill) * 0.70)
         and framing_metrics["bbox_fill"] <= float(max_human_bbox_fill) + 0.25
+        and interaction_part_visible_fraction
+        >= max(0.12, float(min_interaction_part_visible_fraction) * 0.50)
+        and renderable
     )
     center_quality = 1.0 - min(
         framing_metrics["center_offset"] / max(float(max_human_center_offset), 1e-6),
@@ -1024,11 +1204,11 @@ def evaluate_render_view(
         else 1.0
     )
     quality = (
-        0.35 * human_visible_fraction
-        + 0.30 * framing_metrics["in_frame_fraction"]
-        + 0.20 * center_quality
-        + 0.10 * fill_quality
-        + 0.05 * contact_quality
+        0.28 * human_visible_fraction
+        + 0.22 * framing_metrics["in_frame_fraction"]
+        + 0.18 * center_quality
+        + 0.12 * fill_quality
+        + 0.20 * contact_quality
     )
     return {
         "label": label,
@@ -1046,11 +1226,16 @@ def evaluate_render_view(
         "human_in_frame_fraction": float(framing_metrics["in_frame_fraction"]),
         "human_center_offset": float(framing_metrics["center_offset"]),
         "human_bbox_fill": float(framing_metrics["bbox_fill"]),
+        "scene_depth_finite_fraction": scene_depth_finite_fraction,
         "interaction_part_visible_fraction": interaction_part_visible_fraction,
         "interaction_part_filter_available": bool(contact_part_visible_fractions),
         "contact_part_visible_fractions": contact_part_visible_fractions,
+        "contact_part_in_frame_fractions": contact_part_in_frame_fractions,
+        "contact_part_scene_visible_fractions": contact_part_scene_visible_fractions,
+        "contact_part_self_visible_fractions": contact_part_self_visible_fractions,
         "covered_contact_parts": covered_contact_parts,
         "quality": float(quality),
+        "renderable": bool(renderable),
         "valid": bool(valid),
         "relaxed_valid": bool(relaxed_valid),
     }
@@ -1060,12 +1245,17 @@ def select_synthetic_views_for_coverage(
     candidates: list[dict[str, Any]],
     initial_views: list[dict[str, Any]],
     focus: np.ndarray,
-    num_views: int,
+    min_num_views: int,
+    max_num_views: int,
     contact_part_names: list[str],
     min_contact_part_visible_fraction: float,
+    min_view_angular_separation_deg: float,
     allow_relaxed: bool,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     target_parts = set(contact_part_names)
+    min_view_angle_rad = np.deg2rad(float(min_view_angular_separation_deg))
+    min_count = max(0, int(min_num_views))
+    max_count = max(min_count, int(max_num_views))
 
     def greedy(allowed_candidates: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], set[str]]:
         selected: list[dict[str, Any]] = []
@@ -1080,8 +1270,10 @@ def select_synthetic_views_for_coverage(
             for view in initial_views
             if float(np.linalg.norm(view["camera_center_world"] - focus)) > 1e-6
         ]
-        while len(selected) < int(num_views) and available:
+        while len(selected) < max_count and available:
             uncovered = target_parts - covered
+            if len(selected) >= min_count and not uncovered:
+                break
 
             def candidate_score(candidate: dict[str, Any]) -> float:
                 candidate_covered = set(
@@ -1106,12 +1298,21 @@ def select_synthetic_views_for_coverage(
                         for selected_dir in selected_dirs
                     )
                 else:
-                    diversity = 0.0
+                    diversity = float(np.pi)
+                duplicate_penalty = (
+                    50.0
+                    if selected_dirs
+                    and diversity < min_view_angle_rad
+                    and not new_parts
+                    else 0.0
+                )
                 return (
                     100.0 * len(new_parts)
-                    + 10.0 * uncovered_fraction_sum
-                    + 2.0 * float(candidate["quality"])
-                    + 0.15 * diversity
+                    + 28.0 * uncovered_fraction_sum
+                    + 14.0 * float(candidate["interaction_part_visible_fraction"])
+                    + 6.0 * float(candidate["quality"])
+                    + 2.5 * diversity
+                    - duplicate_penalty
                 )
 
             best = max(available, key=candidate_score)
@@ -1123,41 +1324,81 @@ def select_synthetic_views_for_coverage(
             available = [candidate for candidate in available if candidate is not best]
         return selected, covered
 
-    strict_candidates = [candidate for candidate in candidates if candidate["valid"]]
+    strict_candidates = [
+        candidate
+        for candidate in candidates
+        if candidate["valid"] and candidate["renderable"]
+    ]
     selected, covered = greedy(strict_candidates)
     coverage_relaxed = False
-    if target_parts - covered and allow_relaxed:
+    if (len(selected) < min_count or target_parts - covered) and allow_relaxed:
         relaxed_candidates = [
-            candidate for candidate in candidates if candidate["relaxed_valid"]
+            candidate
+            for candidate in candidates
+            if candidate["relaxed_valid"] and candidate["renderable"]
         ]
         relaxed_selected, relaxed_covered = greedy(relaxed_candidates)
-        if len(target_parts - relaxed_covered) <= len(target_parts - covered):
+        if (
+            len(relaxed_selected) >= len(selected)
+            and len(target_parts - relaxed_covered) <= len(target_parts - covered)
+        ):
             selected = relaxed_selected
             covered = relaxed_covered
             coverage_relaxed = True
 
-    if len(selected) < int(num_views):
+    if len(selected) < min_count:
         selected_ids = {id(view) for view in selected}
+        selected_dirs = [
+            normalize_vector(view["camera_center_world"] - focus)
+            for view in [*initial_views, *selected]
+            if float(np.linalg.norm(view["camera_center_world"] - focus)) > 1e-6
+        ]
         fallback_candidates = sorted(
             candidates,
-            key=lambda candidate: float(candidate["quality"]),
+            key=lambda candidate: (
+                bool(candidate["renderable"]),
+                bool(candidate["valid"]),
+                bool(candidate["relaxed_valid"]),
+                float(candidate["interaction_part_visible_fraction"]),
+                float(candidate["quality"]),
+            ),
             reverse=True,
         )
-        for candidate in fallback_candidates:
-            if len(selected) >= int(num_views):
-                break
-            if id(candidate) in selected_ids:
-                continue
-            selected.append(candidate)
-            selected_ids.add(id(candidate))
-            covered.update(
-                contact_parts_covered_by_view(
-                    candidate,
-                    min_contact_part_visible_fraction,
+        for require_diverse in (True, False):
+            for candidate in fallback_candidates:
+                if len(selected) >= min_count:
+                    break
+                if id(candidate) in selected_ids or not bool(candidate["renderable"]):
+                    continue
+                direction = normalize_vector(candidate["camera_center_world"] - focus)
+                if require_diverse and selected_dirs:
+                    diversity = min(
+                        float(
+                            np.arccos(
+                                np.clip(
+                                    np.dot(direction, selected_dir),
+                                    -1.0,
+                                    1.0,
+                                )
+                            )
+                        )
+                        for selected_dir in selected_dirs
+                    )
+                    if diversity < min_view_angle_rad:
+                        continue
+                selected.append(candidate)
+                selected_ids.add(id(candidate))
+                selected_dirs.append(direction)
+                covered.update(
+                    contact_parts_covered_by_view(
+                        candidate,
+                        min_contact_part_visible_fraction,
+                    )
                 )
-            )
+            if len(selected) >= min_count:
+                break
 
-    selected = selected[: int(num_views)]
+    selected = selected[:max_count]
     covered = set()
     for view in [*initial_views, *selected]:
         covered.update(contact_parts_covered_by_view(view, min_contact_part_visible_fraction))
@@ -1165,6 +1406,9 @@ def select_synthetic_views_for_coverage(
         "covered_contact_parts": sorted(covered & target_parts),
         "uncovered_contact_parts": sorted(target_parts - covered),
         "coverage_relaxed": bool(coverage_relaxed),
+        "requested_min_synthetic_views": int(min_count),
+        "requested_max_synthetic_views": int(max_count),
+        "selected_synthetic_views": int(len(selected)),
     }
 
 
@@ -1180,17 +1424,24 @@ def build_candidate_views(
     intrinsics: np.ndarray,
     width: int,
     image_height: int,
-    num_views: int,
+    min_num_views: int,
+    max_num_views: int,
     min_camera_scene_distance_m: float,
     min_human_visible_fraction: float,
     min_human_in_frame_fraction: float,
     max_human_center_offset: float,
     min_human_bbox_fill: float,
     max_human_bbox_fill: float,
+    min_interaction_part_visible_fraction: float,
     min_contact_part_visible_fraction: float,
     camera_radius_m: float,
     visibility_depth_width: int,
     visibility_depth_tolerance_m: float,
+    scene_depth_sample_spacing_m: float,
+    scene_depth_max_splat_radius_px: int,
+    human_depth_sample_spacing_m: float,
+    human_depth_max_splat_radius_px: int,
+    min_view_angular_separation_deg: float,
     max_depth_m: float,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     original_center = camera_center_from_extrinsics(
@@ -1280,9 +1531,14 @@ def build_candidate_views(
             max_human_center_offset=max_human_center_offset,
             min_human_bbox_fill=min_human_bbox_fill,
             max_human_bbox_fill=max_human_bbox_fill,
+            min_interaction_part_visible_fraction=min_interaction_part_visible_fraction,
             min_contact_part_visible_fraction=min_contact_part_visible_fraction,
             visibility_depth_width=visibility_depth_width,
             visibility_depth_tolerance_m=visibility_depth_tolerance_m,
+            scene_depth_sample_spacing_m=scene_depth_sample_spacing_m,
+            scene_depth_max_splat_radius_px=scene_depth_max_splat_radius_px,
+            human_depth_sample_spacing_m=human_depth_sample_spacing_m,
+            human_depth_max_splat_radius_px=human_depth_max_splat_radius_px,
             max_depth_m=max_depth_m,
         )
         view["relaxed_camera_candidate"] = bool(is_relaxed_camera)
@@ -1292,9 +1548,11 @@ def build_candidate_views(
         candidates=candidates,
         initial_views=initial_views,
         focus=focus,
-        num_views=int(num_views),
+        min_num_views=int(min_num_views),
+        max_num_views=int(max_num_views),
         contact_part_names=list(contact_part_vertices_world.keys()),
         min_contact_part_visible_fraction=min_contact_part_visible_fraction,
+        min_view_angular_separation_deg=min_view_angular_separation_deg,
         allow_relaxed=True,
     )
 
@@ -1544,7 +1802,6 @@ def render_interaction(
 
     print(f"Loading optimized human mesh from: {human_mesh_world_path}")
     human_vertices_world = load_mesh_vertices(human_mesh_world_path)
-    focus_world = human_focus_point(human_vertices_world)
     smpl_vertex_count, smpl_segments, contact_segment_ids = load_smpl_body_segments(
         smpl_seg_json_path
     )
@@ -1553,13 +1810,21 @@ def render_interaction(
             "Optimized human mesh vertex count does not match SMPL-X segmentation: "
             f"mesh={human_vertices_world.shape[0]} segmentation={smpl_vertex_count}"
         )
-    contact_part_vertices_world, interaction_part_metadata = (
-        build_interaction_part_vertices(
+    interaction_part_vertex_ids, interaction_part_metadata = (
+        build_interaction_part_vertex_ids(
             sig_payload=sig_payload,
             smpl_segments=smpl_segments,
             contact_segment_ids=contact_segment_ids,
-            human_vertices_world=human_vertices_world,
         )
+    )
+    contact_part_vertices_world = {
+        part_name: human_vertices_world[vertex_ids].astype(np.float32)
+        for part_name, vertex_ids in interaction_part_vertex_ids.items()
+    }
+    focus_world = interaction_focus_point(
+        sig_payload=sig_payload,
+        human_vertices_world=human_vertices_world,
+        contact_part_vertices_world=contact_part_vertices_world,
     )
     print(
         "Interaction human-part visibility vertices: "
@@ -1605,14 +1870,29 @@ def render_interaction(
         max_human_center_offset=float(args.max_human_center_offset),
         min_human_bbox_fill=float(args.min_human_bbox_fill),
         max_human_bbox_fill=float(args.max_human_bbox_fill),
+        min_interaction_part_visible_fraction=float(
+            args.min_interaction_part_visible_fraction
+        ),
         min_contact_part_visible_fraction=float(args.min_contact_part_visible_fraction),
         visibility_depth_width=int(args.visibility_depth_width),
         visibility_depth_tolerance_m=float(args.visibility_depth_tolerance_m),
+        scene_depth_sample_spacing_m=float(args.scene_depth_sample_spacing_m),
+        scene_depth_max_splat_radius_px=int(args.scene_depth_max_splat_radius_px),
+        human_depth_sample_spacing_m=float(args.human_depth_sample_spacing_m),
+        human_depth_max_splat_radius_px=int(args.human_depth_max_splat_radius_px),
         max_depth_m=float(args.max_depth_m),
     )
     contact_view["render_name"] = "view_00"
     contact_view["contact_spec_path"] = str(contact_spec_json_path)
     contact_view["reference_image_path"] = str(contact_render_image_path)
+    initial_views = [contact_view]
+    if args.num_views is not None:
+        max_total_views = 1 + max(0, int(args.num_views))
+    else:
+        max_total_views = max(1, int(args.max_views))
+    min_total_views = max(1, min(int(args.min_views), max_total_views))
+    min_synthetic_views = max(0, min_total_views - 1)
+    max_synthetic_views = max(0, max_total_views - 1)
 
     synthetic_views, coverage_metadata = build_candidate_views(
         original_rotation_world_to_camera=rotation_world_to_camera,
@@ -1620,23 +1900,32 @@ def render_interaction(
         focus=focus_world,
         human_vertices_world=human_vertices_world,
         contact_part_vertices_world=contact_part_vertices_world,
-        initial_views=[contact_view],
+        initial_views=initial_views,
         scene_depth_points_world=scene_depth_points_world,
         scene_vertex_tree=scene_vertex_tree,
         intrinsics=contact_intrinsics,
         width=contact_width,
         image_height=contact_height,
-        num_views=int(args.num_views),
+        min_num_views=min_synthetic_views,
+        max_num_views=max_synthetic_views,
         min_camera_scene_distance_m=float(args.min_camera_scene_distance_m),
         min_human_visible_fraction=float(args.min_human_visible_fraction),
         min_human_in_frame_fraction=float(args.min_human_in_frame_fraction),
         max_human_center_offset=float(args.max_human_center_offset),
         min_human_bbox_fill=float(args.min_human_bbox_fill),
         max_human_bbox_fill=float(args.max_human_bbox_fill),
+        min_interaction_part_visible_fraction=float(
+            args.min_interaction_part_visible_fraction
+        ),
         min_contact_part_visible_fraction=float(args.min_contact_part_visible_fraction),
         camera_radius_m=float(args.camera_radius_m),
         visibility_depth_width=int(args.visibility_depth_width),
         visibility_depth_tolerance_m=float(args.visibility_depth_tolerance_m),
+        scene_depth_sample_spacing_m=float(args.scene_depth_sample_spacing_m),
+        scene_depth_max_splat_radius_px=int(args.scene_depth_max_splat_radius_px),
+        human_depth_sample_spacing_m=float(args.human_depth_sample_spacing_m),
+        human_depth_max_splat_radius_px=int(args.human_depth_max_splat_radius_px),
+        min_view_angular_separation_deg=float(args.min_view_angular_separation_deg),
         max_depth_m=float(args.max_depth_m),
     )
     for index, view in enumerate(synthetic_views, start=1):
@@ -1658,6 +1947,9 @@ def render_interaction(
             "human_in_frame_fraction": float(view["human_in_frame_fraction"]),
             "human_center_offset": float(view["human_center_offset"]),
             "human_bbox_fill": float(view["human_bbox_fill"]),
+            "scene_depth_finite_fraction": float(
+                view["scene_depth_finite_fraction"]
+            ),
             "interaction_part_visible_fraction": float(
                 view["interaction_part_visible_fraction"]
             ),
@@ -1668,8 +1960,25 @@ def render_interaction(
                 str(part): float(fraction)
                 for part, fraction in view["contact_part_visible_fractions"].items()
             },
+            "contact_part_in_frame_fractions": {
+                str(part): float(fraction)
+                for part, fraction in view["contact_part_in_frame_fractions"].items()
+            },
+            "contact_part_scene_visible_fractions": {
+                str(part): float(fraction)
+                for part, fraction in view[
+                    "contact_part_scene_visible_fractions"
+                ].items()
+            },
+            "contact_part_self_visible_fractions": {
+                str(part): float(fraction)
+                for part, fraction in view[
+                    "contact_part_self_visible_fractions"
+                ].items()
+            },
             "covered_contact_parts": list(view["covered_contact_parts"]),
             "quality": float(view["quality"]),
+            "renderable": bool(view["renderable"]),
             "valid": bool(view["valid"]),
             "relaxed_valid": bool(view["relaxed_valid"]),
             "relaxed_camera_candidate": bool(
@@ -1682,9 +1991,15 @@ def render_interaction(
         assets_dir / "selected_views.json",
         {
             "interaction_parts": interaction_part_metadata,
+            "reference_view_used": True,
+            "synthetic_view_count": int(len(synthetic_views)),
+            "min_total_views": int(min_total_views),
+            "max_total_views": int(max_total_views),
+            "target_total_views": int(1 + len(synthetic_views)),
             "covered_contact_parts": coverage_metadata["covered_contact_parts"],
             "uncovered_contact_parts": coverage_metadata["uncovered_contact_parts"],
             "coverage_relaxed": bool(coverage_metadata["coverage_relaxed"]),
+            "view_selection": coverage_metadata,
             "contact_spec_path": str(contact_spec_json_path),
             "contact_render_image_path": str(contact_render_image_path),
             "views": view_metadata,
@@ -1853,7 +2168,18 @@ def parse_args() -> argparse.Namespace:
         default="0",
         help="CUDA device id(s) exposed to Blender, e.g. 1 or 0,1.",
     )
-    parser.add_argument("--num_views", type=int, default=4)
+    parser.add_argument(
+        "--num_views",
+        type=int,
+        default=None,
+        help=(
+            "Legacy override for the maximum number of synthetic views. "
+            "By default the renderer chooses an adaptive total view count "
+            "from --min_views to --max_views, including view_00."
+        ),
+    )
+    parser.add_argument("--min_views", type=int, default=3)
+    parser.add_argument("--max_views", type=int, default=6)
     parser.add_argument("--camera_radius_m", type=float, default=1.4)
     parser.add_argument("--min_camera_scene_distance_m", type=float, default=0.15)
     parser.add_argument("--min_human_visible_fraction", type=float, default=0.75)
@@ -1863,9 +2189,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max_human_center_offset", type=float, default=0.18)
     parser.add_argument("--min_human_bbox_fill", type=float, default=0.35)
     parser.add_argument("--max_human_bbox_fill", type=float, default=0.92)
+    parser.add_argument("--min_view_angular_separation_deg", type=float, default=20.0)
     parser.add_argument("--visibility_depth_width", type=int, default=384)
     parser.add_argument("--visibility_depth_tolerance_m", type=float, default=0.08)
-    parser.add_argument("--max_scene_depth_points", type=int, default=500000)
+    parser.add_argument("--scene_depth_sample_spacing_m", type=float, default=0.06)
+    parser.add_argument("--scene_depth_max_splat_radius_px", type=int, default=28)
+    parser.add_argument("--human_depth_sample_spacing_m", type=float, default=0.035)
+    parser.add_argument("--human_depth_max_splat_radius_px", type=int, default=10)
+    parser.add_argument("--max_scene_depth_points", type=int, default=1000000)
     parser.add_argument("--seed", type=int, default=12345)
     parser.add_argument(
         "--overwrite_scene_crop",

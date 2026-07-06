@@ -1,0 +1,19 @@
+{
+  "interaction_name": "interaction_04",
+  "prompt": "a person opening the door",
+  "clip_score": 0.25870223343372345,
+  "renders": [
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_04/semantics/renders/view_00.png",
+      "clip_score": 0.2388230711221695
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_04/semantics/renders/view_01.png",
+      "clip_score": 0.29321613907814026
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_04/semantics/renders/view_02.png",
+      "clip_score": 0.2440674901008606
+    }
+  ]
+}

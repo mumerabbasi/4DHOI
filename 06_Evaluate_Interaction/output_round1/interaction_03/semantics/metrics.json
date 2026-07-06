@@ -1,0 +1,19 @@
+{
+  "interaction_name": "interaction_03",
+  "prompt": "a person pulling back the chair to sit down",
+  "clip_score": 0.2676665782928467,
+  "renders": [
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_03/semantics/renders/view_00.png",
+      "clip_score": 0.26112350821495056
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_03/semantics/renders/view_01.png",
+      "clip_score": 0.290998250246048
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_03/semantics/renders/view_02.png",
+      "clip_score": 0.2508779764175415
+    }
+  ]
+}
