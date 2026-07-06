@@ -14,10 +14,16 @@ if str(LEGACY_CONTACT_DIR) not in sys.path:
     sys.path.insert(0, str(LEGACY_CONTACT_DIR))
 
 from common import (  # noqa: E402
+    classify_nearest_color,
     contact_palette_from_spec,
+    keep_largest_components,
     load_json,
-    save_contact_masks_from_overlay,
+    load_rgb,
+    normalize_label,
+    resize_cover_center_crop_array,
+    save_binary_mask,
     save_json,
+    slugify,
 )
 
 
@@ -126,6 +132,67 @@ def palette_parts(contact_spec: dict[str, Any], contact_spec_path: Path) -> list
     return parts
 
 
+def save_gt_contact_masks_from_overlay(
+    overlay_path: Path,
+    canvas_path: Path,
+    contact_masks_dir: Path,
+    human_parts: list[str],
+    palette: list[dict[str, Any]],
+    color_max_distance: float,
+    min_component_area: int,
+    keep_components: int,
+) -> list[Path]:
+    from PIL import Image
+
+    canvas_rgb = load_rgb(canvas_path)
+    overlay_rgb = load_rgb(overlay_path)
+    overlay_rgb = resize_cover_center_crop_array(
+        overlay_rgb,
+        canvas_rgb.shape[:2],
+        resampling=Image.Resampling.NEAREST,
+    )
+
+    palette_by_part = {
+        normalize_label(str(item["part"])): item
+        for item in palette
+    }
+    target_colors = [
+        tuple(int(value) for value in palette_by_part[normalize_label(part)]["rgb"])
+        for part in human_parts
+    ]
+    nearest_color, color_accept = classify_nearest_color(
+        overlay_rgb=overlay_rgb,
+        target_colors_rgb=target_colors,
+        color_max_distance=color_max_distance,
+    )
+
+    contact_masks_dir.mkdir(parents=True, exist_ok=True)
+    written_paths: list[Path] = []
+    for part_idx, part in enumerate(human_parts):
+        mask = (nearest_color == part_idx) & color_accept
+        mask = keep_largest_components(
+            mask,
+            min_area=min_component_area,
+            keep_components=keep_components,
+        )
+        mask_path = contact_masks_dir / f"{slugify(part)}.png"
+        save_binary_mask(mask_path, mask)
+        written_paths.append(mask_path)
+
+    metadata_path = contact_masks_dir / "metadata.json"
+    save_json(
+        metadata_path,
+        {
+            "palette": palette,
+            "color_max_distance": float(color_max_distance),
+            "min_component_area": int(min_component_area),
+            "keep_components": int(keep_components),
+        },
+    )
+    written_paths.append(metadata_path)
+    return written_paths
+
+
 def write_gt_masks(
     interaction_dir: Path,
     args: argparse.Namespace,
@@ -138,8 +205,6 @@ def write_gt_masks(
         return "skipped"
 
     overlay_path = interaction_dir / str(args.overlay_name)
-    resized_overlay_path = interaction_dir / "contact_overlay_gt_resized.png"
-    visualization_path = interaction_dir / "contact_overlay_gt_visualization.png"
     contact_masks_dir = interaction_dir / str(args.masks_dir_name)
     canvas_path = interaction_dir / "assets" / "target_scene_crop.png"
     contact_spec_path = interaction_dir / "contact_spec.json"
@@ -167,14 +232,12 @@ def write_gt_masks(
     contact_spec = load_json(contact_spec_path)
     human_parts = palette_parts(contact_spec, contact_spec_path)
     palette = contact_palette_from_spec(contact_spec_path, human_parts)
-    written_paths = save_contact_masks_from_overlay(
+    written_paths = save_gt_contact_masks_from_overlay(
         overlay_path=overlay_path,
-        resized_overlay_path=resized_overlay_path,
         canvas_path=canvas_path,
         contact_masks_dir=contact_masks_dir,
         human_parts=human_parts,
         palette=palette,
-        visualization_path=visualization_path,
         color_max_distance=float(args.color_max_distance),
         min_component_area=int(args.min_component_area),
         keep_components=int(args.keep_components),
@@ -194,8 +257,6 @@ def write_gt_masks(
     save_json(metadata_path, metadata)
 
     print(f"Wrote GT contact masks: {contact_masks_dir}")
-    print(f"Wrote resized GT overlay: {resized_overlay_path}")
-    print(f"Wrote GT visualization: {visualization_path}")
     for path in written_paths:
         print(f"Wrote artifact: {path}")
     return "written"

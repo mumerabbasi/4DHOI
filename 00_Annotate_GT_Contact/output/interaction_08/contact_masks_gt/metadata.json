@@ -1,0 +1,37 @@
+{
+  "palette": [
+    {
+      "part": "left hand",
+      "label": "Left Hand",
+      "hex": "#0000FF",
+      "rgb": [
+        0,
+        0,
+        255
+      ],
+      "color_name": "pure blue"
+    },
+    {
+      "part": "right hand",
+      "label": "Right Hand",
+      "hex": "#00FF00",
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "color_name": "pure green"
+    }
+  ],
+  "color_max_distance": 90.0,
+  "min_component_area": 0,
+  "keep_components": 1,
+  "source": "gt_contact_overlay",
+  "source_overlay_path": "/my_workspace/4DHHOI/4DHSI/00_Annotate_GT_Contact/output/interaction_08/contact_overlay_gt.png",
+  "source_canvas_path": "/my_workspace/4DHHOI/4DHSI/00_Annotate_GT_Contact/output/interaction_08/assets/target_scene_crop.png",
+  "source_contact_spec_path": "/my_workspace/4DHHOI/4DHSI/00_Annotate_GT_Contact/output/interaction_08/contact_spec.json",
+  "human_parts": [
+    "left hand",
+    "right hand"
+  ]
+}
