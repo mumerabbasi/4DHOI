@@ -6,106 +6,198 @@
       "right hand",
       "left foot"
     ],
-    "segment_ids": [
-      "left_hand_contact",
-      "right_hand_contact",
-      "left_foot_contact"
+    "parts": [
+      {
+        "part": "left hand",
+        "segment_id": "left_hand_contact",
+        "vertex_count": 371
+      },
+      {
+        "part": "right hand",
+        "segment_id": "right_hand_contact",
+        "vertex_count": 373
+      },
+      {
+        "part": "left foot",
+        "segment_id": "left_foot_contact",
+        "vertex_count": 120
+      }
     ],
     "vertex_count": 864,
     "missing_human_parts": []
   },
-  "contact_spec_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact/output/interaction_28/contact_spec.json",
-  "contact_render_image_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact/output/interaction_28/prompt/target_scene_crop.png",
+  "covered_contact_parts": [
+    "left foot",
+    "left hand",
+    "right hand"
+  ],
+  "uncovered_contact_parts": [],
+  "coverage_relaxed": false,
+  "contact_spec_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_28/contact_spec.json",
+  "contact_render_image_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_28/assets/target_scene_crop.png",
   "views": [
     {
       "name": "view_00",
       "source_label": "contact_spec_camera",
       "yaw_deg": 0.0,
-      "width": 1260,
-      "height": 840,
+      "width": 639,
+      "height": 839,
       "camera_center_world": [
         3.2708230018615723,
         2.0406486988067627,
         1.5640560388565063
       ],
       "nearest_scene_distance_m": 0.8836229974396792,
-      "human_visible_fraction": 0.994653937947494,
-      "interaction_part_visible_fraction": 0.39351851851851855,
+      "human_visible_fraction": 0.9998090692124105,
+      "human_in_frame_fraction": 1.0,
+      "human_center_offset": 0.0530432896728955,
+      "human_bbox_fill": 0.7707432014095205,
+      "interaction_part_visible_fraction": 0.5760015480385757,
       "interaction_part_filter_available": true,
-      "quality": 0.6640294572615575,
-      "valid": true
+      "contact_part_visible_fractions": {
+        "left hand": 0.706199460916442,
+        "right hand": 0.08847184986595175,
+        "left foot": 0.9333333333333333
+      },
+      "covered_contact_parts": [
+        "left foot",
+        "left hand"
+      ],
+      "quality": 0.9183575847451572,
+      "valid": true,
+      "relaxed_valid": true,
+      "relaxed_camera_candidate": false
     },
     {
       "name": "view_01",
-      "source_label": "yaw_-35",
-      "yaw_deg": -35.0,
-      "width": 1260,
-      "height": 840,
+      "source_label": "yaw_-45",
+      "yaw_deg": -45.0,
+      "width": 639,
+      "height": 839,
       "camera_center_world": [
-        2.7249693870544434,
-        2.8311774730682373,
-        1.8140560388565063
+        1.6695735454559326,
+        2.648928642272949,
+        1.3805996179580688
       ],
-      "nearest_scene_distance_m": 0.22130372672458223,
-      "human_visible_fraction": 0.9991408114558472,
-      "interaction_part_visible_fraction": 0.5358796296296297,
+      "nearest_scene_distance_m": 0.557530855790856,
+      "human_visible_fraction": 0.8020047732696898,
+      "human_in_frame_fraction": 1.0,
+      "human_center_offset": 0.02924975682068595,
+      "human_bbox_fill": 0.5573134121082111,
+      "interaction_part_visible_fraction": 0.8563648232321407,
       "interaction_part_filter_available": true,
-      "quality": 0.7443471614514275,
-      "valid": true
+      "contact_part_visible_fractions": {
+        "left hand": 0.6361185983827493,
+        "right hand": 0.9329758713136729,
+        "left foot": 1.0
+      },
+      "covered_contact_parts": [
+        "left foot",
+        "left hand",
+        "right hand"
+      ],
+      "quality": 0.880159795565425,
+      "valid": true,
+      "relaxed_valid": true,
+      "relaxed_camera_candidate": false
     },
     {
       "name": "view_02",
-      "source_label": "yaw_+35",
-      "yaw_deg": 35.0,
-      "width": 1260,
-      "height": 840,
+      "source_label": "relaxed_yaw",
+      "yaw_deg": -125.0,
+      "width": 639,
+      "height": 839,
       "camera_center_world": [
-        4.213168621063232,
-        2.227402448654175,
-        1.5640560388565063
+        3.0052847862243652,
+        4.9744062423706055,
+        2.03059983253479
       ],
-      "nearest_scene_distance_m": 0.8161752707286724,
-      "human_visible_fraction": 0.9564677804295942,
-      "interaction_part_visible_fraction": 0.5185185185185185,
+      "nearest_scene_distance_m": 0.25402444379904937,
+      "human_visible_fraction": 0.9258233890214798,
+      "human_in_frame_fraction": 1.0,
+      "human_center_offset": 0.017363547210402522,
+      "human_bbox_fill": 0.6858388471091887,
+      "interaction_part_visible_fraction": 0.6954346913196626,
       "interaction_part_filter_available": true,
-      "quality": 0.7155956863785027,
-      "valid": true
+      "contact_part_visible_fractions": {
+        "left hand": 0.5040431266846361,
+        "right hand": 0.7989276139410187,
+        "left foot": 0.7833333333333333
+      },
+      "covered_contact_parts": [
+        "left foot",
+        "left hand",
+        "right hand"
+      ],
+      "quality": 0.953886701937092,
+      "valid": true,
+      "relaxed_valid": true,
+      "relaxed_camera_candidate": true
     },
     {
       "name": "view_03",
-      "source_label": "view_axis_radius",
-      "yaw_deg": 0.0,
-      "width": 1260,
-      "height": 840,
+      "source_label": "yaw_-45",
+      "yaw_deg": -45.0,
+      "width": 639,
+      "height": 839,
       "camera_center_world": [
-        3.3738842010498047,
-        2.2946763038635254,
-        1.5640560388565063
+        2.2049262523651123,
+        2.8752593994140625,
+        1.8306000232696533
       ],
-      "nearest_scene_distance_m": 0.7673192035500829,
-      "human_visible_fraction": 0.9989498806682577,
-      "interaction_part_visible_fraction": 0.4224537037037037,
+      "nearest_scene_distance_m": 0.2678712556799459,
+      "human_visible_fraction": 0.9586634844868736,
+      "human_in_frame_fraction": 1.0,
+      "human_center_offset": 0.006073818135638818,
+      "human_bbox_fill": 0.6477332314092298,
+      "interaction_part_visible_fraction": 0.5593288393645013,
       "interaction_part_filter_available": true,
-      "quality": 0.681876983337753,
-      "valid": true
+      "contact_part_visible_fractions": {
+        "left hand": 0.49865229110512127,
+        "right hand": 0.1876675603217158,
+        "left foot": 0.9916666666666667
+      },
+      "covered_contact_parts": [
+        "left foot",
+        "left hand"
+      ],
+      "quality": 0.9730107164184513,
+      "valid": true,
+      "relaxed_valid": true,
+      "relaxed_camera_candidate": false
     },
     {
       "name": "view_04",
-      "source_label": "yaw_-35",
-      "yaw_deg": -35.0,
-      "width": 1260,
-      "height": 840,
+      "source_label": "yaw_+45",
+      "yaw_deg": 45.0,
+      "width": 639,
+      "height": 839,
       "camera_center_world": [
-        2.4899213314056396,
-        2.679018020629883,
-        1.5640560388565063
+        4.73008918762207,
+        1.6290150880813599,
+        1.8305995464324951
       ],
-      "nearest_scene_distance_m": 0.48547429197217273,
-      "human_visible_fraction": 1.0,
-      "interaction_part_visible_fraction": 0.5335648148148148,
+      "nearest_scene_distance_m": 0.3998626873594512,
+      "human_visible_fraction": 0.9641050119331742,
+      "human_in_frame_fraction": 1.0,
+      "human_center_offset": 0.04879233318216503,
+      "human_bbox_fill": 0.6118009292184241,
+      "interaction_part_visible_fraction": 0.5005168024010657,
       "interaction_part_filter_available": true,
-      "quality": 0.7434606481481482,
-      "valid": true
+      "contact_part_visible_fractions": {
+        "left hand": 0.2641509433962264,
+        "right hand": 0.8873994638069705,
+        "left foot": 0.35
+      },
+      "covered_contact_parts": [
+        "left foot",
+        "left hand",
+        "right hand"
+      ],
+      "quality": 0.9231937755259345,
+      "valid": true,
+      "relaxed_valid": true,
+      "relaxed_camera_candidate": false
     }
   ]
 }
