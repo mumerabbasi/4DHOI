@@ -33,5 +33,21 @@
   "human_parts": [
     "left hand",
     "left foot"
-  ]
+  ],
+  "source_sig_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/output/interaction_27/sig.json",
+  "floor_parts": [
+    "right foot"
+  ],
+  "floor_mask_path": "/my_workspace/4DHHOI/4DHSI/00_Annotate_GT_Contact/output/interaction_27/floor_mask_crop.png",
+  "floor_sam3_prompt": "floor",
+  "floor_sam3_score": 0.9678813219070435,
+  "floor_crop_xyxy": [
+    856,
+    223,
+    1251,
+    1114
+  ],
+  "floor_source_scene_image_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/output/interaction_27/scene_image.png",
+  "floor_source_input_scene_json_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_27/input_scene.json",
+  "floor_source_transforms_path": "/my_workspace/4DHHOI/Scannet++/data/6ffdcc3022/dslr/nerfstudio/transforms_undistorted.json"
 }
