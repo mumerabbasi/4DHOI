@@ -1,0 +1,48 @@
+{
+  "interaction_name": "interaction_02",
+  "interaction_instruction": "a person sitting on the brown small wooden table",
+  "provider": "gemini",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_template_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/prompt_eval_interations.md",
+  "prompt_dir": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_02/vlm/prompt",
+  "render_paths": [
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_02/semantics/renders/view_00.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_02/semantics/renders/view_01.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_02/semantics/renders/view_02.png"
+  ],
+  "prompt_render_paths": [
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_02/vlm/prompt/renders/view_00.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_02/vlm/prompt/renders/view_01.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_02/vlm/prompt/renders/view_02.png"
+  ],
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 2,
+        "reason": "The instruction specifies a 'brown small wooden table', but the human is sitting on a chair."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is clearly in a sitting pose."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 2,
+        "reason": "The human is sitting on a chair, not the table mentioned in the instruction."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The human is sitting correctly on the chair, with good contact and posture."
+      }
+    },
+    "best_view_ids": [
+      0,
+      1,
+      2
+    ],
+    "failure_modes": [
+      "target_mismatch"
+    ],
+    "brief_summary": "The human is performing a sitting action, but they are sitting on a chair instead of the table specified in the instruction."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The instruction specifies a 'brown small wooden table', but the human is sitting on a chair.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is clearly in a sitting pose.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The human is sitting on a chair, not the table mentioned in the instruction.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is sitting correctly on the chair, with good contact and posture.\"\n    }\n  },\n  \"best_view_ids\": [\n    0,\n    1,\n    2\n  ],\n  \"failure_modes\": [\n    \"target_mismatch\"\n  ],\n  \"brief_summary\": \"The human is performing a sitting action, but they are sitting on a chair instead of the table specified in the instruction.\"\n}"
+}
