@@ -1,0 +1,18 @@
+[
+  {
+    "interaction_name": "interaction_28",
+    "config_path": "/my_workspace/4DHHOI/4DHSI/08_Visualizations_Thesis/output/interaction_28/assets/render_config.json",
+    "scene_contact_mesh": "/my_workspace/4DHHOI/4DHSI/08_Visualizations_Thesis/output/interaction_28/assets/scene_contact_regions.ply",
+    "init_human_mesh": "/my_workspace/4DHHOI/4DHSI/08_Visualizations_Thesis/output/interaction_28/assets/human_init_contact_regions.ply",
+    "optimized_human_mesh": "/my_workspace/4DHHOI/4DHSI/08_Visualizations_Thesis/output/interaction_28/assets/human_optimized_contact_regions.ply",
+    "renders": [
+      "/my_workspace/4DHHOI/4DHSI/08_Visualizations_Thesis/output/interaction_28/renders/init/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/08_Visualizations_Thesis/output/interaction_28/renders/init/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/08_Visualizations_Thesis/output/interaction_28/renders/init/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/08_Visualizations_Thesis/output/interaction_28/renders/optimized/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/08_Visualizations_Thesis/output/interaction_28/renders/optimized/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/08_Visualizations_Thesis/output/interaction_28/renders/optimized/view_02.png"
+    ],
+    "skipped_blender": false
+  }
+]

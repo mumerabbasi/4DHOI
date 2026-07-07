@@ -1,0 +1,72 @@
+{
+  "summaries": [
+    {
+      "interaction_name": "interaction_02",
+      "output_root": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02",
+      "world_mesh": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/meshes/frame_0000_world.ply",
+      "camera_mesh": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/meshes/frame_0000_camera.ply",
+      "smplx_pkl": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/smplx.pkl",
+      "params_pth": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/params.pth",
+      "optimized_params": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/debug/params/optimized_frame_0000.pt",
+      "stage_image": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/genzi_inputs/stage000_inpaint000/view000.png",
+      "scene_mesh": "/my_workspace/4DHHOI/Scannet++/data/442b144761/scans/mesh_aligned_0.05.ply",
+      "sdf_meta": "/my_workspace/4DHHOI/GenZI/data/4dhsi_sdf/442b144761.json",
+      "num_valid_alphapose_joints": 17,
+      "reprojection_error_px_first": 83.16670227050781,
+      "reprojection_error_px_last": 16.022741317749023,
+      "interaction_point": [
+        1.4663984775543213,
+        3.645193099975586,
+        0.5822461247444153
+      ],
+      "interaction_point_stats": {
+        "source": "target_object",
+        "num_vertices": 2843,
+        "used_masks": [
+          {
+            "source": "target_object",
+            "mask": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_02/contact_masks/hips.png",
+            "hit_vertices": 1943
+          },
+          {
+            "source": "target_object",
+            "mask": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_02/contact_masks/left_hand.png",
+            "hit_vertices": 296
+          },
+          {
+            "source": "target_object",
+            "mask": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_02/contact_masks/right_hand.png",
+            "hit_vertices": 604
+          }
+        ]
+      },
+      "steps": 1600,
+      "elapsed_s": 98.98825144767761
+    }
+  ],
+  "failures": [],
+  "skipped": [],
+  "preflight": {
+    "ok": true,
+    "imports": {
+      "torch": "2.0.1",
+      "smplx": "ok",
+      "human_body_prior": "ok",
+      "alphapose": "0.5.0+c60106d",
+      "detector.apis": "ok",
+      "pytorch3d": "0.7.7",
+      "nvdiffrast": "0.4.0",
+      "mesh_intersection": "ok",
+      "pyrender": "0.1.45",
+      "open3d": "0.18.0"
+    },
+    "missing_imports": [],
+    "missing_assets": [],
+    "alphapose_paths": {
+      "cfg": "/my_workspace/4DHHOI/GenZI/third_party/AlphaPose/configs/halpe_68_noface/resnet/256x192_res50_lr1e-3_2x-dcn-combined.yaml",
+      "checkpoint": "/my_workspace/4DHHOI/GenZI/third_party/AlphaPose/pretrained_models/noface_fast50_dcn_combined_256x192.pth",
+      "detector.config": "/my_workspace/4DHHOI/GenZI/third_party/AlphaPose/detector/yolo/cfg/yolov3-spp.cfg",
+      "detector.weights": "/my_workspace/4DHHOI/GenZI/third_party/AlphaPose/detector/yolo/data/yolov3-spp.weights"
+    }
+  }
+}
