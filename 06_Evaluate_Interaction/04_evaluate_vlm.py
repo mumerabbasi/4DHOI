@@ -18,7 +18,7 @@ from PIL import Image
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
-DEFAULT_PROMPT_TEMPLATE_PATH = SCRIPT_DIR / "prompt_eval_interations.md"
+DEFAULT_PROMPT_TEMPLATE_PATH = SCRIPT_DIR / "prompt_eval_interactions.md"
 OUTPUT_MODES = ("output", "output_round1", "output_init")
 VLM_PROVIDERS = ("qwen", "gemini")
 DEFAULT_QWEN_MODEL = "qwen3-vl:32b"
