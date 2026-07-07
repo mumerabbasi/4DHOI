@@ -15,6 +15,7 @@ from transformers import CLIPModel, CLIPProcessor
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
 DEFAULT_CLIP_MODEL = "openai/clip-vit-base-patch32"
+OUTPUT_MODES = ("output", "output_round1", "output_init")
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -68,14 +69,22 @@ def build_default_paths(
 
 
 def discover_interactions(output_mode: str) -> list[str]:
-    output_root = PROJECT_DIR / "05_Optimize_Static_Scene" / output_mode
+    output_root = (
+        PROJECT_DIR / "04_Estimate_Human_Pose" / "output"
+        if output_mode == "output_init"
+        else PROJECT_DIR / "05_Optimize_Static_Scene" / output_mode
+    )
     names = [
         path.name
         for path in sorted(output_root.glob("interaction_*"))
-        if (path / "meshes" / "frame_0000_world.ply").exists()
+        if (
+            (path / "first_frame_smplx_world.ply").exists()
+            if output_mode == "output_init"
+            else (path / "meshes" / "frame_0000_world.ply").exists()
+        )
     ]
     if not names:
-        raise RuntimeError(f"No optimized interactions found under {output_root}.")
+        raise RuntimeError(f"No interactions found under {output_root}.")
     return names
 
 
@@ -213,13 +222,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--interaction_name", type=str, default="interaction_01")
     parser.add_argument(
         "--output_mode",
-        choices=("output", "output_round1"),
+        choices=OUTPUT_MODES,
         default="output",
         help=(
             "Choose the matching optimization/evaluation output set. "
             "'output' uses 05_Optimize_Static_Scene/output and reads/writes "
             "06_Evaluate_Interaction/output by default; 'output_round1' "
-            "uses/reads/writes the output_round1 ablation folders."
+            "uses/reads/writes the output_round1 ablation folders; 'output_init' "
+            "reads/writes the module-04 first-frame evaluation folder."
         ),
     )
     parser.add_argument(

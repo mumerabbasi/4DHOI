@@ -1,0 +1,177 @@
+{
+  "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_04/semantics/assets/scene_semantics_view_crop.ply",
+  "human_mesh_world": "/my_workspace/4DHHOI/4DHSI/04_Estimate_Human_Pose/output/interaction_04/first_frame_smplx_world.ply",
+  "blend_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_04/semantics/assets/render_scene.blend",
+  "views": [
+    {
+      "name": "view_00",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_04/semantics/renders/view_00.png",
+      "camera_matrix_world": [
+        [
+          0.9977414608001709,
+          -0.013871715404093266,
+          0.06572287529706955,
+          2.3961691856384277
+        ],
+        [
+          0.06697595864534378,
+          0.2799272835254669,
+          -0.9576820731163025,
+          0.7244024276733398
+        ],
+        [
+          -0.005112931132316589,
+          0.9599210023880005,
+          0.28022411465644836,
+          1.8607444763183594
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          469.8606262207031,
+          0.0,
+          242.0
+        ],
+        [
+          0.0,
+          471.1590881347656,
+          292.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 1071,
+      "height": 714
+    },
+    {
+      "name": "view_01",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_04/semantics/renders/view_01.png",
+      "camera_matrix_world": [
+        [
+          0.939664363861084,
+          0.297287255525589,
+          -0.1692667156457901,
+          2.341536045074463
+        ],
+        [
+          -0.2502528727054596,
+          0.25999248027801514,
+          -0.9326185584068298,
+          1.9989335536956787
+        ],
+        [
+          -0.2332475781440735,
+          0.9187078475952148,
+          0.31870266795158386,
+          2.110743999481201
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          469.8606262207031,
+          0.0,
+          242.0
+        ],
+        [
+          0.0,
+          471.1590881347656,
+          292.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 1071,
+      "height": 714
+    },
+    {
+      "name": "view_02",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_04/semantics/renders/view_02.png",
+      "camera_matrix_world": [
+        [
+          0.8822709321975708,
+          0.05341651663184166,
+          0.4677015542984009,
+          3.343423843383789
+        ],
+        [
+          0.43494805693626404,
+          0.28751054406166077,
+          -0.8533216118812561,
+          1.0127811431884766
+        ],
+        [
+          -0.1800505816936493,
+          0.9562867879867554,
+          0.2304287552833557,
+          2.1107447147369385
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          469.8606262207031,
+          0.0,
+          242.0
+        ],
+        [
+          0.0,
+          471.1590881347656,
+          292.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 1071,
+      "height": 714
+    }
+  ],
+  "camera_source": "baseline_output",
+  "camera_source_config_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_04/semantics/assets/render_config.json",
+  "intrinsics": [
+    [
+      469.8606262207031,
+      0.0,
+      242.0
+    ],
+    [
+      0.0,
+      471.1590881347656,
+      292.0
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "width": 1071,
+  "height": 714,
+  "resolution_percentage": 75,
+  "cycles_samples": 64
+}

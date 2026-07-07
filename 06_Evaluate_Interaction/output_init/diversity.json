@@ -1,0 +1,166 @@
+{
+  "num_samples": 28,
+  "num_clusters": 15,
+  "entropy": 2.4839740027033503,
+  "cluster_size": 3.5215165615081787,
+  "standardized": true,
+  "cluster_counts": [
+    2,
+    1,
+    3,
+    2,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    4,
+    1,
+    6,
+    2
+  ],
+  "assignments": [
+    {
+      "interaction_name": "interaction_01",
+      "cluster_id": 0,
+      "distance_to_cluster_center": 3.679574728012085
+    },
+    {
+      "interaction_name": "interaction_02",
+      "cluster_id": 13,
+      "distance_to_cluster_center": 6.197120189666748
+    },
+    {
+      "interaction_name": "interaction_03",
+      "cluster_id": 13,
+      "distance_to_cluster_center": 7.0930657386779785
+    },
+    {
+      "interaction_name": "interaction_04",
+      "cluster_id": 13,
+      "distance_to_cluster_center": 6.076392650604248
+    },
+    {
+      "interaction_name": "interaction_05",
+      "cluster_id": 11,
+      "distance_to_cluster_center": 3.9790751934051514
+    },
+    {
+      "interaction_name": "interaction_06",
+      "cluster_id": 11,
+      "distance_to_cluster_center": 5.653036117553711
+    },
+    {
+      "interaction_name": "interaction_07",
+      "cluster_id": 13,
+      "distance_to_cluster_center": 5.152764797210693
+    },
+    {
+      "interaction_name": "interaction_08",
+      "cluster_id": 2,
+      "distance_to_cluster_center": 3.9622628688812256
+    },
+    {
+      "interaction_name": "interaction_09",
+      "cluster_id": 2,
+      "distance_to_cluster_center": 5.228787422180176
+    },
+    {
+      "interaction_name": "interaction_10",
+      "cluster_id": 2,
+      "distance_to_cluster_center": 4.604668140411377
+    },
+    {
+      "interaction_name": "interaction_11",
+      "cluster_id": 13,
+      "distance_to_cluster_center": 6.0045976638793945
+    },
+    {
+      "interaction_name": "interaction_12",
+      "cluster_id": 1,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_13",
+      "cluster_id": 13,
+      "distance_to_cluster_center": 5.152764797210693
+    },
+    {
+      "interaction_name": "interaction_14",
+      "cluster_id": 7,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_15",
+      "cluster_id": 14,
+      "distance_to_cluster_center": 4.935816764831543
+    },
+    {
+      "interaction_name": "interaction_16",
+      "cluster_id": 3,
+      "distance_to_cluster_center": 5.166929244995117
+    },
+    {
+      "interaction_name": "interaction_17",
+      "cluster_id": 14,
+      "distance_to_cluster_center": 4.935816764831543
+    },
+    {
+      "interaction_name": "interaction_18",
+      "cluster_id": 12,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_20",
+      "cluster_id": 5,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_21",
+      "cluster_id": 9,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_22",
+      "cluster_id": 11,
+      "distance_to_cluster_center": 6.262269496917725
+    },
+    {
+      "interaction_name": "interaction_23",
+      "cluster_id": 10,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_24",
+      "cluster_id": 11,
+      "distance_to_cluster_center": 5.671017646789551
+    },
+    {
+      "interaction_name": "interaction_26",
+      "cluster_id": 8,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_27",
+      "cluster_id": 3,
+      "distance_to_cluster_center": 5.166929244995117
+    },
+    {
+      "interaction_name": "interaction_28",
+      "cluster_id": 6,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_29",
+      "cluster_id": 0,
+      "distance_to_cluster_center": 3.679574489593506
+    },
+    {
+      "interaction_name": "interaction_30",
+      "cluster_id": 4,
+      "distance_to_cluster_center": 0.0
+    }
+  ]
+}

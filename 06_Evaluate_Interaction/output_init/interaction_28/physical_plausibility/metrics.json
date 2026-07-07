@@ -1,0 +1,44 @@
+[
+  {
+    "node_a": "human.left_hand",
+    "node_b": "treadmill",
+    "contact": {
+      "min_distance_m": 0.09942390769720078,
+      "max_distance_m": 0.20954421162605286,
+      "mean_distance_m": 0.15992331504821777
+    },
+    "collision": {
+      "ncs": 0.9993885714285714,
+      "mean_penetration_m": 0.007214459590613842,
+      "max_penetration_m": 0.014017373323440552
+    }
+  },
+  {
+    "node_a": "human.right_hand",
+    "node_b": "treadmill",
+    "contact": {
+      "min_distance_m": 0.023388642817735672,
+      "max_distance_m": 0.12834429740905762,
+      "mean_distance_m": 0.07787028700113297
+    },
+    "collision": {
+      "ncs": 0.9993885714285714,
+      "mean_penetration_m": 0.007214459590613842,
+      "max_penetration_m": 0.014017373323440552
+    }
+  },
+  {
+    "node_a": "human.left_foot",
+    "node_b": "treadmill",
+    "contact": {
+      "min_distance_m": 0.0020497555378824472,
+      "max_distance_m": 0.08351731300354004,
+      "mean_distance_m": 0.034200269728899
+    },
+    "collision": {
+      "ncs": 0.9993885714285714,
+      "mean_penetration_m": 0.007214459590613842,
+      "max_penetration_m": 0.014017373323440552
+    }
+  }
+]

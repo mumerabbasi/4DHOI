@@ -12,6 +12,7 @@ import torch
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
+OUTPUT_MODES = ("output", "output_round1", "output_init")
 
 
 def ensure_dir(path: Path) -> Path:
@@ -64,6 +65,27 @@ def discover_optimized_param_paths(optimization_output_root: Path) -> list[tuple
     return items
 
 
+def discover_initial_param_paths(human_pose_output_root: Path) -> list[tuple[str, Path]]:
+    if not human_pose_output_root.is_dir():
+        raise FileNotFoundError(
+            f"Human pose output directory not found: {human_pose_output_root}"
+        )
+
+    items: list[tuple[str, Path]] = []
+    for interaction_dir in sorted(human_pose_output_root.iterdir()):
+        if not interaction_dir.is_dir():
+            continue
+        params_path = interaction_dir / "hmr4d_results.pt"
+        mesh_path = interaction_dir / "first_frame_smplx_world.ply"
+        if params_path.exists() and mesh_path.exists():
+            items.append((interaction_dir.name, params_path))
+    if not items:
+        raise RuntimeError(
+            f"No hmr4d_results.pt files found under {human_pose_output_root}."
+        )
+    return items
+
+
 def flatten_numeric(value: Any) -> np.ndarray:
     array = np.asarray(value, dtype=np.float32)
     return array.reshape(-1)
@@ -76,6 +98,19 @@ def load_smplx_parameter_vector(path: Path) -> np.ndarray:
     if missing:
         raise KeyError(f"Missing keys in {path}: {missing}")
     parts = [flatten_numeric(payload[key]) for key in required_keys]
+    return np.concatenate(parts, axis=0).astype(np.float32)
+
+
+def load_initial_smplx_parameter_vector(path: Path) -> np.ndarray:
+    payload = torch.load(path, map_location="cpu", weights_only=True)
+    params = payload.get("smpl_params_incam")
+    if not isinstance(params, dict):
+        raise KeyError(f"Missing smpl_params_incam in {path}")
+    required_keys = ("transl", "global_orient", "body_pose", "betas")
+    missing = [key for key in required_keys if key not in params]
+    if missing:
+        raise KeyError(f"Missing keys in {path}: {missing}")
+    parts = [flatten_numeric(params[key][0]) for key in required_keys]
     return np.concatenate(parts, axis=0).astype(np.float32)
 
 
@@ -147,20 +182,25 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--output_mode",
-        choices=("output", "output_round1"),
+        choices=OUTPUT_MODES,
         default="output",
         help=(
             "Choose the matching optimization/evaluation output set. "
             "'output' uses 05_Optimize_Static_Scene/output and writes to "
             "06_Evaluate_Interaction/output by default; 'output_round1' "
-            "uses/writes the output_round1 ablation folders."
+            "uses/writes the output_round1 ablation folders; 'output_init' "
+            "clusters module-04 first-frame SMPL-X parameters and writes to "
+            "06_Evaluate_Interaction/output_init."
         ),
     )
     parser.add_argument(
         "--optimization_output_root",
         type=str,
         default=None,
-        help="Defaults to 05_Optimize_Static_Scene/<output_mode>.",
+        help=(
+            "Defaults to 05_Optimize_Static_Scene/<output_mode>, or "
+            "04_Estimate_Human_Pose/output for output_init."
+        ),
     )
     parser.add_argument("--output_root", type=str, default=None)
     parser.add_argument("--num_clusters", type=int, default=15)
@@ -175,18 +215,34 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    default_source_root = (
+        PROJECT_DIR / "04_Estimate_Human_Pose" / "output"
+        if args.output_mode == "output_init"
+        else PROJECT_DIR / "05_Optimize_Static_Scene" / args.output_mode
+    )
     optimization_output_root = resolve_path(
         args.optimization_output_root,
-        PROJECT_DIR / "05_Optimize_Static_Scene" / args.output_mode,
+        default_source_root,
     )
     output_root = ensure_dir(
         resolve_path(args.output_root, SCRIPT_DIR / args.output_mode)
     )
 
-    param_items = discover_optimized_param_paths(optimization_output_root)
+    param_items = (
+        discover_initial_param_paths(optimization_output_root)
+        if args.output_mode == "output_init"
+        else discover_optimized_param_paths(optimization_output_root)
+    )
     interaction_names = [name for name, _path in param_items]
     param_vectors = np.stack(
-        [load_smplx_parameter_vector(path) for _name, path in param_items],
+        [
+            (
+                load_initial_smplx_parameter_vector(path)
+                if args.output_mode == "output_init"
+                else load_smplx_parameter_vector(path)
+            )
+            for _name, path in param_items
+        ],
         axis=0,
     )
     features = param_vectors if args.no_standardize else standardize_features(param_vectors)

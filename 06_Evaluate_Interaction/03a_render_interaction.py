@@ -23,6 +23,7 @@ IMAGE_SOURCE_TO_REL_PATHS: dict[str, tuple[str, str]] = {
     ),
 }
 WORLD_UP = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+OUTPUT_MODES = ("output", "output_round1", "output_init")
 CONTACT_SEGMENT_BY_BODY_SEGMENT = {
     "left_hand": "left_hand_contact",
     "right_hand": "right_hand_contact",
@@ -36,6 +37,10 @@ CONTACT_SEGMENT_BY_BODY_SEGMENT = {
     "hips": "hips_contact",
     "back": "back_contact",
 }
+
+
+class SkipInteraction(RuntimeError):
+    pass
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -59,6 +64,18 @@ def resolve_path(raw_path: str | None, default_path: Path) -> Path:
     return default_path.resolve() if raw_path is None else Path(raw_path).resolve()
 
 
+def require_existing_paths(paths: dict[str, Path]) -> None:
+    missing = [
+        f"{label}: {path}"
+        for label, path in paths.items()
+        if not path.exists()
+    ]
+    if missing:
+        raise SkipInteraction(
+            "missing required input(s): " + "; ".join(missing)
+        )
+
+
 def build_blender_env(gpu_index: str | None) -> dict[str, str]:
     env = os.environ.copy()
     if gpu_index is not None and str(gpu_index).strip():
@@ -70,6 +87,20 @@ def build_default_paths(
     interaction_name: str,
     output_mode: str = "output",
 ) -> dict[str, Path]:
+    human_mesh_world = (
+        PROJECT_DIR
+        / "04_Estimate_Human_Pose"
+        / "output"
+        / interaction_name
+        / "first_frame_smplx_world.ply"
+        if output_mode == "output_init"
+        else PROJECT_DIR
+        / "05_Optimize_Static_Scene"
+        / output_mode
+        / interaction_name
+        / "meshes"
+        / "frame_0000_world.ply"
+    )
     return {
         "input_scene_json": PROJECT_DIR
         / "01_Generate_SIG"
@@ -85,12 +116,7 @@ def build_default_paths(
         / "04_Estimate_Human_Pose"
         / "assets"
         / "smplx_vert_segmentation.json",
-        "human_mesh_world": PROJECT_DIR
-        / "05_Optimize_Static_Scene"
-        / output_mode
-        / interaction_name
-        / "meshes"
-        / "frame_0000_world.ply",
+        "human_mesh_world": human_mesh_world,
         "contact_spec_json": PROJECT_DIR
         / "03_Estimate_Contact_Agentic"
         / "output"
@@ -1833,20 +1859,34 @@ def render_interaction(
         args.contact_render_image,
         defaults["contact_render_image"],
     )
-    output_root = ensure_dir(resolve_path(args.output_root, defaults["output_root"]))
-    assets_dir = ensure_dir(output_root / "assets")
-    renders_dir = ensure_dir(output_root / "renders")
+    output_root = resolve_path(args.output_root, defaults["output_root"])
     scannet_root = resolve_scannet_root(args.scannet_root)
 
-    if not human_mesh_world_path.exists():
-        raise FileNotFoundError(f"Optimized human world mesh not found: {human_mesh_world_path}")
-    if not contact_spec_json_path.exists():
-        raise FileNotFoundError(f"Contact spec JSON not found: {contact_spec_json_path}")
+    require_existing_paths(
+        {
+            "input_scene_json": input_scene_json_path,
+            "sig_json": sig_json_path,
+            "smpl_seg_json": smpl_seg_json_path,
+            "human_mesh_world": human_mesh_world_path,
+            "contact_spec_json": contact_spec_json_path,
+            "contact_render_image": contact_render_image_path,
+        }
+    )
 
     input_payload = load_json(input_scene_json_path)
     sig_payload = load_json(sig_json_path)
     scene_context = input_payload["scene_context"]
     scene_paths = resolve_scene_paths(scannet_root, scene_context)
+    require_existing_paths(
+        {
+            "scannet_transforms": scene_paths["transforms_path"],
+            "scannet_colmap_images": scene_paths["colmap_images_path"],
+            "scannet_mesh": scene_paths["mesh_path"],
+        }
+    )
+    output_root = ensure_dir(output_root)
+    assets_dir = ensure_dir(output_root / "assets")
+    renders_dir = ensure_dir(output_root / "renders")
     (
         intrinsics,
         rotation_world_to_camera,
@@ -2284,14 +2324,18 @@ def render_interaction(
 
 
 def discover_interactions(output_mode: str) -> list[str]:
-    output_root = PROJECT_DIR / "05_Optimize_Static_Scene" / output_mode
+    output_root = (
+        PROJECT_DIR / "04_Estimate_Human_Pose" / "output"
+        if output_mode == "output_init"
+        else PROJECT_DIR / "05_Optimize_Static_Scene" / output_mode
+    )
     names = [
         path.name
         for path in sorted(output_root.glob("interaction_*"))
-        if (path / "meshes" / "frame_0000_world.ply").exists()
+        if path.is_dir()
     ]
     if not names:
-        raise RuntimeError(f"No optimized world meshes found under {output_root}.")
+        raise RuntimeError(f"No interaction directories found under {output_root}.")
     return names
 
 
@@ -2305,13 +2349,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--interaction_name", type=str, default="interaction_01")
     parser.add_argument(
         "--output_mode",
-        choices=("output", "output_round1"),
+        choices=OUTPUT_MODES,
         default="output",
         help=(
             "Choose the matching optimization/evaluation output set. "
             "'output' uses 05_Optimize_Static_Scene/output and writes to "
             "06_Evaluate_Interaction/output by default; 'output_round1' "
-            "uses/writes the output_round1 ablation folders."
+            "uses/writes the output_round1 ablation folders; 'output_init' "
+            "renders module-04 first-frame SMPL-X meshes and writes to "
+            "06_Evaluate_Interaction/output_init."
         ),
     )
     parser.add_argument(
@@ -2410,11 +2456,23 @@ def main() -> None:
         interaction_names = [args.interaction_name]
 
     records = []
+    skipped = []
     for interaction_name in interaction_names:
-        records.append(render_interaction(interaction_name, args))
+        try:
+            records.append(render_interaction(interaction_name, args))
+        except SkipInteraction as exc:
+            skipped.append(interaction_name)
+            print(f"Skipping {interaction_name}: {exc}")
 
     if len(records) > 1:
         save_json(SCRIPT_DIR / args.output_mode / "semantics_renders.json", records)
+    if skipped:
+        print(
+            "Skipped interaction(s): "
+            + ", ".join(skipped)
+        )
+    if not records:
+        print("No interactions were rendered.")
 
 
 if __name__ == "__main__":

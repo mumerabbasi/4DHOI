@@ -1,0 +1,44 @@
+[
+  {
+    "node_a": "human.right_hand",
+    "node_b": "curtain",
+    "contact": {
+      "min_distance_m": 0.4506883919239044,
+      "max_distance_m": 0.5649293661117554,
+      "mean_distance_m": 0.5266441702842712
+    },
+    "collision": {
+      "ncs": 0.99846,
+      "mean_penetration_m": 0.012583661824464798,
+      "max_penetration_m": 0.03749571740627289
+    }
+  },
+  {
+    "node_a": "human.left_foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.0029876381158828735,
+      "max_distance_m": 0.04081461951136589,
+      "mean_distance_m": 0.02015077695250511
+    },
+    "collision": {
+      "ncs": 0.99846,
+      "mean_penetration_m": 0.012583661824464798,
+      "max_penetration_m": 0.03749571740627289
+    }
+  },
+  {
+    "node_a": "human.right_foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.009748476557433605,
+      "max_distance_m": 0.05381663143634796,
+      "mean_distance_m": 0.027188001200556755
+    },
+    "collision": {
+      "ncs": 0.99846,
+      "mean_penetration_m": 0.012583661824464798,
+      "max_penetration_m": 0.03749571740627289
+    }
+  }
+]

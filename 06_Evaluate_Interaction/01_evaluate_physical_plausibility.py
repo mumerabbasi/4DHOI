@@ -43,6 +43,7 @@ BILATERAL_SWAP_MIN_IMPROVEMENT_M = 0.02
 CONTACT_SURFACE_SAMPLES_PER_EDGE = 2048
 CONTACT_SURFACE_SAMPLE_SEED = 17017
 NON_COLLISION_SURFACE_SAMPLE_SEED = 24017
+OUTPUT_MODES = ("output", "output_round1", "output_init")
 METRIC_CSV_FIELDNAMES = [
     "node_a",
     "node_b",
@@ -192,11 +193,26 @@ def build_default_paths(
     interaction_name: str,
     output_mode: str = "output",
 ) -> dict[str, Path]:
-    if output_mode not in {"output", "output_round1"}:
+    if output_mode not in OUTPUT_MODES:
         raise ValueError(
             f"Unsupported output_mode '{output_mode}'. "
-            "Expected 'output' or 'output_round1'."
+            f"Expected one of {OUTPUT_MODES}."
         )
+    optimization_output_mode = "output" if output_mode == "output_init" else output_mode
+    human_mesh_camera = (
+        PROJECT_DIR
+        / "04_Estimate_Human_Pose"
+        / "output"
+        / interaction_name
+        / "first_frame_smplx_world.ply"
+        if output_mode == "output_init"
+        else PROJECT_DIR
+        / "05_Optimize_Static_Scene"
+        / optimization_output_mode
+        / interaction_name
+        / "meshes"
+        / "frame_0000_camera.ply"
+    )
     return {
         "input_scene_json": PROJECT_DIR
         / "01_Generate_SIG"
@@ -232,15 +248,10 @@ def build_default_paths(
         / "output"
         / interaction_name
         / "contact_spec.json",
-        "human_mesh_camera": PROJECT_DIR
-        / "05_Optimize_Static_Scene"
-        / output_mode
-        / interaction_name
-        / "meshes"
-        / "frame_0000_camera.ply",
+        "human_mesh_camera": human_mesh_camera,
         "optimized_params": PROJECT_DIR
         / "05_Optimize_Static_Scene"
-        / output_mode
+        / optimization_output_mode
         / interaction_name
         / "debug"
         / "params"
@@ -1289,6 +1300,34 @@ def build_optimized_smplx_current(
     }
 
 
+def build_initial_smplx_current(
+    human_pose_root: Path,
+    smpl_param_key: str,
+    smplx_layer: Any,
+    device: torch.device,
+) -> dict[str, torch.Tensor]:
+    init_params = load_first_frame_smplx_params(human_pose_root, smpl_param_key)
+    params = {
+        key: value.to(device=device)
+        for key, value in init_params.items()
+    }
+    with torch.no_grad():
+        smplx_output = smplx_layer(
+            transl=params["transl"].view(1, 3),
+            global_orient=params["global_orient"].view(1, 3),
+            body_pose=params["body_pose"].view(1, -1),
+            betas=params["betas"].view(1, -1),
+            return_full_pose=True,
+        )
+    return {
+        "smplx_output": smplx_output,
+        "transl": params["transl"].view(3),
+        "scale": torch.ones((), dtype=torch.float32, device=device),
+        "verts": smplx_output.vertices[0],
+        "joints": smplx_output.joints[0],
+    }
+
+
 def clear_smplx_volume_cache(smplx_layer: Any) -> None:
     volume = getattr(smplx_layer, "volume", None)
     detach_cache = getattr(volume, "detach_cache", None)
@@ -1508,20 +1547,30 @@ def save_csv_rows(
 
 
 def discover_optimized_interactions(output_mode: str) -> list[str]:
-    output_root = PROJECT_DIR / "05_Optimize_Static_Scene" / output_mode
+    output_root = (
+        PROJECT_DIR / "04_Estimate_Human_Pose" / "output"
+        if output_mode == "output_init"
+        else PROJECT_DIR / "05_Optimize_Static_Scene" / output_mode
+    )
     if not output_root.is_dir():
-        raise FileNotFoundError(f"Optimization output directory not found: {output_root}")
+        raise FileNotFoundError(f"Evaluation source directory not found: {output_root}")
 
     interaction_names: list[str] = []
     skipped_missing_eval_inputs: list[str] = []
     for interaction_dir in sorted(output_root.iterdir()):
         if not interaction_dir.is_dir():
             continue
-        if not (interaction_dir / "meshes" / "frame_0000_camera.ply").exists():
-            continue
-        if not (interaction_dir / "debug" / "params" / "optimized_frame_0000.pt").exists():
-            continue
         defaults = build_default_paths(interaction_dir.name, output_mode)
+        if output_mode == "output_init":
+            if not defaults["human_mesh_camera"].exists():
+                continue
+            if not (defaults["human_pose_root"] / "hmr4d_results.pt").exists():
+                continue
+        else:
+            if not defaults["human_mesh_camera"].exists():
+                continue
+            if not defaults["optimized_params"].exists():
+                continue
         missing_eval_inputs = [
             path
             for path in (
@@ -1537,13 +1586,13 @@ def discover_optimized_interactions(output_mode: str) -> list[str]:
         interaction_names.append(interaction_dir.name)
     if skipped_missing_eval_inputs:
         print(
-            "Skipping optimized interaction(s) without default eval contact "
+            "Skipping interaction(s) without default eval contact "
             "inputs: "
             + ", ".join(skipped_missing_eval_inputs)
         )
     if not interaction_names:
         raise RuntimeError(
-            "No evaluable optimized interactions found under "
+            "No evaluable interactions found under "
             f"{output_root} with default contact inputs."
         )
     return interaction_names
@@ -1799,13 +1848,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output_root", type=str, default=None)
     parser.add_argument(
         "--output_mode",
-        choices=("output", "output_round1"),
+        choices=OUTPUT_MODES,
         default="output",
         help=(
             "Choose the matching optimization/evaluation output set. "
             "'output' uses 05_Optimize_Static_Scene/output and writes to "
             "06_Evaluate_Interaction/output by default; 'output_round1' "
-            "uses/writes the output_round1 ablation folders."
+            "uses/writes the output_round1 ablation folders; 'output_init' "
+            "evaluates the module-04 first-frame SMPL-X output and writes to "
+            "06_Evaluate_Interaction/output_init."
         ),
     )
     parser.add_argument(
@@ -1866,7 +1917,7 @@ def evaluate_interaction(
         raise FileNotFoundError(f"Contact masks directory not found: {contact_masks_dir}")
     if not human_mesh_camera_path.exists():
         raise FileNotFoundError(f"Evaluated human mesh not found: {human_mesh_camera_path}")
-    if not optimized_params_path.exists():
+    if args.output_mode != "output_init" and not optimized_params_path.exists():
         raise FileNotFoundError(f"Optimized SMPL-X params not found: {optimized_params_path}")
     if not human_pose_root.is_dir():
         raise FileNotFoundError(f"Static GVHMR result directory not found: {human_pose_root}")
@@ -1943,6 +1994,12 @@ def evaluate_interaction(
         human_mesh_camera_path,
         process=False,
     )
+    if args.output_mode == "output_init":
+        evaluated_vertices = transform_world_to_camera(
+            evaluated_vertices,
+            rotation_world_to_camera=rotation_world_to_camera,
+            translation_world_to_camera=translation_world_to_camera,
+        )
     if evaluated_vertices.shape[0] != segment_catalog.vertex_count:
         raise ValueError(
             "Evaluated human mesh vertex count does not match segmentation: "
@@ -1996,11 +2053,19 @@ def evaluate_interaction(
         num_samples=int(args.non_collision_surface_samples),
         seed=NON_COLLISION_SURFACE_SAMPLE_SEED + int(args.seed),
     )
-    optimized_params = load_optimized_smplx_params(optimized_params_path, device=device)
-    optimized_current = build_optimized_smplx_current(
-        smplx_layer=smplx_layer,
-        optimized_params=optimized_params,
-    )
+    if args.output_mode == "output_init":
+        optimized_current = build_initial_smplx_current(
+            human_pose_root=human_pose_root,
+            smpl_param_key=args.smpl_param_key,
+            smplx_layer=smplx_layer,
+            device=device,
+        )
+    else:
+        optimized_params = load_optimized_smplx_params(optimized_params_path, device=device)
+        optimized_current = build_optimized_smplx_current(
+            smplx_layer=smplx_layer,
+            optimized_params=optimized_params,
+        )
     interaction_metrics = compute_interaction_non_collision_metrics(
         scene_points_camera=non_collision_scene_points,
         smplx_layer=smplx_layer,
