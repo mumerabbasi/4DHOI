@@ -504,4 +504,11 @@ and the final synthesized interaction is the posed mesh
 \label{eq:final-human-mesh}
 M_h^{\ast} = M_h(\theta^{\ast}),
 \end{equation}
-already expressed in the ScanNet++ scene coordinate frame. The stage lengths, learning rate, gradient clipping, and total iteration budget are reported in \cref{sec:implementation-details}.
+already expressed in the ScanNet++ scene coordinate frame. \Cref{fig:optimization-before-after} shows the effect of this optimization on the treadmill running example. The stage lengths, learning rate, gradient clipping, and total iteration budget are reported in \cref{sec:implementation-details}.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\textwidth]{figures/methodology_35.pdf}
+  \caption{Effect of scene-aware optimization, shown on the treadmill running example, with each state rendered from two viewpoints. The body-side contact regions are colored on the mesh: the left and right hands in red and green and the supporting foot in blue. In the GVHMR initialization (left), the body is a plausible, well-articulated pose but is unaware of the scene, so its colored contact regions do not meet the treadmill: the hands hover off the side rails and the foot penetrates the belt. After scene-aware optimization (right), the contact regions are drawn onto their targets, the hands meeting the two side rails and the foot landing on the belt, and the body settles into correct contact with the treadmill while its pose remains close to the initialization.}
+  \label{fig:optimization-before-after}
+\end{figure}
