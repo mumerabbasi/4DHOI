@@ -17,7 +17,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
 WORKSPACE_ROOT = PROJECT_DIR.parent
 GENZI_ROOT = WORKSPACE_ROOT / "GenZI"
-DEFAULT_GENZI_RUN_CFG = GENZI_ROOT / "config" / "4dhsi_multiview_external.yml"
+DEFAULT_GENZI_RUN_CFG = GENZI_ROOT / "config" / "proxs_gen.yml"
 DEFAULT_FULL_SMPLX_SEG_JSON = (
     WORKSPACE_ROOT
     / "GVHMR"
