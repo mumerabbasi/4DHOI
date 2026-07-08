@@ -1,19 +1,47 @@
 {
   "interaction_name": "interaction_05",
   "prompt": "a person turning on the faucet",
-  "clip_score": 0.27100611726442975,
+  "clip_score": 0.26375318616628646,
   "renders": [
     {
       "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_05/semantics/renders/view_00.png",
-      "clip_score": 0.2692626416683197
+      "clip_score": 0.2696708142757416
     },
     {
       "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_05/semantics/renders/view_01.png",
-      "clip_score": 0.2535765767097473
+      "clip_score": 0.2568463981151581
     },
     {
       "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_05/semantics/renders/view_02.png",
-      "clip_score": 0.29017913341522217
+      "clip_score": 0.2652016580104828
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_05/semantics/renders/view_03.png",
+      "clip_score": 0.26226550340652466
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_05/semantics/renders/view_04.png",
+      "clip_score": 0.24398712813854218
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_05/semantics/renders/view_05.png",
+      "clip_score": 0.2776637673377991
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_05/semantics/renders/view_06.png",
+      "clip_score": 0.26752105355262756
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_05/semantics/renders/view_07.png",
+      "clip_score": 0.2507392168045044
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_05/semantics/renders/view_08.png",
+      "clip_score": 0.26719292998313904
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_05/semantics/renders/view_09.png",
+      "clip_score": 0.27644339203834534
     }
   ]
 }

@@ -1,2 +1,0 @@
-interaction_name,target_object_score,human_action_score,contact_score,physical_plausibility_score,mean_score,num_renders,best_view_ids,failure_modes,brief_summary
-interaction_02,2,5,2,5,3.5,3,"0,1,2",target_mismatch,"The human is performing a sitting action, but they are sitting on a chair instead of the table specified in the instruction."

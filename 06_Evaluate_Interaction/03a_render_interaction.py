@@ -15,7 +15,19 @@ from scipy.spatial import cKDTree
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
+WORKSPACE_ROOT = PROJECT_DIR.parent
+GENZI_ROOT = WORKSPACE_ROOT / "GenZI"
+DEFAULT_GENZI_RUN_CFG = GENZI_ROOT / "config" / "4dhsi_multiview_external.yml"
+DEFAULT_FULL_SMPLX_SEG_JSON = (
+    WORKSPACE_ROOT
+    / "GVHMR"
+    / "hmr4d"
+    / "utils"
+    / "body_model"
+    / "smplx_vert_segmentation.json"
+)
 BLENDER_BIN = Path("/my_workspace/blender-4.2.17-linux-x64/blender")
+SAMPLED_VIEW_IMAGE_SIZE = 640
 IMAGE_SOURCE_TO_REL_PATHS: dict[str, tuple[str, str]] = {
     "dslr_resized_undistorted": (
         "dslr/resized_undistorted_images",
@@ -37,6 +49,19 @@ CONTACT_SEGMENT_BY_BODY_SEGMENT = {
     "hips": "hips_contact",
     "back": "back_contact",
 }
+FULL_SEGMENTS_BY_BODY_SEGMENT = {
+    "left_hand": ("leftHand", "leftHandIndex1"),
+    "right_hand": ("rightHand", "rightHandIndex1"),
+    "left_arm": ("leftArm", "leftForeArm"),
+    "right_arm": ("rightArm", "rightForeArm"),
+    "left_leg": ("leftUpLeg", "leftLeg"),
+    "right_leg": ("rightUpLeg", "rightLeg"),
+    "left_foot": ("leftFoot", "leftToeBase"),
+    "right_foot": ("rightFoot", "rightToeBase"),
+    "head": ("head",),
+    "hips": ("hips",),
+    "back": ("spine", "spine1", "spine2"),
+}
 
 
 class SkipInteraction(RuntimeError):
@@ -53,6 +78,18 @@ def save_json(path: Path, payload: Any) -> None:
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+
+
+def optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    return float(value)
+
+
+def float_mapping(payload: Any) -> dict[str, float]:
+    if not isinstance(payload, dict):
+        return {}
+    return {str(key): float(value) for key, value in payload.items()}
 
 
 def ensure_dir(path: Path) -> Path:
@@ -81,6 +118,31 @@ def build_blender_env(gpu_index: str | None) -> dict[str, str]:
     if gpu_index is not None and str(gpu_index).strip():
         env["CUDA_VISIBLE_DEVICES"] = str(gpu_index).strip()
     return env
+
+
+def flatten_mapping(
+    payload: dict[str, Any],
+    prefix: str = "",
+) -> dict[str, Any]:
+    flat: dict[str, Any] = {}
+    for key, value in payload.items():
+        flat_key = f"{prefix}.{key}" if prefix else str(key)
+        if isinstance(value, dict):
+            flat.update(flatten_mapping(value, flat_key))
+        else:
+            flat[flat_key] = value
+    return flat
+
+
+def load_view_cfg(path: Path) -> dict[str, Any]:
+    import yaml
+
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"Expected YAML mapping in {path}")
+    flat = flatten_mapping(payload)
+    flat["run_cfg"] = str(path)
+    return flat
 
 
 def build_default_paths(
@@ -116,6 +178,7 @@ def build_default_paths(
         / "04_Estimate_Human_Pose"
         / "assets"
         / "smplx_vert_segmentation.json",
+        "full_smpl_seg_json": DEFAULT_FULL_SMPLX_SEG_JSON,
         "human_mesh_world": human_mesh_world,
         "contact_spec_json": PROJECT_DIR
         / "03_Estimate_Contact_Agentic"
@@ -374,6 +437,52 @@ def load_smpl_body_segments(seg_path: Path) -> tuple[int, dict[str, np.ndarray],
     return vertex_count, segments, contact_ids
 
 
+def load_full_smpl_body_segments(seg_path: Path) -> tuple[int, dict[str, np.ndarray]]:
+    payload = load_json(seg_path)
+    raw_segments = payload.get("segments", payload)
+    if not isinstance(raw_segments, dict):
+        raise KeyError(f"Expected SMPL-X segment mapping in {seg_path}.")
+
+    segments: dict[str, np.ndarray] = {}
+    max_vertex_id = -1
+    for segment_id, indices in raw_segments.items():
+        if not isinstance(indices, list):
+            continue
+        indices_array = np.unique(np.asarray(indices, dtype=np.int64))
+        if indices_array.size == 0:
+            continue
+        if indices_array[0] < 0:
+            raise ValueError(f"Segment '{segment_id}' has negative vertex ids.")
+        max_vertex_id = max(max_vertex_id, int(indices_array[-1]))
+        segments[str(segment_id)] = indices_array
+
+    if not segments:
+        raise ValueError(f"No SMPL-X body segments found in {seg_path}.")
+    vertex_count = int(payload.get("vertex_count", max_vertex_id + 1))
+    for segment_id, indices_array in segments.items():
+        if int(indices_array[-1]) >= vertex_count:
+            raise ValueError(f"Segment '{segment_id}' has out-of-range vertex ids.")
+    return vertex_count, segments
+
+
+def combine_vertex_segments(
+    segments: dict[str, np.ndarray],
+    segment_ids: tuple[str, ...],
+) -> np.ndarray:
+    arrays = []
+    missing = []
+    for segment_id in segment_ids:
+        if segment_id not in segments:
+            missing.append(segment_id)
+            continue
+        arrays.append(np.asarray(segments[segment_id], dtype=np.int64))
+    if missing:
+        raise KeyError(f"Missing SMPL-X source segments: {missing}")
+    if not arrays:
+        return np.empty((0,), dtype=np.int64)
+    return np.unique(np.concatenate(arrays, axis=0)).astype(np.int64)
+
+
 def build_interaction_part_vertex_ids(
     sig_payload: dict[str, Any],
     smpl_segments: dict[str, np.ndarray],
@@ -410,6 +519,52 @@ def build_interaction_part_vertex_ids(
 
     return part_vertex_ids, {
         "available": True,
+        "human_parts": part_names,
+        "parts": part_records,
+        "vertex_count": int(
+            sum(record["vertex_count"] for record in part_records)
+        ),
+        "missing_human_parts": missing_parts,
+    }
+
+
+def build_interaction_full_part_vertex_ids(
+    sig_payload: dict[str, Any],
+    full_smpl_segments: dict[str, np.ndarray],
+) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
+    part_names = iter_interaction_human_parts(sig_payload)
+    part_vertex_ids: dict[str, np.ndarray] = {}
+    part_records: list[dict[str, Any]] = []
+    missing_parts: list[str] = []
+    for part_name in part_names:
+        body_segment_id = slugify_segment_name(part_name)
+        source_segment_ids = FULL_SEGMENTS_BY_BODY_SEGMENT.get(body_segment_id)
+        if source_segment_ids is None:
+            missing_parts.append(part_name)
+            continue
+        vertex_ids = combine_vertex_segments(full_smpl_segments, source_segment_ids)
+        part_vertex_ids[part_name] = vertex_ids
+        part_records.append(
+            {
+                "part": part_name,
+                "segment_ids": list(source_segment_ids),
+                "vertex_count": int(vertex_ids.shape[0]),
+            }
+        )
+
+    if not part_vertex_ids:
+        return {}, {
+            "available": False,
+            "source": "gvhmr_full_body_segments",
+            "human_parts": part_names,
+            "parts": [],
+            "vertex_count": 0,
+            "missing_human_parts": missing_parts,
+        }
+
+    return part_vertex_ids, {
+        "available": True,
+        "source": "gvhmr_full_body_segments",
         "human_parts": part_names,
         "parts": part_records,
         "vertex_count": int(
@@ -1061,6 +1216,271 @@ def contact_parts_covered_by_view(
     )
 
 
+def build_visibility_gate_metadata(
+    selected_views: list[dict[str, Any]],
+    contact_part_vertices_world: dict[str, np.ndarray],
+    min_human_scene_visible_fraction: float,
+    min_contact_self_visible_fraction: float,
+) -> dict[str, Any]:
+    human_visibility_by_view = []
+    excluded_view_names: list[str] = []
+    for view in selected_views:
+        view_name = str(view.get("render_name", ""))
+        if view_name == "view_00":
+            excluded_view_names.append(view_name)
+            continue
+        fraction = float(view.get("human_visible_fraction", 0.0))
+        human_visibility_by_view.append(
+            {
+                "name": view_name,
+                "source_label": str(view.get("label", "")),
+                "human_visible_fraction": fraction,
+                "passes": fraction >= float(min_human_scene_visible_fraction),
+            }
+        )
+
+    contact_best_by_part = {}
+    for part_name in sorted(contact_part_vertices_world):
+        best_fraction = 0.0
+        best_view_name = None
+        for view in selected_views:
+            if str(view.get("render_name", "")) == "view_00":
+                continue
+            fractions = view.get("contact_part_human_self_visible_fractions", {})
+            fraction = float(fractions.get(part_name, 0.0))
+            if fraction > best_fraction:
+                best_fraction = fraction
+                best_view_name = str(view.get("render_name", ""))
+        contact_best_by_part[part_name] = {
+            "best_view": best_view_name,
+            "best_human_self_visible_fraction": best_fraction,
+            "passes": best_fraction >= float(min_contact_self_visible_fraction),
+        }
+
+    failing_human_views = [
+        record
+        for record in human_visibility_by_view
+        if not bool(record["passes"])
+    ]
+    failing_contact_parts = {
+        part_name: record
+        for part_name, record in contact_best_by_part.items()
+        if not bool(record["passes"])
+    }
+    return {
+        "min_human_scene_visible_fraction": float(min_human_scene_visible_fraction),
+        "min_contact_self_visible_fraction": float(min_contact_self_visible_fraction),
+        "contact_part_visibility_policy": "best_effort_ranked",
+        "contact_part_threshold_is_fatal": False,
+        "excluded_views": excluded_view_names,
+        "human_visibility_by_view": human_visibility_by_view,
+        "contact_self_visibility_best_by_part": contact_best_by_part,
+        "failing_human_views": failing_human_views,
+        "failing_contact_parts": failing_contact_parts,
+        "below_threshold_contact_parts": failing_contact_parts,
+        "passes": not failing_human_views,
+    }
+
+
+def build_contact_visibility_vertices(
+    contact_part_vertices_world: dict[str, np.ndarray],
+    scene_vertex_tree: cKDTree,
+    nearest_scene_fraction: float,
+    min_vertices: int,
+) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
+    visibility_vertices: dict[str, np.ndarray] = {}
+    metadata: dict[str, Any] = {
+        "nearest_scene_fraction": float(nearest_scene_fraction),
+        "min_vertices": int(min_vertices),
+        "parts": {},
+    }
+    for part_name, vertices in contact_part_vertices_world.items():
+        vertices = np.asarray(vertices, dtype=np.float32)
+        if vertices.shape[0] == 0:
+            visibility_vertices[part_name] = vertices
+            metadata["parts"][part_name] = {
+                "source_vertex_count": 0,
+                "selected_vertex_count": 0,
+                "distance_threshold_m": None,
+            }
+            continue
+        distances = scene_vertex_tree.query(vertices, k=1)[0].astype(np.float32)
+        fraction_count = int(
+            np.ceil(vertices.shape[0] * float(nearest_scene_fraction))
+        )
+        selected_count = int(
+            np.clip(
+                max(fraction_count, int(min_vertices)),
+                1,
+                vertices.shape[0],
+            )
+        )
+        selected_ids = np.argsort(distances)[:selected_count]
+        selected_vertices = vertices[selected_ids].astype(np.float32)
+        visibility_vertices[part_name] = selected_vertices
+        metadata["parts"][part_name] = {
+            "source_vertex_count": int(vertices.shape[0]),
+            "selected_vertex_count": int(selected_vertices.shape[0]),
+            "distance_threshold_m": float(distances[selected_ids[-1]]),
+            "min_distance_m": float(distances[selected_ids[0]]),
+        }
+    return visibility_vertices, metadata
+
+
+def enforce_visibility_gates(gate_metadata: dict[str, Any]) -> None:
+    failing_human_views = gate_metadata.get("failing_human_views", [])
+    if failing_human_views:
+        threshold = float(gate_metadata["min_human_scene_visible_fraction"])
+        details = ", ".join(
+            f"{record['name']}={float(record['human_visible_fraction']):.3f}"
+            for record in failing_human_views
+        )
+        raise RuntimeError(
+            "human scene-visible fraction below "
+            f"{threshold:.2f}: {details}"
+        )
+    failing_contact_parts = gate_metadata.get("failing_contact_parts", {})
+    if failing_contact_parts:
+        threshold = float(gate_metadata["min_contact_self_visible_fraction"])
+        details = ", ".join(
+            f"{part}={float(record['best_human_self_visible_fraction']):.3f}"
+            for part, record in failing_contact_parts.items()
+        )
+        print(
+            "Warning: contact part self-visible fraction below "
+            f"{threshold:.2f} in every selected view; continuing with best "
+            f"available views: {details}"
+        )
+
+
+def select_sampled_views_for_visibility(
+    candidate_views: list[dict[str, Any]],
+    target_parts: set[str],
+    max_sampled_views: int,
+    min_human_scene_visible_fraction: float,
+    min_contact_self_visible_fraction: float,
+) -> list[dict[str, Any]]:
+    selected: list[dict[str, Any]] = []
+    selected_ids: set[int] = set()
+
+    def human_passes(view: dict[str, Any]) -> bool:
+        return (
+            float(view.get("human_visible_fraction", 0.0))
+            >= float(min_human_scene_visible_fraction)
+        )
+
+    def part_fraction(view: dict[str, Any], part_name: str) -> float:
+        fractions = view.get("contact_part_human_self_visible_fractions", {})
+        return float(fractions.get(part_name, 0.0))
+
+    def covered_parts(views: list[dict[str, Any]]) -> set[str]:
+        covered = set()
+        for view in views:
+            for part_name in target_parts:
+                if part_fraction(view, part_name) >= float(
+                    min_contact_self_visible_fraction
+                ):
+                    covered.add(part_name)
+        return covered
+
+    def candidate_score(view: dict[str, Any], uncovered: set[str]) -> tuple[float, ...]:
+        newly_covered = [
+            part_name
+            for part_name in uncovered
+            if part_fraction(view, part_name) >= float(
+                min_contact_self_visible_fraction
+            )
+        ]
+        uncovered_fraction_sum = sum(part_fraction(view, part) for part in uncovered)
+        return (
+            float(len(newly_covered)),
+            float(uncovered_fraction_sum),
+            float(view.get("human_visible_fraction", 0.0)),
+            float(view.get("quality", 0.0)),
+            -float(view.get("patch_rank", 0)),
+        )
+
+    eligible_human_views = [
+        view for view in candidate_views if human_passes(view)
+    ]
+    if not eligible_human_views:
+        return []
+
+    while len(selected) < int(max_sampled_views):
+        uncovered = target_parts - covered_parts(selected)
+        if not uncovered:
+            break
+        eligible = [
+            view
+            for view in eligible_human_views
+            if id(view) not in selected_ids
+            and any(
+                part_fraction(view, part_name)
+                >= float(min_contact_self_visible_fraction)
+                for part_name in uncovered
+            )
+        ]
+        if not eligible:
+            break
+        best = max(eligible, key=lambda view: candidate_score(view, uncovered))
+        selected.append(best)
+        selected_ids.add(id(best))
+
+    for part_name in sorted(target_parts):
+        if len(selected) >= int(max_sampled_views):
+            break
+        current_best = max(
+            [part_fraction(view, part_name) for view in selected],
+            default=-1.0,
+        )
+        remaining_for_part = [
+            view
+            for view in eligible_human_views
+            if id(view) not in selected_ids
+        ]
+        if not remaining_for_part:
+            break
+        best = max(
+            remaining_for_part,
+            key=lambda view: (
+                part_fraction(view, part_name),
+                float(view.get("human_visible_fraction", 0.0)),
+                float(view.get("quality", 0.0)),
+                -float(view.get("patch_rank", 0)),
+            ),
+        )
+        if part_fraction(best, part_name) > current_best + 1e-6:
+            selected.append(best)
+            selected_ids.add(id(best))
+
+    if len(selected) < int(max_sampled_views):
+        remaining = [
+            view
+            for view in eligible_human_views
+            if id(view) not in selected_ids
+        ]
+        remaining.sort(
+            key=lambda view: (
+                sum(part_fraction(view, part_name) for part_name in target_parts),
+                max(
+                    [part_fraction(view, part_name) for part_name in target_parts],
+                    default=0.0,
+                ),
+                float(view.get("human_visible_fraction", 0.0)),
+                float(view.get("quality", 0.0)),
+                -float(view.get("patch_rank", 0)),
+            ),
+            reverse=True,
+        )
+        for view in remaining:
+            if len(selected) >= int(max_sampled_views):
+                break
+            selected.append(view)
+            selected_ids.add(id(view))
+
+    return selected
+
+
 def estimate_full_body_camera_radius(
     human_vertices_world: np.ndarray,
     intrinsics: np.ndarray,
@@ -1177,6 +1597,7 @@ def evaluate_render_view(
     contact_part_in_frame_fractions: dict[str, float] = {}
     contact_part_scene_visible_fractions: dict[str, float] = {}
     contact_part_self_visible_fractions: dict[str, float] = {}
+    contact_part_human_self_visible_fractions: dict[str, float] = {}
     for part_name, vertices in contact_part_vertices_world.items():
         part_framing_metrics = projection_framing_metrics(
             vertices,
@@ -1214,16 +1635,27 @@ def evaluate_render_view(
             occluder_depth_tolerance_m=visibility_depth_tolerance_m,
             require_occluder_depth=True,
         )
+        human_self_visible_fraction = point_visibility_fraction_from_depth(
+            vertices,
+            rotation_world_to_camera,
+            translation_world_to_camera,
+            intrinsics,
+            width,
+            image_height,
+            scene_depth=human_depth,
+            depth_scale=depth_scale,
+            depth_tolerance_m=visibility_depth_tolerance_m,
+            require_scene_depth=True,
+        )
         contact_part_in_frame_fractions[part_name] = part_in_frame_fraction
         contact_part_scene_visible_fractions[part_name] = scene_visible_fraction
         contact_part_self_visible_fractions[part_name] = self_visible_fraction
+        contact_part_human_self_visible_fractions[part_name] = (
+            human_self_visible_fraction
+        )
         contact_part_visible_fractions[part_name] = min(
             part_in_frame_fraction,
-            max(
-                self_visible_fraction,
-                scene_visible_fraction,
-                0.35 * part_in_frame_fraction,
-            ),
+            max(self_visible_fraction, scene_visible_fraction),
         )
     if contact_part_visible_fractions:
         interaction_part_visible_fraction = float(
@@ -1316,6 +1748,9 @@ def evaluate_render_view(
         "contact_part_in_frame_fractions": contact_part_in_frame_fractions,
         "contact_part_scene_visible_fractions": contact_part_scene_visible_fractions,
         "contact_part_self_visible_fractions": contact_part_self_visible_fractions,
+        "contact_part_human_self_visible_fractions": (
+            contact_part_human_self_visible_fractions
+        ),
         "covered_contact_parts": covered_contact_parts,
         "quality": float(quality),
         "renderable": bool(renderable),
@@ -1324,175 +1759,154 @@ def evaluate_render_view(
     }
 
 
-def select_synthetic_views_for_coverage(
-    candidates: list[dict[str, Any]],
-    initial_views: list[dict[str, Any]],
+def angular_distance_from_selected(
+    candidate: dict[str, Any],
+    selected_views: list[dict[str, Any]],
     focus: np.ndarray,
-    min_num_views: int,
-    max_num_views: int,
-    contact_part_names: list[str],
+) -> float:
+    candidate_direction = normalize_vector(candidate["camera_center_world"] - focus)
+    selected_directions = [
+        normalize_vector(view["camera_center_world"] - focus)
+        for view in selected_views
+        if float(np.linalg.norm(view["camera_center_world"] - focus)) > 1e-6
+    ]
+    if not selected_directions:
+        return float(np.pi)
+    return min(
+        float(np.arccos(np.clip(np.dot(candidate_direction, direction), -1.0, 1.0)))
+        for direction in selected_directions
+    )
+
+
+def select_two_orbit_views(
+    candidates: list[dict[str, Any]],
+    selected_views: list[dict[str, Any]],
+    focus: np.ndarray,
+    target_parts: set[str],
     min_contact_part_visible_fraction: float,
     min_view_angular_separation_deg: float,
-    allow_relaxed: bool,
-) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    target_parts = set(contact_part_names)
-    min_view_angle_rad = np.deg2rad(float(min_view_angular_separation_deg))
-    min_count = max(0, int(min_num_views))
-    max_count = max(min_count, int(max_num_views))
+    desired_count: int = 2,
+) -> list[dict[str, Any]]:
+    selected: list[dict[str, Any]] = []
+    selected_ids: set[int] = set()
+    desired_count = max(0, int(desired_count))
+    min_angle_rad = np.deg2rad(float(min_view_angular_separation_deg))
+    min_yaw_separation_deg = max(30.0, float(min_view_angular_separation_deg))
 
-    def greedy(allowed_candidates: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], set[str]]:
-        selected: list[dict[str, Any]] = []
-        covered = set()
-        for view in initial_views:
+    def covered_parts(views: list[dict[str, Any]]) -> set[str]:
+        covered: set[str] = set()
+        for view in views:
             covered.update(
-                contact_parts_covered_by_view(view, min_contact_part_visible_fraction)
+                contact_parts_covered_by_view(
+                    view,
+                    min_contact_part_visible_fraction,
+                )
             )
-        available = list(allowed_candidates)
-        selected_dirs = [
-            normalize_vector(view["camera_center_world"] - focus)
-            for view in initial_views
-            if float(np.linalg.norm(view["camera_center_world"] - focus)) > 1e-6
+        return covered
+
+    def candidate_score(candidate: dict[str, Any]) -> float:
+        covered = covered_parts([*selected_views, *selected])
+        uncovered = target_parts - covered
+        candidate_covered = set(
+            contact_parts_covered_by_view(
+                candidate,
+                min_contact_part_visible_fraction,
+            )
+        )
+        fractions = candidate.get("contact_part_visible_fractions", {})
+        uncovered_fraction_sum = sum(
+            float(fractions.get(part, 0.0))
+            for part in uncovered
+        )
+        selected_distance = angular_distance_from_selected(
+            candidate,
+            [*selected_views, *selected],
+            focus,
+        )
+        diverse_enough = selected_distance >= min_angle_rad
+        distance_quality = min(float(candidate["camera_radius_m"]) / 3.0, 1.0)
+        return (
+            120.0 * len(candidate_covered & uncovered)
+            + 36.0 * uncovered_fraction_sum
+            + 12.0 * float(candidate["interaction_part_visible_fraction"])
+            + 8.0 * float(candidate["quality"])
+            + 4.0 * min(selected_distance, np.pi / 2.0)
+            + 4.0 * distance_quality
+            + 0.8 * abs(float(candidate["yaw_deg"]))
+            + (8.0 if bool(candidate["valid"]) else 0.0)
+            + (3.0 if bool(candidate["renderable"]) else 0.0)
+            - (40.0 if selected and not diverse_enough else 0.0)
+        )
+
+    def yaw_delta_deg(yaw_a: float, yaw_b: float) -> float:
+        delta = abs(float(yaw_a) - float(yaw_b)) % 360.0
+        return min(delta, 360.0 - delta)
+
+    def yaw_separated(candidate: dict[str, Any]) -> bool:
+        candidate_yaw = float(candidate["yaw_deg"])
+        selected_synthetic_yaws = [
+            float(view["yaw_deg"])
+            for view in [*selected_views, *selected]
+            if str(view.get("label", "")) != "contact_spec_camera"
         ]
-        while len(selected) < max_count and available:
-            uncovered = target_parts - covered
-            if len(selected) >= min_count and not uncovered:
-                break
+        return all(
+            yaw_delta_deg(candidate_yaw, selected_yaw) >= min_yaw_separation_deg
+            for selected_yaw in selected_synthetic_yaws
+        )
 
-            def candidate_score(candidate: dict[str, Any]) -> float:
-                candidate_covered = set(
-                    contact_parts_covered_by_view(
-                        candidate,
-                        min_contact_part_visible_fraction,
-                    )
-                )
-                new_parts = candidate_covered & uncovered
-                fractions = candidate.get("contact_part_visible_fractions", {})
-                uncovered_fraction_sum = sum(
-                    float(fractions.get(part, 0.0)) for part in uncovered
-                )
-                direction = normalize_vector(candidate["camera_center_world"] - focus)
-                if selected_dirs:
-                    diversity = min(
-                        float(
-                            np.arccos(
-                                np.clip(np.dot(direction, selected_dir), -1.0, 1.0)
-                            )
-                        )
-                        for selected_dir in selected_dirs
-                    )
-                else:
-                    diversity = float(np.pi)
-                duplicate_penalty = (
-                    50.0
-                    if selected_dirs
-                    and diversity < min_view_angle_rad
-                    and not new_parts
-                    else 0.0
-                )
-                return (
-                    100.0 * len(new_parts)
-                    + 28.0 * uncovered_fraction_sum
-                    + 14.0 * float(candidate["interaction_part_visible_fraction"])
-                    + 6.0 * float(candidate["quality"])
-                    + 2.5 * diversity
-                    - duplicate_penalty
-                )
-
-            best = max(available, key=candidate_score)
-            selected.append(best)
-            covered.update(
-                contact_parts_covered_by_view(best, min_contact_part_visible_fraction)
-            )
-            selected_dirs.append(normalize_vector(best["camera_center_world"] - focus))
-            available = [candidate for candidate in available if candidate is not best]
-        return selected, covered
-
-    strict_candidates = [
+    preferred = [
         candidate
         for candidate in candidates
-        if candidate["valid"] and candidate["renderable"]
-    ]
-    selected, covered = greedy(strict_candidates)
-    coverage_relaxed = False
-    if (len(selected) < min_count or target_parts - covered) and allow_relaxed:
-        relaxed_candidates = [
-            candidate
-            for candidate in candidates
-            if candidate["relaxed_valid"] and candidate["renderable"]
-        ]
-        relaxed_selected, relaxed_covered = greedy(relaxed_candidates)
-        if (
-            len(relaxed_selected) >= len(selected)
-            and len(target_parts - relaxed_covered) <= len(target_parts - covered)
-        ):
-            selected = relaxed_selected
-            covered = relaxed_covered
-            coverage_relaxed = True
-
-    if len(selected) < min_count:
-        selected_ids = {id(view) for view in selected}
-        selected_dirs = [
-            normalize_vector(view["camera_center_world"] - focus)
-            for view in [*initial_views, *selected]
-            if float(np.linalg.norm(view["camera_center_world"] - focus)) > 1e-6
-        ]
-        fallback_candidates = sorted(
-            candidates,
-            key=lambda candidate: (
-                bool(candidate["renderable"]),
-                bool(candidate["valid"]),
-                bool(candidate["relaxed_valid"]),
-                float(candidate["interaction_part_visible_fraction"]),
-                float(candidate["quality"]),
-            ),
-            reverse=True,
+        if bool(candidate["renderable"])
+        and (
+            not target_parts
+            or float(candidate["interaction_part_visible_fraction"]) > 0.03
         )
-        for require_diverse in (True, False):
-            for candidate in fallback_candidates:
-                if len(selected) >= min_count:
-                    break
-                if id(candidate) in selected_ids or not bool(candidate["renderable"]):
-                    continue
-                direction = normalize_vector(candidate["camera_center_world"] - focus)
-                if require_diverse and selected_dirs:
-                    diversity = min(
-                        float(
-                            np.arccos(
-                                np.clip(
-                                    np.dot(direction, selected_dir),
-                                    -1.0,
-                                    1.0,
-                                )
-                            )
-                        )
-                        for selected_dir in selected_dirs
-                    )
-                    if diversity < min_view_angle_rad:
-                        continue
-                selected.append(candidate)
-                selected_ids.add(id(candidate))
-                selected_dirs.append(direction)
-                covered.update(
-                    contact_parts_covered_by_view(
-                        candidate,
-                        min_contact_part_visible_fraction,
-                    )
-                )
-            if len(selected) >= min_count:
+        and (bool(candidate["valid"]) or bool(candidate["relaxed_valid"]))
+    ]
+    preferred_ids = {id(candidate) for candidate in preferred}
+    fallback = [
+        candidate
+        for candidate in candidates
+        if bool(candidate["renderable"])
+        and (
+            not target_parts
+            or float(candidate["interaction_part_visible_fraction"]) > 0.03
+        )
+        and id(candidate) not in preferred_ids
+    ]
+    for pool in (preferred, fallback):
+        remaining = list(pool)
+        while len(selected) < desired_count and remaining:
+            available = [
+                candidate
+                for candidate in remaining
+                if id(candidate) not in selected_ids
+            ]
+            eligible = [
+                candidate
+                for candidate in available
+                if yaw_separated(candidate)
+            ]
+            if not eligible:
                 break
-
-    selected = selected[:max_count]
-    covered = set()
-    for view in [*initial_views, *selected]:
-        covered.update(contact_parts_covered_by_view(view, min_contact_part_visible_fraction))
-    return selected, {
-        "covered_contact_parts": sorted(covered & target_parts),
-        "uncovered_contact_parts": sorted(target_parts - covered),
-        "coverage_relaxed": bool(coverage_relaxed),
-        "requested_min_synthetic_views": int(min_count),
-        "requested_max_synthetic_views": int(max_count),
-        "selected_synthetic_views": int(len(selected)),
-    }
+            best = max(
+                eligible,
+                key=candidate_score,
+                default=None,
+            )
+            if best is None:
+                break
+            selected.append(best)
+            selected_ids.add(id(best))
+            remaining = [
+                candidate
+                for candidate in remaining
+                if id(candidate) not in selected_ids
+            ]
+        if len(selected) >= desired_count:
+            break
+    return selected
 
 
 def build_candidate_views(
@@ -1527,6 +1941,8 @@ def build_candidate_views(
     min_view_angular_separation_deg: float,
     max_depth_m: float,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    del min_num_views
+    target_synthetic_view_count = max(0, min(4, int(max_num_views)))
     original_center = camera_center_from_extrinsics(
         original_rotation_world_to_camera,
         original_translation_world_to_camera,
@@ -1536,107 +1952,527 @@ def build_candidate_views(
     base_vector_xy[2] = 0.0
     if float(np.linalg.norm(base_vector_xy)) < 1e-6:
         base_vector_xy = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+    original_radius = float(np.linalg.norm(base_vector_xy))
     base_radius = estimate_full_body_camera_radius(
         human_vertices_world=human_vertices_world,
         intrinsics=intrinsics,
         width=width,
         height=image_height,
-        fallback_radius_m=float(camera_radius_m),
+        fallback_radius_m=max(float(camera_radius_m), original_radius),
     )
     camera_height_offset = float(original_center[2] - focus[2])
-    camera_height_offset = float(np.clip(camera_height_offset, 0.35, 1.15))
+    camera_height_offset = float(np.clip(camera_height_offset, -0.15, 1.25))
     base_dir = normalize_vector(base_vector_xy)
 
     candidates: list[dict[str, Any]] = []
-    yaw_offsets = [-75.0, -45.0, -20.0, 20.0, 45.0, 75.0, 110.0, -110.0, 180.0]
-    relaxed_yaw_offsets = [-140.0, -125.0, 0.0, 125.0, 140.0]
-    radii = [base_radius * scale for scale in (0.95, 1.1, 1.25)]
-    relaxed_radii = [base_radius * scale for scale in (0.85, 1.4)]
-    height_offsets = [
-        camera_height_offset - 0.20,
-        camera_height_offset,
-        camera_height_offset + 0.25,
+    yaw_offsets = [
+        -10.0,
+        -20.0,
+        -30.0,
+        -45.0,
+        -60.0,
+        -75.0,
+        -90.0,
+        -120.0,
+        -150.0,
+        10.0,
+        20.0,
+        30.0,
+        45.0,
+        60.0,
+        75.0,
+        90.0,
+        120.0,
+        150.0,
+        180.0,
     ]
-    relaxed_height_offsets = [0.20, camera_height_offset + 0.45, 1.45]
-    candidate_specs = [
-        (yaw, radius, height_offset, False)
-        for radius in radii
-        for yaw in yaw_offsets
-        for height_offset in height_offsets
-    ] + [
-        (yaw, radius, height_offset, True)
-        for radius in relaxed_radii
-        for yaw in relaxed_yaw_offsets
-        for height_offset in relaxed_height_offsets
-    ]
-    seen_specs: set[tuple[int, int, int]] = set()
-    for yaw, radius, height_offset, is_relaxed_camera in candidate_specs:
-        key = (
-            int(round(yaw * 10.0)),
-            int(round(radius * 100.0)),
-            int(round(height_offset * 100.0)),
-        )
-        if key in seen_specs:
-            continue
-        seen_specs.add(key)
-        direction = normalize_vector(rotate_about_up(base_dir, float(yaw)))
-        center = focus + direction * float(radius)
-        center[2] = focus[2] + float(np.clip(height_offset, 0.15, 1.55))
-        rotation, translation = look_at_world_to_camera_centered(
-            center,
-            focus,
-            intrinsics=intrinsics,
-            width=width,
-            image_height=image_height,
-        )
-        view = evaluate_render_view(
-            label=(
-                "relaxed_yaw"
-                if is_relaxed_camera
-                else "view_axis_radius"
-                if yaw == 0.0
-                else f"yaw_{int(yaw):+d}"
-            ),
-            yaw_deg=float(yaw),
-            rotation_world_to_camera=rotation,
-            translation_world_to_camera=translation,
-            focus=focus,
-            human_vertices_world=human_vertices_world,
-            contact_part_vertices_world=contact_part_vertices_world,
-            scene_depth_points_world=scene_depth_points_world,
-            scene_vertex_tree=scene_vertex_tree,
-            intrinsics=intrinsics,
-            width=width,
-            image_height=image_height,
-            min_camera_scene_distance_m=min_camera_scene_distance_m,
-            min_human_visible_fraction=min_human_visible_fraction,
-            min_human_in_frame_fraction=min_human_in_frame_fraction,
-            max_human_center_offset=max_human_center_offset,
-            min_human_bbox_fill=min_human_bbox_fill,
-            max_human_bbox_fill=max_human_bbox_fill,
-            min_interaction_part_visible_fraction=min_interaction_part_visible_fraction,
-            min_contact_part_visible_fraction=min_contact_part_visible_fraction,
-            visibility_depth_width=visibility_depth_width,
-            visibility_depth_tolerance_m=visibility_depth_tolerance_m,
-            scene_depth_sample_spacing_m=scene_depth_sample_spacing_m,
-            scene_depth_max_splat_radius_px=scene_depth_max_splat_radius_px,
-            human_depth_sample_spacing_m=human_depth_sample_spacing_m,
-            human_depth_max_splat_radius_px=human_depth_max_splat_radius_px,
-            max_depth_m=max_depth_m,
-        )
-        view["relaxed_camera_candidate"] = bool(is_relaxed_camera)
-        candidates.append(view)
+    seen_specs: set[tuple[str, int, int, int]] = set()
 
-    return select_synthetic_views_for_coverage(
-        candidates=candidates,
-        initial_views=initial_views,
+    def add_candidate_family(
+        focus_label: str,
+        target_focus: np.ndarray,
+        radius_scales: tuple[float, ...],
+        height_deltas: tuple[float, ...],
+        label_prefix: str,
+    ) -> None:
+        local_vector = original_center - target_focus
+        local_vector_xy = local_vector.copy()
+        local_vector_xy[2] = 0.0
+        local_dir = (
+            base_dir
+            if float(np.linalg.norm(local_vector_xy)) < 1e-6
+            else normalize_vector(local_vector_xy)
+        )
+        local_height_offset = float(original_center[2] - target_focus[2])
+        local_height_offset = float(np.clip(local_height_offset, -0.25, 1.35))
+        for yaw in yaw_offsets:
+            direction = normalize_vector(rotate_about_up(local_dir, float(yaw)))
+            for radius_scale in radius_scales:
+                radius = float(base_radius) * float(radius_scale)
+                for height_delta in height_deltas:
+                    height_offset = local_height_offset + float(height_delta)
+                    key = (
+                        focus_label,
+                        int(round(yaw * 10.0)),
+                        int(round(radius * 100.0)),
+                        int(round(height_offset * 100.0)),
+                    )
+                    if key in seen_specs:
+                        continue
+                    seen_specs.add(key)
+                    center = target_focus + direction * radius
+                    center[2] = target_focus[2] + float(
+                        np.clip(height_offset, -0.35, 1.75)
+                    )
+                    rotation, translation = look_at_world_to_camera_centered(
+                        center,
+                        target_focus,
+                        intrinsics=intrinsics,
+                        width=width,
+                        image_height=image_height,
+                    )
+                    side = "clockwise" if yaw < 0.0 else "anticlockwise"
+                    view = evaluate_render_view(
+                        label=f"{label_prefix}_{side}_{abs(int(yaw)):02d}",
+                        yaw_deg=float(yaw),
+                        rotation_world_to_camera=rotation,
+                        translation_world_to_camera=translation,
+                        focus=target_focus,
+                        human_vertices_world=human_vertices_world,
+                        contact_part_vertices_world=contact_part_vertices_world,
+                        scene_depth_points_world=scene_depth_points_world,
+                        scene_vertex_tree=scene_vertex_tree,
+                        intrinsics=intrinsics,
+                        width=width,
+                        image_height=image_height,
+                        min_camera_scene_distance_m=min_camera_scene_distance_m,
+                        min_human_visible_fraction=min_human_visible_fraction,
+                        min_human_in_frame_fraction=min_human_in_frame_fraction,
+                        max_human_center_offset=max_human_center_offset,
+                        min_human_bbox_fill=min_human_bbox_fill,
+                        max_human_bbox_fill=max_human_bbox_fill,
+                        min_interaction_part_visible_fraction=(
+                            min_interaction_part_visible_fraction
+                        ),
+                        min_contact_part_visible_fraction=(
+                            min_contact_part_visible_fraction
+                        ),
+                        visibility_depth_width=visibility_depth_width,
+                        visibility_depth_tolerance_m=visibility_depth_tolerance_m,
+                        scene_depth_sample_spacing_m=scene_depth_sample_spacing_m,
+                        scene_depth_max_splat_radius_px=(
+                            scene_depth_max_splat_radius_px
+                        ),
+                        human_depth_sample_spacing_m=human_depth_sample_spacing_m,
+                        human_depth_max_splat_radius_px=human_depth_max_splat_radius_px,
+                        max_depth_m=max_depth_m,
+                    )
+                    view["relaxed_camera_candidate"] = False
+                    view["target_focus_label"] = focus_label
+                    candidates.append(view)
+
+    add_candidate_family(
+        focus_label="body",
+        target_focus=focus,
+        radius_scales=(0.88, 1.0, 1.14),
+        height_deltas=(-0.25, 0.0, 0.25),
+        label_prefix="orbit",
+    )
+    for part_name, vertices in contact_part_vertices_world.items():
+        part_focus = vertices.mean(axis=0).astype(np.float32)
+        part_focus = (0.82 * part_focus + 0.18 * focus).astype(np.float32)
+        add_candidate_family(
+            focus_label=slugify_segment_name(part_name),
+            target_focus=part_focus,
+            radius_scales=(0.50, 0.65, 0.82, 1.0),
+            height_deltas=(-0.20, 0.0, 0.24),
+            label_prefix=f"contact_{slugify_segment_name(part_name)}",
+        )
+
+    target_parts = set(contact_part_vertices_world)
+    clockwise_candidates = [
+        candidate for candidate in candidates if float(candidate["yaw_deg"]) < 0.0
+    ]
+    anticlockwise_candidates = [
+        candidate for candidate in candidates if float(candidate["yaw_deg"]) > 0.0
+    ]
+    clockwise_views = select_two_orbit_views(
+        candidates=clockwise_candidates,
+        selected_views=initial_views,
         focus=focus,
-        min_num_views=int(min_num_views),
-        max_num_views=int(max_num_views),
-        contact_part_names=list(contact_part_vertices_world.keys()),
+        target_parts=target_parts,
         min_contact_part_visible_fraction=min_contact_part_visible_fraction,
         min_view_angular_separation_deg=min_view_angular_separation_deg,
-        allow_relaxed=True,
+    )
+    anticlockwise_views = select_two_orbit_views(
+        candidates=anticlockwise_candidates,
+        selected_views=[*initial_views, *clockwise_views],
+        focus=focus,
+        target_parts=target_parts,
+        min_contact_part_visible_fraction=min_contact_part_visible_fraction,
+        min_view_angular_separation_deg=min_view_angular_separation_deg,
+    )
+    selected = [*clockwise_views, *anticlockwise_views]
+    fill_views: list[dict[str, Any]] = []
+    if len(selected) < target_synthetic_view_count:
+        selected_ids = {id(view) for view in selected}
+        fill_candidates = [
+            candidate
+            for candidate in candidates
+            if id(candidate) not in selected_ids
+        ]
+        fill_views = select_two_orbit_views(
+            candidates=fill_candidates,
+            selected_views=[*initial_views, *selected],
+            focus=focus,
+            target_parts=target_parts,
+            min_contact_part_visible_fraction=min_contact_part_visible_fraction,
+            min_view_angular_separation_deg=min_view_angular_separation_deg,
+            desired_count=target_synthetic_view_count - len(selected),
+        )
+        selected = [*selected, *fill_views]
+    covered: set[str] = set()
+    for view in [*initial_views, *selected]:
+        covered.update(
+            contact_parts_covered_by_view(
+                view,
+                min_contact_part_visible_fraction,
+            )
+        )
+    return selected, {
+        "covered_contact_parts": sorted(covered & target_parts),
+        "uncovered_contact_parts": sorted(target_parts - covered),
+        "coverage_relaxed": False,
+        "requested_min_synthetic_views": 0,
+        "requested_max_synthetic_views": int(target_synthetic_view_count),
+        "selected_synthetic_views": int(len(selected)),
+        "clockwise_views": int(
+            sum(float(view["yaw_deg"]) < 0.0 for view in selected)
+        ),
+        "anticlockwise_views": int(
+            sum(float(view["yaw_deg"]) > 0.0 for view in selected)
+        ),
+        "fallback_renderable_views": int(len(fill_views)),
+        "candidate_views": int(len(candidates)),
+    }
+
+
+def select_genzi_view_patch_faces(
+    scene_mesh: Any,
+    at: np.ndarray,
+    radius: float,
+    use_at_normal: bool,
+) -> tuple[np.ndarray, np.ndarray | None, dict[str, Any]]:
+    at = np.asarray(at, dtype=np.float32)
+    vertex_tree = cKDTree(np.asarray(scene_mesh.vertices, dtype=np.float32))
+    nearby_vertex_ids = np.asarray(
+        vertex_tree.query_ball_point(at, r=float(radius)),
+        dtype=np.int64,
+    )
+
+    candidate_faces = np.zeros((0,), dtype=np.int64)
+    selected_faces: np.ndarray | None = None
+    selection_source = "none"
+    if nearby_vertex_ids.size > 0:
+        (candidate_faces,) = np.nonzero(
+            np.any(np.isin(scene_mesh.faces, nearby_vertex_ids), axis=1)
+        )
+        if candidate_faces.size > 0:
+            (patch_adjacency_rows,) = np.nonzero(
+                np.all(np.isin(scene_mesh.face_adjacency, candidate_faces), axis=1)
+            )
+            if patch_adjacency_rows.size > 0:
+                labels = trimesh.graph.connected_component_labels(
+                    scene_mesh.face_adjacency[patch_adjacency_rows, :],
+                    node_count=len(scene_mesh.faces),
+                )
+                label_ids, label_counts = np.unique(labels, return_counts=True)
+                label_ids = label_ids[label_counts > 1]
+                best_distance: float | None = None
+                for label_id in label_ids.tolist():
+                    face_ids = np.nonzero(labels == label_id)[0]
+                    face_ids = np.intersect1d(face_ids, candidate_faces)
+                    if face_ids.size == 0:
+                        continue
+                    patch_mesh = scene_mesh.submesh(
+                        faces_sequence=[face_ids],
+                        append=True,
+                    )
+                    patch_tree = cKDTree(
+                        np.asarray(patch_mesh.vertices, dtype=np.float32)
+                    )
+                    distance_value = float(patch_tree.query(at, k=1)[0])
+                    if best_distance is None or distance_value < best_distance:
+                        selected_faces = face_ids.astype(np.int64)
+                        best_distance = distance_value
+                        selection_source = "connected_component"
+            if selected_faces is None:
+                selected_faces = candidate_faces.astype(np.int64)
+                selection_source = "vertex_radius_faces"
+
+    if selected_faces is None or selected_faces.size == 0:
+        face_centers = scene_mesh.vertices[scene_mesh.faces].mean(axis=1)
+        distances = np.linalg.norm(face_centers - at[None], axis=1)
+        face_ids = np.flatnonzero(distances <= float(radius))
+        if face_ids.size == 0:
+            nearest_count = min(64, len(scene_mesh.faces))
+            face_ids = np.argsort(distances)[:nearest_count]
+            selection_source = "nearest_faces"
+        else:
+            selection_source = "face_center_radius"
+        selected_faces = face_ids.astype(np.int64)
+
+    if bool(use_at_normal):
+        _distance, nearest_vertex = vertex_tree.query(at, k=1)
+        at_normal = scene_mesh.vertex_normals[int(nearest_vertex), :]
+    else:
+        at_normal = None
+
+    metadata = {
+        "radius": float(radius),
+        "source": selection_source,
+        "nearby_vertex_count": int(nearby_vertex_ids.size),
+        "candidate_face_count": int(candidate_faces.size),
+        "selected_face_count": int(selected_faces.size),
+    }
+    return selected_faces.astype(np.int64), at_normal, metadata
+
+
+def fibonacci_sphere(samples: int) -> np.ndarray:
+    samples = max(1, int(samples))
+    if samples == 1:
+        return np.array([[1.0, 0.0, 0.0]], dtype=np.float32)
+    points = []
+    golden_angle = np.pi * (3.0 - np.sqrt(5.0))
+    for index in range(samples):
+        z = 1.0 - 2.0 * float(index) / float(samples - 1)
+        radius = float(np.sqrt(max(0.0, 1.0 - z * z)))
+        theta = golden_angle * float(index)
+        points.append([np.cos(theta) * radius, np.sin(theta) * radius, z])
+    return np.asarray(points, dtype=np.float32)
+
+
+def square_camera_intrinsics_from_fov(
+    fov_deg: float,
+    image_size: int = 512,
+) -> tuple[np.ndarray, int, int]:
+    image_size = int(image_size)
+    focal = 0.5 * float(image_size) / max(
+        np.tan(np.deg2rad(float(fov_deg)) * 0.5),
+        1e-6,
+    )
+    center = 0.5 * float(image_size - 1)
+    intrinsics = np.array(
+        [[focal, 0.0, center], [0.0, focal, center], [0.0, 0.0, 1.0]],
+        dtype=np.float32,
+    )
+    return intrinsics, image_size, image_size
+
+
+def score_patch_visibility_from_view(
+    scene_mesh: Any,
+    patch_faces: np.ndarray,
+    camera_center: np.ndarray,
+    at: np.ndarray,
+    up: np.ndarray,
+    fov: float,
+) -> float:
+    patch_faces = np.asarray(patch_faces, dtype=np.int64)
+    if patch_faces.size == 0:
+        return 0.0
+
+    face_centers = scene_mesh.vertices[scene_mesh.faces[patch_faces]].mean(axis=1)
+    face_normals = scene_mesh.face_normals[patch_faces]
+    face_areas = scene_mesh.area_faces[patch_faces]
+    total_area = float(np.sum(face_areas))
+    if total_area <= 1e-12:
+        return 0.0
+
+    view_dirs = camera_center[None, :] - face_centers
+    front_facing = np.sum(view_dirs * face_normals, axis=1) > 0.0
+    if not np.any(front_facing):
+        return 0.0
+
+    intrinsics, width, height = square_camera_intrinsics_from_fov(fov)
+    rotation, translation = look_at_world_to_camera(
+        camera_center=camera_center,
+        focus=at,
+        world_up=up,
+    )
+    centers_camera = transform_world_to_camera(
+        face_centers.astype(np.float32),
+        rotation_world_to_camera=rotation,
+        translation_world_to_camera=translation,
+    )
+    u, v, z = project_camera_points_to_image(centers_camera, intrinsics)
+    in_frame = (
+        (z > 1e-6)
+        & (u >= 0.0)
+        & (u <= float(width - 1))
+        & (v >= 0.0)
+        & (v <= float(height - 1))
+    )
+    visible = front_facing & in_frame
+    return float(np.sum(face_areas[visible]) / total_area)
+
+
+def generate_local_genzi_viewpoints(
+    scene_mesh: Any,
+    patch_faces: np.ndarray,
+    at: np.ndarray,
+    at_normal: np.ndarray | None,
+    up: np.ndarray,
+    fov: float,
+    num_viewpoints: int,
+    distance: float,
+    max_views: int,
+    min_ratio: float = 0.4,
+    random_when_fail: bool = False,
+) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
+    at = np.asarray(at, dtype=np.float32)
+    up = normalize_vector(np.asarray(up, dtype=np.float32))
+    unit_viewpoints = fibonacci_sphere(num_viewpoints)
+    unit_viewpoints = unit_viewpoints / np.linalg.norm(
+        unit_viewpoints,
+        axis=1,
+        keepdims=True,
+    )
+
+    angles = np.arccos(
+        np.clip(np.sum(unit_viewpoints * up[None, :], axis=1), -1.0, 1.0)
+    )
+    keep = np.logical_and(angles > np.pi / 3.0, angles < np.pi / 2.0)
+    unit_viewpoints = unit_viewpoints[keep]
+    if at_normal is not None and unit_viewpoints.size > 0:
+        at_normal = normalize_vector(np.asarray(at_normal, dtype=np.float32))
+        normal_angles = np.arccos(
+            np.clip(
+                np.sum(unit_viewpoints * at_normal[None, :], axis=1),
+                -1.0,
+                1.0,
+            )
+        )
+        unit_viewpoints = unit_viewpoints[normal_angles < np.pi * 3.0 / 4.0]
+
+    viewpoints = unit_viewpoints * float(distance) + at[None, :]
+    scores = np.asarray(
+        [
+            score_patch_visibility_from_view(
+                scene_mesh=scene_mesh,
+                patch_faces=patch_faces,
+                camera_center=viewpoint.astype(np.float32),
+                at=at,
+                up=up,
+                fov=fov,
+            )
+            for viewpoint in viewpoints
+        ],
+        dtype=np.float32,
+    )
+    view_rank = np.argsort(scores)[::-1]
+    selected_ids = view_rank[scores[view_rank] > float(min_ratio)].tolist()
+    if len(selected_ids) > int(max_views):
+        selected_ids = selected_ids[: int(max_views)]
+    if not selected_ids and bool(random_when_fail) and viewpoints.shape[0] > 0:
+        selected_ids = view_rank[: int(max_views)].tolist()
+    eyes = viewpoints[selected_ids, :] if selected_ids else np.zeros((0, 3), dtype=np.float32)
+    metadata = {
+        "candidate_view_count": int(viewpoints.shape[0]),
+        "selected_view_ids": [int(view_id) for view_id in selected_ids],
+        "selected_scores": [float(scores[view_id]) for view_id in selected_ids],
+        "max_score": float(np.max(scores)) if scores.size else 0.0,
+        "min_ratio": float(min_ratio),
+    }
+    return eyes.astype(np.float32), at, metadata
+
+
+def get_genzi_viewpoints_with_patch_fallback(
+    scene_mesh: Any,
+    at: np.ndarray,
+    up: np.ndarray,
+    fov: float,
+    num_viewpoints: int,
+    distance: float,
+    max_views: int,
+    radius: float,
+    use_at_normal: bool,
+) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
+    if int(max_views) <= 0:
+        return np.zeros((0, 3), dtype=np.float32), np.asarray(at, dtype=np.float32), {
+            "fallback_used": False,
+            "attempts": [],
+            "selected_attempt": {
+                "selected_view_count": 0,
+                "reason": "max_views_is_zero",
+            },
+        }
+
+    radii: list[float] = []
+    for candidate in (radius, 0.25, 0.5, 1.0, 2.0):
+        candidate = float(candidate)
+        if candidate not in radii:
+            radii.append(candidate)
+
+    attempts: list[dict[str, Any]] = []
+    for index, candidate_radius in enumerate(radii):
+        print(
+            "    GenZI viewpoint patch attempt "
+            f"{index + 1}/{len(radii)} radius={candidate_radius:.2f}m"
+        )
+        patch_faces, at_normal, patch_metadata = select_genzi_view_patch_faces(
+            scene_mesh=scene_mesh,
+            at=at,
+            radius=candidate_radius,
+            use_at_normal=use_at_normal,
+        )
+        try:
+            eyes, selected_at, viewpoint_metadata = generate_local_genzi_viewpoints(
+                scene_mesh=scene_mesh,
+                patch_faces=patch_faces,
+                at=np.asarray(at, dtype=np.float32),
+                at_normal=at_normal,
+                up=up,
+                fov=fov,
+                num_viewpoints=num_viewpoints,
+                distance=distance,
+                max_views=max_views,
+                random_when_fail=index == len(radii) - 1,
+            )
+            eyes = np.asarray(eyes, dtype=np.float32)
+            attempt = {
+                **patch_metadata,
+                **viewpoint_metadata,
+                "selected_view_count": int(eyes.shape[0]) if eyes.ndim == 2 else 0,
+            }
+            attempts.append(attempt)
+            print(
+                "      patch "
+                f"source={patch_metadata['source']} "
+                f"selected_faces={patch_metadata['selected_face_count']} "
+                f"selected_views={attempt['selected_view_count']}"
+            )
+            if eyes.ndim == 2 and eyes.shape[0] > 0:
+                metadata = {
+                    "fallback_used": (
+                        index > 0
+                        or patch_metadata["source"] != "connected_component"
+                    ),
+                    "attempts": attempts,
+                    "selected_attempt": attempt,
+                }
+                return eyes, np.asarray(selected_at, dtype=np.float32), metadata
+        except Exception as exc:
+            attempts.append(
+                {
+                    **patch_metadata,
+                    "error": f"{type(exc).__name__}: {exc}",
+                }
+            )
+            print(f"      failed: {type(exc).__name__}: {exc}")
+
+    raise RuntimeError(
+        "GenZI viewpoint selection failed after patch-radius fallbacks: "
+        + json.dumps(attempts, indent=2)
     )
 
 
@@ -1803,6 +2639,9 @@ camera_objects = []
 for view in config["views"]:
     width = int(view.get("width", default_width))
     height = int(view.get("height", default_height))
+    resolution_percentage = int(
+        view.get("resolution_percentage", config["resolution_percentage"])
+    )
     intrinsics = view.get("intrinsics", default_intrinsics)
     fx = float(intrinsics[0][0])
     fy = float(intrinsics[1][1])
@@ -1819,7 +2658,9 @@ for view in config["views"]:
     camera_data.shift_y = (cy - float(height) * 0.5) / float(width)
     camera_data.clip_start = 0.01
     camera_data.clip_end = 100.0
-    camera_objects.append((camera_obj, view["render_path"], width, height))
+    camera_objects.append(
+        (camera_obj, view["render_path"], width, height, resolution_percentage)
+    )
 
 configure_cycles_gpu(config["cycles_samples"])
 bpy.context.scene.world = bpy.data.worlds.new("world") if bpy.context.scene.world is None else bpy.context.scene.world
@@ -1831,10 +2672,11 @@ bpy.context.scene.view_settings.look = "Medium High Contrast"
 bpy.context.scene.view_settings.exposure = 0.0
 bpy.context.scene.view_settings.gamma = 1.0
 bpy.ops.wm.save_as_mainfile(filepath=config["blend_path"])
-for camera_obj, render_path, width, height in camera_objects:
+for camera_obj, render_path, width, height, resolution_percentage in camera_objects:
     bpy.context.scene.camera = camera_obj
     bpy.context.scene.render.resolution_x = int(width)
     bpy.context.scene.render.resolution_y = int(height)
+    bpy.context.scene.render.resolution_percentage = int(resolution_percentage)
     bpy.context.scene.render.filepath = render_path
     bpy.ops.render.render(write_still=True)
 '''.lstrip(),
@@ -1850,6 +2692,10 @@ def render_interaction(
     input_scene_json_path = resolve_path(args.input_scene_json, defaults["input_scene_json"])
     sig_json_path = resolve_path(args.sig_json, defaults["sig_json"])
     smpl_seg_json_path = resolve_path(args.smpl_seg_json, defaults["smpl_seg_json"])
+    full_smpl_seg_json_path = resolve_path(
+        args.full_smpl_seg_json,
+        defaults["full_smpl_seg_json"],
+    )
     human_mesh_world_path = resolve_path(args.human_mesh_world, defaults["human_mesh_world"])
     contact_spec_json_path = resolve_path(
         args.contact_spec_json,
@@ -1861,20 +2707,26 @@ def render_interaction(
     )
     output_root = resolve_path(args.output_root, defaults["output_root"])
     scannet_root = resolve_scannet_root(args.scannet_root)
+    replay_output_cameras = args.output_mode != "output"
 
-    require_existing_paths(
-        {
-            "input_scene_json": input_scene_json_path,
-            "sig_json": sig_json_path,
-            "smpl_seg_json": smpl_seg_json_path,
-            "human_mesh_world": human_mesh_world_path,
-            "contact_spec_json": contact_spec_json_path,
-            "contact_render_image": contact_render_image_path,
-        }
-    )
+    required_paths = {
+        "input_scene_json": input_scene_json_path,
+        "human_mesh_world": human_mesh_world_path,
+        "contact_spec_json": contact_spec_json_path,
+        "contact_render_image": contact_render_image_path,
+    }
+    if not replay_output_cameras:
+        required_paths.update(
+            {
+                "sig_json": sig_json_path,
+                "smpl_seg_json": smpl_seg_json_path,
+                "full_smpl_seg_json": full_smpl_seg_json_path,
+            }
+        )
+    require_existing_paths(required_paths)
 
     input_payload = load_json(input_scene_json_path)
-    sig_payload = load_json(sig_json_path)
+    sig_payload = {} if replay_output_cameras else load_json(sig_json_path)
     scene_context = input_payload["scene_context"]
     scene_paths = resolve_scene_paths(scannet_root, scene_context)
     require_existing_paths(
@@ -1899,30 +2751,57 @@ def render_interaction(
 
     print(f"Loading optimized human mesh from: {human_mesh_world_path}")
     human_vertices_world = load_mesh_vertices(human_mesh_world_path)
-    smpl_vertex_count, smpl_segments, contact_segment_ids = load_smpl_body_segments(
-        smpl_seg_json_path
-    )
-    if human_vertices_world.shape[0] != smpl_vertex_count:
-        raise ValueError(
-            "Optimized human mesh vertex count does not match SMPL-X segmentation: "
-            f"mesh={human_vertices_world.shape[0]} segmentation={smpl_vertex_count}"
+    if replay_output_cameras:
+        interaction_part_metadata = {
+            "available": False,
+            "checks_skipped": True,
+            "checks_skipped_reason": (
+                f"{args.output_mode} reuses baseline output cameras"
+            ),
+            "parts": [],
+            "vertex_count": 0,
+        }
+        contact_part_vertices_world = {}
+    else:
+        smpl_vertex_count, smpl_segments, contact_segment_ids = load_smpl_body_segments(
+            smpl_seg_json_path
         )
-    interaction_part_vertex_ids, interaction_part_metadata = (
-        build_interaction_part_vertex_ids(
-            sig_payload=sig_payload,
-            smpl_segments=smpl_segments,
-            contact_segment_ids=contact_segment_ids,
+        full_smpl_vertex_count, full_smpl_segments = load_full_smpl_body_segments(
+            full_smpl_seg_json_path
         )
-    )
-    contact_part_vertices_world = {
-        part_name: human_vertices_world[vertex_ids].astype(np.float32)
-        for part_name, vertex_ids in interaction_part_vertex_ids.items()
-    }
-    focus_world = interaction_focus_point(
-        sig_payload=sig_payload,
-        human_vertices_world=human_vertices_world,
-        contact_part_vertices_world=contact_part_vertices_world,
-    )
+        if human_vertices_world.shape[0] != smpl_vertex_count:
+            raise ValueError(
+                "Optimized human mesh vertex count does not match SMPL-X segmentation: "
+                f"mesh={human_vertices_world.shape[0]} segmentation={smpl_vertex_count}"
+            )
+        if human_vertices_world.shape[0] != full_smpl_vertex_count:
+            raise ValueError(
+                "Optimized human mesh vertex count does not match GVHMR SMPL-X "
+                "full-part segmentation: "
+                f"mesh={human_vertices_world.shape[0]} "
+                f"segmentation={full_smpl_vertex_count}"
+            )
+        _, contact_region_part_metadata = (
+            build_interaction_part_vertex_ids(
+                sig_payload=sig_payload,
+                smpl_segments=smpl_segments,
+                contact_segment_ids=contact_segment_ids,
+            )
+        )
+        interaction_part_vertex_ids, interaction_part_metadata = (
+            build_interaction_full_part_vertex_ids(
+                sig_payload=sig_payload,
+                full_smpl_segments=full_smpl_segments,
+            )
+        )
+        interaction_part_metadata["full_segment_json"] = str(full_smpl_seg_json_path)
+        interaction_part_metadata["contact_region_segment_json"] = str(smpl_seg_json_path)
+        interaction_part_metadata["contact_region_parts"] = contact_region_part_metadata
+        contact_part_vertices_world = {
+            part_name: human_vertices_world[vertex_ids].astype(np.float32)
+            for part_name, vertex_ids in interaction_part_vertex_ids.items()
+        }
+    focus_world = human_focus_point(human_vertices_world)
     print(
         "Interaction human-part visibility vertices: "
         f"{interaction_part_metadata.get('vertex_count', 0)}"
@@ -1932,35 +2811,82 @@ def render_interaction(
     scene_verts_world, scene_faces, scene_colors = load_colored_mesh(
         scene_paths["mesh_path"]
     )
-    scene_depth_points_world = np.concatenate(
-        [
-            scene_verts_world,
-            scene_verts_world[scene_faces].mean(axis=1).astype(np.float32),
-        ],
-        axis=0,
-    )
-    if scene_depth_points_world.shape[0] > int(args.max_scene_depth_points):
-        rng = np.random.default_rng(int(args.seed))
-        choice = rng.choice(
-            scene_depth_points_world.shape[0],
-            size=int(args.max_scene_depth_points),
-            replace=False,
+    if replay_output_cameras:
+        scene_depth_points_world = np.zeros((0, 3), dtype=np.float32)
+        scene_vertex_tree = None
+    else:
+        scene_depth_points_world = np.concatenate(
+            [
+                scene_verts_world,
+                scene_verts_world[scene_faces].mean(axis=1).astype(np.float32),
+            ],
+            axis=0,
         )
-        scene_depth_points_world = scene_depth_points_world[choice]
-    scene_vertex_tree = cKDTree(scene_verts_world)
+        if scene_depth_points_world.shape[0] > int(args.max_scene_depth_points):
+            rng = np.random.default_rng(int(args.seed))
+            choice = rng.choice(
+                scene_depth_points_world.shape[0],
+                size=int(args.max_scene_depth_points),
+                replace=False,
+            )
+            scene_depth_points_world = scene_depth_points_world[choice]
+        scene_vertex_tree = cKDTree(scene_verts_world)
+    contact_visibility_vertices_world = contact_part_vertices_world
+    contact_visibility_metadata = (
+        {
+            "checks_skipped": True,
+            "checks_skipped_reason": (
+                f"{args.output_mode} reuses baseline output cameras"
+            ),
+            "parts": {},
+        }
+        if replay_output_cameras
+        else {
+            "source": "gvhmr_full_body_segments",
+            "segment_json": str(full_smpl_seg_json_path),
+            "contact_region_segment_json": str(smpl_seg_json_path),
+            "uses_complete_parts": True,
+            "parts": {
+                part_name: {"selected_vertex_count": int(vertices.shape[0])}
+                for part_name, vertices in sorted(
+                    contact_visibility_vertices_world.items()
+                )
+            },
+        }
+    )
     reusable_camera_config = (
         load_output_camera_config(interaction_name)
-        if bool(args.reuse_output_cameras)
+        if replay_output_cameras
         else None
     )
+    if replay_output_cameras and reusable_camera_config is None:
+        raise SkipInteraction(
+            "missing baseline output camera config for replay: "
+            + str(
+                SCRIPT_DIR
+                / "output"
+                / interaction_name
+                / "semantics"
+                / "assets"
+                / "render_config.json"
+            )
+        )
     camera_source = "generated"
     camera_source_config_path: str | None = None
+    reference_view_used = False
+    genzi_viewpoint_selection: dict[str, Any] | None = None
+    genzi_look_at_world = focus_world.astype(np.float32)
+    genzi_view_distance_m: float | None = None
+    genzi_patch_radius_m: float | None = None
+    genzi_num_viewpoints: int | None = None
+    genzi_use_at_normal: bool | None = None
 
     if reusable_camera_config is not None:
         camera_config_path, camera_config_payload = reusable_camera_config
         print(f"Reusing semantic cameras from: {camera_config_path}")
         camera_source = "baseline_output"
         camera_source_config_path = str(camera_config_path.resolve())
+        reference_view_used = True
         source_selected_views_path = camera_config_path.with_name("selected_views.json")
         source_selected_views = (
             load_json(source_selected_views_path)
@@ -1994,63 +2920,139 @@ def render_interaction(
                 camera_matrix_world
             )
             source_metadata = source_view_metadata.get(render_name, {})
-            view = evaluate_render_view(
-                label=str(source_metadata.get("source_label", "output_camera")),
-                yaw_deg=float(source_metadata.get("yaw_deg", 0.0)),
-                rotation_world_to_camera=view_rotation,
-                translation_world_to_camera=view_translation,
-                focus=focus_world,
-                human_vertices_world=human_vertices_world,
-                contact_part_vertices_world=contact_part_vertices_world,
-                scene_depth_points_world=scene_depth_points_world,
-                scene_vertex_tree=scene_vertex_tree,
-                intrinsics=view_intrinsics,
-                width=view_width,
-                image_height=view_height,
-                min_camera_scene_distance_m=float(args.min_camera_scene_distance_m),
-                min_human_visible_fraction=float(args.min_human_visible_fraction),
-                min_human_in_frame_fraction=float(args.min_human_in_frame_fraction),
-                max_human_center_offset=float(args.max_human_center_offset),
-                min_human_bbox_fill=float(args.min_human_bbox_fill),
-                max_human_bbox_fill=float(args.max_human_bbox_fill),
-                min_interaction_part_visible_fraction=float(
-                    args.min_interaction_part_visible_fraction
+            view = {
+                "label": str(source_metadata.get("source_label", "output_camera")),
+                "yaw_deg": float(source_metadata.get("yaw_deg", 0.0)),
+                "camera_radius_m": float(
+                    np.linalg.norm(
+                        camera_center_from_extrinsics(view_rotation, view_translation)
+                        - focus_world
+                    )
                 ),
-                min_contact_part_visible_fraction=float(
-                    args.min_contact_part_visible_fraction
+                "camera_height_offset_m": float(
+                    camera_center_from_extrinsics(view_rotation, view_translation)[2]
+                    - focus_world[2]
                 ),
-                visibility_depth_width=int(args.visibility_depth_width),
-                visibility_depth_tolerance_m=float(args.visibility_depth_tolerance_m),
-                scene_depth_sample_spacing_m=float(args.scene_depth_sample_spacing_m),
-                scene_depth_max_splat_radius_px=int(args.scene_depth_max_splat_radius_px),
-                human_depth_sample_spacing_m=float(args.human_depth_sample_spacing_m),
-                human_depth_max_splat_radius_px=int(args.human_depth_max_splat_radius_px),
-                max_depth_m=float(args.max_depth_m),
-            )
+                "camera_center_world": camera_center_from_extrinsics(
+                    view_rotation,
+                    view_translation,
+                ),
+                "rotation_world_to_camera": view_rotation,
+                "translation_world_to_camera": view_translation,
+                "intrinsics": view_intrinsics,
+                "width": view_width,
+                "height": view_height,
+                "nearest_scene_distance_m": None,
+                "human_visible_fraction": None,
+                "human_in_frame_fraction": None,
+                "human_center_offset": None,
+                "human_bbox_fill": None,
+                "scene_depth_finite_fraction": None,
+                "interaction_part_visible_fraction": None,
+                "interaction_part_filter_available": False,
+                "contact_part_visible_fractions": {},
+                "contact_part_in_frame_fractions": {},
+                "contact_part_scene_visible_fractions": {},
+                "contact_part_self_visible_fractions": {},
+                "contact_part_human_self_visible_fractions": {},
+                "covered_contact_parts": [],
+                "quality": None,
+                "renderable": True,
+                "valid": True,
+                "relaxed_valid": True,
+                "checks_skipped": True,
+                "checks_skipped_reason": (
+                    f"{args.output_mode} reuses baseline output cameras"
+                ),
+            }
             view["render_name"] = render_name
             view["camera_matrix_world"] = camera_matrix_world_payload
             view["reused_camera_config_path"] = camera_source_config_path
             selected_views.append(view)
-            covered_contact_parts.update(
-                contact_parts_covered_by_view(
-                    view,
-                    float(args.min_contact_part_visible_fraction),
-                )
-            )
 
         synthetic_views = selected_views[1:]
         min_total_views = len(selected_views)
         max_total_views = len(selected_views)
-        target_parts = set(contact_part_vertices_world)
+        target_parts = set(contact_visibility_vertices_world)
         coverage_metadata = {
-            "covered_contact_parts": sorted(covered_contact_parts & target_parts),
-            "uncovered_contact_parts": sorted(target_parts - covered_contact_parts),
-            "coverage_relaxed": False,
+            "covered_contact_parts": [],
+            "uncovered_contact_parts": sorted(target_parts),
+            "coverage_relaxed": True,
+            "checks_skipped": True,
+            "checks_skipped_reason": (
+                f"{args.output_mode} reuses baseline output cameras"
+            ),
             "requested_min_synthetic_views": int(max(0, len(selected_views) - 1)),
             "requested_max_synthetic_views": int(max(0, len(selected_views) - 1)),
             "selected_synthetic_views": int(max(0, len(selected_views) - 1)),
         }
     else:
+        camera_source = "genzi_human_center_patch"
+        run_cfg_path = Path(args.run_cfg).resolve()
+        camera_source_config_path = str(run_cfg_path)
+        view_cfg = load_view_cfg(run_cfg_path)
+        scene_mesh_for_viewpoints = trimesh.Trimesh(
+            vertices=scene_verts_world,
+            faces=scene_faces,
+            process=False,
+        )
+        up_dir = np.asarray(args.up_dir, dtype=np.float32)
+        genzi_view_distance_m = float(
+            args.view_distance_m
+            if args.view_distance_m is not None
+            else view_cfg["data.view_distances"][0]
+        )
+        genzi_num_viewpoints = int(args.num_viewpoints or view_cfg["data.num_viewpoints"])
+        max_total_views = int(
+            args.num_views
+            if args.num_views is not None
+            else (
+                args.max_views
+                if args.max_views is not None
+                else view_cfg["data.max_views"]
+            )
+        )
+        max_total_views = max(1, max_total_views)
+        min_total_views = max(1, min(int(args.min_views), max_total_views))
+        max_sampled_views = max(0, max_total_views - 1)
+        min_sampled_views = max(0, min_total_views - 1)
+        genzi_patch_radius_m = float(
+            args.patch_radius
+            if args.patch_radius is not None
+            else view_cfg["data.patch_radius"]
+        )
+        genzi_use_at_normal = (
+            bool(view_cfg["data.use_at_normal"])
+            if args.use_at_normal is None
+            else bool(args.use_at_normal)
+        )
+        sampled_intrinsics, sampled_width, sampled_height = (
+            square_camera_intrinsics_from_fov(
+                fov_deg=float(view_cfg["data.fov"]),
+                image_size=SAMPLED_VIEW_IMAGE_SIZE,
+            )
+        )
+        print(
+            "Selecting GenZI viewpoints around optimized human center: "
+            f"at={focus_world.round(4).tolist()} "
+            f"num_candidates={genzi_num_viewpoints} "
+            f"sampled_views={max_sampled_views} "
+            f"distance={genzi_view_distance_m:.2f}m"
+        )
+        candidate_pool_size = max(max_sampled_views, genzi_num_viewpoints)
+        viewpoints, genzi_look_at_world, genzi_viewpoint_selection = (
+            get_genzi_viewpoints_with_patch_fallback(
+                scene_mesh=scene_mesh_for_viewpoints,
+                at=focus_world,
+                up=up_dir,
+                fov=float(view_cfg["data.fov"]),
+                num_viewpoints=genzi_num_viewpoints,
+                distance=genzi_view_distance_m,
+                max_views=candidate_pool_size,
+                radius=genzi_patch_radius_m,
+                use_at_normal=genzi_use_at_normal,
+            )
+        )
         contact_view = evaluate_render_view(
             label="contact_spec_camera",
             yaw_deg=0.0,
@@ -2058,7 +3060,7 @@ def render_interaction(
             translation_world_to_camera=translation_world_to_camera,
             focus=focus_world,
             human_vertices_world=human_vertices_world,
-            contact_part_vertices_world=contact_part_vertices_world,
+            contact_part_vertices_world=contact_visibility_vertices_world,
             scene_depth_points_world=scene_depth_points_world,
             scene_vertex_tree=scene_vertex_tree,
             intrinsics=contact_intrinsics,
@@ -2085,55 +3087,132 @@ def render_interaction(
         contact_view["render_name"] = "view_00"
         contact_view["contact_spec_path"] = str(contact_spec_json_path)
         contact_view["reference_image_path"] = str(contact_render_image_path)
-        initial_views = [contact_view]
-        if args.num_views is not None:
-            max_total_views = 1 + max(0, int(args.num_views))
-        else:
-            max_total_views = max(1, int(args.max_views))
-        min_total_views = max(1, min(int(args.min_views), max_total_views))
-        min_synthetic_views = max(0, min_total_views - 1)
-        max_synthetic_views = max(0, max_total_views - 1)
-
-        synthetic_views, coverage_metadata = build_candidate_views(
-            original_rotation_world_to_camera=rotation_world_to_camera,
-            original_translation_world_to_camera=translation_world_to_camera,
-            focus=focus_world,
-            human_vertices_world=human_vertices_world,
-            contact_part_vertices_world=contact_part_vertices_world,
-            initial_views=initial_views,
-            scene_depth_points_world=scene_depth_points_world,
-            scene_vertex_tree=scene_vertex_tree,
-            intrinsics=contact_intrinsics,
-            width=contact_width,
-            image_height=contact_height,
-            min_num_views=min_synthetic_views,
-            max_num_views=max_synthetic_views,
-            min_camera_scene_distance_m=float(args.min_camera_scene_distance_m),
-            min_human_visible_fraction=float(args.min_human_visible_fraction),
-            min_human_in_frame_fraction=float(args.min_human_in_frame_fraction),
-            max_human_center_offset=float(args.max_human_center_offset),
-            min_human_bbox_fill=float(args.min_human_bbox_fill),
-            max_human_bbox_fill=float(args.max_human_bbox_fill),
-            min_interaction_part_visible_fraction=float(
-                args.min_interaction_part_visible_fraction
+        selected_views = [contact_view]
+        synthetic_views = []
+        covered_contact_parts: set[str] = set()
+        candidate_views = []
+        target_parts = set(contact_visibility_vertices_world)
+        focus_variants = [("human_center", genzi_look_at_world)]
+        for part_name, vertices in sorted(contact_visibility_vertices_world.items()):
+            part_focus = vertices.mean(axis=0).astype(np.float32)
+            focus_variants.append(
+                (
+                    f"contact_{slugify_segment_name(part_name)}",
+                    (0.88 * part_focus + 0.12 * genzi_look_at_world).astype(
+                        np.float32
+                    ),
+                )
+            )
+        for eye_index, eye in enumerate(np.asarray(viewpoints, dtype=np.float32)):
+            eye_delta = eye - genzi_look_at_world
+            yaw_deg = float(np.degrees(np.arctan2(eye_delta[1], eye_delta[0])))
+            for focus_label, target_focus in focus_variants:
+                rotation, translation = look_at_world_to_camera_centered(
+                    camera_center=eye,
+                    focus=target_focus,
+                    intrinsics=sampled_intrinsics,
+                    width=sampled_width,
+                    image_height=sampled_height,
+                    world_up=up_dir,
+                )
+                view = evaluate_render_view(
+                    label=f"genzi_{focus_label}_{eye_index:03d}",
+                    yaw_deg=yaw_deg,
+                    rotation_world_to_camera=rotation,
+                    translation_world_to_camera=translation,
+                    focus=target_focus,
+                    human_vertices_world=human_vertices_world,
+                    contact_part_vertices_world=contact_visibility_vertices_world,
+                    scene_depth_points_world=scene_depth_points_world,
+                    scene_vertex_tree=scene_vertex_tree,
+                    intrinsics=sampled_intrinsics,
+                    width=sampled_width,
+                    image_height=sampled_height,
+                    min_camera_scene_distance_m=float(args.min_camera_scene_distance_m),
+                    min_human_visible_fraction=float(args.min_human_visible_fraction),
+                    min_human_in_frame_fraction=float(args.min_human_in_frame_fraction),
+                    max_human_center_offset=float(args.max_human_center_offset),
+                    min_human_bbox_fill=float(args.min_human_bbox_fill),
+                    max_human_bbox_fill=float(args.max_human_bbox_fill),
+                    min_interaction_part_visible_fraction=float(
+                        args.min_interaction_part_visible_fraction
+                    ),
+                    min_contact_part_visible_fraction=float(
+                        args.min_contact_part_visible_fraction
+                    ),
+                    visibility_depth_width=int(args.visibility_depth_width),
+                    visibility_depth_tolerance_m=float(args.visibility_depth_tolerance_m),
+                    scene_depth_sample_spacing_m=float(args.scene_depth_sample_spacing_m),
+                    scene_depth_max_splat_radius_px=int(
+                        args.scene_depth_max_splat_radius_px
+                    ),
+                    human_depth_sample_spacing_m=float(args.human_depth_sample_spacing_m),
+                    human_depth_max_splat_radius_px=int(
+                        args.human_depth_max_splat_radius_px
+                    ),
+                    max_depth_m=float(args.max_depth_m),
+                )
+                view["patch_rank"] = int(eye_index)
+                view["candidate_name"] = f"candidate_{focus_label}_{eye_index:03d}"
+                view["candidate_focus_label"] = focus_label
+                view["genzi_eye_world"] = eye.astype(np.float32)
+                view["genzi_look_at_world"] = target_focus.astype(np.float32)
+                candidate_views.append(view)
+        selected_sampled_views = select_sampled_views_for_visibility(
+            candidate_views=candidate_views,
+            target_parts=target_parts,
+            max_sampled_views=max_sampled_views,
+            min_human_scene_visible_fraction=float(
+                args.min_human_scene_visible_fraction
             ),
-            min_contact_part_visible_fraction=float(args.min_contact_part_visible_fraction),
-            camera_radius_m=float(args.camera_radius_m),
-            visibility_depth_width=int(args.visibility_depth_width),
-            visibility_depth_tolerance_m=float(args.visibility_depth_tolerance_m),
-            scene_depth_sample_spacing_m=float(args.scene_depth_sample_spacing_m),
-            scene_depth_max_splat_radius_px=int(args.scene_depth_max_splat_radius_px),
-            human_depth_sample_spacing_m=float(args.human_depth_sample_spacing_m),
-            human_depth_max_splat_radius_px=int(args.human_depth_max_splat_radius_px),
-            min_view_angular_separation_deg=float(args.min_view_angular_separation_deg),
-            max_depth_m=float(args.max_depth_m),
+            min_contact_self_visible_fraction=float(
+                args.min_contact_self_visible_fraction
+            ),
         )
-        for index, view in enumerate(synthetic_views, start=1):
+        synthetic_views = []
+        for index, view in enumerate(selected_sampled_views, start=1):
             view["render_name"] = f"view_{index:02d}"
-            view["intrinsics"] = contact_intrinsics.astype(np.float32)
-            view["width"] = int(contact_width)
-            view["height"] = int(contact_height)
-        selected_views = [contact_view, *synthetic_views]
+            synthetic_views.append(view)
+            selected_views.append(view)
+            covered_contact_parts.update(
+                contact_parts_covered_by_view(
+                    view,
+                    float(args.min_contact_part_visible_fraction),
+                )
+            )
+        coverage_metadata = {
+            "covered_contact_parts": sorted(covered_contact_parts & target_parts),
+            "uncovered_contact_parts": sorted(target_parts - covered_contact_parts),
+            "coverage_relaxed": False,
+            "requested_min_synthetic_views": int(min_sampled_views),
+            "requested_max_synthetic_views": int(max_sampled_views),
+            "selected_synthetic_views": int(len(synthetic_views)),
+            "genzi_selected_views": int(len(synthetic_views)),
+            "evaluated_candidate_views": int(len(candidate_views)),
+        }
+    if replay_output_cameras:
+        visibility_gate_metadata = {
+            "passes": True,
+            "checks_skipped": True,
+            "checks_skipped_reason": (
+                f"{args.output_mode} reuses baseline output cameras"
+            ),
+            "camera_source_config_path": camera_source_config_path,
+            "excluded_views": [str(view["render_name"]) for view in selected_views],
+            "human_visibility_by_view": [],
+            "contact_self_visibility_best_by_part": {},
+            "failing_human_views": [],
+            "failing_contact_parts": {},
+            "below_threshold_contact_parts": {},
+        }
+    else:
+        visibility_gate_metadata = build_visibility_gate_metadata(
+            selected_views=selected_views,
+            contact_part_vertices_world=contact_visibility_vertices_world,
+            min_human_scene_visible_fraction=float(args.min_human_scene_visible_fraction),
+            min_contact_self_visible_fraction=float(args.min_contact_self_visible_fraction),
+        )
+        enforce_visibility_gates(visibility_gate_metadata)
     view_metadata = [
         {
             "name": str(view["render_name"]),
@@ -2141,49 +3220,57 @@ def render_interaction(
             "yaw_deg": float(view["yaw_deg"]),
             "width": int(view["width"]),
             "height": int(view["height"]),
-            "camera_center_world": view["camera_center_world"].astype(float).tolist(),
-            "nearest_scene_distance_m": float(view["nearest_scene_distance_m"]),
-            "human_visible_fraction": float(view["human_visible_fraction"]),
-            "human_in_frame_fraction": float(view["human_in_frame_fraction"]),
-            "human_center_offset": float(view["human_center_offset"]),
-            "human_bbox_fill": float(view["human_bbox_fill"]),
-            "scene_depth_finite_fraction": float(
-                view["scene_depth_finite_fraction"]
+            "render_resolution_percentage": (
+                int(args.resolution_percentage)
+                if str(view["render_name"]) == "view_00"
+                else 100
             ),
-            "interaction_part_visible_fraction": float(
-                view["interaction_part_visible_fraction"]
+            "camera_center_world": view["camera_center_world"].astype(float).tolist(),
+            "nearest_scene_distance_m": optional_float(
+                view.get("nearest_scene_distance_m")
+            ),
+            "human_visible_fraction": optional_float(
+                view.get("human_visible_fraction")
+            ),
+            "human_in_frame_fraction": optional_float(
+                view.get("human_in_frame_fraction")
+            ),
+            "human_center_offset": optional_float(view.get("human_center_offset")),
+            "human_bbox_fill": optional_float(view.get("human_bbox_fill")),
+            "scene_depth_finite_fraction": optional_float(
+                view.get("scene_depth_finite_fraction")
+            ),
+            "interaction_part_visible_fraction": optional_float(
+                view.get("interaction_part_visible_fraction")
             ),
             "interaction_part_filter_available": bool(
                 view["interaction_part_filter_available"]
             ),
-            "contact_part_visible_fractions": {
-                str(part): float(fraction)
-                for part, fraction in view["contact_part_visible_fractions"].items()
-            },
-            "contact_part_in_frame_fractions": {
-                str(part): float(fraction)
-                for part, fraction in view["contact_part_in_frame_fractions"].items()
-            },
-            "contact_part_scene_visible_fractions": {
-                str(part): float(fraction)
-                for part, fraction in view[
-                    "contact_part_scene_visible_fractions"
-                ].items()
-            },
-            "contact_part_self_visible_fractions": {
-                str(part): float(fraction)
-                for part, fraction in view[
-                    "contact_part_self_visible_fractions"
-                ].items()
-            },
+            "contact_part_visible_fractions": float_mapping(
+                view.get("contact_part_visible_fractions")
+            ),
+            "contact_part_in_frame_fractions": float_mapping(
+                view.get("contact_part_in_frame_fractions")
+            ),
+            "contact_part_scene_visible_fractions": float_mapping(
+                view.get("contact_part_scene_visible_fractions")
+            ),
+            "contact_part_self_visible_fractions": float_mapping(
+                view.get("contact_part_self_visible_fractions")
+            ),
+            "contact_part_human_self_visible_fractions": float_mapping(
+                view.get("contact_part_human_self_visible_fractions")
+            ),
             "covered_contact_parts": list(view["covered_contact_parts"]),
-            "quality": float(view["quality"]),
+            "quality": optional_float(view.get("quality")),
             "renderable": bool(view["renderable"]),
             "valid": bool(view["valid"]),
             "relaxed_valid": bool(view["relaxed_valid"]),
             "relaxed_camera_candidate": bool(
                 view.get("relaxed_camera_candidate", False)
             ),
+            "checks_skipped": bool(view.get("checks_skipped", False)),
+            "checks_skipped_reason": view.get("checks_skipped_reason"),
         }
         for view in selected_views
     ]
@@ -2193,15 +3280,26 @@ def render_interaction(
             "interaction_parts": interaction_part_metadata,
             "camera_source": camera_source,
             "camera_source_config_path": camera_source_config_path,
-            "reference_view_used": True,
+            "reference_view_used": bool(reference_view_used),
             "synthetic_view_count": int(len(synthetic_views)),
             "min_total_views": int(min_total_views),
             "max_total_views": int(max_total_views),
-            "target_total_views": int(1 + len(synthetic_views)),
+            "target_total_views": int(len(selected_views)),
             "covered_contact_parts": coverage_metadata["covered_contact_parts"],
             "uncovered_contact_parts": coverage_metadata["uncovered_contact_parts"],
             "coverage_relaxed": bool(coverage_metadata["coverage_relaxed"]),
             "view_selection": coverage_metadata,
+            "visibility_gates": visibility_gate_metadata,
+            "contact_visibility_vertices": contact_visibility_metadata,
+            "genzi_viewpoint_selection": genzi_viewpoint_selection,
+            "look_at": genzi_look_at_world.astype(float).tolist(),
+            "look_at_source": "optimized_human_center"
+            if camera_source == "genzi_human_center_patch"
+            else None,
+            "view_distance_m": genzi_view_distance_m,
+            "patch_radius": genzi_patch_radius_m,
+            "num_viewpoints": genzi_num_viewpoints,
+            "use_at_normal": genzi_use_at_normal,
             "contact_spec_path": str(contact_spec_json_path),
             "contact_render_image_path": str(contact_render_image_path),
             "views": view_metadata,
@@ -2210,32 +3308,23 @@ def render_interaction(
 
     scene_crop_ply = assets_dir / "scene_semantics_view_crop.ply"
     if not scene_crop_ply.exists() or bool(args.overwrite_scene_crop):
-        face_index_chunks = []
-        for view in selected_views:
-            scene_verts_camera = transform_world_to_camera(
-                scene_verts_world,
-                rotation_world_to_camera=view["rotation_world_to_camera"],
-                translation_world_to_camera=view["translation_world_to_camera"],
-            )
-            face_index_chunks.append(
-                filter_face_indices_to_camera_view(
-                    verts_camera=scene_verts_camera,
-                    faces=scene_faces,
-                    intrinsics=view["intrinsics"],
-                    width=int(view["width"]),
-                    height=int(view["height"]),
-                    max_depth_m=float(args.max_depth_m),
-                    border_px=float(args.border_px),
-                )
-            )
-        face_indices = (
-            np.unique(np.concatenate(face_index_chunks))
-            if face_index_chunks
-            else np.zeros((0,), dtype=np.int64)
+        scene_verts_contact_camera = transform_world_to_camera(
+            scene_verts_world,
+            rotation_world_to_camera=rotation_world_to_camera,
+            translation_world_to_camera=translation_world_to_camera,
+        )
+        face_indices = filter_face_indices_to_camera_view(
+            verts_camera=scene_verts_contact_camera,
+            faces=scene_faces,
+            intrinsics=contact_intrinsics,
+            width=contact_width,
+            height=contact_height,
+            max_depth_m=float(args.max_depth_m),
+            border_px=float(args.border_px),
         )
         if face_indices.shape[0] == 0:
-            raise RuntimeError("No ScanNet faces are visible from selected render views.")
-        scene_faces_in_views = scene_faces[face_indices]
+            raise RuntimeError("No ScanNet faces are visible from contact crop camera.")
+        scene_faces_in_views = scene_faces[np.unique(face_indices)]
         compact_verts_world, compact_faces, compact_colors = compact_colored_mesh(
             scene_verts_world,
             scene_faces_in_views,
@@ -2248,8 +3337,9 @@ def render_interaction(
             compact_colors,
         )
         print(
-            f"  wrote scene crop: vertices={compact_verts_world.shape[0]} "
-            f"faces={compact_faces.shape[0]} views={len(selected_views)}"
+            "  wrote contact-camera scene crop: "
+            f"vertices={compact_verts_world.shape[0]} "
+            f"faces={compact_faces.shape[0]}"
         )
 
     blend_path = assets_dir / "render_scene.blend"
@@ -2275,6 +3365,11 @@ def render_interaction(
             "intrinsics": view["intrinsics"].astype(float).tolist(),
             "width": int(view["width"]),
             "height": int(view["height"]),
+            "resolution_percentage": (
+                int(args.resolution_percentage)
+                if str(view["render_name"]) == "view_00"
+                else 100
+            ),
         }
         for view in selected_views
     ]
@@ -2368,12 +3463,34 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input_scene_json", type=str, default=None)
     parser.add_argument("--sig_json", type=str, default=None)
     parser.add_argument("--smpl_seg_json", type=str, default=None)
+    parser.add_argument("--full_smpl_seg_json", type=str, default=None)
     parser.add_argument("--human_mesh_world", type=str, default=None)
     parser.add_argument("--contact_spec_json", type=str, default=None)
     parser.add_argument("--contact_render_image", type=str, default=None)
     parser.add_argument("--scannet_root", type=str, default=None)
     parser.add_argument("--output_root", type=str, default=None)
     parser.add_argument("--blender_bin", type=str, default=None)
+    parser.add_argument("--run_cfg", type=str, default=str(DEFAULT_GENZI_RUN_CFG))
+    parser.add_argument("--view_distance_m", type=float, default=2.0)
+    parser.add_argument(
+        "--num_viewpoints",
+        type=int,
+        default=None,
+        help="GenZI candidate viewpoint count. Default uses run_cfg data.num_viewpoints.",
+    )
+    parser.add_argument(
+        "--patch_radius",
+        type=float,
+        default=None,
+        help="GenZI local patch radius in meters. Default uses run_cfg data.patch_radius.",
+    )
+    parser.add_argument(
+        "--use_at_normal",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Use the nearest scene normal to filter GenZI viewpoints. Default uses run_cfg.",
+    )
+    parser.add_argument("--up_dir", type=float, nargs=3, default=[0.0, 0.0, 1.0])
     parser.add_argument("--max_depth_m", type=float, default=20.0)
     parser.add_argument("--border_px", type=float, default=96.0)
     parser.add_argument("--resolution_percentage", type=int, default=75)
@@ -2395,12 +3512,49 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument("--min_views", type=int, default=3)
-    parser.add_argument("--max_views", type=int, default=6)
+    parser.add_argument("--max_views", type=int, default=10)
     parser.add_argument("--camera_radius_m", type=float, default=1.4)
     parser.add_argument("--min_camera_scene_distance_m", type=float, default=0.15)
     parser.add_argument("--min_human_visible_fraction", type=float, default=0.75)
+    parser.add_argument(
+        "--min_human_scene_visible_fraction",
+        type=float,
+        default=0.75,
+        help=(
+            "Required fraction of the full human visible against scene depth "
+            "for every selected render view."
+        ),
+    )
     parser.add_argument("--min_interaction_part_visible_fraction", type=float, default=0.35)
     parser.add_argument("--min_contact_part_visible_fraction", type=float, default=0.20)
+    parser.add_argument(
+        "--min_contact_self_visible_fraction",
+        type=float,
+        default=0.30,
+        help=(
+            "For each contact body part, require at least one selected view "
+            "where this fraction of the complete GVHMR body-part vertices is "
+            "visible after human self-occlusion checks."
+        ),
+    )
+    parser.add_argument(
+        "--contact_visibility_nearest_scene_fraction",
+        type=float,
+        default=0.25,
+        help=(
+            "Deprecated compatibility flag. Contact self-visibility now uses "
+            "complete GVHMR body-part segments."
+        ),
+    )
+    parser.add_argument(
+        "--contact_visibility_min_vertices",
+        type=int,
+        default=32,
+        help=(
+            "Deprecated compatibility flag. Contact self-visibility now uses "
+            "complete GVHMR body-part segments."
+        ),
+    )
     parser.add_argument("--min_human_in_frame_fraction", type=float, default=0.92)
     parser.add_argument("--max_human_center_offset", type=float, default=0.18)
     parser.add_argument("--min_human_bbox_fill", type=float, default=0.35)
@@ -2422,11 +3576,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--reuse_output_cameras",
         action=argparse.BooleanOptionalAction,
-        default=True,
+        default=False,
         help=(
-            "Reuse baseline 06_Evaluate_Interaction/output cameras when "
-            "render_config.json exists; use --no-reuse_output_cameras to "
-            "force fresh view selection."
+            "Deprecated compatibility flag. Non-output modes always reuse "
+            "baseline 06_Evaluate_Interaction/output cameras; output mode "
+            "always performs fresh camera selection."
         ),
     )
     return parser.parse_args()

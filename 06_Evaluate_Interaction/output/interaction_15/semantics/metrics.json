@@ -1,19 +1,47 @@
 {
   "interaction_name": "interaction_15",
   "prompt": "a person sitting on the side of the sofa, facing the nearby potted plant and playing with its leaves using both hands",
-  "clip_score": 0.2838522493839264,
+  "clip_score": 0.2977525621652603,
   "renders": [
     {
       "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_15/semantics/renders/view_00.png",
-      "clip_score": 0.26729607582092285
+      "clip_score": 0.2687895596027374
     },
     {
       "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_15/semantics/renders/view_01.png",
-      "clip_score": 0.26818108558654785
+      "clip_score": 0.28270065784454346
     },
     {
       "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_15/semantics/renders/view_02.png",
-      "clip_score": 0.31607958674430847
+      "clip_score": 0.26038992404937744
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_15/semantics/renders/view_03.png",
+      "clip_score": 0.3130408227443695
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_15/semantics/renders/view_04.png",
+      "clip_score": 0.3097587823867798
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_15/semantics/renders/view_05.png",
+      "clip_score": 0.3051937222480774
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_15/semantics/renders/view_06.png",
+      "clip_score": 0.30658605694770813
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_15/semantics/renders/view_07.png",
+      "clip_score": 0.3073164224624634
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_15/semantics/renders/view_08.png",
+      "clip_score": 0.3093148469924927
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_15/semantics/renders/view_09.png",
+      "clip_score": 0.31443482637405396
     }
   ]
 }

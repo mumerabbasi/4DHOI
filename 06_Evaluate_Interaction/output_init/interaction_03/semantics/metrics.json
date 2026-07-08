@@ -1,19 +1,47 @@
 {
   "interaction_name": "interaction_03",
   "prompt": "a person pulling back the chair to sit down",
-  "clip_score": 0.2627539137999217,
+  "clip_score": 0.26418364197015765,
   "renders": [
     {
       "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/semantics/renders/view_00.png",
-      "clip_score": 0.2789735198020935
+      "clip_score": 0.27902981638908386
     },
     {
       "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/semantics/renders/view_01.png",
-      "clip_score": 0.2582103908061981
+      "clip_score": 0.24312333762645721
     },
     {
       "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/semantics/renders/view_02.png",
-      "clip_score": 0.2510778307914734
+      "clip_score": 0.2840191125869751
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/semantics/renders/view_03.png",
+      "clip_score": 0.25718098878860474
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/semantics/renders/view_04.png",
+      "clip_score": 0.2502088248729706
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/semantics/renders/view_05.png",
+      "clip_score": 0.2543048858642578
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/semantics/renders/view_06.png",
+      "clip_score": 0.26976993680000305
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/semantics/renders/view_07.png",
+      "clip_score": 0.2789812386035919
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/semantics/renders/view_08.png",
+      "clip_score": 0.2619551718235016
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/semantics/renders/view_09.png",
+      "clip_score": 0.26326310634613037
     }
   ]
 }

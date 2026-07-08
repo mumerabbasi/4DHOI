@@ -1,19 +1,47 @@
 {
   "interaction_name": "interaction_05",
   "prompt": "a person turning on the faucet",
-  "clip_score": 0.2703421413898468,
+  "clip_score": 0.2656960666179657,
   "renders": [
     {
       "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_05/semantics/renders/view_00.png",
-      "clip_score": 0.2642383575439453
+      "clip_score": 0.2652795612812042
     },
     {
       "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_05/semantics/renders/view_01.png",
-      "clip_score": 0.2570889890193939
+      "clip_score": 0.2695373296737671
     },
     {
       "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_05/semantics/renders/view_02.png",
-      "clip_score": 0.28969907760620117
+      "clip_score": 0.26364925503730774
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_05/semantics/renders/view_03.png",
+      "clip_score": 0.2617541253566742
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_05/semantics/renders/view_04.png",
+      "clip_score": 0.25059664249420166
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_05/semantics/renders/view_05.png",
+      "clip_score": 0.26978445053100586
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_05/semantics/renders/view_06.png",
+      "clip_score": 0.27689996361732483
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_05/semantics/renders/view_07.png",
+      "clip_score": 0.2553139925003052
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_05/semantics/renders/view_08.png",
+      "clip_score": 0.26588723063468933
+    },
+    {
+      "render_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_05/semantics/renders/view_09.png",
+      "clip_score": 0.2782581150531769
     }
   ]
 }

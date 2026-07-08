@@ -158,6 +158,9 @@ camera_objects = []
 for view in config["views"]:
     width = int(view.get("width", default_width))
     height = int(view.get("height", default_height))
+    resolution_percentage = int(
+        view.get("resolution_percentage", config["resolution_percentage"])
+    )
     intrinsics = view.get("intrinsics", default_intrinsics)
     fx = float(intrinsics[0][0])
     fy = float(intrinsics[1][1])
@@ -174,7 +177,9 @@ for view in config["views"]:
     camera_data.shift_y = (cy - float(height) * 0.5) / float(width)
     camera_data.clip_start = 0.01
     camera_data.clip_end = 100.0
-    camera_objects.append((camera_obj, view["render_path"], width, height))
+    camera_objects.append(
+        (camera_obj, view["render_path"], width, height, resolution_percentage)
+    )
 
 configure_cycles_gpu(config["cycles_samples"])
 bpy.context.scene.world = bpy.data.worlds.new("world") if bpy.context.scene.world is None else bpy.context.scene.world
@@ -186,9 +191,10 @@ bpy.context.scene.view_settings.look = "Medium High Contrast"
 bpy.context.scene.view_settings.exposure = 0.0
 bpy.context.scene.view_settings.gamma = 1.0
 bpy.ops.wm.save_as_mainfile(filepath=config["blend_path"])
-for camera_obj, render_path, width, height in camera_objects:
+for camera_obj, render_path, width, height, resolution_percentage in camera_objects:
     bpy.context.scene.camera = camera_obj
     bpy.context.scene.render.resolution_x = int(width)
     bpy.context.scene.render.resolution_y = int(height)
+    bpy.context.scene.render.resolution_percentage = int(resolution_percentage)
     bpy.context.scene.render.filepath = render_path
     bpy.ops.render.render(write_still=True)
