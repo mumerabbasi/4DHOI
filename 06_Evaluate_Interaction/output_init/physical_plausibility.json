@@ -1,0 +1,243 @@
+{
+  "interactions": [
+    {
+      "interaction_name": "interaction_02",
+      "num_edges": 5,
+      "mean_min_contact_distance_m": 0.0411853093886748,
+      "mean_max_contact_distance_m": 0.11540406346321105,
+      "mean_contact_distance_m": 0.07614850848913193,
+      "ncs": 0.99994,
+      "mean_penetration_m": 0.0021432554349303246,
+      "max_penetration_m": 0.006480887532234192
+    },
+    {
+      "interaction_name": "interaction_03",
+      "num_edges": 4,
+      "mean_min_contact_distance_m": 0.18854402843862772,
+      "mean_max_contact_distance_m": 0.2572588734328747,
+      "mean_contact_distance_m": 0.2251737406477332,
+      "ncs": 0.9978271428571429,
+      "mean_penetration_m": 0.026261573657393456,
+      "max_penetration_m": 0.0725916177034378
+    },
+    {
+      "interaction_name": "interaction_04",
+      "num_edges": 3,
+      "mean_min_contact_distance_m": 0.1721195951104164,
+      "mean_max_contact_distance_m": 0.24866983294487,
+      "mean_contact_distance_m": 0.2013365626335144,
+      "ncs": 1.0,
+      "mean_penetration_m": 0.0,
+      "max_penetration_m": 0.0
+    },
+    {
+      "interaction_name": "interaction_05",
+      "num_edges": 3,
+      "mean_min_contact_distance_m": 0.05465512862429023,
+      "mean_max_contact_distance_m": 0.10592424993713696,
+      "mean_contact_distance_m": 0.08079362971087296,
+      "ncs": 0.99974,
+      "mean_penetration_m": 0.010703985579311848,
+      "max_penetration_m": 0.022593647241592407
+    },
+    {
+      "interaction_name": "interaction_06",
+      "num_edges": 3,
+      "mean_min_contact_distance_m": 0.10022981216510136,
+      "mean_max_contact_distance_m": 0.17251626153786978,
+      "mean_contact_distance_m": 0.13257302095492682,
+      "ncs": 0.99977,
+      "mean_penetration_m": 0.010921909473836422,
+      "max_penetration_m": 0.02276027202606201
+    },
+    {
+      "interaction_name": "interaction_07",
+      "num_edges": 3,
+      "mean_min_contact_distance_m": 0.15447483553240696,
+      "mean_max_contact_distance_m": 0.21985353901982307,
+      "mean_contact_distance_m": 0.19132764947911104,
+      "ncs": 0.9984585714285714,
+      "mean_penetration_m": 0.012256896123290062,
+      "max_penetration_m": 0.03743082284927368
+    },
+    {
+      "interaction_name": "interaction_08",
+      "num_edges": 4,
+      "mean_min_contact_distance_m": 0.025648453505709767,
+      "mean_max_contact_distance_m": 0.0833485908806324,
+      "mean_contact_distance_m": 0.05405297363176942,
+      "ncs": 0.9967985714285714,
+      "mean_penetration_m": 0.02001694031059742,
+      "max_penetration_m": 0.046615973114967346
+    },
+    {
+      "interaction_name": "interaction_09",
+      "num_edges": 3,
+      "mean_min_contact_distance_m": 0.21336554487546286,
+      "mean_max_contact_distance_m": 0.34612006942431134,
+      "mean_contact_distance_m": 0.28565434118111926,
+      "ncs": 0.9863042857142857,
+      "mean_penetration_m": 0.03054162673652172,
+      "max_penetration_m": 0.07932500541210175
+    },
+    {
+      "interaction_name": "interaction_10",
+      "num_edges": 4,
+      "mean_min_contact_distance_m": 0.1522812806069851,
+      "mean_max_contact_distance_m": 0.2306216098368168,
+      "mean_contact_distance_m": 0.1856408230960369,
+      "ncs": 1.0,
+      "mean_penetration_m": 0.0,
+      "max_penetration_m": 0.0
+    },
+    {
+      "interaction_name": "interaction_11",
+      "num_edges": 4,
+      "mean_min_contact_distance_m": 0.07115263165906072,
+      "mean_max_contact_distance_m": 0.15832117293030024,
+      "mean_contact_distance_m": 0.10354829765856266,
+      "ncs": 0.9999671428571428,
+      "mean_penetration_m": 0.027146628126502037,
+      "max_penetration_m": 0.04144801199436188
+    },
+    {
+      "interaction_name": "interaction_14",
+      "num_edges": 3,
+      "mean_min_contact_distance_m": 0.011767697559359172,
+      "mean_max_contact_distance_m": 0.17075145989656448,
+      "mean_contact_distance_m": 0.0888591247300307,
+      "ncs": 0.9990014285714286,
+      "mean_penetration_m": 0.017094014212489128,
+      "max_penetration_m": 0.05582539737224579
+    },
+    {
+      "interaction_name": "interaction_15",
+      "num_edges": 5,
+      "mean_min_contact_distance_m": 0.16428856118582189,
+      "mean_max_contact_distance_m": 0.2565575107932091,
+      "mean_contact_distance_m": 0.21164152771234512,
+      "ncs": 0.99675,
+      "mean_penetration_m": 0.031756412237882614,
+      "max_penetration_m": 0.0709669291973114
+    },
+    {
+      "interaction_name": "interaction_16",
+      "num_edges": 3,
+      "mean_min_contact_distance_m": 0.010942610523973903,
+      "mean_max_contact_distance_m": 0.1145823672413826,
+      "mean_contact_distance_m": 0.054844401155908905,
+      "ncs": 0.9998028571428571,
+      "mean_penetration_m": 0.0032352020498365164,
+      "max_penetration_m": 0.01539023220539093
+    },
+    {
+      "interaction_name": "interaction_18",
+      "num_edges": 4,
+      "mean_min_contact_distance_m": 0.19079075194895267,
+      "mean_max_contact_distance_m": 0.3039850555360317,
+      "mean_contact_distance_m": 0.24845524691045284,
+      "ncs": 0.9998871428571429,
+      "mean_penetration_m": 0.008004268631339073,
+      "max_penetration_m": 0.019348546862602234
+    },
+    {
+      "interaction_name": "interaction_20",
+      "num_edges": 4,
+      "mean_min_contact_distance_m": 0.04890552529832348,
+      "mean_max_contact_distance_m": 0.19285526685416698,
+      "mean_contact_distance_m": 0.11826333869248629,
+      "ncs": 0.9827171428571428,
+      "mean_penetration_m": 0.037481680512428284,
+      "max_penetration_m": 0.08294716477394104
+    },
+    {
+      "interaction_name": "interaction_21",
+      "num_edges": 4,
+      "mean_min_contact_distance_m": 0.025574943923857063,
+      "mean_max_contact_distance_m": 0.11932092905044556,
+      "mean_contact_distance_m": 0.07065045926719904,
+      "ncs": 0.9985942857142858,
+      "mean_penetration_m": 0.03770703822374344,
+      "max_penetration_m": 0.07316502928733826
+    },
+    {
+      "interaction_name": "interaction_22",
+      "num_edges": 4,
+      "mean_min_contact_distance_m": 0.14764730632305145,
+      "mean_max_contact_distance_m": 0.2407889310270548,
+      "mean_contact_distance_m": 0.19455675408244133,
+      "ncs": 0.9997257142857143,
+      "mean_penetration_m": 0.00895094033330679,
+      "max_penetration_m": 0.021879196166992188
+    },
+    {
+      "interaction_name": "interaction_23",
+      "num_edges": 4,
+      "mean_min_contact_distance_m": 0.15422623977065086,
+      "mean_max_contact_distance_m": 0.23392778262495995,
+      "mean_contact_distance_m": 0.19583931006491184,
+      "ncs": 1.0,
+      "mean_penetration_m": 0.0,
+      "max_penetration_m": 0.0
+    },
+    {
+      "interaction_name": "interaction_24",
+      "num_edges": 3,
+      "mean_min_contact_distance_m": 0.4561421660085519,
+      "mean_max_contact_distance_m": 0.5663162618875504,
+      "mean_contact_distance_m": 0.5179990778366724,
+      "ncs": 0.9686757142857143,
+      "mean_penetration_m": 0.03657010570168495,
+      "max_penetration_m": 0.10293321311473846
+    },
+    {
+      "interaction_name": "interaction_26",
+      "num_edges": 2,
+      "mean_min_contact_distance_m": 0.07817030884325504,
+      "mean_max_contact_distance_m": 0.15967581048607826,
+      "mean_contact_distance_m": 0.11828907579183578,
+      "ncs": 1.0,
+      "mean_penetration_m": 0.0,
+      "max_penetration_m": 0.0
+    },
+    {
+      "interaction_name": "interaction_27",
+      "num_edges": 3,
+      "mean_min_contact_distance_m": 0.06125330179929733,
+      "mean_max_contact_distance_m": 0.15634486824274063,
+      "mean_contact_distance_m": 0.1055667797724406,
+      "ncs": 0.9939042857142857,
+      "mean_penetration_m": 0.044829655438661575,
+      "max_penetration_m": 0.08977262675762177
+    },
+    {
+      "interaction_name": "interaction_28",
+      "num_edges": 3,
+      "mean_min_contact_distance_m": 0.04162076868427297,
+      "mean_max_contact_distance_m": 0.14046860734621683,
+      "mean_contact_distance_m": 0.09066462392608325,
+      "ncs": 0.9993885714285714,
+      "mean_penetration_m": 0.007035377901047468,
+      "max_penetration_m": 0.013625219464302063
+    },
+    {
+      "interaction_name": "interaction_30",
+      "num_edges": 4,
+      "mean_min_contact_distance_m": 0.13224271743092686,
+      "mean_max_contact_distance_m": 0.2606162391602993,
+      "mean_contact_distance_m": 0.1962148305028677,
+      "ncs": 0.9823642857142857,
+      "mean_penetration_m": 0.020768987014889717,
+      "max_penetration_m": 0.07022564113140106
+    }
+  ],
+  "aggregate": {
+    "num_interactions": 23,
+    "mean_ncs": 0.9956355279503107,
+    "mean_of_mean_min_contact_distance_m": 0.11727084866117525,
+    "mean_of_mean_max_contact_distance_m": 0.21105345015454552,
+    "mean_of_mean_contact_distance_m": 0.16296061295341105,
+    "mean_penetration_m": 0.017105499899986644,
+    "mean_max_penetration_m": 0.04110110583512679
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "ply_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_24/physical_plausibility/projected_contact_scene.ply",
+  "coordinate_frame": "camera",
+  "base_rgb": [
+    170,
+    170,
+    170
+  ],
+  "edges": [
+    {
+      "node_a": "human.right_hand",
+      "node_b": "step ladder",
+      "moving_part": "right hand",
+      "fixed_node": "step ladder",
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "colored_faces": 351
+    },
+    {
+      "node_a": "human.left_foot",
+      "node_b": "step ladder",
+      "moving_part": "left foot",
+      "fixed_node": "step ladder",
+      "rgb": [
+        0,
+        170,
+        0
+      ],
+      "colored_faces": 300
+    },
+    {
+      "node_a": "human.right_foot",
+      "node_b": "step ladder",
+      "moving_part": "right foot",
+      "fixed_node": "step ladder",
+      "rgb": [
+        0,
+        80,
+        255
+      ],
+      "colored_faces": 170
+    }
+  ]
+}

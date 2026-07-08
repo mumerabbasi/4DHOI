@@ -1,0 +1,58 @@
+[
+  {
+    "node_a": "human.left_hand",
+    "node_b": "vacuum cleaner",
+    "contact": {
+      "min_distance_m": 0.16528290510177612,
+      "max_distance_m": 0.31836390495300293,
+      "mean_distance_m": 0.22523485124111176
+    },
+    "collision": {
+      "ncs": 1.0,
+      "mean_penetration_m": 0.0,
+      "max_penetration_m": 0.0
+    }
+  },
+  {
+    "node_a": "human.right_hand",
+    "node_b": "vacuum cleaner",
+    "contact": {
+      "min_distance_m": 0.16592814028263092,
+      "max_distance_m": 0.2625215947628021,
+      "mean_distance_m": 0.21356508135795593
+    },
+    "collision": {
+      "ncs": 1.0,
+      "mean_penetration_m": 0.0,
+      "max_penetration_m": 0.0
+    }
+  },
+  {
+    "node_a": "human.left_foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.1273377239704132,
+      "max_distance_m": 0.15990114212036133,
+      "mean_distance_m": 0.13880953192710876
+    },
+    "collision": {
+      "ncs": 1.0,
+      "mean_penetration_m": 0.0,
+      "max_penetration_m": 0.0
+    }
+  },
+  {
+    "node_a": "human.right_foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.15057635307312012,
+      "max_distance_m": 0.18169979751110077,
+      "mean_distance_m": 0.1649538278579712
+    },
+    "collision": {
+      "ncs": 1.0,
+      "mean_penetration_m": 0.0,
+      "max_penetration_m": 0.0
+    }
+  }
+]

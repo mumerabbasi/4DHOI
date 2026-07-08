@@ -1,0 +1,58 @@
+[
+  {
+    "node_a": "human.left_foot",
+    "node_b": "bunk bed ladder",
+    "contact": {
+      "min_distance_m": 0.15321853756904602,
+      "max_distance_m": 0.2249327152967453,
+      "mean_distance_m": 0.200164794921875
+    },
+    "collision": {
+      "ncs": 0.9999028571428571,
+      "mean_penetration_m": 0.005155547522008419,
+      "max_penetration_m": 0.021852394565939903
+    }
+  },
+  {
+    "node_a": "human.right_foot",
+    "node_b": "bunk bed ladder",
+    "contact": {
+      "min_distance_m": 0.011653512716293335,
+      "max_distance_m": 0.1303413361310959,
+      "mean_distance_m": 0.06822779029607773
+    },
+    "collision": {
+      "ncs": 0.9999028571428571,
+      "mean_penetration_m": 0.005155547522008419,
+      "max_penetration_m": 0.021852394565939903
+    }
+  },
+  {
+    "node_a": "human.left_hand",
+    "node_b": "bunk bed ladder",
+    "contact": {
+      "min_distance_m": 0.0013791518285870552,
+      "max_distance_m": 0.09239905327558517,
+      "mean_distance_m": 0.04132399335503578
+    },
+    "collision": {
+      "ncs": 0.9999028571428571,
+      "mean_penetration_m": 0.005155547522008419,
+      "max_penetration_m": 0.021852394565939903
+    }
+  },
+  {
+    "node_a": "human.right_hand",
+    "node_b": "bunk bed ladder",
+    "contact": {
+      "min_distance_m": 0.0017189356731250882,
+      "max_distance_m": 0.08208484947681427,
+      "mean_distance_m": 0.03103145956993103
+    },
+    "collision": {
+      "ncs": 0.9999028571428571,
+      "mean_penetration_m": 0.005155547522008419,
+      "max_penetration_m": 0.021852394565939903
+    }
+  }
+]

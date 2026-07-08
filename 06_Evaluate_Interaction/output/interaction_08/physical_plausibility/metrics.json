@@ -1,0 +1,58 @@
+[
+  {
+    "node_a": "human.left_hand",
+    "node_b": "coffee maker",
+    "contact": {
+      "min_distance_m": 0.011248107068240643,
+      "max_distance_m": 0.1440025120973587,
+      "mean_distance_m": 0.06117508187890053
+    },
+    "collision": {
+      "ncs": 0.9999871428571429,
+      "mean_penetration_m": 0.0017255720449611545,
+      "max_penetration_m": 0.0038589625619351864
+    }
+  },
+  {
+    "node_a": "human.right_hand",
+    "node_b": "coffee maker",
+    "contact": {
+      "min_distance_m": 0.10873252153396606,
+      "max_distance_m": 0.2174466848373413,
+      "mean_distance_m": 0.16296160221099854
+    },
+    "collision": {
+      "ncs": 0.9999871428571429,
+      "mean_penetration_m": 0.0017255720449611545,
+      "max_penetration_m": 0.0038589625619351864
+    }
+  },
+  {
+    "node_a": "human.left_foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.003193807089701295,
+      "max_distance_m": 0.0337851457297802,
+      "mean_distance_m": 0.016036124899983406
+    },
+    "collision": {
+      "ncs": 0.9999871428571429,
+      "mean_penetration_m": 0.0017255720449611545,
+      "max_penetration_m": 0.0038589625619351864
+    }
+  },
+  {
+    "node_a": "human.right_foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.002418897347524762,
+      "max_distance_m": 0.04526244103908539,
+      "mean_distance_m": 0.019412534311413765
+    },
+    "collision": {
+      "ncs": 0.9999871428571429,
+      "mean_penetration_m": 0.0017255720449611545,
+      "max_penetration_m": 0.0038589625619351864
+    }
+  }
+]

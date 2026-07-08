@@ -1,0 +1,69 @@
+{
+  "interaction_name": "interaction_30",
+  "interaction_instruction": "a person stepping down from the ladder, both feet on ladder steps and both hands gripping the ladder frame",
+  "provider": "gemini",
+  "model": "gemini-3.1-flash-lite",
+  "prompt_template_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/prompt_eval_interactions.md",
+  "prompt_dir": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/vlm/prompt",
+  "render_paths": [
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/semantics/renders/view_00.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/semantics/renders/view_01.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/semantics/renders/view_02.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/semantics/renders/view_03.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/semantics/renders/view_04.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/semantics/renders/view_05.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/semantics/renders/view_06.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/semantics/renders/view_07.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/semantics/renders/view_08.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/semantics/renders/view_09.png"
+  ],
+  "prompt_render_paths": [
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/vlm/prompt/renders/view_00.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/vlm/prompt/renders/view_01.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/vlm/prompt/renders/view_02.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/vlm/prompt/renders/view_03.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/vlm/prompt/renders/view_04.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/vlm/prompt/renders/view_05.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/vlm/prompt/renders/view_06.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/vlm/prompt/renders/view_07.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/vlm/prompt/renders/view_08.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_round1/interaction_30/vlm/prompt/renders/view_09.png"
+  ],
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is interacting with a ladder."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 3,
+        "reason": "The human is on the ladder, but the pose does not clearly convey the action of 'stepping down'. The body is positioned in a way that looks more like floating or leaning against the ladder rather than actively descending."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 2,
+        "reason": "The hands are not gripping the frame; they are hovering near it. The feet are not firmly placed on the steps; they are floating in front of the ladder."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 2,
+        "reason": "The human is floating in front of the ladder without making proper contact with the steps or the frame, making the pose physically impossible."
+      }
+    },
+    "best_view_ids": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "failure_modes": [
+      "floating",
+      "lack of contact"
+    ],
+    "brief_summary": "The human is positioned near the ladder but fails to make physical contact with it. The hands are not gripping the frame, and the feet are not on the steps, resulting in a floating, physically implausible pose that does not clearly represent the action of stepping down."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is interacting with a ladder.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 3,\n      \"reason\": \"The human is on the ladder, but the pose does not clearly convey the action of 'stepping down'. The body is positioned in a way that looks more like floating or leaning against the ladder rather than actively descending.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The hands are not gripping the frame; they are hovering near it. The feet are not firmly placed on the steps; they are floating in front of the ladder.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The human is floating in front of the ladder without making proper contact with the steps or the frame, making the pose physically impossible.\"\n    }\n  },\n  \"best_view_ids\": [\n    0,\n    1,\n    2,\n    3,\n    4,\n    5,\n    6,\n    7,\n    8\n  ],\n  \"failure_modes\": [\n    \"floating\",\n    \"lack of contact\"\n  ],\n  \"brief_summary\": \"The human is positioned near the ladder but fails to make physical contact with it. The hands are not gripping the frame, and the feet are not on the steps, resulting in a floating, physically implausible pose that does not clearly represent the action of stepping down.\"\n}"
+}
