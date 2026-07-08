@@ -1,0 +1,118 @@
+ckpt_freq: 50
+curr_time: 26-07-08_12-52-24.495655
+data.cfg_suffix: _v1.yml
+data.fov: 103.16577013495758
+data.max_views: 1
+data.num_viewpoints: 256
+data.patch_radius: 0.15
+data.root_dir: /my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_30/singleview_scene_config
+data.scenes: [interaction_30]
+data.use_at_normal: true
+data.view_distances: [2.0, 2.0]
+exp_time: 26-07-08_12-52-24.495655
+gpus: [0]
+group: proxs
+log_dir: /my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_30/genzi_singleview_runs/proxs_26-07-08_12-52-24.495655
+log_freq: 50
+loss.angle_weights:
+- [0, 0, 0, 1, 1]
+- [0, 0, 0, 1, 1]
+loss.beta0_weight: 0.5
+loss.beta_weights:
+- [0, 0, 0, 0.1, 1.0]
+- [0, 0, 0, 0.1, 1.0]
+loss.floating_weights:
+- [0, 0, 0, 0, 0]
+- [0, 0, 0, 0, 0]
+loss.inpaint_min_views: 1
+loss.inpaint_score_weights:
+- [1, 1, 1, 1, 1]
+- [1, 1, 1, 1, 1]
+loss.inpaints_per_view: [1, 1]
+loss.joint2d_limb_weights:
+- [1, 1, 1, 1, 1]
+- [1, 1, 1, 1, 1]
+loss.joint2d_rho: 0.2
+loss.joint2d_torso_weights:
+- [1, 1, 1, 1, 1]
+- [1, 1, 1, 1, 1]
+loss.joint3d_rho: 1.0
+loss.joint3d_weights:
+- [0, 0, 0, 0, 0]
+- [0, 0, 0, 0, 0]
+loss.scene_intersect_thresh: 0
+loss.scene_intersect_weights:
+- [10, 1, 0.1, 1, 50]
+- [10, 1, 0.1, 1, 50]
+loss.scene_nocontact_weights:
+- [0, 0, 0, 10, 1000]
+- [0, 0, 0, 10, 1000]
+loss.self_intersect_weights:
+- [0, 0, 0, 0, 0]
+- [0, 0, 0, 1.0e-05, 0.0001]
+loss.vposer_weights:
+- [0, 0, 0, 0.001, 0.01]
+- [0, 0, 0, 0.001, 0.01]
+notes: ''
+optim.grad_clip: -1
+optim.is_lrs:
+- [0.0, 0.01, 0.01, 0.01]
+- [0.0, 0.01, 0.01, 0.01]
+optim.orient_lrs:
+- [0.01, 0.01, 0.01, 0.01]
+- [0.01, 0.01, 0.01, 0.01]
+optim.pose_lrs:
+- [0.01, 0.01, 0.01, 0.01]
+- [0.01, 0.01, 0.01, 0.01]
+optim.shape_lrs:
+- [0.01, 0.01, 0.01, 0.01]
+- [0.01, 0.01, 0.01, 0.01]
+optim.steps:
+- [400, 400, 400, 400]
+- [400, 400, 400, 400]
+optim.transl_lrs:
+- [0.01, 0.01, 0.01, 0.01]
+- [0.01, 0.01, 0.01, 0.01]
+optim.type: adamw
+path_prefix: /my_workspace/4DHHOI/GenZI/data
+pose2d.args_path: /my_workspace/4DHHOI/GenZI/config/alphapose.yml
+pose2d.min_num_joints: 13
+pose2d.score_thresh: 0.25
+project: GenZI
+render.image_size: 512
+run_cfg: /my_workspace/4DHHOI/GenZI/config/proxs_gen.yml
+save_gif: false
+seed: 1
+smplx.batch_size: 1
+smplx.gender: neutral
+smplx.model_path: /my_workspace/4DHHOI/GenZI/data/smpl-x/models_smplx_v1_1
+smplx.model_type: smplx
+smplx.num_pca_comps: 12
+smplx.rotation_angles: [90.0, 90.0]
+smplx.rotation_axes: xz
+smplx.tex_path: /my_workspace/4DHHOI/GenZI/data/smpl-x/smplx_texture_f_alb_1024.png
+smplx.use_continous_rot_repr: true
+smplx.use_latent_pose: true
+smplx.use_shape_params: true
+smplx.uv_path: /my_workspace/4DHHOI/GenZI/data/smpl-x/smplx_uv_template.txt
+tags: []
+test_ckpt: ''
+train_ckpt: ''
+vlm.attn_average_steps: 3
+vlm.attn_res: [16, 16]
+vlm.attn_thresh_end: 0.7
+vlm.attn_thresh_start: 0.7
+vlm.clip_path: openai/clip-vit-base-patch32
+vlm.deterministic: false
+vlm.dilate_iterations: [0, 8]
+vlm.dilate_size:
+- [0, 0]
+- [11, 11]
+vlm.dynamic_mask_starts: [0, 0]
+vlm.dynamic_mask_stops: [25, 0]
+vlm.guidance_scale: 7.5
+vlm.inpaint_dir: /my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_30/singleview_external_inpaints
+vlm.ldm_inpaint_path: sd2-community/stable-diffusion-2-inpainting
+vlm.neg_prompt_path: /my_workspace/4DHHOI/GenZI/data/negative_prompts_v1.txt
+vlm.num_inference_steps: 50
+vposer.ckpt_path: /my_workspace/4DHHOI/V02_05

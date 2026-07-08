@@ -1,0 +1,55 @@
+interactions: ['A person sits on the brown small wooden table positioned in front
+    of the whiteboard. The hips rest on the table surface, while the legs are bent
+    with both feet planted firmly on the grey floor. The hands rest on the table surface
+    for stability. The person has short black hair, a neutral facial expression, a
+    gray shirt, blue jeans, and white sneakers. The room features white walls, a blue
+    door, and a grey floor.']
+lookats:
+- [1.6988686323165894, 3.5971603393554688, 0.5270881652832031]
+neg_prompts: ['']
+prompt_ids: [interaction_02]
+prompt_prefix: ''
+prompt_suffix: ''
+prompts: [a person sitting on the brown small wooden table]
+render.all_solid: false
+render.ambient_light: [0.0, 0.0, 0.0]
+render.bg_color: [0.5, 0.5, 0.5, 0.0]
+render.cull_faces: false
+render.dir_light_color: [1.0, 1.0, 1.0]
+render.dir_light_intensity: 5.0
+render.no_lighting: false
+render.normal_pbr: true
+render.pt_light_color: [1.0, 1.0, 1.0]
+render.pt_light_intensity: 5.0
+render.pt_light_position: [0.0, 0.0, 20.0]
+render.shadows: false
+render.up_dir: [0.0, 0.0, 1.0]
+scene.mesh_path: /my_workspace/4DHHOI/Scannet++/data/442b144761/scans/mesh_aligned_0.05.ply
+scene.sdf_path: /my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/sdf/442b144761.json
+scene.subd_mesh_path: ''
+token_indices: []
+viewpoints:
+- - - [3.4784510135650635, 3.793238878250122, 1.4185137748718262]
+    - [2.7769088745117188, 2.1932387351989746, 1.4581269025802612]
+    - [3.1060919761657715, 2.397160291671753, 1.2884831428527832]
+    - [3.4257216453552246, 2.9304935932159424, 1.2844088077545166]
+    - [3.586331844329834, 3.463826894760132, 1.1749343872070312]
+    - [3.607006549835205, 3.1344151496887207, 0.9077153205871582]
+    - [3.684596061706543, 3.6677486896514893, 0.7549139261245728]
+    - [3.531641960144043, 2.8050034046173096, 0.6429745554924011]
+    - [3.1806671619415283, 2.27167010307312, 0.7446862459182739]
+    - [2.4111523628234863, 1.9893171787261963, 1.4797120094299316]
+    - [3.3658509254455566, 2.6010818481445312, 1.0056250095367432]
+    - [2.8218629360198975, 1.9422582387924194, 0.5406319499015808]
+  - - [3.4784510135650635, 3.793238878250122, 1.4185137748718262]
+    - [2.7769088745117188, 2.1932387351989746, 1.4581269025802612]
+    - [3.1060919761657715, 2.397160291671753, 1.2884831428527832]
+    - [3.4257216453552246, 2.9304935932159424, 1.2844088077545166]
+    - [3.586331844329834, 3.463826894760132, 1.1749343872070312]
+    - [3.607006549835205, 3.1344151496887207, 0.9077153205871582]
+    - [3.684596061706543, 3.6677486896514893, 0.7549139261245728]
+    - [3.531641960144043, 2.8050034046173096, 0.6429745554924011]
+    - [3.1806671619415283, 2.27167010307312, 0.7446862459182739]
+    - [2.4111523628234863, 1.9893171787261963, 1.4797120094299316]
+    - [3.3658509254455566, 2.6010818481445312, 1.0056250095367432]
+    - [2.8218629360198975, 1.9422582387924194, 0.5406319499015808]

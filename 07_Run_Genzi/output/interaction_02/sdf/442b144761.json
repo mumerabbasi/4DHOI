@@ -1,0 +1,28 @@
+{
+  "dim": 128,
+  "min": [
+    -0.4368511438369751,
+    -0.29715949296951294,
+    -0.4779762327671051
+  ],
+  "max": [
+    9.408859252929688,
+    4.465145587921143,
+    4.854555606842041
+  ],
+  "mesh_path": "",
+  "method": "selected_view_depth_tsdf",
+  "trunc_m": 0.25,
+  "num_views": 12,
+  "depth_image_size": [
+    512,
+    512
+  ],
+  "unknown_value": 0.25,
+  "observed_voxels": 181444,
+  "total_voxels": 2097152,
+  "observed_fraction": 0.08651924133300781,
+  "negative_voxels": 112748,
+  "positive_voxels": 1984404,
+  "sign_convention": "positive is free space in front of rendered depth; negative is behind an observed scene surface"
+}

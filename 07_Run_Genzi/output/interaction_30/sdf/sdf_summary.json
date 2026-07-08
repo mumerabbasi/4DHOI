@@ -1,0 +1,158 @@
+{
+  "interaction_name": "interaction_30",
+  "scene_id": "d110b8f8b0",
+  "mesh_path": "/my_workspace/4DHHOI/Scannet++/data/d110b8f8b0/scans/mesh_aligned_0.05.ply",
+  "sdf_meta": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_30/sdf/d110b8f8b0.json",
+  "view_selection_sdf": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_30/sdf/d110b8f8b0.json",
+  "view_selection_sdf_source": "existing_sdf",
+  "sdf_stats": {
+    "dim": 128,
+    "min": [
+      -0.5000066757202148,
+      -0.4959295392036438,
+      -0.40952974557876587
+    ],
+    "max": [
+      5.851314544677734,
+      3.0189898014068604,
+      3.741279125213623
+    ],
+    "mesh_path": "",
+    "method": "selected_view_depth_tsdf",
+    "trunc_m": 0.25,
+    "num_views": 16,
+    "depth_image_size": [
+      512,
+      512
+    ],
+    "unknown_value": 0.25,
+    "observed_voxels": 1018106,
+    "total_voxels": 2097152,
+    "observed_fraction": 0.4854707717895508,
+    "negative_voxels": 710387,
+    "positive_voxels": 1386765,
+    "sign_convention": "positive is free space in front of rendered depth; negative is behind an observed scene surface"
+  },
+  "look_at": [
+    3.2012648582458496,
+    2.2471132278442383,
+    1.5567787885665894
+  ],
+  "look_at_stats": {
+    "source": "hand_contact_scene_vertex",
+    "selected_mask": "left_hand",
+    "selected_mask_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_30/contact_masks/left_hand.png",
+    "vertex_index": 498101,
+    "region_centroid": [
+      3.198559284210205,
+      2.2462573051452637,
+      1.5569924116134644
+    ],
+    "distance_from_region_centroid": 0.002845763461664319,
+    "hit_vertices": 173,
+    "candidates": [
+      {
+        "mask_name": "left_hand",
+        "mask_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_30/contact_masks/left_hand.png",
+        "hit_vertices": 173,
+        "status": "ok"
+      },
+      {
+        "mask_name": "right_hand",
+        "mask_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_30/contact_masks/right_hand.png",
+        "hit_vertices": 65,
+        "status": "ok"
+      }
+    ]
+  },
+  "viewpoints": [
+    [
+      4.683063507080078,
+      0.9216229915618896,
+      1.7743768692016602
+    ],
+    [
+      4.4064040184021,
+      0.7177014350891113,
+      2.013439416885376
+    ],
+    [
+      4.868247032165527,
+      1.2510347366333008,
+      2.035315752029419
+    ],
+    [
+      1.7621583938598633,
+      0.8588778972625732,
+      1.5989131927490234
+    ],
+    [
+      4.324259281158447,
+      0.592211127281189,
+      1.5703225135803223
+    ],
+    [
+      1.9870818853378296,
+      0.7333877086639404,
+      2.040922164916992
+    ],
+    [
+      5.034038066864014,
+      1.454956293106079,
+      1.6726651191711426
+    ],
+    [
+      1.9502769708633423,
+      0.9373092651367188,
+      2.4049787521362305
+    ],
+    [
+      1.6380114555358887,
+      1.0627994537353516,
+      1.9487478733062744
+    ],
+    [
+      2.190304756164551,
+      0.5294661521911621,
+      1.7230560779571533
+    ],
+    [
+      4.036623477935791,
+      0.513779878616333,
+      2.102426528930664
+    ],
+    [
+      1.6408565044403076,
+      1.2667210102081299,
+      2.333925485610962
+    ],
+    [
+      2.3470780849456787,
+      0.6078975200653076,
+      2.3205437660217285
+    ],
+    [
+      1.4045017957687378,
+      1.3922111988067627,
+      1.7587326765060425
+    ],
+    [
+      2.5248420238494873,
+      0.4039759635925293,
+      1.937957525253296
+    ],
+    [
+      1.411194086074829,
+      1.596132755279541,
+      2.166591167449951
+    ]
+  ],
+  "up_dir": [
+    0.0,
+    0.0,
+    1.0
+  ],
+  "fov": 60.0,
+  "view_distance": 2.0,
+  "selected_views": 16
+}
