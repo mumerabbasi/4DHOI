@@ -201,6 +201,7 @@ def prepare_prompt_package(
         packaged_render_paths.append(packaged_path)
     return packaged_render_paths
 
+
 def ollama_chat(
     host: str,
     model: str,
@@ -257,6 +258,7 @@ def response_chunk_text(chunk: Any) -> str:
             if isinstance(part_text, str):
                 parts.append(part_text)
     return "".join(parts)
+
 
 def gemini_generate_json(
     api_key: str,
