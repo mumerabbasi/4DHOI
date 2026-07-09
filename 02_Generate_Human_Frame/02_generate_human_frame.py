@@ -23,7 +23,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--api-key-file",
         default=str(project_dir / ".secrets" / "gemini_api_key"),
     )
-    parser.add_argument("--model", default="gemini-2.5-flash-image")
+    parser.add_argument("--model", default="gemini-3.1-flash-image")
     parser.add_argument("--overwrite-inpainted", action="store_true")
     parser.set_defaults(script_dir=script_dir, project_dir=project_dir)
     return parser.parse_args(argv)

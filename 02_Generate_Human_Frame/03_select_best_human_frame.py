@@ -27,7 +27,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--api-key-file",
         default=str(project_dir / ".secrets" / "gemini_api_key"),
     )
-    parser.add_argument("--model", default="gemini-3.1-flash-lite")
+    parser.add_argument("--model", default="gemini-3.5-flash")
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--max-output-tokens", type=int, default=512)

@@ -75,7 +75,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--api-key-file",
         default=str(PROJECT_DIR / ".secrets" / "gemini_api_key"),
     )
-    parser.add_argument("--model", default="gemini-3.1-flash-lite")
+    parser.add_argument("--model", default="gemini-3.5-flash")
     parser.add_argument(
         "--openai-api-key-file",
         default=str(PROJECT_DIR / ".secrets" / "openai_api_key"),
