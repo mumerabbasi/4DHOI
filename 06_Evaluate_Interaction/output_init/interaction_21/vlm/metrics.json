@@ -1,0 +1,34 @@
+{
+  "interaction_name": "interaction_21",
+  "interaction_instruction": "a person sitting on the bed and reaching for the Milka chocolate nearby",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is correctly sitting on the bed and reaching towards the purple Milka chocolate bar located on the desk."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The pose perfectly depicts a person sitting on the edge of the bed, leaning forward, and extending their arm to reach for the chocolate bar."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 5,
+        "reason": "The buttocks make realistic contact with the edge of the mattress, the feet are flat on the floor, and the hand is positioned directly above the target chocolate bar."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The interaction is highly plausible. The body weight is supported by the bed and the floor, and there are no unnatural penetrations or floating issues."
+      }
+    },
+    "best_view_ids": [
+      0,
+      1,
+      3
+    ],
+    "failure_modes": [],
+    "brief_summary": "The interaction is excellently executed. The human is realistically perched on the edge of the bed and reaching for the purple Milka chocolate bar on the desk with highly plausible contact, support, and posture."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is correctly sitting on the bed and reaching towards the purple Milka chocolate bar located on the desk.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The pose perfectly depicts a person sitting on the edge of the bed, leaning forward, and extending their arm to reach for the chocolate bar.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The buttocks make realistic contact with the edge of the mattress, the feet are flat on the floor, and the hand is positioned directly above the target chocolate bar.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The interaction is highly plausible. The body weight is supported by the bed and the floor, and there are no unnatural penetrations or floating issues.\"\n    }\n  },\n  \"best_view_ids\": [\n    0,\n    1,\n    3\n  ],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The interaction is excellently executed. The human is realistically perched on the edge of the bed and reaching for the purple Milka chocolate bar on the desk with highly plausible contact, support, and posture.\"\n}"
+}

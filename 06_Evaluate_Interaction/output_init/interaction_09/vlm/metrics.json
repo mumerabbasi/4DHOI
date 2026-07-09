@@ -1,0 +1,32 @@
+{
+  "interaction_name": "interaction_09",
+  "interaction_instruction": "a person taking a shower",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is correctly positioned inside the shower cabin, which is the target object for taking a shower."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The standing pose with hands extended toward the shower controls perfectly represents the action of taking a shower or preparing to do so."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 5,
+        "reason": "The feet are in solid contact with the shower floor, and the hands are realistically positioned near the shower fixtures."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The pose is physically stable and natural, with no visible penetration into the shower walls or glass panels."
+      }
+    },
+    "best_view_ids": [
+      0
+    ],
+    "failure_modes": [],
+    "brief_summary": "The interaction is highly realistic and physically plausible. The human is correctly placed inside the shower cabin, standing on the floor, and interacting with the shower controls as expected."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is correctly positioned inside the shower cabin, which is the target object for taking a shower.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The standing pose with hands extended toward the shower controls perfectly represents the action of taking a shower or preparing to do so.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The feet are in solid contact with the shower floor, and the hands are realistically positioned near the shower fixtures.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The pose is physically stable and natural, with no visible penetration into the shower walls or glass panels.\"\n    }\n  },\n  \"best_view_ids\": [0],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The interaction is highly realistic and physically plausible. The human is correctly placed inside the shower cabin, standing on the floor, and interacting with the shower controls as expected.\"\n}"
+}

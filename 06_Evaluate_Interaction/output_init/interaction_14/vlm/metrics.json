@@ -1,0 +1,34 @@
+{
+  "interaction_name": "interaction_14",
+  "interaction_instruction": "a person sitting on the bicycle with both hands on the handle",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is interacting with the correct target object, which is the bicycle."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is in a highly realistic cycling pose, sitting on the saddle with both hands gripping the handlebars as requested."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 5,
+        "reason": "All required contacts are perfectly established: both hands are gripping the handlebars, the pelvis is resting on the saddle, and the feet are positioned on the pedals."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The interaction is physically plausible with no floating, no severe penetration, and realistic weight-bearing support on the bicycle."
+      }
+    },
+    "best_view_ids": [
+      0,
+      1,
+      6
+    ],
+    "failure_modes": [],
+    "brief_summary": "The interaction is exceptionally well-executed, with highly accurate contacts on the handlebars, saddle, and pedals, perfectly matching the instruction without any physical plausibility issues."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is interacting with the correct target object, which is the bicycle.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is in a highly realistic cycling pose, sitting on the saddle with both hands gripping the handlebars as requested.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"All required contacts are perfectly established: both hands are gripping the handlebars, the pelvis is resting on the saddle, and the feet are positioned on the pedals.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The interaction is physically plausible with no floating, no severe penetration, and realistic weight-bearing support on the bicycle.\"\n    }\n  },\n  \"best_view_ids\": [0, 1, 6],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The interaction is exceptionally well-executed, with highly accurate contacts on the handlebars, saddle, and pedals, perfectly matching the instruction without any physical plausibility issues.\"\n}"
+}

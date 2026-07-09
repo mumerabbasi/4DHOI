@@ -1,0 +1,38 @@
+{
+  "interaction_name": "interaction_20",
+  "interaction_instruction": "a person sitting on the bed and reaching to turn off the bedside lamp",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is correctly positioned relative to the bed and is reaching towards the bedside lamp as instructed."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 4,
+        "reason": "The pose successfully expresses the action of sitting and reaching for the lamp, but the lack of physical support diminishes the overall execution."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 2,
+        "reason": "The primary contact parts (pelvis, thighs, and lower back) completely fail to make contact with the bed. There is a very large, visible gap where the human is hovering above the mattress."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 2,
+        "reason": "The human is completely floating in mid-air above the bed without any physical support, violating gravity and basic physics."
+      }
+    },
+    "best_view_ids": [
+      2,
+      3,
+      5,
+      6
+    ],
+    "failure_modes": [
+      "floating",
+      "missing_contact"
+    ],
+    "brief_summary": "The human is performing the correct pose of sitting and reaching for the bedside lamp, but is completely floating above the bed surface. This major gap in contact and support makes the interaction physically implausible."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is correctly positioned relative to the bed and is reaching towards the bedside lamp as instructed.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 4,\n      \"reason\": \"The pose successfully expresses the action of sitting and reaching for the lamp, but the lack of physical support diminishes the overall execution.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The primary contact parts (pelvis, thighs, and lower back) completely fail to make contact with the bed. There is a very large, visible gap where the human is hovering above the mattress.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The human is completely floating in mid-air above the bed without any physical support, violating gravity and basic physics.\"\n    }\n  },\n  \"best_view_ids\": [\n    2,\n    3,\n    5,\n    6\n  ],\n  \"failure_modes\": [\n    \"floating\",\n    \"missing_contact\"\n  ],\n  \"brief_summary\": \"The human is performing the correct pose of sitting and reaching for the bedside lamp, but is completely floating above the bed surface. This major gap in contact and support makes the interaction physically implausible.\"\n}"
+}

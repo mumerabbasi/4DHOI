@@ -1,0 +1,34 @@
+{
+  "interaction_name": "interaction_08",
+  "interaction_instruction": "a person making coffee",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is correctly positioned in front of and interacting with the coffee machine on the kitchen counter."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The standing pose with hands extended towards the coffee machine clearly depicts the action of making coffee."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 4,
+        "reason": "The hands are positioned very close to the coffee machine's interface and spout, though they are slightly hovering rather than firmly gripping or pressing a specific button."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The human is standing stably on the floor with no physical penetrations into the counter, coffee machine, or surrounding walls."
+      }
+    },
+    "best_view_ids": [
+      1,
+      2,
+      3
+    ],
+    "failure_modes": [],
+    "brief_summary": "The interaction is highly successful and realistic. The human is standing naturally in front of the coffee machine, gesturing to operate it, with excellent physical plausibility and no collisions."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is correctly positioned in front of and interacting with the coffee machine on the kitchen counter.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The standing pose with hands extended towards the coffee machine clearly depicts the action of making coffee.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 4,\n      \"reason\": \"The hands are positioned very close to the coffee machine's interface and spout, though they are slightly hovering rather than firmly gripping or pressing a specific button.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is standing stably on the floor with no physical penetrations into the counter, coffee machine, or surrounding walls.\"\n    }\n  },\n  \"best_view_ids\": [\n    1,\n    2,\n    3\n  ],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The interaction is highly successful and realistic. The human is standing naturally in front of the coffee machine, gesturing to operate it, with excellent physical plausibility and no collisions.\"\n}"
+}

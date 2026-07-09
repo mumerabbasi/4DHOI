@@ -1,0 +1,37 @@
+{
+  "interaction_name": "interaction_07",
+  "interaction_instruction": "a person opening a curtain",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is correctly positioned next to the curtain, which is the target object."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 1,
+        "reason": "The human is simply standing next to the curtain with arms hanging straight down. There is no pose or gesture indicating the action of opening a curtain."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 1,
+        "reason": "There is no contact between the human's hands and the curtain. The hands are resting at the sides of the body."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The standing pose itself is physically plausible, with feet well-supported by the floor and no clipping or penetration issues."
+      }
+    },
+    "best_view_ids": [
+      1,
+      2,
+      6
+    ],
+    "failure_modes": [
+      "missing_contact",
+      "incorrect_pose"
+    ],
+    "brief_summary": "The human is standing statically next to the curtain with arms at their sides, completely failing to perform the requested action of opening the curtain."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is correctly positioned next to the curtain, which is the target object.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 1,\n      \"reason\": \"The human is simply standing next to the curtain with arms hanging straight down. There is no pose or gesture indicating the action of opening a curtain.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 1,\n      \"reason\": \"There is no contact between the human's hands and the curtain. The hands are resting at the sides of the body.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The standing pose itself is physically plausible, with feet well-supported by the floor and no clipping or penetration issues.\"\n    }\n  },\n  \"best_view_ids\": [\n    1,\n    2,\n    6\n  ],\n  \"failure_modes\": [\n    \"missing_contact\",\n    \"incorrect_pose\"\n  ],\n  \"brief_summary\": \"The human is standing statically next to the curtain with arms at their sides, completely failing to perform the requested action of opening the curtain.\"\n}"
+}

@@ -1,0 +1,36 @@
+{
+  "interaction_name": "interaction_27",
+  "interaction_instruction": "a person stepping over the bathtub wall, one foot inside the tub, the other foot still on the floor, one hand holding the side glass for balance",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human correctly interacts with the bathtub, the side glass, and the bathroom floor."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 3,
+        "reason": "The human is stepping on the bathtub wall/rim (on top of the towel) instead of having 'one foot inside the tub' as requested by the instruction. The other foot is correctly on the floor, and the hand is holding the glass for balance."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 4,
+        "reason": "The contacts are overall well-placed: the right foot is on the floor, the left hand is touching the glass panel, and the left foot is contacting the towel draped on the tub rim. However, the spatial relation of having one foot 'inside' the tub is not achieved."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 4,
+        "reason": "The pose is physically plausible with solid support from the floor and the tub rim, and balancing support from the glass panel. No severe floating or unnatural penetration is observed."
+      }
+    },
+    "best_view_ids": [
+      0,
+      1,
+      9
+    ],
+    "failure_modes": [
+      "incorrect body-part contact/position"
+    ],
+    "brief_summary": "The interaction is partially correct. While the balancing pose and contacts are physically plausible, the human has placed their foot on top of the bathtub wall (on the towel) rather than putting it inside the tub as specified in the instruction."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human correctly interacts with the bathtub, the side glass, and the bathroom floor.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 3,\n      \"reason\": \"The human is stepping on the bathtub wall/rim (on top of the towel) instead of having 'one foot inside the tub' as requested by the instruction. The other foot is correctly on the floor, and the hand is holding the glass for balance.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 4,\n      \"reason\": \"The contacts are overall well-placed: the right foot is on the floor, the left hand is touching the glass panel, and the left foot is contacting the towel draped on the tub rim. However, the spatial relation of having one foot 'inside' the tub is not achieved.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 4,\n      \"reason\": \"The pose is physically plausible with solid support from the floor and the tub rim, and balancing support from the glass panel. No severe floating or unnatural penetration is observed.\"\n    }\n  },\n  \"best_view_ids\": [\n    0,\n    1,\n    9\n  ],\n  \"failure_modes\": [\n    \"incorrect body-part contact/position\"\n  ],\n  \"brief_summary\": \"The interaction is partially correct. While the balancing pose and contacts are physically plausible, the human has placed their foot on top of the bathtub wall (on the towel) rather than putting it inside the tub as specified in the instruction.\"\n}"
+}

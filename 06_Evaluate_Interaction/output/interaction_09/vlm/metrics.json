@@ -1,0 +1,32 @@
+{
+  "interaction_name": "interaction_09",
+  "interaction_instruction": "a person taking a shower",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is correctly positioned inside the shower cabin, which is the target object for taking a shower."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The standing pose inside the shower cabin, facing the shower head/controls with arms raised in front of the chest, perfectly represents the action of taking a shower."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 5,
+        "reason": "The human's feet are in realistic contact with the floor of the shower tray, and the body is properly contained within the shower enclosure."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The pose is physically stable and plausible. There is no floating, and the body does not penetrate the glass walls or the back wall of the shower cabin."
+      }
+    },
+    "best_view_ids": [
+      0
+    ],
+    "failure_modes": [],
+    "brief_summary": "The human is realistically placed inside the shower cabin, standing on the shower floor in a natural pose that perfectly matches the instruction of taking a shower, with no physical penetration or floating issues."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is correctly positioned inside the shower cabin, which is the target object for taking a shower.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The standing pose inside the shower cabin, facing the shower head/controls with arms raised in front of the chest, perfectly represents the action of taking a shower.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human's feet are in realistic contact with the floor of the shower tray, and the body is properly contained within the shower enclosure.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The pose is physically stable and plausible. There is no floating, and the body does not penetrate the glass walls or the back wall of the shower cabin.\"\n    }\n  },\n  \"best_view_ids\": [0],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The human is realistically placed inside the shower cabin, standing on the shower floor in a natural pose that perfectly matches the instruction of taking a shower, with no physical penetration or floating issues.\"\n}"
+}

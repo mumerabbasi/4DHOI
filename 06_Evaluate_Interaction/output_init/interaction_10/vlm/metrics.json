@@ -1,0 +1,34 @@
+{
+  "interaction_name": "interaction_10",
+  "interaction_instruction": "a person taking out the vacuum cleaner with both hands",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is correctly interacting with the vacuum cleaner located behind the utility cart."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human's pose clearly depicts the action of reaching for and taking out the vacuum cleaner using both hands."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 4,
+        "reason": "Both hands are positioned very close to the vacuum cleaner's hose/handle, though the grip is slightly loose and relies on close proximity rather than a tight wrap-around grasp."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The human is standing stably on the floor with no physical penetrations into the walls, cart, or the vacuum cleaner itself."
+      }
+    },
+    "best_view_ids": [
+      1,
+      3,
+      7
+    ],
+    "failure_modes": [],
+    "brief_summary": "The interaction is highly successful. The human is correctly positioned to take out the vacuum cleaner with both hands, showing a natural pose and solid physical plausibility with no clipping or floating issues."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is correctly interacting with the vacuum cleaner located behind the utility cart.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human's pose clearly depicts the action of reaching for and taking out the vacuum cleaner using both hands.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 4,\n      \"reason\": \"Both hands are positioned very close to the vacuum cleaner's hose/handle, though the grip is slightly loose and relies on close proximity rather than a tight wrap-around grasp.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is standing stably on the floor with no physical penetrations into the walls, cart, or the vacuum cleaner itself.\"\n    }\n  },\n  \"best_view_ids\": [\n    1,\n    3,\n    7\n  ],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The interaction is highly successful. The human is correctly positioned to take out the vacuum cleaner with both hands, showing a natural pose and solid physical plausibility with no clipping or floating issues.\"\n}"
+}

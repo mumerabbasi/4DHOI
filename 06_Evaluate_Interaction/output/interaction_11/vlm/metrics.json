@@ -1,0 +1,34 @@
+{
+  "interaction_name": "interaction_11",
+  "interaction_instruction": "a person lifting the brown small wooden table with both hands and his back facing the camera",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is interacting with the correct target object, which is the small brown wooden table/box."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human pose perfectly represents the action of lifting the table with both hands. In the primary view (view 0), the human's back is directly facing the camera as requested."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 5,
+        "reason": "Both hands are in clear, realistic contact with the sides of the table, and both feet are firmly planted on the floor."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The pose is highly natural and physically plausible for a lifting action. There is no clipping, floating, or penetration with the target object or the surrounding walls."
+      }
+    },
+    "best_view_ids": [
+      0,
+      1,
+      3
+    ],
+    "failure_modes": [],
+    "brief_summary": "The interaction perfectly satisfies the instruction. The human is shown from behind, bending over to lift the small brown wooden table with both hands in a highly realistic and physically plausible manner."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is interacting with the correct target object, which is the small brown wooden table/box.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human pose perfectly represents the action of lifting the table with both hands. In the primary view (view 0), the human's back is directly facing the camera as requested.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"Both hands are in clear, realistic contact with the sides of the table, and both feet are firmly planted on the floor.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The pose is highly natural and physically plausible for a lifting action. There is no clipping, floating, or penetration with the target object or the surrounding walls.\"\n    }\n  },\n  \"best_view_ids\": [0, 1, 3],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The interaction perfectly satisfies the instruction. The human is shown from behind, bending over to lift the small brown wooden table with both hands in a highly realistic and physically plausible manner.\"\n}"
+}

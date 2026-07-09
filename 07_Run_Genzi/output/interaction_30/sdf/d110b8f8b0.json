@@ -13,16 +13,16 @@
   "mesh_path": "",
   "method": "selected_view_depth_tsdf",
   "trunc_m": 0.25,
-  "num_views": 16,
+  "num_views": 11,
   "depth_image_size": [
     512,
     512
   ],
   "unknown_value": 0.25,
-  "observed_voxels": 1018106,
+  "observed_voxels": 1019147,
   "total_voxels": 2097152,
-  "observed_fraction": 0.4854707717895508,
-  "negative_voxels": 710387,
-  "positive_voxels": 1386765,
+  "observed_fraction": 0.48596715927124023,
+  "negative_voxels": 702288,
+  "positive_voxels": 1394864,
   "sign_convention": "positive is free space in front of rendered depth; negative is behind an observed scene surface"
 }

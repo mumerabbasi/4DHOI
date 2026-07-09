@@ -25,6 +25,9 @@ GENZI_ROOT = WORKSPACE_ROOT / "GenZI"
 MODULE_DIR = Path(__file__).resolve().parent
 DEFAULT_OUTPUT_BASE = MODULE_DIR / "output"
 DEFAULT_RUN_CFG = GENZI_ROOT / "config" / "proxs_gen.yml"
+DEFAULT_PROMPT_PREFIX = "a woman"
+DEFAULT_PROMPT_SUFFIX = "wearing a white shirt and blue pants, full body"
+DEFAULT_TOKEN_INDICES = "2"
 
 if str(GENZI_ROOT) not in sys.path:
     sys.path.insert(0, str(GENZI_ROOT))
@@ -39,6 +42,15 @@ def ensure_alphapose_import_path() -> Path | None:
     if str(alphapose_root) not in sys.path:
         sys.path.insert(0, str(alphapose_root))
     return alphapose_root
+
+
+def parse_token_indices(raw: str | None) -> list[int]:
+    if raw is None:
+        return []
+    text = str(raw).strip()
+    if not text:
+        return []
+    return [int(item.strip()) for item in text.split(",") if item.strip()]
 
 
 IMAGE_SOURCE_TO_REL_PATHS: dict[str, tuple[str, str]] = {
@@ -744,12 +756,12 @@ def run_interaction(
             **default_render_args(),
             "up_dir": up_dir.astype(float).tolist(),
         },
-        "prompt_prefix": "",
-        "prompt_suffix": "",
+        "prompt_prefix": args.prompt_prefix,
+        "prompt_suffix": args.prompt_suffix,
         "prompt_ids": [interaction_name],
         "prompts": [prompt],
         "neg_prompts": [""],
-        "token_indices": [],
+        "token_indices": parse_token_indices(args.token_indices),
         "lookats": [interaction_point.astype(float).tolist()],
         "viewpoints": [stage_viewpoints],
         "interactions": [interaction_label],
@@ -836,6 +848,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--exp_name", default=None)
     parser.add_argument("--log_dir", default=None)
     parser.add_argument("--skip_ldm_load", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--prompt_prefix", default=DEFAULT_PROMPT_PREFIX)
+    parser.add_argument("--prompt_suffix", default=DEFAULT_PROMPT_SUFFIX)
+    parser.add_argument(
+        "--token_indices",
+        default=DEFAULT_TOKEN_INDICES,
+        help=(
+            "Comma-separated text-token indices used by GenZI dynamic masking. "
+            "Default 2 tracks the paper-style human token in prompt_prefix='a woman'."
+        ),
+    )
     parser.add_argument("--opengl_platform", default="egl")
     parser.add_argument("--wandb_mode", default="offline")
     parser.add_argument("--preflight_only", action="store_true")

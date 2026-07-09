@@ -1,0 +1,36 @@
+{
+  "interaction_name": "interaction_16",
+  "interaction_instruction": "a person sitting on the shelf with both hands supporting their body and both legs hanging down",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is interacting with the correct target object, which is the long wooden shelf/counter structure."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 3,
+        "reason": "The human is sitting on the shelf with legs hanging down, which partially matches the instruction. However, the hands are floating in the air and not supporting the body as requested."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 3,
+        "reason": "While the pelvis and upper thighs make contact with the shelf surface, both hands are clearly floating in the air without making any contact with the shelf to support the body."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 3,
+        "reason": "The sitting posture is generally stable, but the hands are floating in an unrealistic manner instead of resting on the surface to support the weight of the leaning torso."
+      }
+    },
+    "best_view_ids": [
+      0,
+      1,
+      4
+    ],
+    "failure_modes": [
+      "floating_body_parts"
+    ],
+    "brief_summary": "The human is sitting on the shelf with legs hanging down, but both hands are floating in the air instead of contacting the shelf to support the body as specified in the instruction."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is interacting with the correct target object, which is the long wooden shelf/counter structure.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 3,\n      \"reason\": \"The human is sitting on the shelf with legs hanging down, which partially matches the instruction. However, the hands are floating in the air and not supporting the body as requested.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 3,\n      \"reason\": \"While the pelvis and upper thighs make contact with the shelf surface, both hands are clearly floating in the air without making any contact with the shelf to support the body.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 3,\n      \"reason\": \"The sitting posture is generally stable, but the hands are floating in an unrealistic manner instead of resting on the surface to support the weight of the leaning torso.\"\n    }\n  },\n  \"best_view_ids\": [\n    0,\n    1,\n    4\n  ],\n  \"failure_modes\": [\n    \"floating_body_parts\"\n  ],\n  \"brief_summary\": \"The human is sitting on the shelf with legs hanging down, but both hands are floating in the air instead of contacting the shelf to support the body as specified in the instruction.\"\n}"
+}

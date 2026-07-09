@@ -1,0 +1,38 @@
+{
+  "interaction_name": "interaction_24",
+  "interaction_instruction": "a person climbing the step ladder, with both feet on the ladder and reaching for the top of the cupboard",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is positioned near the step ladder and the cupboard/wall structure as specified in the instruction."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 2,
+        "reason": "While the upper body is in a reaching pose, the lower body is completely suspended in the air, failing the core instruction requirement of 'climbing the step ladder, with both feet on the ladder'."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 1,
+        "reason": "The feet are floating significantly above the step ladder with absolutely no contact. Additionally, the reaching hand and forearm penetrate deeply into the solid wall/cupboard structure."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 1,
+        "reason": "The human is completely floating in mid-air without any physical support, violating gravity. There is also severe penetration of the arm into the solid wall/cupboard."
+      }
+    },
+    "best_view_ids": [
+      0,
+      3,
+      5
+    ],
+    "failure_modes": [
+      "floating",
+      "penetration",
+      "incorrect_contact"
+    ],
+    "brief_summary": "The interaction is physically impossible. The human is floating high in the air above the ladder with zero support, and the arm penetrates into the cupboard/wall."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is positioned near the step ladder and the cupboard/wall structure as specified in the instruction.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"While the upper body is in a reaching pose, the lower body is completely suspended in the air, failing the core instruction requirement of 'climbing the step ladder, with both feet on the ladder'.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 1,\n      \"reason\": \"The feet are floating significantly above the step ladder with absolutely no contact. Additionally, the reaching hand and forearm penetrate deeply into the solid wall/cupboard structure.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 1,\n      \"reason\": \"The human is completely floating in mid-air without any physical support, violating gravity. There is also severe penetration of the arm into the solid wall/cupboard.\"\n    }\n  },\n  \"best_view_ids\": [\n    0,\n    3,\n    5\n  ],\n  \"failure_modes\": [\n    \"floating\",\n    \"penetration\",\n    \"incorrect_contact\"\n  ],\n  \"brief_summary\": \"The interaction is physically impossible. The human is floating high in the air above the ladder with zero support, and the arm penetrates into the cupboard/wall.\"\n}"
+}

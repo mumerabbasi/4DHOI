@@ -1,0 +1,34 @@
+{
+  "interaction_name": "interaction_14",
+  "interaction_instruction": "a person sitting on the bicycle with both hands on the handle",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is interacting with the correct target object, which is the bicycle."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is in a highly realistic cycling pose, sitting on the saddle with both hands gripping the handlebars."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 5,
+        "reason": "All required contacts are perfectly satisfied: both hands are placed on the handlebars, the pelvis is supported by the saddle, and the feet are positioned on the pedals."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The interaction is physically plausible. The bicycle is supported by a stationary trainer, and the human's weight distribution and posture are natural with no clipping or floating."
+      }
+    },
+    "best_view_ids": [
+      1,
+      3,
+      7
+    ],
+    "failure_modes": [],
+    "brief_summary": "The interaction perfectly satisfies the instruction. The human is realistically posed riding the stationary bicycle with excellent contact on the handlebars, saddle, and pedals."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is interacting with the correct target object, which is the bicycle.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is in a highly realistic cycling pose, sitting on the saddle with both hands gripping the handlebars.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"All required contacts are perfectly satisfied: both hands are placed on the handlebars, the pelvis is supported by the saddle, and the feet are positioned on the pedals.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The interaction is physically plausible. The bicycle is supported by a stationary trainer, and the human's weight distribution and posture are natural with no clipping or floating.\"\n    }\n  },\n  \"best_view_ids\": [\n    1,\n    3,\n    7\n  ],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The interaction perfectly satisfies the instruction. The human is realistically posed riding the stationary bicycle with excellent contact on the handlebars, saddle, and pedals.\"\n}"
+}

@@ -1,0 +1,36 @@
+{
+  "interaction_name": "interaction_04",
+  "interaction_instruction": "a person opening the door",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is correctly positioned in front of the door and is attempting to interact with the door handle."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 3,
+        "reason": "The pose is recognizable as reaching out to open the door, but because the hand fails to make contact with the handle, the action is incomplete."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 2,
+        "reason": "The hand is clearly floating in the air and does not make contact with the door handle or the door itself, leaving a visible gap in all views."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 4,
+        "reason": "The standing pose is physically plausible, with the feet well-supported by the floor and no collisions or penetrations with the door or surrounding walls."
+      }
+    },
+    "best_view_ids": [
+      1,
+      2,
+      9
+    ],
+    "failure_modes": [
+      "missing_contact"
+    ],
+    "brief_summary": "The human is correctly positioned to open the door, but the hand is floating and fails to make contact with the door handle."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is correctly positioned in front of the door and is attempting to interact with the door handle.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 3,\n      \"reason\": \"The pose is recognizable as reaching out to open the door, but because the hand fails to make contact with the handle, the action is incomplete.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The hand is clearly floating in the air and does not make contact with the door handle or the door itself, leaving a visible gap in all views.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 4,\n      \"reason\": \"The standing pose is physically plausible, with the feet well-supported by the floor and no collisions or penetrations with the door or surrounding walls.\"\n    }\n  },\n  \"best_view_ids\": [\n    1,\n    2,\n    9\n  ],\n  \"failure_modes\": [\n    \"missing_contact\"\n  ],\n  \"brief_summary\": \"The human is correctly positioned to open the door, but the hand is floating and fails to make contact with the door handle.\"\n}"
+}

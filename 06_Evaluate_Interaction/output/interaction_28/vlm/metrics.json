@@ -1,0 +1,34 @@
+{
+  "interaction_name": "interaction_28",
+  "interaction_instruction": "a person running on the treadmill, one foot landing on the moving belt, the other leg lifted behind, and both hands lightly holding the side handles",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is interacting with the treadmill as specified in the instruction."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The pose accurately depicts a running motion, with one foot planted on the belt, the other leg lifted behind, and the torso leaning forward in a running stance."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 5,
+        "reason": "The left foot makes solid contact with the treadmill belt, and both hands are realistically aligned with and grasping the side handles."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The physical interaction is highly plausible. There is no unnatural penetration into the treadmill or the adjacent wall, and the supporting foot is realistically bearing weight on the belt surface."
+      }
+    },
+    "best_view_ids": [
+      0,
+      1,
+      2
+    ],
+    "failure_modes": [],
+    "brief_summary": "The 3D interaction perfectly satisfies all aspects of the instruction. The pose realistically depicts running on a treadmill with well-established contacts on the handles and the belt, demonstrating high physical plausibility."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is interacting with the treadmill as specified in the instruction.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The pose accurately depicts a running motion, with one foot planted on the belt, the other leg lifted behind, and the torso leaning forward in a running stance.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The left foot makes solid contact with the treadmill belt, and both hands are realistically aligned with and grasping the side handles.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The physical interaction is highly plausible. There is no unnatural penetration into the treadmill or the adjacent wall, and the supporting foot is realistically bearing weight on the belt surface.\"\n    }\n  },\n  \"best_view_ids\": [\n    0,\n    1,\n    2\n  ],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The 3D interaction perfectly satisfies all aspects of the instruction. The pose realistically depicts running on a treadmill with well-established contacts on the handles and the belt, demonstrating high physical plausibility.\"\n}"
+}

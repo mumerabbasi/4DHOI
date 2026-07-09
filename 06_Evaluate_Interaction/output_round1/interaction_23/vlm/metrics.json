@@ -1,0 +1,36 @@
+{
+  "interaction_name": "interaction_23",
+  "interaction_instruction": "a person bending down in front of the lower drawer, one hand pulling the cabinet door open and the other hand holding the counter edge for balance",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is correctly positioned in front of the cabinet/counter unit, interacting with the lower drawer and the counter edge as specified."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The pose perfectly expresses the requested action: squatting/bending down, reaching for the lower drawer handle with one hand, and resting the other hand on the counter edge for balance."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 3,
+        "reason": "While the hands make plausible contact with the counter edge and are close to the drawer handle, both feet are clearly floating in mid-air above the floor surface (visible in Views 1, 3, 5, and 10)."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 3,
+        "reason": "The human is floating significantly above the floor without any physical support under the feet, which violates gravity and physical plausibility."
+      }
+    },
+    "best_view_ids": [
+      1,
+      3,
+      5
+    ],
+    "failure_modes": [
+      "floating"
+    ],
+    "brief_summary": "The human's pose and target object interaction are highly accurate to the instruction, but the entire body is floating about 15-20 cm above the floor, resulting in a lack of physical support for the feet."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is correctly positioned in front of the cabinet/counter unit, interacting with the lower drawer and the counter edge as specified.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The pose perfectly expresses the requested action: squatting/bending down, reaching for the lower drawer handle with one hand, and resting the other hand on the counter edge for balance.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 3,\n      \"reason\": \"While the hands make plausible contact with the counter edge and are close to the drawer handle, both feet are clearly floating in mid-air above the floor surface (visible in Views 1, 3, 5, and 10).\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 3,\n      \"reason\": \"The human is floating significantly above the floor without any physical support under the feet, which violates gravity and physical plausibility.\"\n    }\n  },\n  \"best_view_ids\": [\n    1,\n    3,\n    5\n  ],\n  \"failure_modes\": [\n    \"floating\"\n  ],\n  \"brief_summary\": \"The human's pose and target object interaction are highly accurate to the instruction, but the entire body is floating about 15-20 cm above the floor, resulting in a lack of physical support for the feet.\"\n}"
+}

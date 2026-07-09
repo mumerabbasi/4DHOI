@@ -1,0 +1,35 @@
+{
+  "interaction_name": "interaction_10",
+  "interaction_instruction": "a person taking out the vacuum cleaner with both hands",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is interacting with the correct target object, which is the vacuum cleaner located behind the rolling cart."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human's pose clearly depicts the action of reaching for and taking out the vacuum cleaner, grasping the wand/hose with both hands in a natural, forward-leaning stance."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 5,
+        "reason": "Both hands are in clear, plausible contact with the vacuum cleaner's handle/wand, and the feet are firmly planted on the floor."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The pose is physically stable and realistic. There is no floating, and no significant penetration with the vacuum cleaner, the nearby cart, or the walls."
+      }
+    },
+    "best_view_ids": [
+      0,
+      1,
+      3,
+      7
+    ],
+    "failure_modes": [],
+    "brief_summary": "The interaction is highly accurate and physically plausible. The human is correctly positioned to take out the vacuum cleaner, with both hands making realistic contact with the wand/hose, and the body is well-supported by the floor without any collisions."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is interacting with the correct target object, which is the vacuum cleaner located behind the rolling cart.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human's pose clearly depicts the action of reaching for and taking out the vacuum cleaner, grasping the wand/hose with both hands in a natural, forward-leaning stance.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"Both hands are in clear, plausible contact with the vacuum cleaner's handle/wand, and the feet are firmly planted on the floor.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The pose is physically stable and realistic. There is no floating, and no significant penetration with the vacuum cleaner, the nearby cart, or the walls.\"\n    }\n  },\n  \"best_view_ids\": [\n    0,\n    1,\n    3,\n    7\n  ],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The interaction is highly accurate and physically plausible. The human is correctly positioned to take out the vacuum cleaner, with both hands making realistic contact with the wand/hose, and the body is well-supported by the floor without any collisions.\"\n}"
+}

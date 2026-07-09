@@ -1,0 +1,37 @@
+{
+  "interaction_name": "interaction_18",
+  "interaction_instruction": "a person standing on the staircase and climbing onto the top bed",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is correctly positioned near the bunk bed and its ladder, which are the target objects for climbing."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 3,
+        "reason": "The pose resembles climbing, but because the human is floating in the air and not actually standing on the staircase, the action is only partially realized."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 2,
+        "reason": "While the hands make contact with the guardrail of the top bed, both feet are completely floating in the air and fail to make contact with the steps of the ladder."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 2,
+        "reason": "The human is floating in mid-air next to the ladder without any physical support for their body weight, which is physically impossible."
+      }
+    },
+    "best_view_ids": [
+      0,
+      1,
+      5
+    ],
+    "failure_modes": [
+      "floating",
+      "missing_contact"
+    ],
+    "brief_summary": "The human is attempting to climb the bunk bed, but is positioned incorrectly in 3D space, resulting in the entire body floating in mid-air next to the ladder with no foot support."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is correctly positioned near the bunk bed and its ladder, which are the target objects for climbing.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 3,\n      \"reason\": \"The pose resembles climbing, but because the human is floating in the air and not actually standing on the staircase, the action is only partially realized.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"While the hands make contact with the guardrail of the top bed, both feet are completely floating in the air and fail to make contact with the steps of the ladder.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The human is floating in mid-air next to the ladder without any physical support for their body weight, which is physically impossible.\"\n    }\n  },\n  \"best_view_ids\": [\n    0,\n    1,\n    5\n  ],\n  \"failure_modes\": [\n    \"floating\",\n    \"missing_contact\"\n  ],\n  \"brief_summary\": \"The human is attempting to climb the bunk bed, but is positioned incorrectly in 3D space, resulting in the entire body floating in mid-air next to the ladder with no foot support.\"\n}"
+}

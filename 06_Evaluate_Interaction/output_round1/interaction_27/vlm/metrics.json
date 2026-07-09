@@ -1,0 +1,36 @@
+{
+  "interaction_name": "interaction_27",
+  "interaction_instruction": "a person stepping over the bathtub wall, one foot inside the tub, the other foot still on the floor, one hand holding the side glass for balance",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human correctly interacts with the bathtub, the bathroom floor, and the side glass wall/enclosure as requested."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 4,
+        "reason": "The pose successfully conveys stepping over the bathtub wall with one foot on the floor, the other leg raised and inside the tub, and one hand holding the side glass frame."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 2,
+        "reason": "The human's body (specifically the torso, pelvis, and left thigh) severely penetrates and clips through the solid vertical metal frame and glass panel of the shower enclosure."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 2,
+        "reason": "The interaction is physically impossible because a major portion of the torso and left leg is embedded inside/passing through the solid vertical shower frame and glass structure."
+      }
+    },
+    "best_view_ids": [
+      0,
+      1,
+      8
+    ],
+    "failure_modes": [
+      "severity_penetration"
+    ],
+    "brief_summary": "While the overall pose and target objects perfectly match the instruction, the interaction is physically invalid because the human's body severely clips through the vertical frame of the shower's glass door."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human correctly interacts with the bathtub, the bathroom floor, and the side glass wall/enclosure as requested.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 4,\n      \"reason\": \"The pose successfully conveys stepping over the bathtub wall with one foot on the floor, the other leg raised and inside the tub, and one hand holding the side glass frame.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The human's body (specifically the torso, pelvis, and left thigh) severely penetrates and clips through the solid vertical metal frame and glass panel of the shower enclosure.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The interaction is physically impossible because a major portion of the torso and left leg is embedded inside/passing through the solid vertical shower frame and glass structure.\"\n    }\n  },\n  \"best_view_ids\": [\n    0,\n    1,\n    8\n  ],\n  \"failure_modes\": [\n    \"severity_penetration\"\n  ],\n  \"brief_summary\": \"While the overall pose and target objects perfectly match the instruction, the interaction is physically invalid because the human's body severely clips through the vertical frame of the shower's glass door.\"\n}"
+}

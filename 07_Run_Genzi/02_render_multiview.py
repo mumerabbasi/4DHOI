@@ -20,6 +20,9 @@ DEFAULT_OUTPUT_BASE = MODULE_DIR / "output"
 DEFAULT_RUN_CFG = GENZI_ROOT / "config" / "proxs_gen.yml"
 DEFAULT_SDF_DIM = 128
 DEFAULT_SDF_PADDING_M = 0.5
+DEFAULT_PROMPT_PREFIX = "a woman"
+DEFAULT_PROMPT_SUFFIX = "wearing a white shirt and blue pants, full body"
+DEFAULT_TOKEN_INDICES = "2"
 
 if str(GENZI_ROOT) not in sys.path:
     sys.path.insert(0, str(GENZI_ROOT))
@@ -36,6 +39,15 @@ def configure_headless_rendering(opengl_platform: str | None) -> None:
 
 def log(message: str) -> None:
     print(message, flush=True)
+
+
+def parse_token_indices(raw: str | None) -> list[int]:
+    if raw is None:
+        return []
+    text = str(raw).strip()
+    if not text:
+        return []
+    return [int(item.strip()) for item in text.split(",") if item.strip()]
 
 
 def load_singleview_helpers() -> ModuleType:
@@ -840,7 +852,7 @@ def render_interaction(
         "prompt_ids": [interaction_name],
         "prompts": [prompt],
         "neg_prompts": [args.negative_prompt],
-        "token_indices": [],
+        "token_indices": parse_token_indices(args.token_indices),
         "lookats": [selected_look_at.astype(float).tolist()],
         "viewpoints": [[viewpoints.astype(float).tolist() for _ in cfg["optim.steps"]]],
         "interactions": [interaction_label],
@@ -965,7 +977,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--view_distance_m",
         type=float,
-        default=None,
+        default=2.5,
         help=(
             "Camera distance from the interaction point. Default uses run_cfg "
             "data.view_distances[0]."
@@ -980,9 +992,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "try 'osmesa' only if EGL is unavailable and OSMesa is installed."
         ),
     )
-    parser.add_argument("--prompt_prefix", default="")
-    parser.add_argument("--prompt_suffix", default="")
+    parser.add_argument("--prompt_prefix", default=DEFAULT_PROMPT_PREFIX)
+    parser.add_argument("--prompt_suffix", default=DEFAULT_PROMPT_SUFFIX)
     parser.add_argument("--negative_prompt", default="")
+    parser.add_argument(
+        "--token_indices",
+        default=DEFAULT_TOKEN_INDICES,
+        help=(
+            "Comma-separated text-token indices used by GenZI dynamic masking. "
+            "Default 2 tracks the paper-style human token in prompt_prefix='a woman'."
+        ),
+    )
     parser.add_argument(
         "--hand_contact_mask",
         choices=("auto", *HAND_CONTACT_MASKS),

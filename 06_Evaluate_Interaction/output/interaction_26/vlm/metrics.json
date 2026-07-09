@@ -1,0 +1,37 @@
+{
+  "interaction_name": "interaction_26",
+  "interaction_instruction": "a person hanging from the pull-up bar with both hands, elbows bent, knees tucked upward, and both feet off the floor",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is interacting with the correct target object, which is the pull-up bar mounted on the wall."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 4,
+        "reason": "The overall body pose matches the description: the person is suspended, the knees are tucked upward, both feet are off the floor, and the elbows have a slight bend. However, the hand shape is completely open instead of gripping the bar."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 3,
+        "reason": "The hands do not grip the pull-up bar. Instead, they are open-palmed with fingers extended, hovering slightly above or loosely resting on top of the bar without any anatomically plausible gripping contact."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 3,
+        "reason": "Because the hands do not wrap around or grip the bar to support the body weight, the human appears to be floating in mid-air under the bar without realistic physical support."
+      }
+    },
+    "best_view_ids": [
+      0,
+      5,
+      6
+    ],
+    "failure_modes": [
+      "floating",
+      "faked_contact"
+    ],
+    "brief_summary": "The human is in the correct hanging position with tucked knees under the correct pull-up bar, but the hands fail to grip the bar. The open hands hover slightly above the bar, leading to an physically implausible floating appearance."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is interacting with the correct target object, which is the pull-up bar mounted on the wall.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 4,\n      \"reason\": \"The overall body pose matches the description: the person is suspended, the knees are tucked upward, both feet are off the floor, and the elbows have a slight bend. However, the hand shape is completely open instead of gripping the bar.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 3,\n      \"reason\": \"The hands do not grip the pull-up bar. Instead, they are open-palmed with fingers extended, hovering slightly above or loosely resting on top of the bar without any anatomically plausible gripping contact.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 3,\n      \"reason\": \"Because the hands do not wrap around or grip the bar to support the body weight, the human appears to be floating in mid-air under the bar without realistic physical support.\"\n    }\n  },\n  \"best_view_ids\": [\n    0,\n    5,\n    6\n  ],\n  \"failure_modes\": [\n    \"floating\",\n    \"faked_contact\"\n  ],\n  \"brief_summary\": \"The human is in the correct hanging position with tucked knees under the correct pull-up bar, but the hands fail to grip the bar. The open hands hover slightly above the bar, leading to an physically implausible floating appearance.\"\n}"
+}

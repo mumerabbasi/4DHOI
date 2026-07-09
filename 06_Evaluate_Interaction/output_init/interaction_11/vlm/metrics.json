@@ -1,0 +1,37 @@
+{
+  "interaction_name": "interaction_11",
+  "interaction_instruction": "a person lifting the brown small wooden table with both hands and his back facing the camera",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is positioned next to the correct target object, which is the small brown wooden table."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 2,
+        "reason": "The human is standing and bending slightly forward with their back to the camera in the main view, but they are not performing the lifting action. The hands are simply hovering in the air and the table remains flat on the floor."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 1,
+        "reason": "There is absolutely no contact between the human's hands and the table. The hands are clearly floating in the air next to the table in all views."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 3,
+        "reason": "While the human's feet are supported by the floor, the overall interaction is physically implausible because the hands are floating in space without any support or contact with the object they are supposed to be lifting."
+      }
+    },
+    "best_view_ids": [
+      0,
+      1,
+      3
+    ],
+    "failure_modes": [
+      "floating_hands",
+      "missing_contact"
+    ],
+    "brief_summary": "The human is positioned near the correct table with their back to the camera, but they fail to make any contact with the table. The hands are floating in the air, and no lifting action is performed."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is positioned next to the correct target object, which is the small brown wooden table.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The human is standing and bending slightly forward with their back to the camera in the main view, but they are not performing the lifting action. The hands are simply hovering in the air and the table remains flat on the floor.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 1,\n      \"reason\": \"There is absolutely no contact between the human's hands and the table. The hands are clearly floating in the air next to the table in all views.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 3,\n      \"reason\": \"While the human's feet are supported by the floor, the overall interaction is physically implausible because the hands are floating in space without any support or contact with the object they are supposed to be lifting.\"\n    }\n  },\n  \"best_view_ids\": [0, 1, 3],\n  \"failure_modes\": [\n    \"floating_hands\",\n    \"missing_contact\"\n  ],\n  \"brief_summary\": \"The human is positioned near the correct table with their back to the camera, but they fail to make any contact with the table. The hands are floating in the air, and no lifting action is performed.\"\n}"
+}

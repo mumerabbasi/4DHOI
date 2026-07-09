@@ -1,0 +1,34 @@
+{
+  "interaction_name": "interaction_08",
+  "interaction_instruction": "a person making coffee",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is interacting with the coffee machine on the kitchen counter, which is the correct target object for the instruction 'a person making coffee'."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The standing pose, leaning slightly forward with hands extended to operate the coffee machine, perfectly represents the action of making coffee."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 5,
+        "reason": "The hands are plausibly positioned in contact with or extremely close to the coffee machine's interface/parts, and the feet are firmly planted on the floor."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The interaction is highly realistic. There is no floating, no clipping with the counter, and the body is naturally balanced on the floor."
+      }
+    },
+    "best_view_ids": [
+      1,
+      2,
+      3
+    ],
+    "failure_modes": [],
+    "brief_summary": "The interaction is highly accurate and physically plausible. The human is standing naturally in front of the coffee machine, with hands positioned correctly to operate it."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is interacting with the coffee machine on the kitchen counter, which is the correct target object for the instruction 'a person making coffee'.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The standing pose, leaning slightly forward with hands extended to operate the coffee machine, perfectly represents the action of making coffee.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The hands are plausibly positioned in contact with or extremely close to the coffee machine's interface/parts, and the feet are firmly planted on the floor.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The interaction is highly realistic. There is no floating, no clipping with the counter, and the body is naturally balanced on the floor.\"\n    }\n  },\n  \"best_view_ids\": [1, 2, 3],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The interaction is highly accurate and physically plausible. The human is standing naturally in front of the coffee machine, with hands positioned correctly to operate it.\"\n}"
+}

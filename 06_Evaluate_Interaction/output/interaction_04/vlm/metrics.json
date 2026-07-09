@@ -1,0 +1,34 @@
+{
+  "interaction_name": "interaction_04",
+  "interaction_instruction": "a person opening the door",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is interacting with the correct target object, which is the door."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human's pose clearly and naturally depicts the action of reaching for and grasping the door handle to open the door."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 5,
+        "reason": "The hand makes precise and highly plausible contact with the door handle, and the feet are well-positioned on the floor surface."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The interaction is physically realistic, with no visible penetration into the door or walls, and the standing posture is stable and well-supported."
+      }
+    },
+    "best_view_ids": [
+      1,
+      2,
+      7
+    ],
+    "failure_modes": [],
+    "brief_summary": "The human model is perfectly positioned to open the door, with highly accurate hand-to-handle contact and a physically plausible standing pose."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is interacting with the correct target object, which is the door.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human's pose clearly and naturally depicts the action of reaching for and grasping the door handle to open the door.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The hand makes precise and highly plausible contact with the door handle, and the feet are well-positioned on the floor surface.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The interaction is physically realistic, with no visible penetration into the door or walls, and the standing posture is stable and well-supported.\"\n    }\n  },\n  \"best_view_ids\": [1, 2, 7],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The human model is perfectly positioned to open the door, with highly accurate hand-to-handle contact and a physically plausible standing pose.\"\n}"
+}

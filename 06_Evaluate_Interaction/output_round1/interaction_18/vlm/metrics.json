@@ -1,0 +1,36 @@
+{
+  "interaction_name": "interaction_18",
+  "interaction_instruction": "a person standing on the staircase and climbing onto the top bed",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is correctly interacting with the bunk bed's ladder/staircase and the top bed frame."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 3,
+        "reason": "The pose resembles climbing, but because the feet are completely floating and unsupported, the action is only partially correct and physically awkward."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 2,
+        "reason": "The instruction requires the person to be 'standing on the staircase'. However, multiple views (especially the top-down and side views like View 1, 5, and 9) clearly show that both feet are floating in mid-air and do not make contact with any of the ladder steps."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 2,
+        "reason": "The human is suspended in mid-air with no foot support on the staircase, making the pose physically implausible as the hands alone cannot support the body in this position."
+      }
+    },
+    "best_view_ids": [
+      0,
+      1,
+      9
+    ],
+    "failure_modes": [
+      "floating"
+    ],
+    "brief_summary": "The human is attempting to climb the bunk bed, but is completely floating in mid-air with neither foot making contact with the staircase steps, violating the physical plausibility of the interaction."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is correctly interacting with the bunk bed's ladder/staircase and the top bed frame.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 3,\n      \"reason\": \"The pose resembles climbing, but because the feet are completely floating and unsupported, the action is only partially correct and physically awkward.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The instruction requires the person to be 'standing on the staircase'. However, multiple views (especially the top-down and side views like View 1, 5, and 9) clearly show that both feet are floating in mid-air and do not make contact with any of the ladder steps.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The human is suspended in mid-air with no foot support on the staircase, making the pose physically implausible as the hands alone cannot support the body in this position.\"\n    }\n  },\n  \"best_view_ids\": [\n    0,\n    1,\n    9\n  ],\n  \"failure_modes\": [\n    \"floating\"\n  ],\n  \"brief_summary\": \"The human is attempting to climb the bunk bed, but is completely floating in mid-air with neither foot making contact with the staircase steps, violating the physical plausibility of the interaction.\"\n}"
+}

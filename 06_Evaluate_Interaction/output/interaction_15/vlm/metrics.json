@@ -1,0 +1,34 @@
+{
+  "interaction_name": "interaction_15",
+  "interaction_instruction": "a person sitting on the side of the sofa, facing the nearby potted plant and playing with its leaves using both hands",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is correctly interacting with both the side (armrest) of the sofa and the nearby potted plant as specified in the instruction."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human's pose clearly depicts sitting on the armrest of the sofa, facing the plant, and reaching out with both hands to play with the leaves."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 5,
+        "reason": "The human's thighs and buttocks make realistic contact with the armrest of the sofa, and both hands are positioned directly within the leaves of the potted plant, establishing plausible contact."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The sitting pose is physically stable and supported by the sofa's armrest. There is no floating or unrealistic penetration with either the sofa, the plant, or the surrounding environment."
+      }
+    },
+    "best_view_ids": [
+      0,
+      1,
+      5
+    ],
+    "failure_modes": [],
+    "brief_summary": "The interaction is highly accurate and physically plausible. The human is sitting naturally on the edge of the sofa and interacting with the plant leaves using both hands, satisfying all aspects of the instruction."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is correctly interacting with both the side (armrest) of the sofa and the nearby potted plant as specified in the instruction.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human's pose clearly depicts sitting on the armrest of the sofa, facing the plant, and reaching out with both hands to play with the leaves.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human's thighs and buttocks make realistic contact with the armrest of the sofa, and both hands are positioned directly within the leaves of the potted plant, establishing plausible contact.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The sitting pose is physically stable and supported by the sofa's armrest. There is no floating or unrealistic penetration with either the sofa, the plant, or the surrounding environment.\"\n    }\n  },\n  \"best_view_ids\": [0, 1, 5],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The interaction is highly accurate and physically plausible. The human is sitting naturally on the edge of the sofa and interacting with the plant leaves using both hands, satisfying all aspects of the instruction.\"\n}"
+}

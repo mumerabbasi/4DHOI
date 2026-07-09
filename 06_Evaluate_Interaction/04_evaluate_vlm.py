@@ -22,7 +22,7 @@ DEFAULT_PROMPT_TEMPLATE_PATH = SCRIPT_DIR / "prompt_eval_interactions.md"
 OUTPUT_MODES = ("output", "output_round1", "output_init")
 VLM_PROVIDERS = ("qwen", "gemini")
 DEFAULT_QWEN_MODEL = "qwen3-vl:32b"
-DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite"
+DEFAULT_GEMINI_MODEL = "gemini-3.5-flash"
 
 CSV_FIELDNAMES = [
     "target_object_score",
@@ -31,6 +31,7 @@ CSV_FIELDNAMES = [
     "physical_plausibility_score",
     "mean_score",
 ]
+AGGREGATE_CSV_FIELDNAMES = ["interaction_name", *CSV_FIELDNAMES]
 
 
 def load_json(path: Path) -> Any:
@@ -57,6 +58,15 @@ def save_csv_rows(path: Path, rows: list[dict[str, Any]], fieldnames: list[str])
         writer = csv.DictWriter(file_obj, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+
+
+def parse_optional_float(value: Any) -> float | None:
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def resolve_path(raw_path: str | None, default_path: Path) -> Path:
@@ -469,10 +479,6 @@ def evaluate_interaction_vlm(
             "interaction_instruction": interaction_prompt,
             "provider": args.vlm_provider,
             "model": model,
-            "prompt_template_path": str(prompt_template_path),
-            "prompt_dir": str(prompt_dir),
-            "render_paths": [str(path) for path in render_paths],
-            "prompt_render_paths": [str(path) for path in prompt_render_paths],
             "vlm_result": parsed_response,
             "raw_response": raw_response,
         },
@@ -483,6 +489,69 @@ def evaluate_interaction_vlm(
         f"{row['mean_score']} renders={len(render_paths)} model={model}"
     )
     return row
+
+
+def load_vlm_metrics_row(metrics_csv_path: Path) -> dict[str, float | None]:
+    with metrics_csv_path.open("r", encoding="utf-8", newline="") as file_obj:
+        rows = list(csv.DictReader(file_obj))
+    if not rows:
+        raise ValueError(f"VLM metrics CSV has no rows: {metrics_csv_path}")
+    return {
+        fieldname: parse_optional_float(rows[0].get(fieldname))
+        for fieldname in CSV_FIELDNAMES
+    }
+
+
+def aggregate_vlm_evals(args: argparse.Namespace) -> list[dict[str, Any]]:
+    if any(
+        value is not None
+        for value in (
+            args.input_scene_json,
+            args.render_root,
+            args.output_root,
+        )
+    ):
+        raise ValueError(
+            "--aggregate_evals cannot be combined with per-interaction "
+            "input/render/output overrides."
+        )
+
+    output_root = SCRIPT_DIR / args.output_mode
+    metrics_csv_paths = sorted(output_root.glob("interaction_*/vlm/metrics.csv"))
+    if not metrics_csv_paths:
+        raise FileNotFoundError(
+            f"No VLM metrics.csv files found under {output_root}/interaction_*/vlm."
+        )
+
+    rows: list[dict[str, Any]] = []
+    for metrics_csv_path in metrics_csv_paths:
+        row: dict[str, Any] = {
+            "interaction_name": metrics_csv_path.parent.parent.name,
+        }
+        row.update(load_vlm_metrics_row(metrics_csv_path))
+        rows.append(row)
+
+    mean_row: dict[str, Any] = {"interaction_name": "__mean__"}
+    for fieldname in CSV_FIELDNAMES:
+        values = [
+            float(row[fieldname])
+            for row in rows
+            if isinstance(row.get(fieldname), int | float)
+        ]
+        mean_row[fieldname] = (
+            float(sum(values) / len(values))
+            if values
+            else None
+        )
+
+    output_rows = rows + [mean_row]
+    output_path = output_root / "vlm.csv"
+    save_csv_rows(output_path, output_rows, AGGREGATE_CSV_FIELDNAMES)
+    print(
+        f"Saved {output_path} with {len(rows)} interactions; "
+        f"mean_score={mean_row['mean_score']}"
+    )
+    return output_rows
 
 
 def parse_args() -> argparse.Namespace:
@@ -506,6 +575,15 @@ def parse_args() -> argparse.Namespace:
         "--all_interactions",
         action=argparse.BooleanOptionalAction,
         default=False,
+    )
+    parser.add_argument(
+        "--aggregate_evals",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Aggregate completed per-interaction VLM metrics for the selected "
+            "--output_mode into a top-level vlm.csv without running the VLM."
+        ),
     )
     parser.add_argument(
         "--vlm_provider",
@@ -548,12 +626,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--render_root", type=str, default=None)
     parser.add_argument("--output_root", type=str, default=None)
     parser.add_argument("--max_image_side", type=int, default=1024)
-    parser.add_argument("--temperature", type=float, default=0.0)
+    parser.add_argument("--temperature", type=float, default=0.9)
     parser.add_argument("--seed", type=int, default=12345)
     parser.add_argument("--timeout_s", type=int, default=600)
     parser.add_argument("--gemini_max_output_tokens", type=int, default=4096)
     parser.add_argument("--gemini_retries", type=int, default=3)
-    parser.add_argument("--gemini_retry_sleep_s", type=float, default=8.0)
+    parser.add_argument("--gemini_retry_sleep_s", type=float, default=10.0)
     args = parser.parse_args()
     if args.model is not None:
         args.qwen_model = args.model
@@ -562,6 +640,10 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if args.aggregate_evals:
+        aggregate_vlm_evals(args)
+        return
+
     prompt_template_override = (
         args.prompt_template
         if args.prompt_template is not None
@@ -590,39 +672,16 @@ def main() -> None:
     else:
         interaction_names = [args.interaction_name]
 
-    rows = [
+    for interaction_name in interaction_names:
         evaluate_interaction_vlm(
             interaction_name=interaction_name,
             args=args,
             prompt_template=prompt_template,
             prompt_template_path=prompt_template_path,
         )
-        for interaction_name in interaction_names
-    ]
 
     if all_mode:
-        output_root = SCRIPT_DIR / args.output_mode
-        save_csv_rows(output_root / "vlm.csv", rows, CSV_FIELDNAMES)
-        model = effective_vlm_model(args)
-        mean_scores = [
-            float(row["mean_score"])
-            for row in rows
-            if isinstance(row.get("mean_score"), int | float)
-        ]
-        save_json(
-            output_root / "vlm.json",
-            {
-                "provider": args.vlm_provider,
-                "model": model,
-                "num_interactions": len(rows),
-                "mean_score": (
-                    float(sum(mean_scores) / len(mean_scores))
-                    if mean_scores
-                    else None
-                ),
-                "interactions": rows,
-            },
-        )
+        aggregate_vlm_evals(args)
 
 
 if __name__ == "__main__":

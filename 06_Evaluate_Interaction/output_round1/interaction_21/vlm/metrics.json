@@ -1,0 +1,36 @@
+{
+  "interaction_name": "interaction_21",
+  "interaction_instruction": "a person sitting on the bed and reaching for the Milka chocolate nearby",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is correctly positioned between the bed and the desk, reaching for the purple Milka chocolate bar on the desk."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 3,
+        "reason": "The human pose represents sitting and reaching, but because the body is completely floating in mid-air without touching the bed, the sitting action is not fully realized."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 2,
+        "reason": "The primary contact required by the instruction (sitting on the bed) is completely missing. There is a clear gap between the human's buttocks/thighs and the bed surface across all views."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 2,
+        "reason": "The human is completely floating in mid-air. Neither the buttocks are supported by the bed, nor are the feet touching the floor, resulting in an impossible, unsupported pose."
+      }
+    },
+    "best_view_ids": [
+      1,
+      4,
+      7
+    ],
+    "failure_modes": [
+      "floating"
+    ],
+    "brief_summary": "The human is attempting to sit on the bed and reach for the chocolate on the desk, but the entire body is floating in mid-air with no physical support from either the bed or the floor."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is correctly positioned between the bed and the desk, reaching for the purple Milka chocolate bar on the desk.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 3,\n      \"reason\": \"The human pose represents sitting and reaching, but because the body is completely floating in mid-air without touching the bed, the sitting action is not fully realized.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The primary contact required by the instruction (sitting on the bed) is completely missing. There is a clear gap between the human's buttocks/thighs and the bed surface across all views.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The human is completely floating in mid-air. Neither the buttocks are supported by the bed, nor are the feet touching the floor, resulting in an impossible, unsupported pose.\"\n    }\n  },\n  \"best_view_ids\": [\n    1,\n    4,\n    7\n  ],\n  \"failure_modes\": [\n    \"floating\"\n  ],\n  \"brief_summary\": \"The human is attempting to sit on the bed and reach for the chocolate on the desk, but the entire body is floating in mid-air with no physical support from either the bed or the floor.\"\n}"
+}

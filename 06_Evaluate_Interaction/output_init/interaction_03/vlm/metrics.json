@@ -1,0 +1,62 @@
+{
+  "interaction_name": "interaction_03",
+  "interaction_instruction": "a person pulling back the chair to sit down",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "prompt_template_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/prompt_eval_interactions.md",
+  "prompt_dir": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/vlm/prompt",
+  "render_paths": [
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/semantics/renders/view_00.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/semantics/renders/view_01.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/semantics/renders/view_02.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/semantics/renders/view_03.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/semantics/renders/view_04.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/semantics/renders/view_05.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/semantics/renders/view_06.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/semantics/renders/view_07.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/semantics/renders/view_08.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/semantics/renders/view_09.png"
+  ],
+  "prompt_render_paths": [
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/vlm/prompt/renders/view_00.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/vlm/prompt/renders/view_01.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/vlm/prompt/renders/view_02.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/vlm/prompt/renders/view_03.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/vlm/prompt/renders/view_04.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/vlm/prompt/renders/view_05.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/vlm/prompt/renders/view_06.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/vlm/prompt/renders/view_07.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/vlm/prompt/renders/view_08.png",
+    "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output_init/interaction_03/vlm/prompt/renders/view_09.png"
+  ],
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is correctly positioned behind the chair and attempting to interact with it as specified in the instruction."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 4,
+        "reason": "The overall pose of leaning forward and reaching for the chair back is recognizable as pulling it back, though it is severely compromised by physical collisions."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 2,
+        "reason": "The hands do not establish a clean, realistic grip on the chair back, and the body severely intersects with the surrounding table."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 1,
+        "reason": "The human's pelvis and lower torso are completely embedded inside the solid dining table, and the legs are floating/truncated, making the interaction physically impossible."
+      }
+    },
+    "best_view_ids": [
+      0,
+      2
+    ],
+    "failure_modes": [
+      "penetration",
+      "floating"
+    ],
+    "brief_summary": "The human is attempting to pull back the chair, but the model is placed directly inside the dining table, resulting in severe body-object penetration. Additionally, the legs are floating and lack proper support."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is correctly positioned behind the chair and attempting to interact with it as specified in the instruction.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 4,\n      \"reason\": \"The overall pose of leaning forward and reaching for the chair back is recognizable as pulling it back, though it is severely compromised by physical collisions.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The hands do not establish a clean, realistic grip on the chair back, and the body severely intersects with the surrounding table.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 1,\n      \"reason\": \"The human's pelvis and lower torso are completely embedded inside the solid dining table, and the legs are floating/truncated, making the interaction physically impossible.\"\n    }\n  },\n  \"best_view_ids\": [\n    0,\n    2\n  ],\n  \"failure_modes\": [\n    \"penetration\",\n    \"floating\"\n  ],\n  \"brief_summary\": \"The human is attempting to pull back the chair, but the model is placed directly inside the dining table, resulting in severe body-object penetration. Additionally, the legs are floating and lack proper support.\"\n}"
+}

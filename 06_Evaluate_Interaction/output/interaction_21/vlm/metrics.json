@@ -1,0 +1,37 @@
+{
+  "interaction_name": "interaction_21",
+  "interaction_instruction": "a person sitting on the bed and reaching for the Milka chocolate nearby",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is correctly positioned near the bed and reaching towards the purple Milka chocolate bar on the desk."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 3,
+        "reason": "The pose resembles sitting and reaching, but because the human is completely floating and not actually supported by the bed, the action is only partially correct."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 2,
+        "reason": "There is no contact between the human's buttocks and the bed, nor are the feet contacting the floor. The hand is hovering near the chocolate but does not establish a clear grip."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 2,
+        "reason": "The human is completely floating in mid-air with no physical support from either the bed or the floor, which is physically impossible."
+      }
+    },
+    "best_view_ids": [
+      1,
+      4,
+      6
+    ],
+    "failure_modes": [
+      "floating",
+      "missing_contact"
+    ],
+    "brief_summary": "The human is supposed to be sitting on the bed and reaching for the chocolate, but the entire body is floating in mid-air without making contact with the bed or the floor."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is correctly positioned near the bed and reaching towards the purple Milka chocolate bar on the desk.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 3,\n      \"reason\": \"The pose resembles sitting and reaching, but because the human is completely floating and not actually supported by the bed, the action is only partially correct.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"There is no contact between the human's buttocks and the bed, nor are the feet contacting the floor. The hand is hovering near the chocolate but does not establish a clear grip.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The human is completely floating in mid-air with no physical support from either the bed or the floor, which is physically impossible.\"\n    }\n  },\n  \"best_view_ids\": [\n    1,\n    4,\n    6\n  ],\n  \"failure_modes\": [\n    \"floating\",\n    \"missing_contact\"\n  ],\n  \"brief_summary\": \"The human is supposed to be sitting on the bed and reaching for the chocolate, but the entire body is floating in mid-air without making contact with the bed or the floor.\"\n}"
+}
