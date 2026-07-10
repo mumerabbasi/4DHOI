@@ -261,31 +261,94 @@ def save_optimized_params(original_dir: Path, params_path: Path) -> dict[str, An
     return payload
 
 
+def build_scene_mesh_from_predictions(
+    original_dir: Path,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    predictions = load_scene_predictions(original_dir)
+    scene_image = np.asarray(Image.open(original_dir / "scene_image.png").convert("RGB"))
+    height, width = scene_image.shape[:2]
+    points = np.full((height, width, 3), np.nan, dtype=np.float32)
+    inlier_mask = np.asarray(predictions["inlier_mask"], dtype=bool)
+    scale = float(np.asarray(predictions["scale"]).reshape(()))
+    points[inlier_mask] = np.asarray(predictions["pts3d"], dtype=np.float32) * scale
+
+    valid = inlier_mask & np.isfinite(points).all(axis=-1)
+    flat_valid = valid.reshape(-1)
+    vertex_map = np.full((height * width,), -1, dtype=np.int64)
+    vertex_map[flat_valid] = np.arange(int(flat_valid.sum()), dtype=np.int64)
+    vertices = points.reshape(-1, 3)[flat_valid].astype(np.float32)
+    colors = (scene_image.reshape(-1, 3)[flat_valid].astype(np.float32) / 255.0)
+
+    grid = np.arange(height * width, dtype=np.int64).reshape(height, width)
+    tl = grid[:-1, :-1].reshape(-1)
+    tr = grid[:-1, 1:].reshape(-1)
+    bl = grid[1:, :-1].reshape(-1)
+    br = grid[1:, 1:].reshape(-1)
+    tri_a_ok = flat_valid[tl] & flat_valid[bl] & flat_valid[tr]
+    tri_b_ok = flat_valid[tr] & flat_valid[bl] & flat_valid[br]
+    tri_a = np.stack(
+        [vertex_map[tl[tri_a_ok]], vertex_map[bl[tri_a_ok]], vertex_map[tr[tri_a_ok]]],
+        axis=1,
+    )
+    tri_b = np.stack(
+        [vertex_map[tr[tri_b_ok]], vertex_map[bl[tri_b_ok]], vertex_map[br[tri_b_ok]]],
+        axis=1,
+    )
+    faces = np.concatenate([tri_a, tri_b], axis=0).astype(np.int64)
+    return vertices, faces, colors
+
+
+def build_human_mesh_from_predictions(
+    original_dir: Path,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    import smplx
+    from utils.geometry import rot6d_to_rotmat
+
+    predictions = load_scene_predictions(original_dir)
+    body_params = predictions["body_params"]
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    smplx_layer = smplx.SMPLXLayer(
+        model_path="data/body_models/smplx/SMPLX_NEUTRAL.npz",
+        num_betas=10,
+        use_face_contour=True,
+    ).to(device)
+    body_params_rotmat = {
+        key: (
+            rot6d_to_rotmat(torch.as_tensor(value, dtype=torch.float32, device=device))
+            if key != "betas"
+            else torch.as_tensor(value, dtype=torch.float32, device=device)
+        )
+        for key, value in body_params.items()
+    }
+    transl = torch.as_tensor(
+        predictions["cam_trans"],
+        dtype=torch.float32,
+        device=device,
+    )
+    with torch.no_grad():
+        output = smplx_layer(**body_params_rotmat, transl=transl)
+    vertices = output.vertices[0].float().detach().cpu().numpy().astype(np.float32)
+    faces = np.asarray(smplx_layer.faces, dtype=np.int64)
+    colors = np.tile(
+        np.asarray([188 / 255.0, 188 / 255.0, 188 / 255.0], dtype=np.float32),
+        (vertices.shape[0], 1),
+    )
+    return vertices, faces, colors
+
+
 def write_evaluation_artifacts(
     original_dir: Path,
     interaction_root: Path,
     physic_root: Path | None = None,
 ) -> dict[str, str]:
     configure_physic_imports(physic_root)
-    from utils.vis import get_scene_mesh
 
     meshes_dir = ensure_dir(interaction_root / "meshes")
     params_dir = ensure_dir(interaction_root / "debug" / "params")
     metadata_dir = ensure_dir(interaction_root / "metadata")
 
-    (
-        scene_vertices,
-        scene_faces,
-        scene_colors,
-        human_vertices,
-        human_faces,
-        human_colors,
-    ) = get_scene_mesh(
-        original_dir,
-        load_floor_points=False,
-        separate_human_scene=True,
-        max_faces=int(1e18),
-    )
+    scene_vertices, scene_faces, scene_colors = build_scene_mesh_from_predictions(original_dir)
+    human_vertices, human_faces, human_colors = build_human_mesh_from_predictions(original_dir)
     combined_vertices = np.concatenate([scene_vertices, human_vertices], axis=0)
     combined_faces = np.concatenate(
         [scene_faces, human_faces + scene_vertices.shape[0]],

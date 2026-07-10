@@ -88,7 +88,7 @@ def main() -> None:
         interaction_names = [args.interaction_name]
 
     device = BASE.parse_device(args.device)
-    model = CLIPModel.from_pretrained(args.clip_model).to(device)
+    model = CLIPModel.from_pretrained(args.clip_model, use_safetensors=True).to(device)
     processor = CLIPProcessor.from_pretrained(args.clip_model)
     model.eval()
     rows = [eval_one(name, args, model, processor, device) for name in interaction_names]

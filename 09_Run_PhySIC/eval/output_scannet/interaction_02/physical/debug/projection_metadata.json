@@ -1,0 +1,25 @@
+{
+  "intrinsics": [
+    [
+      549.4432373046875,
+      0.0,
+      511.5
+    ],
+    [
+      0.0,
+      549.4432373046875,
+      340.5
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "image_hw": [
+    682,
+    1024
+  ],
+  "debug_scene": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/eval/output_scannet/interaction_02/physical/debug/scene_gt_contact_backprojected.ply",
+  "debug_legend": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/eval/output_scannet/interaction_02/physical/debug/scene_gt_contact_backprojected_legend.json"
+}
