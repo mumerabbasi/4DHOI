@@ -1,0 +1,614 @@
+#!/usr/bin/env python3
+"""Utilities shared by PhySIC runner and PhySIC-native evaluators."""
+
+from __future__ import annotations
+
+import csv
+import importlib.util
+import json
+import math
+import os
+import pickle
+import sys
+from pathlib import Path
+from typing import Any
+
+import cv2
+import numpy as np
+import torch
+import trimesh
+from PIL import Image
+from scipy.spatial import cKDTree
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_DIR = SCRIPT_DIR.parent
+REPO_DIR = PROJECT_DIR.parent
+DEFAULT_OUTPUT_MODE = "output_scannet"
+CONTACT_SEGMENT_BY_BODY_SEGMENT = {
+    "left_hand": "left_hand_contact",
+    "right_hand": "right_hand_contact",
+    "left_arm": "left_arm_contact",
+    "right_arm": "right_arm_contact",
+    "left_leg": "left_leg_contact",
+    "right_leg": "right_leg_contact",
+    "left_foot": "left_foot_contact",
+    "right_foot": "right_foot_contact",
+    "head": "head_contact",
+    "hips": "hips_contact",
+    "back": "back_contact",
+}
+METRIC_CSV_FIELDNAMES = [
+    "node_a",
+    "node_b",
+    "min_distance_m",
+    "max_distance_m",
+    "mean_distance_m",
+    "ncs",
+    "mean_penetration_m",
+    "max_penetration_m",
+]
+
+
+def ensure_dir(path: Path) -> Path:
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def load_json(path: Path) -> dict[str, Any]:
+    with path.open("r", encoding="utf-8") as file_obj:
+        return json.load(file_obj)
+
+
+def save_json(path: Path, payload: Any) -> None:
+    ensure_dir(path.parent)
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def save_csv_rows(path: Path, rows: list[dict[str, Any]], fieldnames: list[str]) -> None:
+    ensure_dir(path.parent)
+    if not rows:
+        raise ValueError(f"Cannot write empty CSV: {path}")
+    with path.open("w", encoding="utf-8", newline="") as file_obj:
+        writer = csv.DictWriter(file_obj, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def resolve_path(raw_path: str | None, default_path: Path) -> Path:
+    return default_path.resolve() if raw_path is None else Path(raw_path).resolve()
+
+
+def physic_output_root(output_mode: str = DEFAULT_OUTPUT_MODE) -> Path:
+    return SCRIPT_DIR / output_mode
+
+
+def physic_interaction_root(
+    interaction_name: str,
+    output_mode: str = DEFAULT_OUTPUT_MODE,
+) -> Path:
+    return physic_output_root(output_mode) / interaction_name
+
+
+def physic_original_dir(
+    interaction_name: str,
+    output_mode: str = DEFAULT_OUTPUT_MODE,
+) -> Path:
+    return physic_interaction_root(interaction_name, output_mode) / "original"
+
+
+def physic_eval_root(output_mode: str = DEFAULT_OUTPUT_MODE) -> Path:
+    return SCRIPT_DIR / "eval" / output_mode
+
+
+def discover_physic_interactions(output_mode: str = DEFAULT_OUTPUT_MODE) -> list[str]:
+    root = physic_output_root(output_mode)
+    names = [
+        path.name
+        for path in sorted(root.glob("interaction_*"))
+        if (path / "original" / "scene_data_final.pkl").exists()
+    ]
+    if not names:
+        raise RuntimeError(f"No PhySIC interactions found under {root}.")
+    return names
+
+
+def configure_physic_imports(physic_root: Path | None = None) -> Path:
+    root = (physic_root or REPO_DIR / "Phy-SIC").resolve()
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    camera_hmr = root / "external" / "CameraHMR"
+    if str(camera_hmr) not in sys.path:
+        sys.path.insert(0, str(camera_hmr))
+    os.chdir(root)
+    return root
+
+
+def load_python_module(module_name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Could not load module from {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def normalize_label(text: str) -> str:
+    return " ".join(
+        text.strip().lower().replace("_", " ").replace("-", " ").split()
+    )
+
+
+def slugify_segment_name(text: str) -> str:
+    return normalize_label(text).replace(" ", "_")
+
+
+def load_smplx_segments() -> dict[str, Any]:
+    path = (
+        PROJECT_DIR
+        / "04_Estimate_Human_Pose"
+        / "assets"
+        / "smplx_vert_segmentation.json"
+    )
+    raw = load_json(path)
+    segments = {
+        str(key): np.unique(np.asarray(value, dtype=np.int64))
+        for key, value in raw["segments"].items()
+    }
+    return {
+        "vertex_count": int(raw["vertex_count"]),
+        "segments": segments,
+        "contact_segment_ids": [str(item) for item in raw["contact_segment_ids"]],
+    }
+
+
+def contact_segment_id_for_part(human_part: str) -> str:
+    body_segment_id = slugify_segment_name(human_part)
+    segment_id = CONTACT_SEGMENT_BY_BODY_SEGMENT.get(body_segment_id)
+    if segment_id is None:
+        raise KeyError(f"No SMPL-X contact segment mapping for '{human_part}'.")
+    return segment_id
+
+
+def load_sig_edges(interaction_name: str) -> list[dict[str, str]]:
+    sig_path = PROJECT_DIR / "01_Generate_SIG" / "output" / interaction_name / "sig.json"
+    sig_payload = load_json(sig_path)
+    edges = sig_payload.get("interaction_edges", [])
+    if not isinstance(edges, list):
+        raise ValueError(f"SIG interaction_edges must be a list: {sig_path}")
+    parsed: list[dict[str, str]] = []
+    for edge in edges:
+        if not isinstance(edge, dict):
+            continue
+        human_part = normalize_label(str(edge.get("human_part", "")))
+        scene_element = normalize_label(str(edge.get("scene_element", "")))
+        if human_part and scene_element:
+            parsed.append(
+                {
+                    "human_part": human_part,
+                    "scene_element": scene_element,
+                    "node_a": f"person 1, {human_part}",
+                    "node_b": scene_element,
+                }
+            )
+    if not parsed:
+        raise RuntimeError(f"No usable interaction edges found in {sig_path}")
+    return parsed
+
+
+def load_scene_predictions(original_dir: Path) -> dict[str, Any]:
+    with (original_dir / "scene_data_final.pkl").open("rb") as file_obj:
+        return pickle.load(file_obj)
+
+
+def export_mesh(path: Path, vertices: np.ndarray, faces: np.ndarray, colors: np.ndarray | None = None) -> None:
+    ensure_dir(path.parent)
+    kwargs: dict[str, Any] = {"process": False}
+    if colors is not None:
+        color_array = np.asarray(colors)
+        if color_array.max(initial=0) <= 1.0:
+            color_array = np.clip(color_array * 255.0, 0, 255)
+        kwargs["vertex_colors"] = color_array.astype(np.uint8)
+    mesh = trimesh.Trimesh(vertices=vertices, faces=faces, **kwargs)
+    mesh.export(path)
+
+
+def load_mesh(path: Path) -> trimesh.Trimesh:
+    loaded = trimesh.load(path, process=False)
+    if isinstance(loaded, trimesh.Scene):
+        return trimesh.util.concatenate(
+            tuple(geom for geom in loaded.geometry.values())
+        )
+    if not isinstance(loaded, trimesh.Trimesh):
+        raise TypeError(f"Expected mesh at {path}, got {type(loaded)!r}")
+    return loaded
+
+
+def _axis_angle_from_rot6d(rot6d: Any) -> np.ndarray:
+    from pytorch3d.transforms import matrix_to_axis_angle
+    from utils.geometry import rot6d_to_rotmat
+
+    tensor = torch.as_tensor(rot6d, dtype=torch.float32)
+    rotmat = rot6d_to_rotmat(tensor)
+    axis_angle = matrix_to_axis_angle(rotmat)
+    return axis_angle.detach().cpu().numpy()
+
+
+def save_optimized_params(original_dir: Path, params_path: Path) -> dict[str, Any]:
+    predictions = load_scene_predictions(original_dir)
+    body_params = predictions["body_params"]
+    global_orient = _axis_angle_from_rot6d(body_params["global_orient"]).reshape(-1)
+    body_pose = _axis_angle_from_rot6d(body_params["body_pose"]).reshape(-1)
+    betas = np.asarray(body_params["betas"], dtype=np.float32).reshape(-1)
+    transl = np.asarray(predictions["cam_trans"], dtype=np.float32).reshape(-1)
+
+    payload: dict[str, Any] = {
+        "transl": transl.tolist(),
+        "global_orient": global_orient.tolist(),
+        "body_pose": body_pose.tolist(),
+        "betas": betas.tolist(),
+        "scale": 1.0,
+        "physic_scene_scale": float(np.asarray(predictions["scale"]).reshape(())),
+    }
+    for key in ("left_hand_pose", "right_hand_pose"):
+        if key in body_params:
+            payload[key] = _axis_angle_from_rot6d(body_params[key]).reshape(-1).tolist()
+    ensure_dir(params_path.parent)
+    torch.save(payload, params_path)
+    return payload
+
+
+def write_evaluation_artifacts(
+    original_dir: Path,
+    interaction_root: Path,
+    physic_root: Path | None = None,
+) -> dict[str, str]:
+    configure_physic_imports(physic_root)
+    from utils.vis import get_scene_mesh
+
+    meshes_dir = ensure_dir(interaction_root / "meshes")
+    params_dir = ensure_dir(interaction_root / "debug" / "params")
+    metadata_dir = ensure_dir(interaction_root / "metadata")
+
+    (
+        scene_vertices,
+        scene_faces,
+        scene_colors,
+        human_vertices,
+        human_faces,
+        human_colors,
+    ) = get_scene_mesh(
+        original_dir,
+        load_floor_points=False,
+        separate_human_scene=True,
+        max_faces=int(1e18),
+    )
+    combined_vertices = np.concatenate([scene_vertices, human_vertices], axis=0)
+    combined_faces = np.concatenate(
+        [scene_faces, human_faces + scene_vertices.shape[0]],
+        axis=0,
+    )
+    combined_colors = np.concatenate([scene_colors, human_colors], axis=0)
+
+    export_mesh(meshes_dir / "scene_camera.ply", scene_vertices, scene_faces, scene_colors)
+    export_mesh(meshes_dir / "human_camera.ply", human_vertices, human_faces, human_colors)
+    export_mesh(
+        meshes_dir / "humanscene_camera.ply",
+        combined_vertices,
+        combined_faces,
+        combined_colors,
+    )
+    export_mesh(meshes_dir / "frame_0000_camera.ply", human_vertices, human_faces, human_colors)
+    params_payload = save_optimized_params(
+        original_dir,
+        params_dir / "optimized_frame_0000.pt",
+    )
+    metadata = {
+        "original_dir": str(original_dir),
+        "coordinate_frame": "physic_camera",
+        "scene_mesh": str(meshes_dir / "scene_camera.ply"),
+        "human_mesh": str(meshes_dir / "human_camera.ply"),
+        "combined_mesh": str(meshes_dir / "humanscene_camera.ply"),
+        "optimized_params": str(params_dir / "optimized_frame_0000.pt"),
+        "scale_note": (
+            "optimized_frame_0000.pt scale is set to 1.0 because PhySIC's "
+            "native scale applies to reconstructed scene points, not to the "
+            "SMPL-X human height scale used by 4DHSI."
+        ),
+        "physic_scene_scale": params_payload["physic_scene_scale"],
+    }
+    save_json(metadata_dir / "artifacts.json", metadata)
+    return {key: str(value) for key, value in metadata.items()}
+
+
+def project_vertices(vertices: np.ndarray, intrinsics: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    z = vertices[:, 2]
+    valid = z > 1e-6
+    uv = np.full((vertices.shape[0], 2), np.nan, dtype=np.float32)
+    uv[valid, 0] = intrinsics[0, 0] * vertices[valid, 0] / z[valid] + intrinsics[0, 2]
+    uv[valid, 1] = intrinsics[1, 1] * vertices[valid, 1] / z[valid] + intrinsics[1, 2]
+    return uv, valid
+
+
+def load_contact_spec(interaction_name: str) -> dict[str, Any]:
+    return load_json(
+        PROJECT_DIR
+        / "00_Annotate_GT_Contact"
+        / "output"
+        / interaction_name
+        / "contact_spec.json"
+    )
+
+
+def part_colors_from_contact_spec(interaction_name: str) -> dict[str, tuple[int, int, int]]:
+    payload = load_contact_spec(interaction_name)
+    colors: dict[str, tuple[int, int, int]] = {}
+    for item in payload.get("palette", {}).get("parts", []):
+        if not isinstance(item, dict):
+            continue
+        part = slugify_segment_name(str(item.get("part", "")))
+        rgb = item.get("rgb")
+        if part and isinstance(rgb, list) and len(rgb) == 3:
+            colors[part] = tuple(int(v) for v in rgb)
+    return colors
+
+
+def mask_vertex_ids_for_part(
+    interaction_name: str,
+    human_part: str,
+    scene_vertices: np.ndarray,
+    intrinsics: np.ndarray,
+    image_hw: tuple[int, int],
+) -> np.ndarray:
+    mask_path = (
+        PROJECT_DIR
+        / "00_Annotate_GT_Contact"
+        / "output"
+        / interaction_name
+        / "contact_masks_gt"
+        / f"{slugify_segment_name(human_part)}.png"
+    )
+    mask = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
+    if mask is None:
+        raise FileNotFoundError(f"Could not read contact mask: {mask_path}")
+    if mask.shape != image_hw:
+        mask = cv2.resize(
+            mask,
+            (image_hw[1], image_hw[0]),
+            interpolation=cv2.INTER_NEAREST,
+        )
+
+    uv, valid = project_vertices(scene_vertices, intrinsics)
+    xy = np.zeros_like(uv, dtype=np.int64)
+    xy[valid] = np.rint(uv[valid]).astype(np.int64)
+    in_bounds = (
+        valid
+        & (xy[:, 0] >= 0)
+        & (xy[:, 0] < image_hw[1])
+        & (xy[:, 1] >= 0)
+        & (xy[:, 1] < image_hw[0])
+    )
+    selected = np.zeros((scene_vertices.shape[0],), dtype=bool)
+    candidate_ids = np.where(in_bounds)[0]
+    selected[candidate_ids] = mask[xy[candidate_ids, 1], xy[candidate_ids, 0]] > 127
+    return np.where(selected)[0]
+
+
+def nearest_distance_stats(source_points: np.ndarray, target_points: np.ndarray) -> dict[str, float]:
+    if source_points.shape[0] == 0:
+        raise RuntimeError("Cannot compute contact with no source points.")
+    if target_points.shape[0] == 0:
+        raise RuntimeError("Cannot compute contact with no target scene points.")
+    dists, _indices = cKDTree(target_points).query(source_points, k=1, workers=-1)
+    return {
+        "min_distance_m": float(np.min(dists)),
+        "max_distance_m": float(np.max(dists)),
+        "mean_distance_m": float(np.mean(dists)),
+    }
+
+
+def sample_scene_points(scene_mesh: trimesh.Trimesh, num_samples: int, seed: int) -> np.ndarray:
+    rng_state = np.random.get_state()
+    np.random.seed(seed)
+    try:
+        points, _face_ids = trimesh.sample.sample_surface(scene_mesh, num_samples)
+    finally:
+        np.random.set_state(rng_state)
+    return points.astype(np.float32)
+
+
+def compute_mesh_penetration(
+    scene_mesh: trimesh.Trimesh,
+    human_mesh: trimesh.Trimesh,
+    num_samples: int,
+    seed: int,
+) -> dict[str, float]:
+    scene_points = sample_scene_points(scene_mesh, num_samples=num_samples, seed=seed)
+    try:
+        inside = human_mesh.contains(scene_points)
+        if np.any(inside):
+            try:
+                _closest, distances, _triangles = trimesh.proximity.closest_point(
+                    human_mesh,
+                    scene_points[inside],
+                )
+                penetration = np.asarray(distances, dtype=np.float64)
+            except Exception:
+                dists, _indices = cKDTree(np.asarray(human_mesh.vertices)).query(
+                    scene_points[inside],
+                    k=1,
+                    workers=-1,
+                )
+                penetration = np.asarray(dists, dtype=np.float64)
+        else:
+            penetration = np.asarray([], dtype=np.float64)
+    except Exception:
+        bounds = np.asarray(human_mesh.bounds)
+        inside = np.all(
+            (scene_points >= bounds[0][None]) & (scene_points <= bounds[1][None]),
+            axis=1,
+        )
+        if np.any(inside):
+            dists, _indices = cKDTree(np.asarray(human_mesh.vertices)).query(
+                scene_points[inside],
+                k=1,
+                workers=-1,
+            )
+            penetration = np.asarray(dists, dtype=np.float64)
+        else:
+            penetration = np.asarray([], dtype=np.float64)
+
+    num_points = int(scene_points.shape[0])
+    num_inside = int(np.count_nonzero(inside))
+    return {
+        "ncs": float((num_points - num_inside) / num_points),
+        "mean_penetration_m": float(np.mean(penetration)) if penetration.size else 0.0,
+        "max_penetration_m": float(np.max(penetration)) if penetration.size else 0.0,
+    }
+
+
+def write_contact_debug_scene(
+    interaction_name: str,
+    scene_mesh: trimesh.Trimesh,
+    part_to_vertex_ids: dict[str, np.ndarray],
+    output_dir: Path,
+) -> tuple[Path, Path]:
+    ensure_dir(output_dir)
+    colors = np.tile(
+        np.asarray([188, 188, 188, 255], dtype=np.uint8),
+        (scene_mesh.vertices.shape[0], 1),
+    )
+    palette = part_colors_from_contact_spec(interaction_name)
+    legend: list[dict[str, Any]] = []
+    fallback = [
+        (255, 0, 0),
+        (0, 170, 0),
+        (0, 80, 255),
+        (255, 140, 0),
+        (180, 0, 255),
+        (0, 190, 190),
+    ]
+    for index, (part, vertex_ids) in enumerate(part_to_vertex_ids.items()):
+        slug = slugify_segment_name(part)
+        rgb = palette.get(slug, fallback[index % len(fallback)])
+        colors[vertex_ids, :3] = np.asarray(rgb, dtype=np.uint8)
+        colors[vertex_ids, 3] = 255
+        legend.append(
+            {
+                "human_part": part,
+                "vertex_count": int(vertex_ids.shape[0]),
+                "rgb": list(rgb),
+            }
+        )
+    debug_mesh = scene_mesh.copy()
+    debug_mesh.visual.vertex_colors = colors
+    ply_path = output_dir / "scene_gt_contact_backprojected.ply"
+    legend_path = output_dir / "scene_gt_contact_backprojected_legend.json"
+    debug_mesh.export(ply_path)
+    save_json(legend_path, legend)
+    return ply_path, legend_path
+
+
+def image_size_from_original(original_dir: Path) -> tuple[int, int]:
+    image = Image.open(original_dir / "scene_image.png")
+    return image.height, image.width
+
+
+def aggregate_physical_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "interaction_name": "__mean__",
+        "num_edges": int(sum(int(row["num_edges"]) for row in rows)),
+        "mean_min_contact_distance_m": float(
+            np.mean([float(row["mean_min_contact_distance_m"]) for row in rows])
+        ),
+        "mean_max_contact_distance_m": float(
+            np.mean([float(row["mean_max_contact_distance_m"]) for row in rows])
+        ),
+        "mean_contact_distance_m": float(
+            np.mean([float(row["mean_contact_distance_m"]) for row in rows])
+        ),
+        "ncs": float(np.mean([float(row["ncs"]) for row in rows])),
+        "mean_penetration_m": float(
+            np.mean([float(row["mean_penetration_m"]) for row in rows])
+        ),
+        "max_penetration_m": float(
+            np.mean([float(row["max_penetration_m"]) for row in rows])
+        ),
+    }
+
+
+def physical_summary_row(interaction_name: str, metric_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "interaction_name": interaction_name,
+        "num_edges": len(metric_rows),
+        "mean_min_contact_distance_m": float(
+            np.mean([float(row["min_distance_m"]) for row in metric_rows])
+        ),
+        "mean_max_contact_distance_m": float(
+            np.mean([float(row["max_distance_m"]) for row in metric_rows])
+        ),
+        "mean_contact_distance_m": float(
+            np.mean([float(row["mean_distance_m"]) for row in metric_rows])
+        ),
+        "ncs": float(np.mean([float(row["ncs"]) for row in metric_rows])),
+        "mean_penetration_m": float(
+            np.mean([float(row["mean_penetration_m"]) for row in metric_rows])
+        ),
+        "max_penetration_m": float(
+            np.mean([float(row["max_penetration_m"]) for row in metric_rows])
+        ),
+    }
+
+
+def camera_look_at_pose(
+    eye: np.ndarray,
+    target: np.ndarray,
+    up: np.ndarray = np.asarray([0.0, -1.0, 0.0], dtype=np.float32),
+) -> np.ndarray:
+    forward = target - eye
+    forward = forward / max(float(np.linalg.norm(forward)), 1e-8)
+    z_axis = -forward
+    x_axis = np.cross(up, z_axis)
+    if np.linalg.norm(x_axis) < 1e-6:
+        x_axis = np.asarray([1.0, 0.0, 0.0], dtype=np.float32)
+    x_axis = x_axis / np.linalg.norm(x_axis)
+    y_axis = np.cross(z_axis, x_axis)
+    pose = np.eye(4, dtype=np.float32)
+    pose[:3, 0] = x_axis
+    pose[:3, 1] = y_axis
+    pose[:3, 2] = z_axis
+    pose[:3, 3] = eye
+    return pose
+
+
+def orbit_camera_poses(mesh: trimesh.Trimesh, num_views: int) -> list[dict[str, Any]]:
+    bounds = mesh.bounds.astype(np.float32)
+    center = bounds.mean(axis=0)
+    extent = bounds[1] - bounds[0]
+    radius = max(float(np.linalg.norm(extent)), 0.5)
+    target = center.copy()
+    target[1] -= 0.05 * radius
+    poses: list[dict[str, Any]] = []
+    for view_id in range(num_views):
+        angle = 2.0 * math.pi * view_id / max(num_views, 1)
+        eye = target + np.asarray(
+            [
+                math.sin(angle) * 1.25 * radius,
+                -0.25 * radius,
+                math.cos(angle) * 1.25 * radius,
+            ],
+            dtype=np.float32,
+        )
+        poses.append(
+            {
+                "view_id": view_id,
+                "angle_degrees": float(math.degrees(angle)),
+                "eye": eye.tolist(),
+                "target": target.tolist(),
+                "pose": camera_look_at_pose(eye, target).tolist(),
+            }
+        )
+    return poses

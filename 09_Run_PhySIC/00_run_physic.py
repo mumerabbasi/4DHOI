@@ -11,6 +11,8 @@ import sys
 import time
 from pathlib import Path
 
+from physic_eval_utils import write_evaluation_artifacts
+
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     script_dir = Path(__file__).resolve().parent
@@ -53,12 +55,15 @@ def main(argv: list[str] | None = None) -> Path:
     script_dir: Path = args.script_dir
     project_dir: Path = args.project_dir
 
-    output_dir_name = "output" if args.mode == "default" else "output_scannet"
-    out_dir = (
-        Path(args.outdir).resolve()
-        if args.outdir
-        else script_dir / output_dir_name / args.interaction_name
-    )
+    if args.outdir:
+        out_dir = Path(args.outdir).resolve()
+        interaction_root = out_dir.parent if args.mode == "scannet" else out_dir
+    elif args.mode == "scannet":
+        interaction_root = script_dir / "output_scannet" / args.interaction_name
+        out_dir = interaction_root / "original"
+    else:
+        interaction_root = script_dir / "output" / args.interaction_name
+        out_dir = interaction_root
     human_image_path = (
         Path(args.human_image).resolve()
         if args.human_image
@@ -174,6 +179,17 @@ def main(argv: list[str] | None = None) -> Path:
     with torch.amp.autocast(enabled=False, device_type="cuda"):
         scene = get_scene(out_dir, max_faces=int(1e18))
     scene.export(out_dir / "humanscene.ply")
+
+    if args.mode == "scannet":
+        print(
+            f"Writing PhySIC-native evaluation artifacts: {interaction_root}",
+            flush=True,
+        )
+        write_evaluation_artifacts(
+            original_dir=out_dir,
+            interaction_root=interaction_root,
+            physic_root=physic_root,
+        )
 
     print(f"Wrote PhySIC outputs for {args.interaction_name}: {out_dir}", flush=True)
     return out_dir
