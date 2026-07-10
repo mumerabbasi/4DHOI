@@ -6,7 +6,6 @@ from __future__ import annotations
 import csv
 import importlib.util
 import json
-import math
 import os
 import pickle
 import sys
@@ -101,7 +100,7 @@ def physic_original_dir(
 
 
 def physic_eval_root(output_mode: str = DEFAULT_OUTPUT_MODE) -> Path:
-    return SCRIPT_DIR / "eval" / output_mode
+    return SCRIPT_DIR / "evaluation" / output_mode
 
 
 def discover_physic_interactions(output_mode: str = DEFAULT_OUTPUT_MODE) -> list[str]:
@@ -349,22 +348,9 @@ def write_evaluation_artifacts(
 
     scene_vertices, scene_faces, scene_colors = build_scene_mesh_from_predictions(original_dir)
     human_vertices, human_faces, human_colors = build_human_mesh_from_predictions(original_dir)
-    combined_vertices = np.concatenate([scene_vertices, human_vertices], axis=0)
-    combined_faces = np.concatenate(
-        [scene_faces, human_faces + scene_vertices.shape[0]],
-        axis=0,
-    )
-    combined_colors = np.concatenate([scene_colors, human_colors], axis=0)
 
     export_mesh(meshes_dir / "scene_camera.ply", scene_vertices, scene_faces, scene_colors)
     export_mesh(meshes_dir / "human_camera.ply", human_vertices, human_faces, human_colors)
-    export_mesh(
-        meshes_dir / "humanscene_camera.ply",
-        combined_vertices,
-        combined_faces,
-        combined_colors,
-    )
-    export_mesh(meshes_dir / "frame_0000_camera.ply", human_vertices, human_faces, human_colors)
     params_payload = save_optimized_params(
         original_dir,
         params_dir / "optimized_frame_0000.pt",
@@ -374,7 +360,6 @@ def write_evaluation_artifacts(
         "coordinate_frame": "physic_camera",
         "scene_mesh": str(meshes_dir / "scene_camera.ply"),
         "human_mesh": str(meshes_dir / "human_camera.ply"),
-        "combined_mesh": str(meshes_dir / "humanscene_camera.ply"),
         "optimized_params": str(params_dir / "optimized_frame_0000.pt"),
         "scale_note": (
             "optimized_frame_0000.pt scale is set to 1.0 because PhySIC's "
@@ -624,54 +609,3 @@ def physical_summary_row(interaction_name: str, metric_rows: list[dict[str, Any]
             np.mean([float(row["max_penetration_m"]) for row in metric_rows])
         ),
     }
-
-
-def camera_look_at_pose(
-    eye: np.ndarray,
-    target: np.ndarray,
-    up: np.ndarray = np.asarray([0.0, -1.0, 0.0], dtype=np.float32),
-) -> np.ndarray:
-    forward = target - eye
-    forward = forward / max(float(np.linalg.norm(forward)), 1e-8)
-    z_axis = -forward
-    x_axis = np.cross(up, z_axis)
-    if np.linalg.norm(x_axis) < 1e-6:
-        x_axis = np.asarray([1.0, 0.0, 0.0], dtype=np.float32)
-    x_axis = x_axis / np.linalg.norm(x_axis)
-    y_axis = np.cross(z_axis, x_axis)
-    pose = np.eye(4, dtype=np.float32)
-    pose[:3, 0] = x_axis
-    pose[:3, 1] = y_axis
-    pose[:3, 2] = z_axis
-    pose[:3, 3] = eye
-    return pose
-
-
-def orbit_camera_poses(mesh: trimesh.Trimesh, num_views: int) -> list[dict[str, Any]]:
-    bounds = mesh.bounds.astype(np.float32)
-    center = bounds.mean(axis=0)
-    extent = bounds[1] - bounds[0]
-    radius = max(float(np.linalg.norm(extent)), 0.5)
-    target = center.copy()
-    target[1] -= 0.05 * radius
-    poses: list[dict[str, Any]] = []
-    for view_id in range(num_views):
-        angle = 2.0 * math.pi * view_id / max(num_views, 1)
-        eye = target + np.asarray(
-            [
-                math.sin(angle) * 1.25 * radius,
-                -0.25 * radius,
-                math.cos(angle) * 1.25 * radius,
-            ],
-            dtype=np.float32,
-        )
-        poses.append(
-            {
-                "view_id": view_id,
-                "angle_degrees": float(math.degrees(angle)),
-                "eye": eye.tolist(),
-                "target": target.tolist(),
-                "pose": camera_look_at_pose(eye, target).tolist(),
-            }
-        )
-    return poses
