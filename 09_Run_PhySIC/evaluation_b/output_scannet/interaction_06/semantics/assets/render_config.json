@@ -1,0 +1,1054 @@
+{
+  "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/assets/scene_semantics_view_crop.ply",
+  "human_mesh_world": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/output_scannet/interaction_06/meshes/human_camera.ply",
+  "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/assets/render_scene.blend",
+  "views": [
+    {
+      "name": "view_00",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/renders/view_00.png",
+      "camera_matrix_world": [
+        [
+          0.9180836192740375,
+          -0.2645763464043918,
+          0.2951641416572195,
+          -0.5887245484878045
+        ],
+        [
+          -0.19996937877904813,
+          -0.9520787116696298,
+          -0.231426785612608,
+          -0.3455727486367348
+        ],
+        [
+          0.3422495279808608,
+          0.1534453318492883,
+          -0.9269950276857828,
+          0.3860730391378151
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          464.8388977050781,
+          0.0,
+          344.0
+        ],
+        [
+          0.0,
+          466.0625305175781,
+          252.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 1113,
+      "height": 742,
+      "resolution_percentage": 75,
+      "source_camera_matrix_world": [
+        [
+          0.43747779726982117,
+          0.1591535061597824,
+          -0.8850329518318176,
+          9.93924331665039
+        ],
+        [
+          -0.8976320028305054,
+          0.13592641055583954,
+          -0.41926226019859314,
+          2.9606733322143555
+        ],
+        [
+          0.05357227101922035,
+          0.9778518080711365,
+          0.20232607424259186,
+          1.5860168933868408
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "camera_transfer": "module06_robust_torso_similarity",
+      "framing": {
+        "alignment": "robust_smplx_torso_similarity",
+        "dolly_scale": 0.885,
+        "dolly_was_clamped": false,
+        "source_radius_m": 1.802975428447346,
+        "physic_radius_m": 1.6464191167496194,
+        "source_body_fill": 0.638400836132286,
+        "physic_body_fill": 0.6384701518892492,
+        "body_fill_error": 6.931575696311754e-05,
+        "minimum_frame_margin": -0.03687894397882974,
+        "physic_optical_target_camera": [
+          -0.3085489964753634,
+          0.21321181819856982,
+          1.909213668206517
+        ]
+      }
+    },
+    {
+      "name": "view_01",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/renders/view_01.png",
+      "camera_matrix_world": [
+        [
+          0.9152309862367579,
+          -0.12483336232510274,
+          -0.3831042300798486,
+          -0.6301075783854986
+        ],
+        [
+          -0.13125554961984126,
+          -0.9913035726304444,
+          0.009445492195902945,
+          0.07654740887517522
+        ],
+        [
+          -0.3809517318932701,
+          0.04163975039102437,
+          -0.923656763117662,
+          0.2806398272228603
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          554.2562866210938,
+          0.0,
+          319.5
+        ],
+        [
+          0.0,
+          554.2562866210938,
+          319.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 640,
+      "height": 640,
+      "resolution_percentage": 100,
+      "source_camera_matrix_world": [
+        [
+          -0.2844254672527313,
+          0.0630333200097084,
+          -0.9566236734390259,
+          9.72463321685791
+        ],
+        [
+          -0.9586981534957886,
+          -0.018762825056910515,
+          0.2838059067726135,
+          3.1305205821990967
+        ],
+        [
+          -5.973464067210443e-05,
+          0.9978350400924683,
+          0.06576655060052872,
+          1.1310510635375977
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "camera_transfer": "module06_robust_torso_similarity",
+      "framing": {
+        "alignment": "robust_smplx_torso_similarity",
+        "dolly_scale": 0.85,
+        "dolly_was_clamped": true,
+        "source_radius_m": 2.0000005613358893,
+        "physic_radius_m": 1.7541081427792937,
+        "source_body_fill": 0.7535761833190918,
+        "physic_body_fill": 0.7324982404708862,
+        "body_fill_error": -0.021077942848205633,
+        "minimum_frame_margin": 0.11825687885284424,
+        "physic_optical_target_camera": [
+          0.04354395763046104,
+          0.06133994392028308,
+          1.9001637441804355
+        ]
+      }
+    },
+    {
+      "name": "view_02",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/renders/view_02.png",
+      "camera_matrix_world": [
+        [
+          0.6361294985976559,
+          0.07890878638470522,
+          -0.7675366589351149,
+          -1.3591518714469564
+        ],
+        [
+          -0.08125624464315553,
+          -0.9823741073471868,
+          -0.16834037789464296,
+          -0.24759068289481295
+        ],
+        [
+          -0.7672916907151615,
+          0.16945346424874788,
+          -0.6185053382115848,
+          0.7721073951855641
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          554.2562866210938,
+          0.0,
+          319.5
+        ],
+        [
+          0.0,
+          554.2562866210938,
+          319.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 640,
+      "height": 640,
+      "resolution_percentage": 100,
+      "source_camera_matrix_world": [
+        [
+          -0.6978131532669067,
+          0.20987606048583984,
+          -0.6848421096801758,
+          10.269205093383789
+        ],
+        [
+          -0.7162796854972839,
+          -0.20481882989406586,
+          0.6670776009559631,
+          3.896289348602295
+        ],
+        [
+          -0.00026493726181797683,
+          0.9560341238975525,
+          0.2932552099227905,
+          1.5859531164169312
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "camera_transfer": "module06_robust_torso_similarity",
+      "framing": {
+        "alignment": "robust_smplx_torso_similarity",
+        "dolly_scale": 0.885,
+        "dolly_was_clamped": false,
+        "source_radius_m": 2.0000011441411,
+        "physic_radius_m": 1.8263366573279856,
+        "source_body_fill": 0.7374455213546753,
+        "physic_body_fill": 0.7363142013549805,
+        "body_fill_error": -0.0011313199996948464,
+        "minimum_frame_margin": 0.10758085250854492,
+        "physic_optical_target_camera": [
+          0.043545474386023075,
+          0.06133993277378247,
+          1.900162188445048
+        ]
+      }
+    },
+    {
+      "name": "view_03",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/renders/view_03.png",
+      "camera_matrix_world": [
+        [
+          0.974215113885153,
+          -0.11922486097234426,
+          -0.19154724646035806,
+          -0.294180231845424
+        ],
+        [
+          -0.14412361737760163,
+          -0.9820394389521845,
+          -0.12176570676979116,
+          -0.1535761853790814
+        ],
+        [
+          -0.17358945942567602,
+          0.14623246864481768,
+          -0.9739007703555137,
+          0.19234333694633032
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          554.2562866210938,
+          0.0,
+          319.5
+        ],
+        [
+          0.0,
+          554.2562866210938,
+          319.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 640,
+      "height": 640,
+      "resolution_percentage": 100,
+      "source_camera_matrix_world": [
+        [
+          -0.07195110619068146,
+          0.16729260981082916,
+          -0.9832782745361328,
+          9.671128273010254
+        ],
+        [
+          -0.9974081516265869,
+          -0.01221812516450882,
+          0.07090628892183304,
+          2.7048027515411377
+        ],
+        [
+          -0.00015171927225310355,
+          0.9858315587043762,
+          0.16773812472820282,
+          1.3349727392196655
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "camera_transfer": "module06_robust_torso_similarity",
+      "framing": {
+        "alignment": "robust_smplx_torso_similarity",
+        "dolly_scale": 0.85,
+        "dolly_was_clamped": true,
+        "source_radius_m": 2.0000011136857347,
+        "physic_radius_m": 1.7541086272198387,
+        "source_body_fill": 0.7360185861587525,
+        "physic_body_fill": 0.7013500690460205,
+        "body_fill_error": -0.034668517112732,
+        "minimum_frame_margin": 0.10441575050354004,
+        "physic_optical_target_camera": [
+          0.04354443782618578,
+          0.06133983905938001,
+          1.9001636512715336
+        ]
+      }
+    },
+    {
+      "name": "view_04",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/renders/view_04.png",
+      "camera_matrix_world": [
+        [
+          0.8632434274398753,
+          -0.05234356575929461,
+          -0.5020668069015294,
+          -0.6008839408697519
+        ],
+        [
+          -0.12114224969471797,
+          -0.987025049512271,
+          -0.10538602662037536,
+          0.11049734084075227
+        ],
+        [
+          -0.49003621543445036,
+          0.1517952773550586,
+          -0.8583837511506177,
+          0.24746778108346468
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          554.2562866210938,
+          0.0,
+          319.5
+        ],
+        [
+          0.0,
+          554.2562866210938,
+          319.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 640,
+      "height": 640,
+      "resolution_percentage": 100,
+      "source_camera_matrix_world": [
+        [
+          -0.3983738124370575,
+          0.1795702874660492,
+          -0.8994736075401306,
+          9.724634170532227
+        ],
+        [
+          -0.9172232151031494,
+          -0.07818136364221573,
+          0.3906269371509552,
+          3.1305203437805176
+        ],
+        [
+          -0.00017707841470837593,
+          0.9806336164474487,
+          0.1958514302968979,
+          1.1310511827468872
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "camera_transfer": "module06_robust_torso_similarity",
+      "framing": {
+        "alignment": "robust_smplx_torso_similarity",
+        "dolly_scale": 0.855,
+        "dolly_was_clamped": false,
+        "source_radius_m": 1.9684005932452586,
+        "physic_radius_m": 1.7365485244170544,
+        "source_body_fill": 0.7618046283721924,
+        "physic_body_fill": 0.7596785068511963,
+        "body_fill_error": -0.002126121520996116,
+        "minimum_frame_margin": -0.03840475082397461,
+        "physic_optical_target_camera": [
+          0.2724130591972478,
+          0.29486159880813845,
+          1.7370861710455259
+        ]
+      }
+    },
+    {
+      "name": "view_05",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/renders/view_05.png",
+      "camera_matrix_world": [
+        [
+          0.9526069451642257,
+          -0.060418469058235,
+          -0.2981434611884754,
+          -0.26261243265397505
+        ],
+        [
+          -0.13883706587947675,
+          -0.958400823864178,
+          -0.2493834991205507,
+          -0.1152542751951699
+        ],
+        [
+          -0.2706735522752042,
+          0.2789578256040381,
+          -0.921367719951409,
+          0.17168486186675724
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          554.2562866210938,
+          0.0,
+          319.5
+        ],
+        [
+          0.0,
+          554.2562866210938,
+          319.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 640,
+      "height": 640,
+      "resolution_percentage": 100,
+      "source_camera_matrix_world": [
+        [
+          -0.17081283032894135,
+          0.30426982045173645,
+          -0.9371461868286133,
+          9.671130180358887
+        ],
+        [
+          -0.9853034019470215,
+          -0.05301773548126221,
+          0.1623767912387848,
+          2.7048017978668213
+        ],
+        [
+          -0.0002790072758216411,
+          0.9511093497276306,
+          0.30885422229766846,
+          1.3349720239639282
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "camera_transfer": "module06_robust_torso_similarity",
+      "framing": {
+        "alignment": "robust_smplx_torso_similarity",
+        "dolly_scale": 0.85,
+        "dolly_was_clamped": true,
+        "source_radius_m": 1.969588453545007,
+        "physic_radius_m": 1.7274350873080313,
+        "source_body_fill": 0.7521657943725586,
+        "physic_body_fill": 0.7486845970153808,
+        "body_fill_error": -0.003481197357177779,
+        "minimum_frame_margin": -0.08395462036132813,
+        "physic_optical_target_camera": [
+          0.2539892236839494,
+          0.31681630775907266,
+          1.7624298825653604
+        ]
+      }
+    },
+    {
+      "name": "view_06",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/renders/view_06.png",
+      "camera_matrix_world": [
+        [
+          0.9430121078636152,
+          -0.0421863597509173,
+          -0.3300733644279651,
+          -0.5369975776038732
+        ],
+        [
+          -0.13672720246659434,
+          -0.9534516738383159,
+          -0.2687667570816856,
+          -0.4113980932774925
+        ],
+        [
+          -0.3033706928572281,
+          0.29858035325177684,
+          -0.9048845166059127,
+          0.3138534327802385
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          554.2562866210938,
+          0.0,
+          319.5
+        ],
+        [
+          0.0,
+          554.2562866210938,
+          319.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 640,
+      "height": 640,
+      "resolution_percentage": 100,
+      "source_camera_matrix_world": [
+        [
+          -0.20434772968292236,
+          0.32540884613990784,
+          -0.9232286214828491,
+          9.791753768920898
+        ],
+        [
+          -0.978898286819458,
+          -0.06821934133768082,
+          0.1926245391368866,
+          2.948103904724121
+        ],
+        [
+          -0.00030031942878849804,
+          0.9431093335151672,
+          0.33248260617256165,
+          1.664384365081787
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "camera_transfer": "module06_robust_torso_similarity",
+      "framing": {
+        "alignment": "robust_smplx_torso_similarity",
+        "dolly_scale": 0.85,
+        "dolly_was_clamped": true,
+        "source_radius_m": 1.9999990329596968,
+        "physic_radius_m": 1.7541068023111077,
+        "source_body_fill": 0.7022098779678345,
+        "physic_body_fill": 0.6673654794692994,
+        "body_fill_error": -0.034844398498535156,
+        "minimum_frame_margin": 0.12789881229400635,
+        "physic_optical_target_camera": [
+          0.04354486335710872,
+          0.06133950485790174,
+          1.9001637149969124
+        ]
+      }
+    },
+    {
+      "name": "view_07",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/renders/view_07.png",
+      "camera_matrix_world": [
+        [
+          0.9003550834632003,
+          0.05956703822112103,
+          -0.43105960639417523,
+          -0.5124451264956819
+        ],
+        [
+          -0.12795518541568246,
+          -0.910554642977328,
+          -0.3930874959803208,
+          -0.37900550051170545
+        ],
+        [
+          -0.41591831197756307,
+          0.40907465010832533,
+          -0.8122006289365945,
+          0.2725693542340615
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          554.2562866210938,
+          0.0,
+          319.5
+        ],
+        [
+          0.0,
+          554.2562866210938,
+          319.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 640,
+      "height": 640,
+      "resolution_percentage": 100,
+      "source_camera_matrix_world": [
+        [
+          -0.3207773268222809,
+          0.4438391327857971,
+          -0.8367249965667725,
+          9.791752815246582
+        ],
+        [
+          -0.9471544623374939,
+          -0.15071184933185577,
+          0.283168226480484,
+          2.9481029510498047
+        ],
+        [
+          -0.00042320441571064293,
+          0.8833418488502502,
+          0.4687291979789734,
+          1.664384365081787
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "camera_transfer": "module06_robust_torso_similarity",
+      "framing": {
+        "alignment": "robust_smplx_torso_similarity",
+        "dolly_scale": 0.855,
+        "dolly_was_clamped": false,
+        "source_radius_m": 1.9657521767523591,
+        "physic_radius_m": 1.7342120570492998,
+        "source_body_fill": 0.7230832576751709,
+        "physic_body_fill": 0.7208403587341309,
+        "body_fill_error": -0.002242898941040017,
+        "minimum_frame_margin": -0.06129541397094727,
+        "physic_optical_target_camera": [
+          0.23641839179094792,
+          0.30391534745385296,
+          1.679805654650071
+        ]
+      }
+    },
+    {
+      "name": "view_08",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/renders/view_08.png",
+      "camera_matrix_world": [
+        [
+          0.8949444544986979,
+          0.07942530559532233,
+          -0.43905118618277655,
+          -0.7369633113772736
+        ],
+        [
+          -0.12687954987637987,
+          -0.8980987002979499,
+          -0.421094247642038,
+          -0.6872286258294965
+        ],
+        [
+          -0.42775682086142996,
+          0.4325626325051198,
+          -0.7936710286139158,
+          0.4929793189564169
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          554.2562866210938,
+          0.0,
+          319.5
+        ],
+        [
+          0.0,
+          554.2562866210938,
+          319.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 640,
+      "height": 640,
+      "resolution_percentage": 100,
+      "source_camera_matrix_world": [
+        [
+          -0.333120197057724,
+          0.4687258303165436,
+          -0.8181241154670715,
+          10.002452850341797
+        ],
+        [
+          -0.9428842067718506,
+          -0.16601350903511047,
+          0.2888057827949524,
+          3.1402246952056885
+        ],
+        [
+          -0.00044893287122249603,
+          0.8676034212112427,
+          0.49725663661956787,
+          1.9937958717346191
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "camera_transfer": "module06_robust_torso_similarity",
+      "framing": {
+        "alignment": "robust_smplx_torso_similarity",
+        "dolly_scale": 0.86,
+        "dolly_was_clamped": false,
+        "source_radius_m": 1.9999995174403071,
+        "physic_radius_m": 1.7747437828411121,
+        "source_body_fill": 0.654916524887085,
+        "physic_body_fill": 0.6533130645751953,
+        "body_fill_error": -0.0016034603118896262,
+        "minimum_frame_margin": 0.1612779378890991,
+        "physic_optical_target_camera": [
+          0.04354506944548886,
+          0.061339891226015686,
+          1.9001635064286617
+        ]
+      }
+    },
+    {
+      "name": "view_09",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/renders/view_09.png",
+      "camera_matrix_world": [
+        [
+          0.5714574193782951,
+          -0.12832542663579433,
+          -0.8105362370709691,
+          -1.4295488355698596
+        ],
+        [
+          -0.07072309157730869,
+          -0.9917244064660469,
+          0.10714909466555869,
+          0.2544155775333265
+        ],
+        [
+          -0.817578567688196,
+          -0.003907515575840978,
+          -0.5758038359357414,
+          0.8558279640680235
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          554.2562866210938,
+          0.0,
+          319.5
+        ],
+        [
+          0.0,
+          554.2562866210938,
+          319.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 640,
+      "height": 640,
+      "resolution_percentage": 100,
+      "source_camera_matrix_world": [
+        [
+          -0.7545444965362549,
+          0.017404524609446526,
+          -0.656018078327179,
+          10.326610565185547
+        ],
+        [
+          -0.656248927116394,
+          -0.02004854567348957,
+          0.7542780637741089,
+          4.070915699005127
+        ],
+        [
+          -2.4357055735890754e-05,
+          0.9996474981307983,
+          0.026549218222498894,
+          1.0526195764541626
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "camera_transfer": "module06_robust_torso_similarity",
+      "framing": {
+        "alignment": "robust_smplx_torso_similarity",
+        "dolly_scale": 0.88,
+        "dolly_was_clamped": false,
+        "source_radius_m": 2.00000019219403,
+        "physic_radius_m": 1.816017506752203,
+        "source_body_fill": 0.7409648180007935,
+        "physic_body_fill": 0.7394839763641358,
+        "body_fill_error": -0.001480841636657737,
+        "minimum_frame_margin": 0.08040075302124024,
+        "physic_optical_target_camera": [
+          0.043544395759602006,
+          0.061339928477234684,
+          1.9001639781857893
+        ]
+      }
+    }
+  ],
+  "camera_source": "module06_robust_torso_similarity",
+  "camera_source_config_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_06/semantics/assets/render_config.json",
+  "intrinsics": [
+    [
+      464.8388977050781,
+      0.0,
+      344.0
+    ],
+    [
+      0.0,
+      466.0625305175781,
+      252.0
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "width": 1113,
+  "height": 742,
+  "resolution_percentage": 75,
+  "cycles_samples": 64,
+  "coordinate_frame": "physic_camera",
+  "preserve_native_view_zero": false,
+  "native_camera_matrix_world": [
+    [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      -1.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      -1.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "native_camera_intrinsics": [
+    [
+      542.9054565429688,
+      0.0,
+      511.5
+    ],
+    [
+      0.0,
+      542.9054565429688,
+      340.5
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "native_camera_width": 1024,
+  "native_camera_height": 682,
+  "native_camera_source": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/output_scannet/interaction_06/original/scene_data_final.pkl",
+  "source_human_mesh": "/my_workspace/4DHHOI/4DHSI/05_Optimize_Static_Scene/output/interaction_06/meshes/frame_0000_world.ply",
+  "torso_alignment": {
+    "method": "robust_umeyama_smplx_torso",
+    "segments": [
+      "hips",
+      "spine",
+      "spine1",
+      "spine2",
+      "neck",
+      "leftShoulder",
+      "rightShoulder"
+    ],
+    "vertex_count": 1887,
+    "inlier_count": 1494,
+    "rotation_source_to_physic": [
+      [
+        0.09830296203627711,
+        -0.9838152912554241,
+        -0.149813218198194
+      ],
+      [
+        -0.03418851864275207,
+        0.14711479716894046,
+        -0.9885283919275943
+      ],
+      [
+        0.9945690890269556,
+        0.10229716098674031,
+        -0.019173367105037874
+      ]
+    ],
+    "scale_source_to_physic": 1.0318280296808853,
+    "translation_source_to_physic": [
+      1.6173454059288146,
+      1.100741852708892,
+      -10.292872873620642
+    ],
+    "rmse_m": 0.017981295317969253,
+    "median_error_m": 0.01278941890634059,
+    "max_inlier_error_m": 0.05112056824949205,
+    "dolly_scale_bounds": [
+      0.85,
+      1.15
+    ]
+  },
+  "source_scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_06/semantics/assets/scene_semantics_view_crop.ply"
+}
