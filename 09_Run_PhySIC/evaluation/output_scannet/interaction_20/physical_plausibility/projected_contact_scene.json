@@ -1,0 +1,47 @@
+{
+  "ply_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation/output_scannet/interaction_20/physical_plausibility/projected_contact_scene.ply",
+  "coordinate_frame": "camera",
+  "base_rgb": [
+    188,
+    188,
+    188
+  ],
+  "edges": [
+    {
+      "human_part": "hips",
+      "vertex_count": 4516,
+      "rgb": [
+        0,
+        0,
+        255
+      ]
+    },
+    {
+      "human_part": "left leg",
+      "vertex_count": 10388,
+      "rgb": [
+        255,
+        0,
+        255
+      ]
+    },
+    {
+      "human_part": "right leg",
+      "vertex_count": 9251,
+      "rgb": [
+        0,
+        255,
+        0
+      ]
+    },
+    {
+      "human_part": "right hand",
+      "vertex_count": 549,
+      "rgb": [
+        0,
+        255,
+        255
+      ]
+    }
+  ]
+}

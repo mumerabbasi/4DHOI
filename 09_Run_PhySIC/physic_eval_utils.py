@@ -553,10 +553,18 @@ def write_contact_debug_scene(
         )
     debug_mesh = scene_mesh.copy()
     debug_mesh.visual.vertex_colors = colors
-    ply_path = output_dir / "scene_gt_contact_backprojected.ply"
-    legend_path = output_dir / "scene_gt_contact_backprojected_legend.json"
+    ply_path = output_dir / "projected_contact_scene.ply"
+    legend_path = output_dir / "projected_contact_scene.json"
     debug_mesh.export(ply_path)
-    save_json(legend_path, legend)
+    save_json(
+        legend_path,
+        {
+            "ply_path": str(ply_path),
+            "coordinate_frame": "camera",
+            "base_rgb": [188, 188, 188],
+            "edges": legend,
+        },
+    )
     return ply_path, legend_path
 
 

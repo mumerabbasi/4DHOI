@@ -131,58 +131,43 @@ def main() -> None:
     )
     counts = np.bincount(labels, minlength=num_clusters)
     entropy = compute_entropy(labels, num_clusters)
-    rows = [
-        {
-            "interaction_name": name,
-            "cluster_id": int(label),
-            "distance_to_center": float(distance),
-        }
-        for name, label, distance in zip(names, labels, distances)
-    ]
+    cluster_size = float(np.mean(distances))
     summary = {
-        "num_interactions": int(features.shape[0]),
+        "num_samples": int(features.shape[0]),
         "num_clusters": int(num_clusters),
         "entropy": float(entropy),
-        "mean_cluster_size": float(np.mean(counts)),
-        "min_cluster_size": int(np.min(counts)),
-        "max_cluster_size": int(np.max(counts)),
-        "standardized": not bool(args.no_standardize),
+        "cluster_size": cluster_size,
     }
     output_root = ensure_dir(
         Path(args.output_root).resolve()
         if args.output_root
-        else physic_eval_root(args.output_mode) / "diversity"
-    )
-    save_csv_rows(
-        output_root / "assignments.csv",
-        rows,
-        ["interaction_name", "cluster_id", "distance_to_center"],
+        else physic_eval_root(args.output_mode)
     )
     save_json(
-        output_root / "metrics.json",
+        output_root / "diversity.json",
         {
             **summary,
-            "cluster_sizes": counts.astype(int).tolist(),
-            "centers": centers.astype(float).tolist(),
-            "assignments": rows,
+            "standardized": not bool(args.no_standardize),
+            "cluster_counts": counts.astype(int).tolist(),
+            "assignments": [
+                {
+                    "interaction_name": name,
+                    "cluster_id": int(label),
+                    "distance_to_cluster_center": float(distance),
+                }
+                for name, label, distance in zip(names, labels, distances)
+            ],
         },
     )
     save_csv_rows(
-        output_root / "metrics.csv",
+        output_root / "diversity.csv",
         [summary],
-        [
-            "num_interactions",
-            "num_clusters",
-            "entropy",
-            "mean_cluster_size",
-            "min_cluster_size",
-            "max_cluster_size",
-            "standardized",
-        ],
+        ["num_samples", "num_clusters", "entropy", "cluster_size"],
     )
     print(
-        f"PhySIC diversity: interactions={summary['num_interactions']} "
-        f"clusters={summary['num_clusters']} entropy={summary['entropy']:.6f}"
+        f"PhySIC diversity: samples={summary['num_samples']} "
+        f"clusters={summary['num_clusters']} entropy={summary['entropy']:.6f} "
+        f"cluster_size={summary['cluster_size']:.6f}"
     )
 
 

@@ -108,7 +108,16 @@ def main() -> None:
             combined_rows,
             ["interaction_name", "clip_score", "num_renders"],
         )
-        save_json(combined_root / "semantics.json", combined_rows)
+        save_json(
+            combined_root / "semantics.json",
+            {
+                "interactions": rows,
+                "aggregate": {
+                    "num_interactions": len(rows),
+                    "mean_clip_score": float(mean_score),
+                },
+            },
+        )
 
 
 if __name__ == "__main__":

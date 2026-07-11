@@ -27,8 +27,6 @@ from physic_eval_utils import (
     physical_summary_row,
     physic_eval_root,
     physic_interaction_root,
-    physic_original_dir,
-    resolve_path,
     save_csv_rows,
     save_json,
     write_contact_debug_scene,
@@ -91,7 +89,9 @@ def resolve_roots(
     output_root = (
         Path(args.output_root).resolve()
         if args.output_root
-        else physic_eval_root(args.output_mode) / interaction_name / "physical"
+        else physic_eval_root(args.output_mode)
+        / interaction_name
+        / "physical_plausibility"
     )
     return interaction_root, original_dir, output_root
 
@@ -179,20 +179,11 @@ def evaluate_interaction(interaction_name: str, args: argparse.Namespace) -> dic
             for row in metric_rows
         ],
     )
-    debug_ply, debug_legend = write_contact_debug_scene(
+    write_contact_debug_scene(
         interaction_name=interaction_name,
         scene_mesh=scene_mesh,
         part_to_vertex_ids=part_to_vertex_ids,
-        output_dir=output_root / "debug",
-    )
-    save_json(
-        output_root / "debug" / "projection_metadata.json",
-        {
-            "intrinsics": intrinsics.tolist(),
-            "image_hw": list(image_hw),
-            "debug_scene": str(debug_ply),
-            "debug_legend": str(debug_legend),
-        },
+        output_dir=output_root,
     )
     summary = physical_summary_row(interaction_name, csv_rows)
     print(
@@ -215,13 +206,34 @@ def main() -> None:
     summaries = [evaluate_interaction(name, args) for name in interaction_names]
     if all_mode:
         combined_root = ensure_dir(physic_eval_root(args.output_mode))
-        combined_rows = summaries + [aggregate_physical_rows(summaries)]
+        aggregate_row = aggregate_physical_rows(summaries)
+        combined_rows = summaries + [aggregate_row]
         save_csv_rows(
             combined_root / "physical_plausibility.csv",
             combined_rows,
             COMBINED_CSV_FIELDNAMES,
         )
-        save_json(combined_root / "physical_plausibility.json", combined_rows)
+        save_json(
+            combined_root / "physical_plausibility.json",
+            {
+                "interactions": summaries,
+                "aggregate": {
+                    "num_interactions": len(summaries),
+                    "mean_ncs": aggregate_row["ncs"],
+                    "mean_of_mean_min_contact_distance_m": aggregate_row[
+                        "mean_min_contact_distance_m"
+                    ],
+                    "mean_of_mean_max_contact_distance_m": aggregate_row[
+                        "mean_max_contact_distance_m"
+                    ],
+                    "mean_of_mean_contact_distance_m": aggregate_row[
+                        "mean_contact_distance_m"
+                    ],
+                    "mean_penetration_m": aggregate_row["mean_penetration_m"],
+                    "mean_max_penetration_m": aggregate_row["max_penetration_m"],
+                },
+            },
+        )
 
 
 if __name__ == "__main__":

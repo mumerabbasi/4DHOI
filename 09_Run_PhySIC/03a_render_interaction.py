@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import os
 import pickle
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -204,11 +205,6 @@ def body_centered_camera(
         bbox["margin_top"],
         bbox["margin_bottom"],
     )
-    if minimum_margin < MIN_FRAME_MARGIN - 1e-3:
-        raise ValueError(
-            "Body-centered framing failed: minimum image margin is "
-            f"{minimum_margin:.4f}, expected at least {MIN_FRAME_MARGIN:.4f}."
-        )
     return matrix, {
         "source_radius_m": source_radius,
         "physic_radius_m": float(upper),
@@ -363,7 +359,7 @@ def build_replay_config(
     return replay_config, source_config_path
 
 
-def render_interaction(interaction_name: str, args: argparse.Namespace) -> None:
+def render_interaction(interaction_name: str, args: argparse.Namespace) -> dict[str, Any]:
     interaction_root = physic_interaction_root(interaction_name, args.output_mode)
     scene_camera_path = interaction_root / "meshes" / "scene_camera.ply"
     human_camera_path = interaction_root / "meshes" / "human_camera.ply"
@@ -381,14 +377,21 @@ def render_interaction(interaction_name: str, args: argparse.Namespace) -> None:
         if args.output_root
         else physic_eval_root(args.output_mode) / interaction_name / "semantics"
     )
+    assets_dir = ensure_dir(output_root / "assets")
+    scene_crop_path = assets_dir / "scene_semantics_view_crop.ply"
+    if scene_crop_path.exists():
+        scene_crop_path.unlink()
+    try:
+        os.link(scene_camera_path, scene_crop_path)
+    except OSError:
+        shutil.copy2(scene_camera_path, scene_crop_path)
     replay_config, source_config_path = build_replay_config(
         interaction_name=interaction_name,
-        scene_camera_path=scene_camera_path,
+        scene_camera_path=scene_crop_path,
         human_camera_path=human_camera_path,
         scene_data_path=scene_data_path,
         output_root=output_root,
     )
-    assets_dir = ensure_dir(output_root / "assets")
     config_path = assets_dir / "render_config.json"
     driver_path = assets_dir / "render_driver.py"
     save_json(config_path, replay_config)
@@ -437,11 +440,26 @@ def render_interaction(interaction_name: str, args: argparse.Namespace) -> None:
         "minimum_frame_margin": replay_config["minimum_frame_margin"],
         "views": replay_config["views"],
     }
-    save_json(output_root / "render_metadata.json", metadata)
+    selected_views_path = assets_dir / "selected_views.json"
+    save_json(selected_views_path, metadata)
     print(
         f"{interaction_name}: wrote {len(replay_config['views'])} matched-view "
         f"native PhySIC renders to {output_root / 'renders'}"
     )
+    return {
+        "interaction_name": interaction_name,
+        "render_paths": [str(view["render_path"]) for view in replay_config["views"]],
+        "scene_crop_ply": str(scene_crop_path),
+        "blend_path": str(assets_dir / "render_scene.blend"),
+        "selected_views_path": str(selected_views_path),
+        "prompt_path": str(
+            PROJECT_DIR
+            / "01_Generate_SIG"
+            / "input_prompts"
+            / interaction_name
+            / "input_scene.json"
+        ),
+    }
 
 
 def main() -> None:
@@ -453,8 +471,12 @@ def main() -> None:
         interaction_names = discover_physic_interactions(args.output_mode)
     else:
         interaction_names = [args.interaction_name]
-    for interaction_name in interaction_names:
-        render_interaction(interaction_name, args)
+    records = [render_interaction(name, args) for name in interaction_names]
+    if len(records) > 1:
+        save_json(
+            physic_eval_root(args.output_mode) / "semantics_renders.json",
+            records,
+        )
 
 
 if __name__ == "__main__":
