@@ -606,3 +606,51 @@ Return strictly valid JSON only:
 
 Set "done": true only if all required SIG target-object contacts are present, there are no extra masks, each mask uses the correct color, and each mask matches the contact surface, location, and size indicated by the Reference Image when mapped onto the Original Canvas Image.
 \end{promptblock}
+
+
+\chapter{Vision-Language Evaluation Rubric}
+\label{app:vlm-rubric}
+
+This appendix gives the rubric used by the vision-language evaluator of \cref{sec:exp-metrics-vlm}. For each interaction, the evaluator is shown the rendered views together with the interaction instruction and assigns four integer scores, each on the shared $1$-to-$5$ scale of \cref{tab:vlm-scale}. The four criteria and their scoring rules are given in \cref{tab:vlm-criteria}. The caps encode the principle that an interaction cannot be scored highly if a required contact is missing, if a contact is clearly floating, or if the body penetrates the scene, regardless of how convincing the interaction appears otherwise.
+
+\begin{table}[t]
+  \centering
+  \caption{The shared $1$-to-$5$ scale used for all four rubric criteria.}
+  \label{tab:vlm-scale}
+  \begin{tabularx}{\textwidth}{@{}cX@{}}
+    \toprule
+    Score & Meaning \\
+    \midrule
+    1 & Incorrect, missing, or impossible to judge. \\
+    2 & Mostly incorrect, very unclear, or physically invalid. \\
+    3 & Partially correct, but ambiguous, incomplete, awkward, or weakly supported. \\
+    4 & Mostly correct, with minor contact, support, or pose issues. \\
+    5 & Clearly correct and physically plausible, with the required contacts well satisfied. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+\begin{table}[t]
+  \centering
+  \caption{The four rubric criteria and their scoring rules. Each criterion is scored on the scale of \cref{tab:vlm-scale}, subject to the caps listed.}
+  \label{tab:vlm-criteria}
+  \begin{tabularx}{\textwidth}{@{}>{\bfseries}p{0.24\textwidth}X@{}}
+    \toprule
+    Criterion & Description and caps \\
+    \midrule
+    Target-object correctness &
+    Whether the person interacts with the object or scene element named in the instruction, and whether it is the main support or contact object. Capped at $2$ if the person does not interact with the named target object. \\
+    \addlinespace
+    Human-action correctness &
+    Whether the pose expresses the requested action. Capped at $3$ if the action is recognizable but the required contacts are missing or wrong. A broadly action-like but physically awkward pose receives partial rather than full credit. \\
+    \addlinespace
+    Contact and spatial relation &
+    Whether the instruction-relevant body parts plausibly contact, grip, rest on, press, or lie appropriately close to the correct object region. Visual overlap alone is not accepted as contact. Hidden or ambiguous contact, or clearly floating support, caps the score at $3$; severe penetration of the target object caps it at $2$; a score of $5$ requires all instruction-specified contacts to be clearly plausible. \\
+    \addlinespace
+    Physical plausibility &
+    Whether the body--object arrangement has plausible support, balance, placement, and collision behavior. Floating support caps the score at $3$; severe penetration of the target object or a nearby solid caps it at $2$; torso, pelvis, or multi-limb penetration receives $1$ or $2$; any visible floating, major penetration, impossible balance, or nonsensical support rules out a score of $5$. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+The reported per-interaction score is the mean of the four criterion scores, and the dataset-level scores are the means of the per-interaction values, computed independently for each criterion and for the mean. The full prompt given to the evaluator is reproduced together with the other foundation-model prompts in \cref{app:foundation-model-prompts}.
