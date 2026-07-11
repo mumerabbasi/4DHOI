@@ -1,65 +1,82 @@
 \chapter{Experiments}
 \label{chap:experiments}
 
-\chapterabstract{This chapter defines the experimental protocol used to validate the thesis claims and reports the resulting quantitative and qualitative findings.}
-
-\section{Research Questions}
-\placeholder{State the questions the experiments answer. Each question should map to a table, figure, ablation, or qualitative analysis.}
-
-\section{Datasets}
-\placeholder{Describe all datasets, splits, annotations, preprocessing steps, and any generated data.}
-
-\section{Baselines}
-\placeholder{List baseline methods and explain how they were configured. Make comparisons fair and reproducible.}
-
-\section{Metrics}
-\placeholder{Define quantitative metrics and explain what each metric captures. Include limitations of each metric where relevant.}
+This chapter evaluates the proposed method. It describes the evaluation set of reconstructed scenes and interaction instructions (\cref{sec:exp-setup}), the implementation details and hyperparameters used throughout (\cref{sec:implementation-details}), the evaluation metrics (\cref{sec:exp-metrics}), and the baseline and ablation settings (\cref{sec:exp-baseline-ablation}). It then reports a qualitative study of the agentic contact-localization stage (\cref{sec:exp-agentic-qualitative}), the main quantitative results (\cref{sec:exp-quantitative}), and qualitative results (\cref{sec:exp-qualitative}), and closes with an analysis of failure cases (\cref{sec:exp-failure}).
 
 \section{Experimental Setup}
-\placeholder{Specify training schedule, optimizer, learning rate, batch size, number of runs, random seeds, hardware, and software versions.}
+\label{sec:exp-setup}
+
+\paragraph{Scenes and interactions.} The method is evaluated on 23 interaction instructions defined over 15 real reconstructed indoor scenes from ScanNet++~\cite{yeshwanth2023scannetpp}. The scenes span a range of everyday indoor environments, including bedrooms, bathrooms, offices, conference rooms, apartments, living rooms, and gyms, and for each scene one posed RGB view is selected together with its calibration and the reconstructed scene mesh. The interaction instructions are written to exercise the full range of interactions the method targets: simple support interactions such as sitting; functional interactions whose contact falls on a small element such as a faucet, a lamp, or a drawer; and interactions whose contact falls on a large functional surface such as a treadmill rail and belt, a pull-up bar, a bicycle handle, or a ladder frame. \Cref{tab:exp-interactions} lists all 23 interactions together with the scene each is defined in.
+
+The instructions also vary in the number and type of contacts they require. Some involve a single hand contact (for example, turning on a faucet), while others require several simultaneous contacts distributed over the body (for example, running on the treadmill, which involves two hands and a foot, or climbing a ladder, which involves both hands and both feet). This variety is deliberate: it tests whether the method can localize and satisfy contact not only for isolated functional elements but also for interactions in which multiple body parts must contact different regions of the same object at once.
 
 \begin{table}[t]
   \centering
-  \caption[Experiment configuration.]{Example experiment configuration table. Replace with the final setup.}
-  \label{tab:experiment-config}
-  \begin{tabular}{@{}ll@{}}
+  \caption{The 23 evaluation interactions, each with a number used to refer to it elsewhere in this chapter, and the type of scene in which it is defined. The mapping from each interaction to its ScanNet++ scene is given in \cref{app:scene-mapping}.}
+  \label{tab:exp-interactions}
+  \small
+  \begin{tabularx}{\textwidth}{@{}llX@{}}
     \toprule
-    Item & Value \\
+    \# & Scene type & Interaction instruction \\
     \midrule
-    Dataset split & \placeholder{train / validation / test} \\
-    Batch size & \placeholder{--} \\
-    Optimizer & \placeholder{--} \\
-    Hardware & \placeholder{--} \\
+    1  & Conference room & A person sitting on the small wooden table \\
+    2  & Conference room & A person pulling back the chair to sit down \\
+    3  & Conference room & A person opening the door \\
+    4  & Bathroom & A person turning on the faucet \\
+    5  & Bathroom & A person opening the washing machine door \\
+    6  & Bathroom & A person opening a curtain \\
+    7  & Bathroom & A person making coffee \\
+    8  & Bathroom & A person taking a shower \\
+    9  & Bathroom & A person taking out the vacuum cleaner with both hands \\
+    10 & Conference room & A person lifting the small wooden table with both hands \\
+    11 & Living room & A person sitting on the bicycle with both hands on the handle \\
+    12 & Living room & A person sitting on the side of the sofa, playing with the leaves of a nearby potted plant using both hands \\
+    13 & Lounge & A person sitting on the shelf with both hands supporting their body and both legs hanging down \\
+    14 & Bedroom & A person standing on the staircase and climbing onto the top bed \\
+    15 & Bedroom & A person sitting on the bed and reaching to turn off the bedside lamp \\
+    16 & Apartment & A person sitting on the bed and reaching for the chocolate nearby \\
+    17 & Office & A person removing the bicycle from its stand with one foot while holding the bike with both hands \\
+    18 & Apartment & A person bending down at the lower drawer, one hand pulling the cabinet door open and the other holding the counter edge for balance \\
+    19 & Office & A person climbing the step ladder, both feet on the ladder, reaching for the top of the cupboard \\
+    20 & Gym & A person hanging from the pull-up bar with both hands, knees tucked upward, and both feet off the floor \\
+    21 & Bathroom & A person stepping over the bathtub wall, one foot inside the tub, one hand holding the side glass for balance \\
+    22 & Gym & A person running on the treadmill, one foot on the belt, the other leg lifted behind, and both hands holding the side handles \\
+    23 & Bedroom & A person stepping down from the ladder, both feet on ladder steps and both hands gripping the ladder frame \\
     \bottomrule
-  \end{tabular}
+  \end{tabularx}
 \end{table}
 
-\section{Main Results}
-\label{sec:main-results}
-\placeholder{Present the primary quantitative results first. Explain the trend, not just the numbers.}
+\paragraph{Ground-truth contact annotation.} Evaluating scene-side contact requires a reference for where each body part should contact the scene. Because no such annotation exists for these instructions, contact regions are annotated manually for evaluation. For each interaction, the generated human frame is used as a guide, and the region of the scene that each participating body part should contact is painted directly onto the posed scene view in a distinct, saturated color, with a fixed convention mapping each color to a body part. Per-part binary masks are then extracted from the painted overlay by color, exactly as in the agentic contact-estimation stage of \cref{sec:method-contact-estimation}; the only difference is that here a human performs the overlay rather than an image generation model, which makes the resulting masks a suitable reference against which the method's own localized contacts are measured. \Cref{fig:gt-contact-annotation} shows two examples. These annotations are used only for evaluation and are not available to the method, which must localize the contact regions itself. Because they are defined as 2D overlays on the posed view, the same annotation projects consistently onto any reconstructed mesh registered to that view, which is what allows the contact metric to be applied identically to the proposed method and to the baseline (\cref{sec:exp-baseline-ablation}).
 
-\begin{table}[t]
+\begin{figure}[t]
   \centering
-  \caption[Main results.]{Main result table placeholder.}
-  \label{tab:main-results}
-  \begin{tabular}{@{}lccc@{}}
-    \toprule
-    Method & Metric 1 & Metric 2 & Metric 3 \\
-    \midrule
-    Baseline & -- & -- & -- \\
-    Proposed & -- & -- & -- \\
-    \bottomrule
-  \end{tabular}
-\end{table}
+  \includegraphics[width=\textwidth]{figures/experiments_41.pdf}
+  \caption{Ground-truth contact annotation. Two interactions are shown, each as a pair: the inpainted human frame (left of the pair) and the corresponding manual contact annotation on the posed view (right of the pair). Guided by the human frame, each participating body part is painted directly onto the scene view in a distinct color following a fixed color-to-part convention, and per-part masks are then extracted by color. This mirrors the agentic contact-estimation stage of the method, with a human performing the overlay in place of the image generation model. Left pair: holding a bicycle, with hand and foot contacts. Right pair: sitting on the small wooden table, with hip and hand contacts.}
+  \label{fig:gt-contact-annotation}
+\end{figure}
 
-\section{Ablation Studies}
-\placeholder{Isolate the effect of each contribution. Keep ablations tied to the claims made in the introduction.}
+\section{Implementation Details}
+\label{sec:implementation-details}
 
-\section{Qualitative Results}
-\placeholder{Show representative successes and failures. Qualitative figures should make the method's behavior inspectable.}
+This section collects the concrete models, hyperparameters, and settings used throughout the method. Values deferred from the methodology chapter are specified here.
 
-\section{Limitations}
-\placeholder{Discuss failure cases, data bias, compute cost, assumptions, and evaluation gaps. Strong limitations make the thesis more credible.}
+\paragraph{Foundation models.} The pipeline uses pretrained foundation models for its language, image-generation, and vision-language components, all accessed through their respective APIs. The Scene Interaction Graph and the detailed interaction description are produced by Gemini~3.5~Flash. Human frame generation uses Nano~Banana~2 to inpaint a person into the posed view, and produces $N = 5$ candidate frames, from which Gemini~3.5~Flash selects the frame used downstream. In the agentic contact-estimation stage, the contact overlays are generated by GPT~Image~2, and the contact composites are verified by Gemini~3.5~Flash, which acts as the vision-language evaluator in the loop. The agentic loop runs for at most $10$ rounds, terminating early when the evaluator accepts a composite and otherwise returning the masks of the final round. Floor-support regions are segmented with SAM3. The exact prompts used for each foundation-model stage are listed in \cref{app:foundation-model-prompts}.
 
-\section{Discussion}
-\placeholder{Connect the results back to the motivation. Explain what the experiments imply for the broader research problem.}
+\paragraph{Human initialization.} The SMPL-X body is initialized with GVHMR, conditioned on the focal length of the posed view and transformed into the scene coordinate frame using the view's extrinsics, as described in \cref{sec:method-pose-init}. The neutral SMPL-X body model is used, with the shape $\boldsymbol{\beta}_0$ taken from GVHMR and held fixed throughout optimization.
+
+\paragraph{Optimization.} The scene-aware optimization minimizes the objective of \cref{eq:optimization-total-loss} with Adam at a learning rate of $10^{-3}$ for $2000$ iterations, of which the first $400$ form the rigid stage (translation and scale only) and the remaining $1600$ the pose stage (translation, orientation, pose, and scale). Gradients are clipped to a maximum norm of $5$. The loss weights are
+\begin{equation*}
+\lambda_{\mathrm{contact}} = 800, \quad
+\lambda_{\mathrm{pen}} = 60, \quad
+\lambda_{\mathrm{pose}} = 250, \quad
+\lambda_{\mathrm{orient}} = 100, \quad
+\lambda_{\mathrm{height}} = 1, \quad
+\lambda_{\mathrm{self}} = 10^{-3},
+\end{equation*}
+and are held constant over the schedule. The self-intersection term is disabled during the rigid stage, since the body pose is frozen there and cannot self-intersect, and is active during the pose stage. The penetration clearance margin is $\delta = 0$.
+
+\paragraph{Contact and penetration sampling.} Each scene-side contact target is represented by $2048$ points sampled uniformly on the projected contact faces. The penetration term samples scene points near the body from the visible scene crop and queries them against the VolumetricSMPL signed-distance field of the posed body. When an interaction specifies bilateral contacts of the same type (for example, a left-hand and a right-hand contact on the same object), the left/right assignment of the two scene-side regions is swapped if doing so reduces the total initial body-to-region distance by at least $2$~cm, which corrects occasional left/right mismatches in the initialization.
+
+\paragraph{Height prior.} The global scale is bounded so that the body's metric height lies within a plausible human range. The height prior targets $h_{\mathrm{tgt}} = 1.83$~m (6~ft~0~in) with tolerance $\sigma_h = 0.051$~m (2~in), and the scale is parameterized so that the resulting height is confined to the range $1.78$--$1.88$~m (5~ft~10~in to 6~ft~2~in). Because body identity is fixed and only a single global scale is optimized, this prior resolves the overall size ambiguity of monocular recovery without altering the body's proportions.
+
+\paragraph{Evaluation models.} The CLIP semantic-consistency metric uses the \texttt{openai/clip-vit-base-patch32} model. The vision-language rubric evaluation uses Gemini~3.5~Flash with temperature $0$ and a fixed random seed, so that the evaluation is deterministic; rendered views are resized to a maximum side of $1024$ pixels before being passed to the evaluator. The metrics themselves are defined in \cref{sec:exp-metrics}.
