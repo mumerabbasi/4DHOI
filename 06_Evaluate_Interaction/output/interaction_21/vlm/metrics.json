@@ -7,31 +7,31 @@
     "criteria": {
       "target_object_correctness": {
         "score_1_to_5": 5,
-        "reason": "The human is correctly positioned near the bed and reaching towards the purple Milka chocolate bar on the desk."
+        "reason": "The human correctly attempts to interact with the bed (sitting) and the purple Milka chocolate bar on the desk (reaching)."
       },
       "human_action_correctness": {
-        "score_1_to_5": 3,
-        "reason": "The pose resembles sitting and reaching, but because the human is completely floating and not actually supported by the bed, the action is only partially correct."
+        "score_1_to_5": 2,
+        "reason": "While the upper body pose suggests reaching, the lower body is in a hovering squat. Since there is no actual sitting support, the action of 'sitting on the bed' is not successfully performed."
       },
       "contact_and_spatial_relation": {
-        "score_1_to_5": 2,
-        "reason": "There is no contact between the human's buttocks and the bed, nor are the feet contacting the floor. The hand is hovering near the chocolate but does not establish a clear grip."
+        "score_1_to_5": 1,
+        "reason": "There is absolutely no contact between the human and the bed. The buttocks and thighs are completely suspended in the air. The feet are also floating above the floor without any contact."
       },
       "physical_plausibility": {
-        "score_1_to_5": 2,
-        "reason": "The human is completely floating in mid-air with no physical support from either the bed or the floor, which is physically impossible."
+        "score_1_to_5": 1,
+        "reason": "The human is entirely floating in mid-air with zero physical support, which is completely impossible and physically implausible."
       }
     },
     "best_view_ids": [
       1,
-      4,
-      6
+      3,
+      5
     ],
     "failure_modes": [
       "floating",
       "missing_contact"
     ],
-    "brief_summary": "The human is supposed to be sitting on the bed and reaching for the chocolate, but the entire body is floating in mid-air without making contact with the bed or the floor."
+    "brief_summary": "The human model is completely suspended in mid-air, failing to make any contact with the bed to sit on it or the floor for foot support. The physical plausibility is completely compromised due to this floating state."
   },
-  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is correctly positioned near the bed and reaching towards the purple Milka chocolate bar on the desk.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 3,\n      \"reason\": \"The pose resembles sitting and reaching, but because the human is completely floating and not actually supported by the bed, the action is only partially correct.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"There is no contact between the human's buttocks and the bed, nor are the feet contacting the floor. The hand is hovering near the chocolate but does not establish a clear grip.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The human is completely floating in mid-air with no physical support from either the bed or the floor, which is physically impossible.\"\n    }\n  },\n  \"best_view_ids\": [\n    1,\n    4,\n    6\n  ],\n  \"failure_modes\": [\n    \"floating\",\n    \"missing_contact\"\n  ],\n  \"brief_summary\": \"The human is supposed to be sitting on the bed and reaching for the chocolate, but the entire body is floating in mid-air without making contact with the bed or the floor.\"\n}"
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human correctly attempts to interact with the bed (sitting) and the purple Milka chocolate bar on the desk (reaching).\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"While the upper body pose suggests reaching, the lower body is in a hovering squat. Since there is no actual sitting support, the action of 'sitting on the bed' is not successfully performed.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 1,\n      \"reason\": \"There is absolutely no contact between the human and the bed. The buttocks and thighs are completely suspended in the air. The feet are also floating above the floor without any contact.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 1,\n      \"reason\": \"The human is entirely floating in mid-air with zero physical support, which is completely impossible and physically implausible.\"\n    }\n  },\n  \"best_view_ids\": [\n    1,\n    3,\n    5\n  ],\n  \"failure_modes\": [\n    \"floating\",\n    \"missing_contact\"\n  ],\n  \"brief_summary\": \"The human model is completely suspended in mid-air, failing to make any contact with the bed to sit on it or the floor for foot support. The physical plausibility is completely compromised due to this floating state.\"\n}"
 }
