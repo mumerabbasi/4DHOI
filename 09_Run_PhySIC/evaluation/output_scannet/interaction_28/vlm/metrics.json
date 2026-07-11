@@ -1,0 +1,37 @@
+{
+  "interaction_name": "interaction_28",
+  "interaction_instruction": "a person running on the treadmill, one foot landing on the moving belt, the other leg lifted behind, and both hands lightly holding the side handles",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is interacting with the correct target object, which is the treadmill."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 4,
+        "reason": "The overall pose resembles running with one leg lifted behind and hands positioned near the handles, but the execution is flawed due to severe penetration of the supporting leg."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 2,
+        "reason": "The left leg is deeply embedded inside the treadmill belt and base rather than making contact on top of the surface. The hands also do not establish clean, plausible contact with the handles."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 2,
+        "reason": "There is severe physical penetration as the human's left lower leg and foot are completely submerged inside the solid structure of the treadmill belt."
+      }
+    },
+    "best_view_ids": [
+      0,
+      1,
+      2
+    ],
+    "failure_modes": [
+      "penetration",
+      "severely_penetrates_target_object"
+    ],
+    "brief_summary": "The human is positioned on the treadmill in a running pose, but the supporting left leg severely penetrates through the treadmill belt and is embedded inside the machine's base, violating physical plausibility."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is interacting with the correct target object, which is the treadmill.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 4,\n      \"reason\": \"The overall pose resembles running with one leg lifted behind and hands positioned near the handles, but the execution is flawed due to severe penetration of the supporting leg.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The left leg is deeply embedded inside the treadmill belt and base rather than making contact on top of the surface. The hands also do not establish clean, plausible contact with the handles.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"There is severe physical penetration as the human's left lower leg and foot are completely submerged inside the solid structure of the treadmill belt.\"\n    }\n  },\n  \"best_view_ids\": [\n    0,\n    1,\n    2\n  ],\n  \"failure_modes\": [\n    \"penetration\",\n    \"severely_penetrates_target_object\"\n  ],\n  \"brief_summary\": \"The human is positioned on the treadmill in a running pose, but the supporting left leg severely penetrates through the treadmill belt and is embedded inside the machine's base, violating physical plausibility.\"\n}"
+}

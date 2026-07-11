@@ -1,0 +1,34 @@
+{
+  "interaction_name": "interaction_16",
+  "interaction_instruction": "a person sitting on the shelf with both hands supporting their body and both legs hanging down",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is interacting with the correct shelf/counter structure as specified in the instruction."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human pose perfectly matches the instruction: sitting on the shelf, with both hands placed on the surface to support the body, and both legs hanging down."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 5,
+        "reason": "The buttocks and thighs are in solid contact with the shelf surface, and both hands are realistically resting on the shelf to support the weight."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The pose is highly realistic and physically plausible. The body weight is supported by the shelf, and there are no floating issues or severe penetrations."
+      }
+    },
+    "best_view_ids": [
+      0,
+      1,
+      3
+    ],
+    "failure_modes": [],
+    "brief_summary": "The interaction is executed perfectly. The human is sitting on the shelf with both hands supporting the body and legs hanging down, showing excellent contact and physical plausibility."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is interacting with the correct shelf/counter structure as specified in the instruction.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human pose perfectly matches the instruction: sitting on the shelf, with both hands placed on the surface to support the body, and both legs hanging down.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The buttocks and thighs are in solid contact with the shelf surface, and both hands are realistically resting on the shelf to support the weight.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The pose is highly realistic and physically plausible. The body weight is supported by the shelf, and there are no floating issues or severe penetrations.\"\n    }\n  },\n  \"best_view_ids\": [0, 1, 3],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The interaction is executed perfectly. The human is sitting on the shelf with both hands supporting the body and legs hanging down, showing excellent contact and physical plausibility.\"\n}"
+}

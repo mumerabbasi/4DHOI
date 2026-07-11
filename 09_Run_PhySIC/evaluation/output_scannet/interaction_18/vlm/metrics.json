@@ -1,0 +1,33 @@
+{
+  "interaction_name": "interaction_18",
+  "interaction_instruction": "a person standing on the staircase and climbing onto the top bed",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is correctly interacting with the ladder/staircase of the bunk bed to climb onto the top bed."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The pose clearly depicts a climbing action, with one foot on a rung and hands reaching for the top bed rail."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 4,
+        "reason": "The right foot makes good contact with the ladder rung. The hands are very close to or touching the top bed rail, though they hover slightly rather than firmly gripping it."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 4,
+        "reason": "The pose is physically plausible for climbing. There are no major penetrations with the scene elements, though the left leg dangles freely in the air without support."
+      }
+    },
+    "best_view_ids": [
+      0,
+      2
+    ],
+    "failure_modes": [],
+    "brief_summary": "The human is successfully climbing the bunk bed ladder to reach the top bed. The pose is highly recognizable and physically plausible, with only minor hovering of the hands and a dangling left leg."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is correctly interacting with the ladder/staircase of the bunk bed to climb onto the top bed.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The pose clearly depicts a climbing action, with one foot on a rung and hands reaching for the top bed rail.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 4,\n      \"reason\": \"The right foot makes good contact with the ladder rung. The hands are very close to or touching the top bed rail, though they hover slightly rather than firmly gripping it.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 4,\n      \"reason\": \"The pose is physically plausible for climbing. There are no major penetrations with the scene elements, though the left leg dangles freely in the air without support.\"\n    }\n  },\n  \"best_view_ids\": [0, 2],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The human is successfully climbing the bunk bed ladder to reach the top bed. The pose is highly recognizable and physically plausible, with only minor hovering of the hands and a dangling left leg.\"\n}"
+}

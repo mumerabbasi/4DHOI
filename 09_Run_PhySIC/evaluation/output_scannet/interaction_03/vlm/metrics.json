@@ -1,0 +1,34 @@
+{
+  "interaction_name": "interaction_03",
+  "interaction_instruction": "a person pulling back the chair to sit down",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is interacting with the correct target object, which is the chair."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human's pose perfectly depicts the action of leaning forward and grasping the backrest of the chair to pull it back in preparation to sit down."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 5,
+        "reason": "Both hands are realistically contacting and gripping the top edge of the chair's backrest, and the feet are planted firmly on the floor."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 5,
+        "reason": "The interaction is highly plausible. The body posture is natural, balanced, and free of any significant or unrealistic penetrations with the chair, table, or surrounding environment."
+      }
+    },
+    "best_view_ids": [
+      0,
+      2,
+      4
+    ],
+    "failure_modes": [],
+    "brief_summary": "The interaction is exceptionally well-modeled. The human is realistically grasping the back of the chair to pull it out, with natural hand contact and a highly plausible, balanced standing posture."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is interacting with the correct target object, which is the chair.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human's pose perfectly depicts the action of leaning forward and grasping the backrest of the chair to pull it back in preparation to sit down.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"Both hands are realistically contacting and gripping the top edge of the chair's backrest, and the feet are planted firmly on the floor.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The interaction is highly plausible. The body posture is natural, balanced, and free of any significant or unrealistic penetrations with the chair, table, or surrounding environment.\"\n    }\n  },\n  \"best_view_ids\": [0, 2, 4],\n  \"failure_modes\": [],\n  \"brief_summary\": \"The interaction is exceptionally well-modeled. The human is realistically grasping the back of the chair to pull it out, with natural hand contact and a highly plausible, balanced standing posture.\"\n}"
+}
