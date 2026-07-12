@@ -121,3 +121,89 @@ The most faithful way to assess a synthesized interaction is human perceptual ju
 For each interaction, the rendered views are presented together to the evaluator (Gemini~3.5~Flash; \cref{sec:implementation-details}) with the interaction instruction, and the evaluator assigns four integer scores on a $1$-to-$5$ scale, following the rubric in \cref{app:vlm-rubric}. The four criteria assess complementary aspects of the interaction: \emph{target-object correctness}, whether the person interacts with the object named in the instruction; \emph{human-action correctness}, whether the pose expresses the requested action; \emph{contact and spatial relation}, whether the instruction-relevant body parts plausibly contact the correct object regions; and \emph{physical plausibility}, whether the overall arrangement has plausible support, balance, and collision behavior. The rubric caps the achievable score when characteristic failures are present; for example, contact that is clearly floating or hidden caps the contact and plausibility scores, and severe penetration caps them further. The four criterion scores and their mean are reported, averaged over the evaluation set; higher is better.
 
 Two limitations of this metric should be kept in mind. First, the criteria are ordinal rubric levels, so averaging them treats the levels as evenly spaced, which is a convenient summary convention rather than an exact numerical statement. Second, a vision-language judge is not a substitute for human perception: it may miss subtle penetration, be influenced by rendering quality, or apply the rubric inconsistently. The evaluation is therefore reported as a proxy alongside the geometric contact and penetration metrics, which are computed directly from 3D geometry and are independent of any vision-language model. The evaluator is distinct from the model used to verify contacts inside the agentic loop during synthesis, so the final evaluation does not reuse the component it is judging. Because the same evaluator, prompt, and rendering protocol are applied identically to the proposed method and to the baseline and ablations, the comparison between them remains even-handed even where the absolute scores should be read with caution.
+
+\section{Baseline and Ablation Settings}
+\label{sec:exp-baseline-ablation}
+
+The evaluation compares the full method against a set of internal ablations, which isolate the contribution of individual components, and against an external baseline, which situates the method relative to prior work. All settings are evaluated on the same 23 interactions, with the same ground-truth contact annotations, metrics, and rendering protocol, so that differences in the reported numbers reflect the method rather than the evaluation.
+
+\subsection{Ablations}
+\label{sec:exp-ablations}
+
+The ablations progressively remove components of the pipeline, isolating the effect of the scene-aware optimization and of the agentic contact loop. Three settings are compared.
+
+\paragraph{GVHMR initialization.} The first setting evaluates the SMPL-X body produced by GVHMR directly, transformed into the scene coordinate frame but without any scene-aware optimization. This measures the quality of the initialization on its own, before contact and penetration are enforced, and establishes the starting point that the optimization must improve upon. Because this body is recovered from the human frame alone and is unaware of the reconstructed scene, it is expected to satisfy contact poorly and to intersect the scene.
+
+\paragraph{Single-shot contact (no agentic verification).} The second setting runs the full pipeline, including scene-aware optimization, but replaces the agentic contact loop with a single generation. The contact overlays are taken directly from one pass of the overlay model, without any verification or correction, and used as the contact targets. Comparing this setting against the full method isolates the contribution of the agentic verify-and-correct loop specifically: both settings use the same overlay model, optimization, and initialization, and differ only in whether the contacts are verified and corrected before being projected to 3D.
+
+\paragraph{Full method.} The third setting is the complete method, in which the agentic contact loop verifies and corrects the contact regions before they are used, and the scene-aware optimization refines the body against the resulting targets. This is the configuration described in \cref{chap:methodology}.
+
+Read together, the three settings separate the effect of the two main stages: the difference between the GVHMR initialization and the full method reflects the scene-aware optimization as a whole, while the difference between the single-shot setting and the full method reflects the agentic contact loop in isolation.
+
+\subsection{Baseline}
+\label{sec:exp-baseline}
+
+The method is compared against PhySIC~\cite{muralidhar2025physic}, a recent method for physically plausible human--scene interaction and contact from a single image. PhySIC is the closest prior work that produces an SMPL-X body in metric contact with scene geometry from a single view, which makes it the most relevant external point of comparison for the contact quality that this thesis targets.
+
+\paragraph{Task difference.} The comparison is between methods that solve related but not identical problems, and this is stated plainly rather than hidden. PhySIC \emph{reconstructs} a human, the scene, and their contacts from a single image that already contains a person, whereas the proposed method \emph{synthesizes} a human into a scene from a language instruction and a reconstructed mesh. The common ground that makes the comparison meaningful is that both ultimately output an SMPL-X body in metric contact with scene geometry, and both can be judged by how well that body contacts the intended scene regions and avoids penetration. PhySIC is therefore best understood as a representative single-image human--scene reconstruction-and-contact method, included to situate the proposed method against the current state of the art on contact quality, rather than as a directly matched competitor on the same inputs.
+
+\paragraph{Protocol.} To apply PhySIC, it is given the same inpainted human frame that the proposed method generates for each interaction, so that both methods reason about the same depicted interaction. PhySIC's pipeline ordinarily begins by removing the human from the input image with an inpainting model before reconstructing the scene; this step is skipped and PhySIC is instead given the clean ground-truth scene view directly, which removes a potential source of error from its pipeline and, if anything, works in its favor. From this input PhySIC reconstructs its own scene geometry and places the body against it. Its output is evaluated exactly as produced, without modification.
+
+\paragraph{Metric consistency.} Because PhySIC reconstructs its own scene mesh, its body is expressed relative to geometry that differs from the ScanNet++ mesh used by the proposed method. The contact metric remains comparable because the ground-truth contact regions are annotated in 2D on the shared posed view (\cref{sec:exp-setup}): the same 2D annotation projects onto each method's own geometry through that method's own image-to-scene correspondence, so each method's contact is measured against the same intended contact region, mapped onto the geometry that method actually uses. Penetration is likewise measured for each method against the geometry it produces. For the rendered-view metrics, PhySIC's result is rendered from viewpoints matched as closely as possible to those used for the proposed method; because the two reconstructions differ, this matching is approximate, and the qualitative comparisons should be read as indicative of contact behavior rather than as pixel-aligned renderings.
+
+\section{Agentic Contact Localization}
+\label{sec:exp-agentic-qualitative}
+
+Before turning to the final synthesized interactions, this section examines the agentic contact-estimation stage on its own, since it is the central contribution of the method and the component the ablations single out. The question here is whether the verify-and-correct loop produces contact regions that are better localized than those from a single generation, prior to any 3D optimization. Because contact estimation operates entirely in image space, its output can be inspected directly on the posed view, which makes its behavior visible in a way the final 3D body does not always reveal.
+
+\Cref{fig:agentic-qualitative} compares, for several interactions, the generated human frame that drives contact estimation, the contact composite obtained from a single generation, and the composite accepted by the agentic loop. The single-shot composite reflects what the overlay model proposes in one pass, and it exhibits the failure modes the loop is designed to catch: a contact placed on the wrong region of the object, a required contact left unmarked, a spurious mark where no contact occurs, or a footprint of the wrong extent. The accepted composite shows the same interaction after the evaluator has inspected the masks against the generated frame and requested corrections until the contacts match the intended interaction. Across the examples, the corrected contacts are placed on the surface regions actually indicated by the interaction, on the rail a hand grips rather than beside it, on the surface a foot rests on rather than an adjacent one, and cover an extent consistent with the contacting body part.
+
+These image-space corrections matter because the composites are projected directly to the scene mesh as the optimization targets. A contact that is mislocalized in the composite becomes a mislocalized 3D target, which the optimization will then faithfully satisfy, drawing the body to the wrong place. The loop therefore does not merely improve the appearance of the annotation; it changes the target the body is optimized toward, which is why its effect propagates through to the geometric contact results reported in \cref{sec:exp-quantitative}. The qualitative improvement seen here is the image-space counterpart of the quantitative gap between the single-shot and full-method settings.
+
+\begingroup
+% --- Generic row helper for the agentic contact figure ---
+% Fixed display box per cell so all three images in a row align.
+\newlength{\accellw}\setlength{\accellw}{0.31\textwidth}%
+\newlength{\accellh}\setlength{\accellh}{0.13\textheight}%
+% \acrow{basename}: expects figures/agentic_contact/<basename>_human.png,
+% _singleshot.png, and _agentic.png
+\newcommand{\acrow}[1]{%
+  \includegraphics[width=\accellw,height=\accellh,keepaspectratio]{figures/agentic_contact/#1_human.png} &
+  \includegraphics[width=\accellw,height=\accellh,keepaspectratio]{figures/agentic_contact/#1_singleshot.png} &
+  \includegraphics[width=\accellw,height=\accellh,keepaspectratio]{figures/agentic_contact/#1_agentic.png} \\[3pt]}
+\newcommand{\acheader}{%
+  {\small\bfseries Human frame} &
+  {\small\bfseries Single-shot contact} &
+  {\small\bfseries Agentic contact} \\[4pt]}
+
+\begin{figure}[p]
+  \centering
+  \setlength{\tabcolsep}{7pt}%
+  \renewcommand{\arraystretch}{0.6}%
+  \begin{tabular}{ccc}
+    \acheader
+    \acrow{table}
+    \acrow{shower}
+    \acrow{bicycle}
+    \acrow{drawer}
+    \acrow{cupboard}
+  \end{tabular}
+  \caption{Agentic contact localization, shown in image space before 3D optimization. Each row is one interaction. Left: the generated human frame that drives contact estimation. Middle: the contact composite from a single generation, which may place a contact on the wrong object region, omit a required contact, add a spurious one, or use a footprint of the wrong extent. Right: the composite accepted by the agentic verify-and-correct loop, in which the evaluator has corrected the masks against the generated frame until the contacts match the intended interaction. Because these composites are projected directly to the scene mesh as optimization targets, correcting them in image space is what corrects the 3D contact the body is optimized toward.}
+  \label{fig:agentic-qualitative}
+\end{figure}
+
+\begin{figure}[p]
+  \ContinuedFloat
+  \centering
+  \setlength{\tabcolsep}{7pt}%
+  \renewcommand{\arraystretch}{0.6}%
+  \begin{tabular}{ccc}
+    \acheader
+    \acrow{pullup}
+    \acrow{bathtub}
+    \acrow{ladder}
+    \acrow{blind}
+  \end{tabular}
+  \caption[]{Agentic contact localization (continued).}
+\end{figure}
+\endgroup
