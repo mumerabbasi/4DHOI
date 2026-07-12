@@ -1,6 +1,39 @@
 \chapter{Additional Material}
 \label{app:additional-material}
 
+\section{Evaluation Scene Mapping}
+\label{app:scene-mapping}
+
+The 23 evaluation interactions of \cref{tab:exp-interactions} are defined over 15 ScanNet++ scenes. \Cref{tab:scene-mapping} gives the scene identifier and official ScanNet++ scene type for each scene, together with the interaction numbers that use it. Rows with multiple interaction numbers indicate that several instructions are evaluated in different views of the same reconstructed scene.
+
+\begin{table}[htbp]
+  \centering
+  \caption[Evaluation scene mapping.]{Mapping from the 15 ScanNet++ scenes to the 23 evaluation interactions. Scene types follow the official ScanNet++ metadata.}
+  \label{tab:scene-mapping}
+  \small
+  \begin{tabularx}{\textwidth}{@{}l l X@{}}
+    \toprule
+    Scene ID & Scene type & Interaction numbers in \cref{tab:exp-interactions} \\
+    \midrule
+    \texttt{442b144761} & Conference room & 1, 10 \\
+    \texttt{6126572846} & Conference room & 2, 3 \\
+    \texttt{c085ff3df4} & Bathroom & 4--9 \\
+    \texttt{eea4ad9c04} & Living room / lounge & 11, 12 \\
+    \texttt{c173f62b15} & Living room / lounge & 13 \\
+    \texttt{e86c6742b9} & Bedroom / hotel & 14 \\
+    \texttt{32280ecbca} & Bedroom / hotel & 15 \\
+    \texttt{d902931864} & Apartment & 16 \\
+    \texttt{5166da6131} & Office & 17 \\
+    \texttt{bfcfe53c6a} & Apartment & 18 \\
+    \texttt{4d451d9c36} & Office & 19 \\
+    \texttt{7692b88644} & Gym & 20 \\
+    \texttt{6ffdcc3022} & Bathroom & 21 \\
+    \texttt{c856c41c99} & Gym & 22 \\
+    \texttt{d110b8f8b0} & Bedroom / hotel & 23 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
 \section{Foundation Model Prompts}
 \label{app:foundation-model-prompts}
 
