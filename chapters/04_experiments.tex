@@ -165,12 +165,12 @@ These image-space corrections matter because the composites are projected direct
 % Fixed display box per cell so all three images in a row align.
 \newlength{\accellw}\setlength{\accellw}{0.31\textwidth}%
 \newlength{\accellh}\setlength{\accellh}{0.13\textheight}%
-% \acrow{basename}: expects figures/agentic_contact/<basename>_human.png,
-% _singleshot.png, and _agentic.png
+% \acrow{basename}: expects figures/agentic_contact/<basename>_human.jpg,
+% _singleshot.jpg, and _agentic.jpg
 \newcommand{\acrow}[1]{%
-  \includegraphics[width=\accellw,height=\accellh,keepaspectratio]{figures/agentic_contact/#1_human.png} &
-  \includegraphics[width=\accellw,height=\accellh,keepaspectratio]{figures/agentic_contact/#1_singleshot.png} &
-  \includegraphics[width=\accellw,height=\accellh,keepaspectratio]{figures/agentic_contact/#1_agentic.png} \\[3pt]}
+  \includegraphics[width=\accellw,height=\accellh,keepaspectratio]{figures/agentic_contact/#1_human.jpg} &
+  \includegraphics[width=\accellw,height=\accellh,keepaspectratio]{figures/agentic_contact/#1_singleshot.jpg} &
+  \includegraphics[width=\accellw,height=\accellh,keepaspectratio]{figures/agentic_contact/#1_agentic.jpg} \\[3pt]}
 \newcommand{\acheader}{%
   {\small\bfseries Human frame} &
   {\small\bfseries Single-shot contact} &
@@ -279,24 +279,24 @@ Compared with PhySIC, the proposed method localizes contact more precisely. PhyS
 \begin{landscape}
 \begingroup
     \newlength{\qcellw}\setlength{\qcellw}{0.125\linewidth}%
-    \newlength{\qcellh}\setlength{\qcellh}{0.08\linewidth}%
+    \newlength{\qcellh}\setlength{\qcellh}{0.093\linewidth}%
     % \qrow{basename}{instruction text}
     % expects, under figures/qualitative/:
-    %   <basename>_frame.png                             (generated human frame)
-    %   <basename>_ours1.png,   <basename>_ours2.png    (full method, two views)
-    %   <basename>_single1.png, <basename>_single2.png  (single-shot, two views)
-    %   <basename>_physic1.png, <basename>_physic2.png  (PhySIC, two views)
+    %   <basename>_frame.jpg                             (generated human frame)
+    %   <basename>_ours1.jpg,   <basename>_ours2.jpg    (full method, two views)
+    %   <basename>_single1.jpg, <basename>_single2.jpg  (single-shot, two views)
+    %   <basename>_physic1.jpg, <basename>_physic2.jpg  (PhySIC, two views)
     \newcommand{\qrow}[2]{%
       \begin{minipage}[c]{\linewidth}\footnotesize\centering
         #2\par\smallskip
-        \includegraphics[width=\linewidth,height=\qcellh,keepaspectratio]{figures/qualitative/#1_frame.png}
+        \includegraphics[width=\linewidth,height=\qcellh,keepaspectratio]{figures/qualitative/#1_frame.jpg}
       \end{minipage} &
-      \includegraphics[width=\qcellw,height=\qcellh,keepaspectratio]{figures/qualitative/#1_ours1.png} &
-      \includegraphics[width=\qcellw,height=\qcellh,keepaspectratio]{figures/qualitative/#1_ours2.png} &
-      \includegraphics[width=\qcellw,height=\qcellh,keepaspectratio]{figures/qualitative/#1_single1.png} &
-      \includegraphics[width=\qcellw,height=\qcellh,keepaspectratio]{figures/qualitative/#1_single2.png} &
-      \includegraphics[width=\qcellw,height=\qcellh,keepaspectratio]{figures/qualitative/#1_physic1.png} &
-      \includegraphics[width=\qcellw,height=\qcellh,keepaspectratio]{figures/qualitative/#1_physic2.png} \\
+      \includegraphics[width=\qcellw,height=\qcellh,keepaspectratio]{figures/qualitative/#1_ours1.jpg} &
+      \includegraphics[width=\qcellw,height=\qcellh,keepaspectratio]{figures/qualitative/#1_ours2.jpg} &
+      \includegraphics[width=\qcellw,height=\qcellh,keepaspectratio]{figures/qualitative/#1_single1.jpg} &
+      \includegraphics[width=\qcellw,height=\qcellh,keepaspectratio]{figures/qualitative/#1_single2.jpg} &
+      \includegraphics[width=\qcellw,height=\qcellh,keepaspectratio]{figures/qualitative/#1_physic1.jpg} &
+      \includegraphics[width=\qcellw,height=\qcellh,keepaspectratio]{figures/qualitative/#1_physic2.jpg} \\
       \addlinespace[4pt]}
     \newcommand{\qheader}{%
       \toprule
@@ -316,7 +316,7 @@ Compared with PhySIC, the proposed method localizes contact more precisely. PhyS
       \qrow{bicyclesit}{A person sitting on the bicycle with both hands on the handle}
       \bottomrule
     \end{tabular}
-    \caption{Qualitative comparison on nine interactions. The leftmost cell of each row gives the exact interaction instruction and the generated human frame that drives the pipeline. The remaining columns show two rendered views of the final result for the full method (Ours), the single-shot setting without the agentic loop (Single-shot), and PhySIC, each result shown from two viewpoints chosen to reveal the contacting body parts. Two views are used because contact is a three-dimensional property that a single view can hide. The GVHMR initialization is shown separately in \cref{fig:optimization-before-after}. Because PhySIC reconstructs its own scene geometry, its viewpoints are matched only approximately.}
+    \caption[Qualitative comparison on nine interactions.]{Qualitative comparison on nine interactions. The leftmost cell shows the exact instruction and generated human frame; the remaining columns show two views each for Ours, Single-shot, and PhySIC.}
     \label{fig:exp-qualitative-gallery}
   \end{figure}
 
