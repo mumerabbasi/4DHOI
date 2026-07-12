@@ -765,4 +765,109 @@ This section gives the rubric used by the vision-language evaluator of \cref{sec
 \end{table}
  
 The reported per-interaction score is the mean of the four criterion scores, and the dataset-level scores are the means of the per-interaction values, computed independently for each criterion and for the mean.
+
+\clearpage
+\section{Additional Qualitative Results}
+\label{app:qualitative-gallery}
+
+This section complements the nine interactions shown in \cref{fig:exp-qualitative-gallery} with the remaining fourteen evaluation interactions, in their evaluation-set order. The layout and view selection follow the main qualitative gallery.
+
+\begin{landscape}
+\begingroup
+    \newlength{\aqcellw}\setlength{\aqcellw}{0.125\linewidth}%
+    \newlength{\aqcellh}\setlength{\aqcellh}{0.08\linewidth}%
+    \newcommand{\aqrow}[2]{%
+      \begin{minipage}[c]{\linewidth}\footnotesize\centering
+        #2\par\smallskip
+        \includegraphics[width=\linewidth,height=\aqcellh,keepaspectratio]{figures/qualitative/#1_frame.png}
+      \end{minipage} &
+      \includegraphics[width=\aqcellw,height=\aqcellh,keepaspectratio]{figures/qualitative/#1_ours1.png} &
+      \includegraphics[width=\aqcellw,height=\aqcellh,keepaspectratio]{figures/qualitative/#1_ours2.png} &
+      \includegraphics[width=\aqcellw,height=\aqcellh,keepaspectratio]{figures/qualitative/#1_single1.png} &
+      \includegraphics[width=\aqcellw,height=\aqcellh,keepaspectratio]{figures/qualitative/#1_single2.png} &
+      \includegraphics[width=\aqcellw,height=\aqcellh,keepaspectratio]{figures/qualitative/#1_physic1.png} &
+      \includegraphics[width=\aqcellw,height=\aqcellh,keepaspectratio]{figures/qualitative/#1_physic2.png} \\
+      \addlinespace[4pt]}
+    \newcommand{\aqheader}{%
+      \toprule
+      & \multicolumn{2}{c}{Ours} & \multicolumn{2}{c}{Single-shot} & \multicolumn{2}{c}{PhySIC} \\
+      \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+      Interaction & View 1 & View 2 & View 1 & View 2 & View 1 & View 2 \\
+      \midrule}
+
+  \begin{figure}[p]
+    \centering
+    \setlength{\tabcolsep}{3pt}
+    \small
+    \begin{tabular}{@{}p{0.17\linewidth} cc cc cc@{}}
+      \aqheader
+      \aqrow{table}{A person sitting on the small wooden table}
+      \aqrow{chair}{A person pulling back the chair to sit down}
+      \aqrow{door}{A person opening the door}
+      \bottomrule
+    \end{tabular}
+    \caption[Additional qualitative comparisons.]{Additional qualitative comparisons for the fourteen interactions not shown in the main gallery. The layout follows \cref{fig:exp-qualitative-gallery}: the leftmost cell contains the exact interaction instruction and generated human frame, followed by two views each for the full method, the single-shot setting, and PhySIC.}
+    \label{fig:app-qualitative-gallery}
+  \end{figure}
+
+  \begin{figure}[p]
+    \ContinuedFloat
+    \centering
+    \setlength{\tabcolsep}{3pt}
+    \small
+    \begin{tabular}{@{}p{0.17\linewidth} cc cc cc@{}}
+      \aqheader
+      \aqrow{faucet}{A person turning on the faucet}
+      \aqrow{washingmachine}{A person opening the washing machine door}
+      \aqrow{coffee}{A person making coffee}
+      \bottomrule
+    \end{tabular}
+    \caption[]{Additional qualitative comparisons (continued).}
+  \end{figure}
+
+  \begin{figure}[p]
+    \ContinuedFloat
+    \centering
+    \setlength{\tabcolsep}{3pt}
+    \small
+    \begin{tabular}{@{}p{0.17\linewidth} cc cc cc@{}}
+      \aqheader
+      \aqrow{shower}{A person taking a shower}
+      \aqrow{vacuum}{A person taking out the vacuum cleaner with both hands}
+      \aqrow{sofaplant}{A person sitting on the side of the sofa, playing with the leaves of a nearby potted plant using both hands}
+      \bottomrule
+    \end{tabular}
+    \caption[]{Additional qualitative comparisons (continued).}
+  \end{figure}
+
+  \begin{figure}[p]
+    \ContinuedFloat
+    \centering
+    \setlength{\tabcolsep}{3pt}
+    \small
+    \begin{tabular}{@{}p{0.17\linewidth} cc cc cc@{}}
+      \aqheader
+      \aqrow{shelf}{A person sitting on the shelf with both hands supporting their body and both legs hanging down}
+      \aqrow{lamp}{A person sitting on the bed and reaching to turn off the bedside lamp}
+      \aqrow{chocolate}{A person sitting on the bed and reaching for the chocolate nearby}
+      \bottomrule
+    \end{tabular}
+    \caption[]{Additional qualitative comparisons (continued).}
+  \end{figure}
+
+  \begin{figure}[p]
+    \ContinuedFloat
+    \centering
+    \setlength{\tabcolsep}{3pt}
+    \small
+    \begin{tabular}{@{}p{0.17\linewidth} cc cc cc@{}}
+      \aqheader
+      \aqrow{drawer}{A person bending down at the lower drawer, one hand pulling the cabinet door open and the other holding the counter edge for balance}
+      \aqrow{treadmill}{A person running on the treadmill, one foot on the belt, the other leg lifted behind, and both hands holding the side handles}
+      \bottomrule
+    \end{tabular}
+    \caption[]{Additional qualitative comparisons (continued).}
+  \end{figure}
+\endgroup
+\end{landscape}
  

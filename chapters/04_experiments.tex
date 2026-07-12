@@ -51,7 +51,7 @@ The instructions also vary in the number and type of contacts they require. Some
 \begin{figure}[t]
   \centering
   \includegraphics[width=\textwidth]{figures/experiments_41.pdf}
-  \caption{Ground-truth contact annotation. Two interactions are shown, each as a pair: the inpainted human frame (left of the pair) and the corresponding manual contact annotation on the posed view (right of the pair). Guided by the human frame, each participating body part is painted directly onto the scene view in a distinct color following a fixed color-to-part convention, and per-part masks are then extracted by color. This mirrors the agentic contact-estimation stage of the method, with a human performing the overlay in place of the image generation model. Left pair: holding a bicycle, with hand and foot contacts. Right pair: sitting on the small wooden table, with hip and hand contacts.}
+  \caption[Ground-truth contact annotation.]{Ground-truth contact annotation. Two interactions are shown, each as a pair: the inpainted human frame (left of the pair) and the corresponding manual contact annotation on the posed view (right of the pair). Guided by the human frame, each participating body part is painted directly onto the scene view in a distinct color following a fixed color-to-part convention, and per-part masks are then extracted by color. This mirrors the agentic contact-estimation stage of the method, with a human performing the overlay in place of the image generation model. Left pair: holding a bicycle, with hand and foot contacts. Right pair: sitting on the small wooden table, with hip and hand contacts.}
   \label{fig:gt-contact-annotation}
 \end{figure}
 
@@ -188,7 +188,7 @@ These image-space corrections matter because the composites are projected direct
     \acrow{drawer}
     \acrow{cupboard}
   \end{tabular}
-  \caption{Agentic contact localization, shown in image space before 3D optimization. Each row is one interaction. Left: the generated human frame that drives contact estimation. Middle: the contact composite from a single generation, which may place a contact on the wrong object region, omit a required contact, add a spurious one, or use a footprint of the wrong extent. Right: the composite accepted by the agentic verify-and-correct loop, in which the evaluator has corrected the masks against the generated frame until the contacts match the intended interaction. Because these composites are projected directly to the scene mesh as optimization targets, correcting them in image space is what corrects the 3D contact the body is optimized toward.}
+  \caption[Agentic contact localization.]{Agentic contact localization, shown in image space before 3D optimization. Each row is one interaction. Left: the generated human frame that drives contact estimation. Middle: the contact composite from a single generation, which may place a contact on the wrong object region, omit a required contact, add a spurious one, or use a footprint of the wrong extent. Right: the composite accepted by the agentic verify-and-correct loop, in which the evaluator has corrected the masks against the generated frame until the contacts match the intended interaction. Because these composites are projected directly to the scene mesh as optimization targets, correcting them in image space is what corrects the 3D contact the body is optimized toward.}
   \label{fig:agentic-qualitative}
 \end{figure}
 
@@ -207,3 +207,148 @@ These image-space corrections matter because the composites are projected direct
   \caption[]{Agentic contact localization (continued).}
 \end{figure}
 \endgroup
+
+\section{Quantitative Results}
+\label{sec:exp-quantitative}
+
+\Cref{tab:exp-quantitative} reports the metrics of \cref{sec:exp-metrics} for the full method, the two ablations, and the PhySIC baseline, averaged over the 23 interactions. The metrics are grouped into physical plausibility, semantics, vision-language evaluation, and diversity. The discussion below follows the two comparisons the settings were designed to isolate: the effect of the scene-aware optimization, and the effect of the agentic contact loop.
+
+\begin{table}[t]
+  \centering
+  \caption{Quantitative results over the 23 evaluation interactions. Arrows indicate whether higher ($\uparrow$) or lower ($\downarrow$) is better; the best value in each column is in bold. Contact and penetration are mean distances in metres; CLIP is cosine similarity; the vision-language (VLM) scores are on the $1$--$5$ rubric of \cref{sec:exp-metrics-vlm}, reported per criterion and as their mean. Diversity is reported for reference and is not a quality measure.}
+  \label{tab:exp-quantitative}
+  \small
+  \setlength{\tabcolsep}{4pt}
+  \resizebox{\textwidth}{!}{%
+  \begin{tabular}{@{}l cc c ccccc cc@{}}
+    \toprule
+    & \multicolumn{2}{c}{Physical plausibility} & Semantics & \multicolumn{5}{c}{VLM evaluation ($1$--$5$)} & \multicolumn{2}{c}{Diversity} \\
+    \cmidrule(lr){2-3} \cmidrule(lr){4-4} \cmidrule(lr){5-9} \cmidrule(lr){10-11}
+    Method
+      & Contact$\downarrow$ & Pen.$\downarrow$
+      & CLIP$\uparrow$
+      & Obj.$\uparrow$ & Act.$\uparrow$ & Cont.$\uparrow$ & Phys.$\uparrow$ & Mean$\uparrow$
+      & Ent. & Spr. \\
+    \midrule
+    Full method
+      & \textbf{0.039} & \textbf{0.005}
+      & \textbf{0.272}
+      & \textbf{5.00} & \textbf{4.39} & \textbf{4.00} & \textbf{4.04} & \textbf{4.36}
+      & 2.55 & 2.68 \\
+    \quad w/o agentic loop (single-shot)
+      & 0.070 & \textbf{0.005}
+      & 0.271
+      & \textbf{5.00} & \textbf{4.39} & 3.83 & 3.87 & 4.27
+      & 2.55 & 2.58 \\
+    \quad GVHMR initialization
+      & 0.163 & 0.017
+      & 0.270
+      & \textbf{5.00} & 3.65 & 2.87 & 3.48 & 3.75
+      & 2.57 & 2.65 \\
+    \midrule
+    PhySIC~\cite{muralidhar2025physic}
+      & 0.242 & 0.011
+      & 0.259
+      & 4.87 & 4.04 & 3.48 & 3.78 & 4.04
+      & 2.59 & 2.57 \\
+    \bottomrule
+  \end{tabular}
+  }
+\end{table}
+
+\paragraph{Effect of scene-aware optimization.} Comparing the GVHMR initialization with the full method isolates the effect of the scene-aware optimization as a whole. The initialization, recovered from the human frame without knowledge of the scene, attains a mean contact distance of $0.163$~m and the highest mean penetration of any setting at $0.017$~m, confirming that a body which looks correct in the image is not, on its own, in metric contact with the scene and frequently intersects it. The optimization reduces the mean contact distance to $0.039$~m and the mean penetration to $0.005$~m, and the vision-language contact and physical-plausibility scores rise correspondingly, the contact score from $2.87$ to $4.00$ and the plausibility score from $3.48$ to $4.04$. This is the expected behavior: the optimization exists precisely to pull the initialized body into contact with the scene while resolving penetration, and the metrics reflect both effects.
+
+\paragraph{Effect of the agentic contact loop.} The comparison that isolates the central contribution is between the single-shot setting and the full method, which are identical except for whether the contact regions are verified and corrected before being used. Adding the agentic loop reduces the mean contact distance from $0.070$~m to $0.039$~m, a reduction of roughly $45\%$, and raises the vision-language contact score from $3.83$ to $4.00$. The penetration metrics are essentially unchanged between the two, which is what one would expect: the loop corrects \emph{where} contact is localized, not whether the body penetrates the scene, and the two settings share the same penetration term. The improvement is therefore concentrated on exactly the axis the loop is designed to affect, the accuracy of the scene-side contact, which supports the claim that verifying and correcting the contacts, rather than accepting a single generation, is what sharpens the final contact.
+
+\paragraph{Comparison with PhySIC.} The full method attains a substantially lower mean contact distance than PhySIC, $0.039$~m against $0.242$~m, and lower mean penetration, $0.005$~m against $0.011$~m, despite PhySIC having been given the clean ground-truth scene image as input (\cref{sec:exp-baseline}). The vision-language scores show the same ordering, with the full method ahead on the contact and action criteria in particular. The gap is widest on contact distance, which is the quantity most directly tied to the fine-grained, per-body-part contact localization this thesis targets: PhySIC produces a plausible body in the scene, but its contacts are less precisely placed on the intended surface regions, whereas the proposed method localizes and verifies those regions explicitly before fitting the body to them.
+
+\paragraph{Semantics and diversity.} The CLIP scores are close across all settings, ranging only from $0.259$ to $0.272$, with the full method highest and PhySIC lowest. The narrow spread is consistent with the role of CLIP discussed in \cref{sec:exp-metrics-clip}: it measures whether the rendered interaction broadly matches the instruction, which all settings achieve, and it is not sensitive to the fine-grained contact differences that separate them. The vision-language target-object score is likewise saturated at or near the maximum for every setting, indicating that all of them place the person on the object named in the instruction; the criteria that discriminate between settings are contact and physical plausibility, not object identity. The diversity metrics are similar across settings, which indicates that the improvements in contact and plausibility are not obtained by collapsing to a narrow set of poses: the method preserves the variation present in the initialization rather than sacrificing it for contact accuracy.
+
+
+\section{Qualitative Results}
+\label{sec:exp-qualitative}
+
+This section presents the synthesized interactions visually and compares them against the single-shot ablation and the PhySIC baseline. Because correct contact is a three-dimensional property that a single viewpoint can hide, each result is shown from two views, chosen to reveal the contacting body parts. \Cref{fig:exp-qualitative-gallery} shows nine interactions selected to span the range of contact types, from support interactions to fine-grained functional contacts on ladders, bars, handles, and rails. The interactions appear in their evaluation-set order. For each interaction the figure shows the exact instruction together with the generated human frame, and then two rendered views of the final result under three settings: the full method, the single-shot setting without the agentic loop, and PhySIC. The GVHMR initialization is not repeated here, as its effect is shown in \cref{fig:optimization-before-after} and quantified in \cref{tab:exp-quantitative}; this figure focuses on the final results and the comparisons between them. The remaining fourteen interactions are shown in \cref{app:qualitative-gallery}.
+
+Across the gallery, the full method places the contacting body parts on the surface regions the interaction requires, and the two views make this legible: a contact that appears correct from one view and is in fact offset is exposed by the second. The effect is clearest for the fine-grained interactions, where the hands and feet must meet a specific rung, bar, handle, or rail rather than the object as a whole.
+
+The comparison with the single-shot setting is subtle in the final renders, since both settings run the same optimization and often reach similar poses. Where they differ is exactly where the single generation mislocalized a contact: the single-shot body is then optimized toward the wrong region and settles onto the wrong part of the object, while the full method, having corrected the contact beforehand, meets the intended region. The two views are what make this difference visible, since the offset is often apparent only from the view that looks along the contact.
+
+Compared with PhySIC, the proposed method localizes contact more precisely. PhySIC generally recovers a plausible overall arrangement, but its contacting parts are less tightly placed on the intended surfaces, and for the fine-grained interactions they are frequently offset from the required region. As noted in \cref{sec:exp-baseline}, PhySIC reconstructs its own scene geometry and is rendered from an approximately matched viewpoint, so these comparisons are indicative of contact behavior rather than pixel-aligned; the visible difference in contact precision is consistent with the gap in mean contact distance reported in \cref{sec:exp-quantitative}.
+
+\begin{landscape}
+\begingroup
+    \newlength{\qcellw}\setlength{\qcellw}{0.125\linewidth}%
+    \newlength{\qcellh}\setlength{\qcellh}{0.08\linewidth}%
+    % \qrow{basename}{instruction text}
+    % expects, under figures/qualitative/:
+    %   <basename>_frame.png                             (generated human frame)
+    %   <basename>_ours1.png,   <basename>_ours2.png    (full method, two views)
+    %   <basename>_single1.png, <basename>_single2.png  (single-shot, two views)
+    %   <basename>_physic1.png, <basename>_physic2.png  (PhySIC, two views)
+    \newcommand{\qrow}[2]{%
+      \begin{minipage}[c]{\linewidth}\footnotesize\centering
+        #2\par\smallskip
+        \includegraphics[width=\linewidth,height=\qcellh,keepaspectratio]{figures/qualitative/#1_frame.png}
+      \end{minipage} &
+      \includegraphics[width=\qcellw,height=\qcellh,keepaspectratio]{figures/qualitative/#1_ours1.png} &
+      \includegraphics[width=\qcellw,height=\qcellh,keepaspectratio]{figures/qualitative/#1_ours2.png} &
+      \includegraphics[width=\qcellw,height=\qcellh,keepaspectratio]{figures/qualitative/#1_single1.png} &
+      \includegraphics[width=\qcellw,height=\qcellh,keepaspectratio]{figures/qualitative/#1_single2.png} &
+      \includegraphics[width=\qcellw,height=\qcellh,keepaspectratio]{figures/qualitative/#1_physic1.png} &
+      \includegraphics[width=\qcellw,height=\qcellh,keepaspectratio]{figures/qualitative/#1_physic2.png} \\
+      \addlinespace[4pt]}
+    \newcommand{\qheader}{%
+      \toprule
+      & \multicolumn{2}{c}{Ours} & \multicolumn{2}{c}{Single-shot} & \multicolumn{2}{c}{PhySIC} \\
+      \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+      Interaction & View 1 & View 2 & View 1 & View 2 & View 1 & View 2 \\
+      \midrule}
+
+  \begin{figure}[p]
+    \centering
+    \setlength{\tabcolsep}{3pt}
+    \small
+    \begin{tabular}{@{}p{0.17\linewidth} cc cc cc@{}}
+      \qheader
+      \qrow{curtain}{A person opening a curtain}
+      \qrow{lifttable}{A person lifting the small wooden table with both hands}
+      \qrow{bicyclesit}{A person sitting on the bicycle with both hands on the handle}
+      \bottomrule
+    \end{tabular}
+    \caption{Qualitative comparison on nine interactions. The leftmost cell of each row gives the exact interaction instruction and the generated human frame that drives the pipeline. The remaining columns show two rendered views of the final result for the full method (Ours), the single-shot setting without the agentic loop (Single-shot), and PhySIC, each result shown from two viewpoints chosen to reveal the contacting body parts. Two views are used because contact is a three-dimensional property that a single view can hide. The GVHMR initialization is shown separately in \cref{fig:optimization-before-after}. Because PhySIC reconstructs its own scene geometry, its viewpoints are matched only approximately.}
+    \label{fig:exp-qualitative-gallery}
+  \end{figure}
+
+  \begin{figure}[p]
+    \ContinuedFloat
+    \centering
+    \setlength{\tabcolsep}{3pt}
+    \small
+    \begin{tabular}{@{}p{0.17\linewidth} cc cc cc@{}}
+      \qheader
+      \qrow{staircasebed}{A person standing on the staircase and climbing onto the top bed}
+      \qrow{bicyclestand}{A person removing the bicycle from its stand with one foot while holding the bike with both hands}
+      \qrow{stepladder}{A person climbing the step ladder, both feet on the ladder, reaching for the top of the cupboard}
+      \bottomrule
+    \end{tabular}
+    \caption[]{Qualitative comparison on nine interactions (continued).}
+  \end{figure}
+
+  \begin{figure}[p]
+    \ContinuedFloat
+    \centering
+    \setlength{\tabcolsep}{3pt}
+    \small
+    \begin{tabular}{@{}p{0.17\linewidth} cc cc cc@{}}
+      \qheader
+      \qrow{pullup}{A person hanging from the pull-up bar with both hands, knees tucked upward, and both feet off the floor}
+      \qrow{bathtub}{A person stepping over the bathtub wall, one foot inside the tub, one hand holding the side glass for balance}
+      \qrow{ladderdown}{A person stepping down from the ladder, both feet on ladder steps and both hands gripping the ladder frame}
+      \bottomrule
+    \end{tabular}
+    \caption[]{Qualitative comparison on nine interactions (continued).}
+  \end{figure}
+\endgroup
+\end{landscape}
+\clearpage
