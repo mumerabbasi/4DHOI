@@ -12,7 +12,7 @@ The instructions also vary in the number and type of contacts they require. Some
 
 \begin{table}[t]
   \centering
-  \caption{The 23 evaluation interactions, each with a number used to refer to it elsewhere in this chapter, and the type of scene in which it is defined. The mapping from each interaction to its ScanNet++ scene is given in \cref{app:scene-mapping}.}
+  \caption[Evaluation interactions.]{The 23 evaluation interactions, each with a number used to refer to it elsewhere in this chapter, and the type of scene in which it is defined. The mapping from each interaction to its ScanNet++ scene is given in \cref{app:scene-mapping}.}
   \label{tab:exp-interactions}
   \small
   \begin{tabularx}{\textwidth}{@{}llX@{}}
@@ -51,7 +51,7 @@ The instructions also vary in the number and type of contacts they require. Some
 \begin{figure}[t]
   \centering
   \includegraphics[width=\textwidth]{figures/experiments_41.pdf}
-  \caption{Ground-truth contact annotation, shown for two interactions side by side. \emph{Bicycle Interaction}: the generated human frame (left) and the corresponding manual contact annotation on the posed view (right), with hand and foot contacts. \emph{Table Interaction}: the generated human frame (left) and its manual contact annotation (right), with hip and hand contacts. Guided by the human frame, each participating body part is painted directly onto the scene view in a distinct color following a fixed color-to-part convention, and per-part masks are then extracted by color. This mirrors the agentic contact-estimation stage of the method, with a human performing the overlay in place of the image generation model.}
+  \caption[Ground-truth contact annotation.]{Ground-truth contact annotation, shown for two interactions side by side. \emph{Bicycle Interaction}: the generated human frame (left) and the corresponding manual contact annotation on the posed view (right), with hand and foot contacts. \emph{Table Interaction}: the generated human frame (left) and its manual contact annotation (right), with hip and hand contacts. Guided by the human frame, each participating body part is painted directly onto the scene view in a distinct color following a fixed color-to-part convention, and per-part masks are then extracted by color. This mirrors the agentic contact-estimation stage of the method, with a human performing the overlay in place of the image generation model.}
   \label{fig:gt-contact-annotation}
 \end{figure}
 

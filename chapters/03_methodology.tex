@@ -82,16 +82,27 @@ The synthesis problem is then to find SMPL-X parameters whose body-side contact 
 \theta^{\ast} = \operatorname*{arg\,min}_{\mathbf{T},\, \mathbf{r},\, \mathbf{p},\, s} \; \mathcal{L}_{\mathrm{total}}(\theta),
 \qquad \boldsymbol{\beta} = \boldsymbol{\beta}_0.
 \end{equation}
-The following sections describe how the graph $G$, the human initialization $\theta_0$, and the scene-side contact targets $P_e^s$ are obtained.
+\Cref{tab:method-notation} summarizes the notation used throughout this chapter. The following sections describe how the graph $G$, the human initialization $\theta_0$, and the scene-side contact targets $P_e^s$ are obtained.
 
-\begin{table}[t]
-  \centering
-  \caption[Methodology notation.]{Notation used throughout the methodology chapter.}
-  \label{tab:method-notation}
-  \begin{tabularx}{\textwidth}{@{}>{\bfseries}p{0.15\textwidth}X@{}}
+\begingroup
+\small
+\setlength{\LTcapwidth}{\textwidth}
+\begin{longtable}{@{}>{\raggedright\arraybackslash\bfseries}p{0.24\textwidth}>{\raggedright\arraybackslash}p{0.72\textwidth}@{}}
+    \caption[Methodology notation.]{Notation used throughout the methodology chapter.}
+    \label{tab:method-notation}\\
     \toprule
     Symbol & Meaning \\
     \midrule
+    \endfirsthead
+    \caption[]{Notation used throughout the methodology chapter (continued).}\\
+    \toprule
+    Symbol & Meaning \\
+    \midrule
+    \endhead
+    \bottomrule
+    \endfoot
+    \bottomrule
+    \endlastfoot
     \multicolumn{2}{@{}l}{\emph{Inputs and scene}}\\
     $I$ & Posed RGB view selected by the user from a ScanNet++ scene. \\
     $K$ & Camera intrinsic matrix. \\
@@ -142,9 +153,8 @@ The following sections describe how the graph $G$, the human initialization $\th
     $\lambda_{(\cdot)}$ & Loss weights of the total objective. \\
     $\mathcal{L}_{\mathrm{total}}$ & Scene-aware objective (\cref{sec:method-optimization}). \\
     $\theta^{\ast}$ & Final optimized body parameters. \\
-    \bottomrule
-  \end{tabularx}
-\end{table}
+\end{longtable}
+\endgroup
 
 
 \section{Scene Interaction Graph Generation}
