@@ -12,7 +12,7 @@ The instructions also vary in the number and type of contacts they require. Some
 
 \begin{table}[t]
   \centering
-  \caption[Evaluation interactions.]{The 23 evaluation interactions, each with a number used to refer to it elsewhere in this chapter, and the type of scene in which it is defined. The mapping from each interaction to its ScanNet++ scene is given in \cref{app:scene-mapping}.}
+  \caption{The 23 evaluation interactions, each with a number used to refer to it elsewhere in this chapter, and the type of scene in which it is defined. The mapping from each interaction to its ScanNet++ scene is given in \cref{app:scene-mapping}.}
   \label{tab:exp-interactions}
   \small
   \begin{tabularx}{\textwidth}{@{}llX@{}}
@@ -29,11 +29,11 @@ The instructions also vary in the number and type of contacts they require. Some
     8  & Bathroom & A person taking a shower \\
     9  & Bathroom & A person taking out the vacuum cleaner with both hands \\
     10 & Conference room & A person lifting the small wooden table with both hands \\
-    11 & Living room & A person sitting on the bicycle with both hands on the handle \\
-    12 & Living room & A person sitting on the side of the sofa, playing with the leaves of a nearby potted plant using both hands \\
-    13 & Lounge & A person sitting on the shelf with both hands supporting their body and both legs hanging down \\
-    14 & Bedroom & A person standing on the staircase and climbing onto the top bed \\
-    15 & Bedroom & A person sitting on the bed and reaching to turn off the bedside lamp \\
+    11 & Living room / lounge & A person sitting on the bicycle with both hands on the handle \\
+    12 & Living room / lounge & A person sitting on the side of the sofa, playing with the leaves of a nearby potted plant using both hands \\
+    13 & Living room / lounge & A person sitting on the shelf with both hands supporting their body and both legs hanging down \\
+    14 & Bedroom / hotel & A person standing on the staircase and climbing onto the top bed \\
+    15 & Bedroom / hotel & A person sitting on the bed and reaching to turn off the bedside lamp \\
     16 & Apartment & A person sitting on the bed and reaching for the chocolate nearby \\
     17 & Office & A person removing the bicycle from its stand with one foot while holding the bike with both hands \\
     18 & Apartment & A person bending down at the lower drawer, one hand pulling the cabinet door open and the other holding the counter edge for balance \\
@@ -41,7 +41,7 @@ The instructions also vary in the number and type of contacts they require. Some
     20 & Gym & A person hanging from the pull-up bar with both hands, knees tucked upward, and both feet off the floor \\
     21 & Bathroom & A person stepping over the bathtub wall, one foot inside the tub, one hand holding the side glass for balance \\
     22 & Gym & A person running on the treadmill, one foot on the belt, the other leg lifted behind, and both hands holding the side handles \\
-    23 & Bedroom & A person stepping down from the ladder, both feet on ladder steps and both hands gripping the ladder frame \\
+    23 & Bedroom / hotel & A person stepping down from the ladder, both feet on ladder steps and both hands gripping the ladder frame \\
     \bottomrule
   \end{tabularx}
 \end{table}
@@ -51,7 +51,8 @@ The instructions also vary in the number and type of contacts they require. Some
 \begin{figure}[t]
   \centering
   \includegraphics[width=\textwidth]{figures/experiments_41.pdf}
-  \caption[Ground-truth contact annotation.]{Ground-truth contact annotation, shown for two interactions side by side. \emph{Bicycle Interaction}: the generated human frame (left) and the corresponding manual contact annotation on the posed view (right), with hand and foot contacts. \emph{Table Interaction}: the generated human frame (left) and its manual contact annotation (right), with hip and hand contacts. Guided by the human frame, each participating body part is painted directly onto the scene view in a distinct color following a fixed color-to-part convention, and per-part masks are then extracted by color. This mirrors the agentic contact-estimation stage of the method, with a human performing the overlay in place of the image generation model.}  \label{fig:gt-contact-annotation}
+  \caption{Ground-truth contact annotation, shown for two interactions side by side. \emph{Bicycle Interaction}: the generated human frame (left) and the corresponding manual contact annotation on the posed view (right), with hand and foot contacts. \emph{Table Interaction}: the generated human frame (left) and its manual contact annotation (right), with hip and hand contacts. Guided by the human frame, each participating body part is painted directly onto the scene view in a distinct color following a fixed color-to-part convention, and per-part masks are then extracted by color. This mirrors the agentic contact-estimation stage of the method, with a human performing the overlay in place of the image generation model.}
+  \label{fig:gt-contact-annotation}
 \end{figure}
 
 \section{Implementation Details}

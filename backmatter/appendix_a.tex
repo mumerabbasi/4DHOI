@@ -1,11 +1,11 @@
 \chapter{Additional Material}
 \label{app:additional-material}
-
+ 
 \section{Evaluation Scene Mapping}
 \label{app:scene-mapping}
-
+ 
 The 23 evaluation interactions of \cref{tab:exp-interactions} are defined over 15 ScanNet++ scenes. \Cref{tab:scene-mapping} gives the scene identifier and official ScanNet++ scene type for each scene, together with the interaction numbers that use it. Rows with multiple interaction numbers indicate that several instructions are evaluated in different views of the same reconstructed scene.
-
+ 
 \begin{table}[htbp]
   \centering
   \caption[Evaluation scene mapping.]{Mapping from the 15 ScanNet++ scenes to the 23 evaluation interactions. Scene types follow the official ScanNet++ metadata.}
@@ -33,10 +33,10 @@ The 23 evaluation interactions of \cref{tab:exp-interactions} are defined over 1
     \bottomrule
   \end{tabularx}
 \end{table}
-
+ 
 \section{Foundation Model Prompts}
 \label{app:foundation-model-prompts}
-
+ 
 This appendix records the prompts used by the foundation-model stages of the method and by the vision-language evaluation. The symbols below are used in the methodology and experiments chapters.
  
 \begin{table}[h]
@@ -51,7 +51,7 @@ This appendix records the prompts used by the foundation-model stages of the met
     \(\Pi_{\mathrm{h}}\) & Human-frame inpainting \\
     \(\Pi_{\mathrm{h\_sel}}\) & Best human-frame selection \\
     \(\Pi_{\mathrm{con}}\) & Contact overlay generation \\
-    \(\Pi_{\mathrm{con\_eval}}\) & Agentic contact verification \\
+    \(\Pi_{\mathrm{agentic}}\) & Agentic contact verification \\
     \(\Pi_{\mathrm{eval}}\) & Interaction rubric evaluation \\
     \bottomrule
   \end{tabularx}
@@ -568,7 +568,7 @@ Example Guidance:
 If the Reference Image shows a person gripping a ladder, infer which rungs or rails the hands and feet contact. Then place solid masks on those same ladder regions in the Canvas Image, aligned to the ladder as it appears in the Canvas Image.
 \end{promptblock}
 
-\subsection[Contact VLM Evaluation Prompt (Pi\_con\_eval)]{Contact VLM Evaluation Prompt \(\Pi_{\mathrm{con\_eval}}\)}
+\subsection[Agentic Contact-Verification Prompt (Pi\_agentic)]{Agentic Contact-Verification Prompt \(\Pi_{\mathrm{agentic}}\)}
 \label{app:prompt-contact-eval}
 
 \begin{promptblock}
@@ -789,22 +789,22 @@ This section gives the rubric used by the vision-language evaluator of \cref{sec
     Whether the pose expresses the requested action. Capped at $3$ if the action is recognizable but the required contacts are missing or wrong. A broadly action-like but physically awkward pose receives partial rather than full credit. \\
     \addlinespace
     Contact and spatial relation &
-    Whether the instruction-relevant body parts plausibly contact, grip, rest on, press, or lie appropriately close to the correct object region. Visual overlap alone is not accepted as contact. Hidden or ambiguous contact, or clearly floating support, caps the score at $3$; severe penetration of the target object caps it at $2$; a score of $5$ requires all instruction-specified contacts to be clearly plausible. \\
+    Whether the instruction-relevant body parts plausibly contact, grip, rest on, press, or lie appropriately close to the correct object region. Required contact that is only visual overlap, ambiguous, or hidden caps the score at $3$; a required body part clearly floating instead of being supported also caps it at $3$; severe penetration of the target object caps it at $2$; a score of $5$ requires all instruction-specified contacts to be clearly plausible. \\
     \addlinespace
     Physical plausibility &
-    Whether the body--object arrangement has plausible support, balance, placement, and collision behavior. Floating support caps the score at $3$; severe penetration of the target object or a nearby solid caps it at $2$; torso, pelvis, or multi-limb penetration receives $1$ or $2$; any visible floating, major penetration, impossible balance, or nonsensical support rules out a score of $5$. \\
+    Whether the body--object arrangement has plausible support, balance, placement, and collision behavior. A required body part clearly floating instead of being supported caps the score at $3$; severe penetration of the target object caps it at $2$; penetration of a nearby solid scene element caps it at $2$; if the torso, pelvis, or multiple limbs are inside the target object or a wall, the score must be $1$ or $2$; any visible floating, major penetration, impossible balance, or nonsensical support rules out a score of $5$. \\
     \bottomrule
   \end{tabularx}
 \end{table}
  
 The reported per-interaction score is the mean of the four criterion scores, and the dataset-level scores are the means of the per-interaction values, computed independently for each criterion and for the mean.
-
+ 
 \clearpage
 \section{Additional Qualitative Results}
 \label{app:qualitative-gallery}
-
+ 
 This section complements the nine interactions shown in \cref{fig:exp-qualitative-gallery} with the remaining fourteen evaluation interactions, in their evaluation-set order. The layout and view selection follow the main qualitative gallery.
-
+ 
 \begin{landscape}
 \begingroup
     \newlength{\aqcellw}\setlength{\aqcellw}{0.125\linewidth}%
@@ -829,7 +829,7 @@ This section complements the nine interactions shown in \cref{fig:exp-qualitativ
       \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
       Interaction & View 1 & View 2 & View 1 & View 2 & View 1 & View 2 \\
       \midrule}
-
+ 
   \begin{figure}[p]
     \centering
     \setlength{\tabcolsep}{3pt}
@@ -844,7 +844,7 @@ This section complements the nine interactions shown in \cref{fig:exp-qualitativ
     \caption[Additional qualitative comparisons.]{Additional qualitative comparisons for the fourteen interactions not shown in the main gallery. The layout follows \cref{fig:exp-qualitative-gallery}: the leftmost cell contains the exact interaction instruction and generated human frame, followed by two views each for the full method, the single-shot setting, and PhySIC.}
     \label{fig:app-qualitative-gallery}
   \end{figure}
-
+ 
   \begin{figure}[p]
     \ContinuedFloat
     \centering
@@ -859,7 +859,7 @@ This section complements the nine interactions shown in \cref{fig:exp-qualitativ
     \end{tabular}
     \caption[]{Additional qualitative comparisons (continued).}
   \end{figure}
-
+ 
   \begin{figure}[p]
     \ContinuedFloat
     \centering
@@ -874,7 +874,7 @@ This section complements the nine interactions shown in \cref{fig:exp-qualitativ
     \end{tabular}
     \caption[]{Additional qualitative comparisons (continued).}
   \end{figure}
-
+ 
   \begin{figure}[p]
     \ContinuedFloat
     \centering
@@ -889,7 +889,7 @@ This section complements the nine interactions shown in \cref{fig:exp-qualitativ
     \end{tabular}
     \caption[]{Additional qualitative comparisons (continued).}
   \end{figure}
-
+ 
   \begin{figure}[p]
     \ContinuedFloat
     \centering
