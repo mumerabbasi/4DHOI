@@ -352,3 +352,31 @@ Compared with PhySIC, the proposed method localizes contact more precisely. PhyS
 \endgroup
 \end{landscape}
 \clearpage
+
+\section{Analysis and Failure Cases}
+\label{sec:exp-failure}
+
+This section interprets the results as a whole and then examines the cases in which the method fails, since these delineate the boundary of what the approach can currently achieve.
+
+\subsection{What the Results Show}
+\label{sec:exp-analysis}
+
+Taken together, the three settings and the baseline separate the contributions of the method's stages. The GVHMR initialization, a body fitted to the human frame without knowledge of the scene, attains both the worst contact distance and the highest penetration of any setting, which shows that image-plausible pose recovery alone does not place a body in metric contact with the scene. Grounding that body on the reconstructed geometry through the localized contacts reduces both quantities, and the comparison with PhySIC points the same way: explicitly grounded contacts yield more precisely placed body parts than a method that recovers contact implicitly. Within the grounded pipeline, the ablation isolates the agentic contact loop: adding it reduces the mean contact distance from $0.070$~m to $0.039$~m while leaving penetration essentially unchanged, so its effect falls specifically on the accuracy of the contact rather than on any other property. The qualitative studies show the same behavior in image space and in the final renders, with the localized contacts placed on the correct surface regions and the corrected contacts meeting the regions the interaction requires. These findings are returned to, and stated as answers to the research questions of \cref{sec:intro-rq}, in \cref{chap:conclusion}.
+
+\subsection{Failure Cases}
+\label{sec:exp-failure-cases}
+
+The method's failures fall into two identifiable causes, shown in \cref{fig:exp-failure}.
+
+\paragraph{Contact localized on the wrong part of the object.} Because contact is localized in image space, the procedure depends on the contacted region being visually identifiable, and on objects with many similar, repeated parts this can fail. The clearest example is a ladder: the interaction contacts a particular rung, but the localized contact is sometimes placed on an adjacent rung instead, since the rungs are nearly identical in appearance and the correct one is under-determined by the image. Notably, this does not always produce a visibly broken result. When the body is then optimized against the misplaced rung, it settles into a plausible interaction with that rung, so the final pose looks natural even though the contact is not on the rung the instruction implies. The failure is therefore one of contact fidelity rather than of overall plausibility, and it is not always apparent from the rendered result alone.
+
+\paragraph{Initialization far from the solution.} The optimization is deliberately anchored to the GVHMR initialization and makes only local adjustments, which is what keeps the refined pose natural. When the initialization is far from a correct configuration, the pose prior prevents the optimization from moving far enough to reach the solution. This occurs for poses that monocular recovery estimates poorly: for the interaction of a person lying on a sofa, the initialization recovers a pose that does not match the lying configuration, and because the optimization stays close to that initialization, it cannot recover the correct lying pose and the final body remains wrong. In such cases the limitation lies in the initialization rather than in the contact estimation or the optimization objective.
+
+These two cases mark the current boundary of the method and indicate the most promising directions for future work, which are discussed in \cref{chap:conclusion}.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\textwidth]{figures/experiments_44.pdf} 
+  \caption{The two failure cases are shown side by side. \emph{Ladder Interaction}: the generated human frame (left) and the estimated contacts (right). Because the rungs are nearly identical in appearance, one foot contact is localized on the wrong rung. The body optimized using this contact still assumes a plausible pose, so the error concerns contact fidelity rather than pose plausibility. \emph{Sofa Interaction}: the generated human frame depicting a person lying on the sofa (left) and the GVHMR initialization (right). Monocular recovery produces a pose that does not match the lying configuration, and the pose prior keeps the optimization close to this initialization, preventing recovery of the correct pose.}
+  \label{fig:exp-failure}
+\end{figure}
