@@ -37,27 +37,9 @@ The 23 evaluation interactions of \cref{tab:exp-interactions} are defined over 1
 \section{Foundation Model Prompts}
 \label{app:foundation-model-prompts}
  
-This appendix records the prompts used by the foundation-model stages of the method and by the vision-language evaluation. The symbols below are used in the methodology and experiments chapters.
- 
-\begin{table}[h]
-  \centering
-  \caption[Prompt symbols.]{Prompt symbols used in the methodology and experiments chapters.}
-  \label{tab:prompt-symbols}
-  \begin{tabularx}{\textwidth}{@{}>{\bfseries}p{0.24\textwidth}X@{}}
-    \toprule
-    Symbol & Stage \\
-    \midrule
-    \(\Pi_{\mathrm{sig}}\) & SIG generation \\
-    \(\Pi_{\mathrm{h}}\) & Human-frame inpainting \\
-    \(\Pi_{\mathrm{h\_sel}}\) & Best human-frame selection \\
-    \(\Pi_{\mathrm{con}}\) & Contact overlay generation \\
-    \(\Pi_{\mathrm{agentic}}\) & Agentic contact verification \\
-    \(\Pi_{\mathrm{eval}}\) & Interaction rubric evaluation \\
-    \bottomrule
-  \end{tabularx}
-\end{table}
+This appendix records the prompts used by the foundation-model stages of the method and by the vision-language evaluation.
 
-\subsection[SIG Generation Prompt (Pi\_sig)]{SIG Generation Prompt \(\Pi_{\mathrm{sig}}\)}
+\subsection{SIG Generation Prompt}
 \label{app:prompt-sig}
 
 \begin{promptblock}
@@ -395,7 +377,7 @@ Example 5 output:
 }
 \end{promptblock}
 
-\subsection[Human-Frame Inpainting Prompt (Pi\_h)]{Human-Frame Inpainting Prompt \(\Pi_{\mathrm{h}}\)}
+\subsection{Human-Frame Inpainting Prompt}
 \label{app:prompt-human-inpaint}
 
 \begin{promptblock}
@@ -424,7 +406,7 @@ Output:
 - Return only the edited scene image.
 \end{promptblock}
 
-\subsection[Best Human-Frame Selection Prompt (Pi\_h\_sel)]{Best Human-Frame Selection Prompt \(\Pi_{\mathrm{h\_sel}}\)}
+\subsection{Best Human-Frame Selection Prompt}
 \label{app:prompt-best-frame-selection}
 
 \begin{promptblock}
@@ -483,7 +465,7 @@ Return strictly valid JSON only:
 The selected_frame value must be exactly one filename from the provided candidate list.
 \end{promptblock}
 
-\subsection[Agentic Contact-Overlay Prompt (Pi\_con)]{Agentic Contact-Overlay Prompt \(\Pi_{\mathrm{con}}\)}
+\subsection{Agentic Contact-Overlay Prompt}
 \label{app:prompt-contact-overlay}
 
 \begin{promptblock}
@@ -568,7 +550,7 @@ Example Guidance:
 If the Reference Image shows a person gripping a ladder, infer which rungs or rails the hands and feet contact. Then place solid masks on those same ladder regions in the Canvas Image, aligned to the ladder as it appears in the Canvas Image.
 \end{promptblock}
 
-\subsection[Agentic Contact-Verification Prompt (Pi\_agentic)]{Agentic Contact-Verification Prompt \(\Pi_{\mathrm{agentic}}\)}
+\subsection{Agentic Contact-Verification Prompt}
 \label{app:prompt-contact-eval}
 
 \begin{promptblock}
@@ -641,7 +623,7 @@ Return strictly valid JSON only:
 Set "done": true only if all required SIG target-object contacts are present, there are no extra masks, each mask uses the correct color, and each mask matches the contact surface, location, and size indicated by the Reference Image when mapped onto the Original Canvas Image.
 \end{promptblock}
 
-\subsection[Interaction Rubric Evaluation Prompt (Pi\_eval)]{Interaction Rubric Evaluation Prompt \(\Pi_{\mathrm{eval}}\)}
+\subsection{Interaction Rubric Evaluation Prompt}
 \label{app:prompt-interaction-eval}
  
 \begin{promptblock}
@@ -841,7 +823,7 @@ This section complements the nine interactions shown in \cref{fig:exp-qualitativ
       \aqrow{door}{A person opening the door}
       \bottomrule
     \end{tabular}
-    \caption[Additional qualitative comparisons.]{Additional qualitative comparisons for the fourteen interactions not shown in the main gallery. The layout follows \cref{fig:exp-qualitative-gallery}: the leftmost cell contains the exact interaction instruction and generated human frame, followed by two views each for the full method, the single-shot setting, and PhySIC.}
+    \caption[Additional qualitative comparisons.]{Additional qualitative comparisons for the fourteen interactions not shown in the main gallery. The layout follows \cref{fig:exp-qualitative-gallery}: the leftmost cell shows the generated human frame with the corresponding interaction instruction from \cref{tab:exp-interactions} beneath it; the remaining columns show two views each for the full method, the single-shot setting, and PhySIC.}
     \label{fig:app-qualitative-gallery}
   \end{figure}
  
