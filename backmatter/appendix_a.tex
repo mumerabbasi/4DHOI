@@ -809,17 +809,19 @@ This section complements the nine interactions shown in \cref{fig:exp-qualitativ
 \begingroup
     \newlength{\aqcellw}\setlength{\aqcellw}{0.125\linewidth}%
     \newlength{\aqcellh}\setlength{\aqcellh}{0.098\linewidth}%
+    \newcommand{\aqresult}[1]{%
+      \raisebox{-.5\height}{\includegraphics[width=\aqcellw,height=\aqcellh,keepaspectratio]{figures/qualitative/#1}}}
     \newcommand{\aqrow}[2]{%
       \begin{minipage}[c]{\linewidth}\footnotesize\centering
-        #2\par\smallskip
-        \includegraphics[width=\linewidth,height=\aqcellh,keepaspectratio]{figures/qualitative/#1_frame.jpg}
+        \includegraphics[width=\linewidth,height=\aqcellh,keepaspectratio]{figures/qualitative/#1_frame.jpg}\par\smallskip
+        #2
       \end{minipage} &
-      \includegraphics[width=\aqcellw,height=\aqcellh,keepaspectratio]{figures/qualitative/#1_ours1.jpg} &
-      \includegraphics[width=\aqcellw,height=\aqcellh,keepaspectratio]{figures/qualitative/#1_ours2.jpg} &
-      \includegraphics[width=\aqcellw,height=\aqcellh,keepaspectratio]{figures/qualitative/#1_single1.jpg} &
-      \includegraphics[width=\aqcellw,height=\aqcellh,keepaspectratio]{figures/qualitative/#1_single2.jpg} &
-      \includegraphics[width=\aqcellw,height=\aqcellh,keepaspectratio]{figures/qualitative/#1_physic1.jpg} &
-      \includegraphics[width=\aqcellw,height=\aqcellh,keepaspectratio]{figures/qualitative/#1_physic2.jpg} \\
+      \aqresult{#1_ours1.jpg} &
+      \aqresult{#1_ours2.jpg} &
+      \aqresult{#1_single1.jpg} &
+      \aqresult{#1_single2.jpg} &
+      \aqresult{#1_physic1.jpg} &
+      \aqresult{#1_physic2.jpg} \\
       \addlinespace[4pt]}
     \newcommand{\aqheader}{%
       \toprule
