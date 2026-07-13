@@ -12,7 +12,7 @@ The instructions also vary in the number and type of contacts they require. Some
 
 \begin{table}[t]
   \centering
-  \caption{The 23 evaluation interactions, each with a number used to refer to it elsewhere in this chapter, and the type of scene in which it is defined. The mapping from each interaction to its ScanNet++ scene is given in \cref{app:scene-mapping}.}
+  \caption[Evaluation interactions.]{The 23 evaluation interactions, each with a number used to refer to it elsewhere in this chapter, and the type of scene in which it is defined. The mapping from each interaction to its ScanNet++ scene is given in \cref{app:scene-mapping}.}
   \label{tab:exp-interactions}
   \small
   \begin{tabularx}{\textwidth}{@{}llX@{}}
@@ -51,7 +51,7 @@ The instructions also vary in the number and type of contacts they require. Some
 \begin{figure}[t]
   \centering
   \includegraphics[width=\textwidth]{figures/experiments_41.pdf}
-  \caption{Ground-truth contact annotation, shown for two interactions side by side. \emph{Bicycle Interaction}: the generated human frame (left) and the corresponding manual contact annotation on the posed view (right), with hand and foot contacts. \emph{Table Interaction}: the generated human frame (left) and its manual contact annotation (right), with hip and hand contacts. Guided by the human frame, each participating body part is painted directly onto the scene view in a distinct color following a fixed color-to-part convention, and per-part masks are then extracted by color. This mirrors the agentic contact-estimation stage of the method, with a human performing the overlay in place of the image generation model.}  \label{fig:gt-contact-annotation}
+  \caption[Ground-truth contact annotation.]{Ground-truth contact annotation, shown for two interactions side by side. \emph{Bicycle Interaction}: the generated human frame (left) and the corresponding manual contact annotation on the posed view (right), with hand and foot contacts. \emph{Table Interaction}: the generated human frame (left) and its manual contact annotation (right), with hip and hand contacts. Guided by the human frame, each participating body part is painted directly onto the scene view in a distinct color following a fixed color-to-part convention, and per-part masks are then extracted by color. This mirrors the agentic contact-estimation stage of the method, with a human performing the overlay in place of the image generation model.}  \label{fig:gt-contact-annotation}
 \end{figure}
 
 \section{Implementation Details}
@@ -214,7 +214,7 @@ These image-space corrections matter because the composites are projected direct
 
 \begin{table}[t]
   \centering
-  \caption{Quantitative results over the 23 evaluation interactions. Arrows indicate whether higher ($\uparrow$) or lower ($\downarrow$) is better; the best value in each column is in bold. Contact and penetration are mean distances in metres; CLIP is cosine similarity; the vision-language (VLM) scores are on the $1$--$5$ rubric of \cref{sec:exp-metrics-vlm}, reported per criterion and as their mean. Diversity is reported for reference and is not a quality measure.}
+  \caption[Quantitative results.]{Quantitative results over the 23 evaluation interactions. Arrows indicate whether higher ($\uparrow$) or lower ($\downarrow$) is better; the best value in each column is in bold. Contact and penetration are mean distances in metres; CLIP is cosine similarity; the vision-language (VLM) scores are on the $1$--$5$ rubric of \cref{sec:exp-metrics-vlm}, reported per criterion and as their mean. Diversity is reported for reference and is not a quality measure.}
   \label{tab:exp-quantitative}
   \small
   \setlength{\tabcolsep}{4pt}
@@ -376,6 +376,6 @@ These two cases mark the current boundary of the method and indicate the most pr
 \begin{figure}[t]
   \centering
   \includegraphics[width=\textwidth]{figures/experiments_44.pdf} 
-  \caption{The two failure cases are shown side by side. \emph{Ladder Interaction}: the generated human frame (left) and the estimated contacts (right). Because the rungs are nearly identical in appearance, one foot contact is localized on the wrong rung. The body optimized using this contact still assumes a plausible pose, so the error concerns contact fidelity rather than pose plausibility. \emph{Sofa Interaction}: the generated human frame depicting a person lying on the sofa (left) and the GVHMR initialization (right). Monocular recovery produces a pose that does not match the lying configuration, and the pose prior keeps the optimization close to this initialization, preventing recovery of the correct pose.}
+  \caption[Failure cases in contact localization and initialization.]{The two failure cases are shown side by side. \emph{Ladder Interaction}: the generated human frame (left) and the estimated contacts (right). Because the rungs are nearly identical in appearance, one foot contact is localized on the wrong rung. The body optimized using this contact still assumes a plausible pose, so the error concerns contact fidelity rather than pose plausibility. \emph{Sofa Interaction}: the generated human frame depicting a person lying on the sofa (left) and the GVHMR initialization (right). Monocular recovery produces a pose that does not match the lying configuration, and the pose prior keeps the optimization close to this initialization, preventing recovery of the correct pose.}
   \label{fig:exp-failure}
 \end{figure}
