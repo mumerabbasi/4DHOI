@@ -27,16 +27,19 @@ A natural approach to solve this problem is to inpaint a human performing the in
 \;\rightarrow\;
 \text{optimization} .
 \end{equation*}
-The first module converts the instruction and the view into a \emph{Scene Interaction Graph} (SIG), which specifies the target object or floor, the relevant human body parts, and the required body-part--scene contact edges. The second module uses an image generation model to insert a single plausible human into the view according to the interaction instruction, producing a visual interaction hypothesis that captures pose, orientation, laterality, and approximate contact layout. This generated human frame then feeds two branches that run in parallel. In the first branch, the third module estimates scene-side contact regions: it marks each required contact on the original view with a distinct color to obtain body-part-specific contact masks, obtains floor-support regions separately with SAM3 when the interaction requires them, and projects the accepted masks onto the reconstructed mesh to form 3D contact targets. In the second branch, the fourth module initializes the body by passing the generated frame to GVHMR, which predicts an SMPL-X body conditioned on the camera focal length of the posed view. The fifth module refines this initialization through scene-aware optimization, holding the scene geometry and the projected contact targets fixed while optimizing the SMPL-X translation, orientation, pose, and a bounded global scale under contact and penetration data terms together with pose, orientation, height, and self-intersection priors.
+The first module converts the instruction and the view into a \emph{Scene Interaction Graph} (SIG), which specifies the target object or floor, the relevant human body parts, and the required body-part--scene contact edges. The second module uses an image generation model to insert a single plausible human into the view according to the interaction instruction, producing a visual interaction hypothesis that captures pose, orientation, laterality, and approximate contact layout. This generated human frame then feeds two branches that run in parallel. In the first branch, the third module estimates scene-side contact regions: it marks each required contact on the original view with a distinct color to obtain body-part-specific contact masks, obtains floor-support regions separately with SAM 3 when the interaction requires them, and projects the accepted masks onto the reconstructed mesh to form 3D contact targets. In the second branch, the fourth module initializes the body by passing the generated frame to GVHMR, which predicts an SMPL-X body conditioned on the camera focal length of the posed view. The fifth module refines this initialization through scene-aware optimization, holding the scene geometry and the projected contact targets fixed while optimizing the SMPL-X translation, orientation, pose, and a bounded global scale under contact and penetration data terms together with pose, orientation, height, and self-intersection priors.
 
 The full prompts used for the foundation-model stages are listed in \cref{app:foundation-model-prompts}, and the concrete model versions, hyperparameters, and iteration budgets are reported in the implementation details of \cref{sec:implementation-details}. This chapter describes the algorithmic role of each component; the appendix and the experiments chapter record the exact prompt wording and numerical settings.
 
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=\textwidth]{figures/methodology_31.pdf}
-  \caption[Overview of the proposed HSI synthesis pipeline.]{Overview of the proposed zero-shot static HSI synthesis pipeline. Given a natural-language instruction, a posed ScanNet++ RGB view, and the reconstructed scene mesh, the method generates a Scene Interaction Graph, synthesizes a human interaction image, estimates body-part-specific scene contact regions on the original view, projects these regions onto the scene mesh, initializes an SMPL-X body with GVHMR, and refines it through scene-aware optimization.}
-  \label{fig:method-pipeline}
-\end{figure}
+\begin{landscape}
+  \begin{figure}[p]
+    \centering
+    \includegraphics[width=0.99\linewidth]{figures/methodology_31.pdf}
+    \caption[Overview of the proposed HSI synthesis pipeline.]{Overview of the proposed zero-shot static HSI synthesis pipeline. Given a natural-language instruction, a posed ScanNet++ RGB view, and the reconstructed scene mesh, the method generates a Scene Interaction Graph, synthesizes a human interaction image, estimates body-part-specific scene contact regions on the original view, projects these regions onto the scene mesh, initializes an SMPL-X body with GVHMR, and refines it through scene-aware optimization.}
+    \label{fig:method-pipeline}
+  \end{figure}
+\end{landscape}
+\clearpage
 
 
 \section{Problem Formulation}
@@ -295,7 +298,7 @@ Let $r^{\star}$ denote the selected round. The final object-contact masks are
 \subsection{Floor-Support Masks}
 \label{sec:method-floor-support-masks}
 
-Floor contacts are handled separately from object contacts. For a support edge such as a foot on the floor, the precise pixel footprint matters less than a geometrically valid support surface, and asking the overlay model to paint a footprint on an empty stretch of floor invites hallucinated placement. Instead, SAM3 segments the visible floor in the view $I$, and the resulting region serves as the scene-side support surface; the optimizer then determines the exact foot placement on it, subject to the contact, penetration, and pose terms of \cref{sec:method-optimization}.
+Floor contacts are handled separately from object contacts. For a support edge such as a foot on the floor, the precise pixel footprint matters less than a geometrically valid support surface, and asking the overlay model to paint a footprint on an empty stretch of floor invites hallucinated placement. Instead, SAM 3 segments the visible floor in the view $I$, and the resulting region serves as the scene-side support surface; the optimizer then determines the exact foot placement on it, subject to the contact, penetration, and pose terms of \cref{sec:method-optimization}.
 
 Let $\mathcal{E}_{\mathrm{floor}}$ denote the edges whose scene node is the floor, and let $\Omega_{\mathrm{floor}}^{\mathrm{2D}}$ be the segmented floor mask. Each floor-support edge takes this mask as its 2D contact region,
 \begin{equation}
@@ -324,12 +327,15 @@ represented in practice as a set of scene vertices or sampled surface points. Th
 \end{equation}
 in which each element is linked, through its edge, to one body-side contact set $B_e$. The next module initializes the SMPL-X body, after which optimization brings the two sides into contact.
 
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=\textwidth]{figures/methodology_34.pdf}
-  \caption[Agentic contact estimation.]{Agentic contact estimation. Linearized the agentic verification loop for easier interpretation. Using the human frame $\hat{I}$ as reference and the posed view $I$ as canvas, the image diffusion model paints colored contact footprints, of which only the colored pixels are extracted and composited back onto the untouched view $I$. A vision-language evaluator checks the composite against the reference and the canvas and either accepts it or returns a correction for another round. For the treadmill example, the left hand, right hand, and left foot receive distinct colors and are localized on the two handles and the belt.}
-  \label{fig:agentic-contact-estimation}
-\end{figure}
+\begin{landscape}
+  \begin{figure}[p]
+    \centering
+    \includegraphics[width=\linewidth]{figures/methodology_34.pdf}
+    \caption[Agentic contact estimation.]{Agentic contact estimation. Linearized the agentic verification loop for easier interpretation. Using the human frame $\hat{I}$ as reference and the posed view $I$ as canvas, the image diffusion model paints colored contact footprints, of which only the colored pixels are extracted and composited back onto the untouched view $I$. A vision-language evaluator checks the composite against the reference and the canvas and either accepts it or returns a correction for another round. For the treadmill example, the left hand, right hand, and left foot receive distinct colors and are localized on the two handles and the belt.}
+    \label{fig:agentic-contact-estimation}
+  \end{figure}
+\end{landscape}
+\clearpage
 
 \section{SMPL-X Pose Initialization}
 \label{sec:method-pose-init}
