@@ -51,8 +51,7 @@ The instructions also vary in the number and type of contacts they require. Some
 \begin{figure}[t]
   \centering
   \includegraphics[width=\textwidth]{figures/experiments_41.pdf}
-  \caption[Ground-truth contact annotation.]{Ground-truth contact annotation. Two interactions are shown, each as a pair: the inpainted human frame (left of the pair) and the corresponding manual contact annotation on the posed view (right of the pair). Guided by the human frame, each participating body part is painted directly onto the scene view in a distinct color following a fixed color-to-part convention, and per-part masks are then extracted by color. This mirrors the agentic contact-estimation stage of the method, with a human performing the overlay in place of the image generation model. Left pair: holding a bicycle, with hand and foot contacts. Right pair: sitting on the small wooden table, with hip and hand contacts.}
-  \label{fig:gt-contact-annotation}
+  \caption{Ground-truth contact annotation, shown for two interactions side by side. \emph{Bicycle Interaction}: the generated human frame (left) and the corresponding manual contact annotation on the posed view (right), with hand and foot contacts. \emph{Table Interaction}: the generated human frame (left) and its manual contact annotation (right), with hip and hand contacts. Guided by the human frame, each participating body part is painted directly onto the scene view in a distinct color following a fixed color-to-part convention, and per-part masks are then extracted by color. This mirrors the agentic contact-estimation stage of the method, with a human performing the overlay in place of the image generation model.}  \label{fig:gt-contact-annotation}
 \end{figure}
 
 \section{Implementation Details}
