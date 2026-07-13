@@ -33,8 +33,6 @@ The contributions of this thesis follow from the answers above and can be stated
   \item \textbf{An evaluation methodology for scene-side contact.} Assessing whether a body contacts the correct scene regions is not straightforward in this setting, since no contact ground truth exists for these interactions and standard geometric metrics alone do not capture whether the depicted action is correct. The thesis addresses this with two evaluation components. The first is a manual scene-side contact annotation that mirrors the method's own contact representation, painting the region each body part should contact directly onto the posed view, which provides a per-body-part reference against which the method's localized contacts can be measured on the mesh. The second is a vision-language rubric evaluation that scores each interaction along target-object, action, contact, and physical-plausibility criteria with explicit caps for characteristic failures, serving as a scalable proxy for perceptual judgment alongside the geometric measures. Together these make the scene-side quality of a synthesized interaction measurable, and both are applied identically to the proposed method, its ablations, and the external baseline.
 \end{enumerate}
 
-Throughout, the symbolic interaction graph that seeds the pipeline is treated as lightweight scaffolding rather than a contribution: it fixes only the coarse contact structure and deliberately withholds any commitment to the precise surface region, which is left to be recovered visually and verified downstream. The contribution of the thesis lies in that downstream localization and verification, not in the symbolic specification that precedes it.
-
 \section{Limitations and Future Work}
 \label{sec:conclusion-future}
 
