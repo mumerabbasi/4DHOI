@@ -379,6 +379,6 @@ These two cases mark the current boundary of the method and indicate the most pr
 \begin{figure}[t]
   \centering
   \includegraphics[width=\textwidth]{figures/experiments_44.pdf} 
-  \caption[Failure cases in contact localization and initialization.]{The two failure cases are shown side by side. \emph{Ladder Interaction}: the generated human frame (left) and the estimated contacts (right). Because the rungs are nearly identical in appearance, one foot contact is localized on the wrong rung. The body optimized using this contact still assumes a plausible pose, so the error concerns contact fidelity rather than pose plausibility. \emph{Sofa Interaction}: the generated human frame depicting a person lying on the sofa (left) and the GVHMR initialization (right). Monocular recovery produces a pose that does not match the lying configuration, and the pose prior keeps the optimization close to this initialization, preventing recovery of the correct pose.}
+  \caption[Failure cases in contact localization and initialization.]{The two failure cases are shown side by side. \emph{Ladder Interaction}: the generated human frame (left) and the estimated contacts (right). Because the rungs are nearly identical in appearance, one foot contact is localized on the wrong rung. \emph{Sofa Interaction}: the generated human frame depicting a person lying on the sofa (left) and the GVHMR initialization (right). Monocular recovery produces a pose that does not match the lying configuration.}
   \label{fig:exp-failure}
 \end{figure}

@@ -327,7 +327,7 @@ in which each element is linked, through its edge, to one body-side contact set 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\textwidth]{figures/methodology_34.pdf}
-  \caption[Agentic contact estimation.]{Agentic contact estimation. Linearized the agentic verification loop for easier interpretation. Using the human frame $\hat{I}$ as reference and the posed view $I$ as canvas, the image diffusion model paints colored contact footprints, of which only the colored pixels are extracted and composited back onto the untouched view $I$. A vision-language evaluator checks the composite against the reference and the canvas and either accepts it or returns a correction for another round. Accepted masks are projected through the calibrated camera to the reconstructed mesh to yield body-part-specific 3D contact targets $P_e^s$. For the treadmill example, the left hand, right hand, and left foot receive distinct colors and are localized on the two handles and the belt.}
+  \caption[Agentic contact estimation.]{Agentic contact estimation. Linearized the agentic verification loop for easier interpretation. Using the human frame $\hat{I}$ as reference and the posed view $I$ as canvas, the image diffusion model paints colored contact footprints, of which only the colored pixels are extracted and composited back onto the untouched view $I$. A vision-language evaluator checks the composite against the reference and the canvas and either accepts it or returns a correction for another round. For the treadmill example, the left hand, right hand, and left foot receive distinct colors and are localized on the two handles and the belt.}
   \label{fig:agentic-contact-estimation}
 \end{figure}
 
