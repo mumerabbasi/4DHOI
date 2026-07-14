@@ -1,0 +1,3 @@
+setting,num_interactions_discovered,num_interactions_aggregated,num_required_edges,num_evaluated_edges,num_skipped_gt_edges,num_misses,mean_containment,mean_centroid_distance_px,mean_centroid_distance_normalized,mean_iou
+round1,23,23,82,82,0,3,0.5578596497230792,75.16069825529347,0.06872226990208224,0.4265161999376296
+final,23,23,82,82,0,0,0.698879453694704,25.651812865164253,0.023036598823491527,0.4972496845959172

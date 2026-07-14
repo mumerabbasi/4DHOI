@@ -1,0 +1,288 @@
+{
+  "aspect_ratio": "1:1",
+  "output_size": [
+    768,
+    768
+  ],
+  "interactions": [
+    {
+      "basename": "table",
+      "interaction": "interaction_02",
+      "single_shot_round": "round_01",
+      "agentic_round": "round_03",
+      "source_size": [
+        1752,
+        1168
+      ],
+      "agentic_source_crop_xyxy": [
+        425,
+        372,
+        1505,
+        1092
+      ],
+      "table_crop_xyxy": [
+        605,
+        372,
+        1325,
+        1092
+      ],
+      "output_size": [
+        768,
+        768
+      ],
+      "outputs": {
+        "human": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/table_human.png",
+        "singleshot": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/table_singleshot.png",
+        "agentic": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/table_agentic.png"
+      }
+    },
+    {
+      "basename": "shower",
+      "interaction": "interaction_09",
+      "single_shot_round": "round_01",
+      "agentic_round": "round_02",
+      "source_size": [
+        1752,
+        1168
+      ],
+      "agentic_source_crop_xyxy": [
+        402,
+        248,
+        1110,
+        720
+      ],
+      "table_crop_xyxy": [
+        520,
+        248,
+        992,
+        720
+      ],
+      "output_size": [
+        768,
+        768
+      ],
+      "outputs": {
+        "human": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/shower_human.png",
+        "singleshot": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/shower_singleshot.png",
+        "agentic": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/shower_agentic.png"
+      }
+    },
+    {
+      "basename": "bicycle",
+      "interaction": "interaction_22",
+      "single_shot_round": "round_01",
+      "agentic_round": "round_02",
+      "source_size": [
+        1752,
+        1168
+      ],
+      "agentic_source_crop_xyxy": [
+        469,
+        110,
+        905,
+        1046
+      ],
+      "table_crop_xyxy": [
+        219,
+        110,
+        1155,
+        1046
+      ],
+      "output_size": [
+        768,
+        768
+      ],
+      "outputs": {
+        "human": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/bicycle_human.png",
+        "singleshot": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/bicycle_singleshot.png",
+        "agentic": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/bicycle_agentic.png"
+      }
+    },
+    {
+      "basename": "drawer",
+      "interaction": "interaction_23",
+      "single_shot_round": "round_01",
+      "agentic_round": "round_02",
+      "source_size": [
+        1752,
+        1168
+      ],
+      "agentic_source_crop_xyxy": [
+        655,
+        307,
+        1151,
+        954
+      ],
+      "table_crop_xyxy": [
+        580,
+        307,
+        1227,
+        954
+      ],
+      "output_size": [
+        768,
+        768
+      ],
+      "outputs": {
+        "human": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/drawer_human.png",
+        "singleshot": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/drawer_singleshot.png",
+        "agentic": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/drawer_agentic.png"
+      }
+    },
+    {
+      "basename": "cupboard",
+      "interaction": "interaction_24",
+      "single_shot_round": "round_01",
+      "agentic_round": "round_04",
+      "source_size": [
+        1752,
+        1168
+      ],
+      "agentic_source_crop_xyxy": [
+        452,
+        0,
+        1040,
+        1112
+      ],
+      "table_crop_xyxy": [
+        190,
+        0,
+        1302,
+        1112
+      ],
+      "output_size": [
+        768,
+        768
+      ],
+      "outputs": {
+        "human": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/cupboard_human.png",
+        "singleshot": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/cupboard_singleshot.png",
+        "agentic": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/cupboard_agentic.png"
+      }
+    },
+    {
+      "basename": "pullup",
+      "interaction": "interaction_26",
+      "single_shot_round": "round_01",
+      "agentic_round": "round_02",
+      "source_size": [
+        1752,
+        1168
+      ],
+      "agentic_source_crop_xyxy": [
+        568,
+        147,
+        878,
+        882
+      ],
+      "table_crop_xyxy": [
+        356,
+        147,
+        1091,
+        882
+      ],
+      "output_size": [
+        768,
+        768
+      ],
+      "outputs": {
+        "human": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/pullup_human.png",
+        "singleshot": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/pullup_singleshot.png",
+        "agentic": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/pullup_agentic.png"
+      }
+    },
+    {
+      "basename": "bathtub",
+      "interaction": "interaction_27",
+      "single_shot_round": "round_01",
+      "agentic_round": "round_04",
+      "source_size": [
+        1752,
+        1168
+      ],
+      "agentic_source_crop_xyxy": [
+        856,
+        223,
+        1251,
+        1114
+      ],
+      "table_crop_xyxy": [
+        608,
+        223,
+        1499,
+        1114
+      ],
+      "output_size": [
+        768,
+        768
+      ],
+      "outputs": {
+        "human": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/bathtub_human.png",
+        "singleshot": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/bathtub_singleshot.png",
+        "agentic": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/bathtub_agentic.png"
+      }
+    },
+    {
+      "basename": "ladder",
+      "interaction": "interaction_30",
+      "single_shot_round": "round_01",
+      "agentic_round": "round_10",
+      "source_size": [
+        1752,
+        1168
+      ],
+      "agentic_source_crop_xyxy": [
+        681,
+        0,
+        1099,
+        1057
+      ],
+      "table_crop_xyxy": [
+        362,
+        0,
+        1419,
+        1057
+      ],
+      "output_size": [
+        768,
+        768
+      ],
+      "outputs": {
+        "human": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/ladder_human.png",
+        "singleshot": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/ladder_singleshot.png",
+        "agentic": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/ladder_agentic.png"
+      }
+    },
+    {
+      "basename": "blind",
+      "interaction": "interaction_07",
+      "single_shot_round": "round_01",
+      "agentic_round": "round_02",
+      "source_size": [
+        1752,
+        1168
+      ],
+      "agentic_source_crop_xyxy": [
+        880,
+        298,
+        1636,
+        802
+      ],
+      "table_crop_xyxy": [
+        1006,
+        298,
+        1510,
+        802
+      ],
+      "output_size": [
+        768,
+        768
+      ],
+      "outputs": {
+        "human": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/blind_human.png",
+        "singleshot": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/blind_singleshot.png",
+        "agentic": "/my_workspace/4DHHOI/Thesis/figures/agentic_contact/blind_agentic.png"
+      }
+    }
+  ]
+}
