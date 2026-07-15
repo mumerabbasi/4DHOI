@@ -1,3 +1,3 @@
-setting,num_interactions_discovered,num_interactions_aggregated,num_required_edges,num_evaluated_edges,num_skipped_gt_edges,num_misses,mean_containment,mean_centroid_distance_px,mean_centroid_distance_normalized,mean_iou
-round1,23,23,82,82,0,3,0.5578596497230792,75.16069825529347,0.06872226990208224,0.4265161999376296
-final,23,23,82,82,0,0,0.698879453694704,25.651812865164253,0.023036598823491527,0.4972496845959172
+setting,num_interactions_discovered,num_interactions_aggregated,num_required_edges,num_evaluated_edges,num_skipped_gt_edges,num_misses,num_bilateral_swapped_edges,num_centroid_evaluated_edges,mean_containment,mean_centroid_distance_px,mean_centroid_distance_normalized,mean_iou
+round1,23,23,82,82,0,3,8,79,0.5959603458475441,27.576569253696174,0.024733993892468057,0.45326875248540655
+final,23,23,82,82,0,0,8,82,0.7358819632046959,19.495177524084983,0.017298151556897293,0.5240315219860852

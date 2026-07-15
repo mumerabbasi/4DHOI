@@ -18,12 +18,16 @@ SETTING_MASK_DIRS = {
     "round1": Path("rounds") / "round_01" / "contact_masks",
     "final": Path("contact_masks"),
 }
+BILATERAL_SWAP_MIN_IMPROVEMENT_NORMALIZED = 0.02
 
 EDGE_CSV_FIELDNAMES = [
     "setting",
     "interaction_name",
     "contact_type",
+    "scene_target",
     "body_part",
+    "gt_body_part",
+    "bilateral_swapped",
     "status",
     "gt_mask_path",
     "predicted_mask_path",
@@ -50,6 +54,8 @@ INTERACTION_CSV_FIELDNAMES = [
     "num_evaluated_edges",
     "num_skipped_gt_edges",
     "num_misses",
+    "num_bilateral_swapped_edges",
+    "num_centroid_evaluated_edges",
     "mean_containment",
     "mean_centroid_distance_px",
     "mean_centroid_distance_normalized",
@@ -63,6 +69,8 @@ SETTING_CSV_FIELDNAMES = [
     "num_evaluated_edges",
     "num_skipped_gt_edges",
     "num_misses",
+    "num_bilateral_swapped_edges",
+    "num_centroid_evaluated_edges",
     "mean_containment",
     "mean_centroid_distance_px",
     "mean_centroid_distance_normalized",
@@ -154,9 +162,38 @@ def warn(message: str, warnings: list[str]) -> None:
     print(f"WARNING: {message}", file=sys.stderr)
 
 
-def required_edges(metadata: dict[str, Any], metadata_path: Path) -> list[dict[str, str]]:
+def scene_targets_by_body_part(sig_path: Path) -> dict[str, str]:
+    if not sig_path.exists():
+        raise FileNotFoundError(f"SIG file not found for bilateral matching: {sig_path}")
+    payload = load_json(sig_path)
+    interactions = payload.get("interaction_edges", [])
+    if not isinstance(interactions, list):
+        raise ValueError(f"Expected list field 'interaction_edges' in {sig_path}")
+
+    targets: dict[str, str] = {}
+    for interaction in interactions:
+        if not isinstance(interaction, dict):
+            continue
+        body_part = normalize_label(str(interaction.get("human_part", "")))
+        scene_target = normalize_label(str(interaction.get("scene_element", "")))
+        if not body_part or not scene_target:
+            continue
+        if body_part in targets and targets[body_part] != scene_target:
+            raise ValueError(
+                f"Body part '{body_part}' has multiple scene targets in {sig_path}"
+            )
+        targets[body_part] = scene_target
+    return targets
+
+
+def required_edges(
+    metadata: dict[str, Any],
+    metadata_path: Path,
+    sig_path: Path,
+) -> list[dict[str, str]]:
     edges: list[dict[str, str]] = []
     seen: set[str] = set()
+    scene_targets = scene_targets_by_body_part(sig_path)
     for key, contact_type in (("human_parts", "object"), ("floor_parts", "floor")):
         values = metadata.get(key, [])
         if not isinstance(values, list):
@@ -170,7 +207,19 @@ def required_edges(metadata: dict[str, Any], metadata_path: Path) -> list[dict[s
                     f"Duplicate required body part '{body_part}' in {metadata_path}"
                 )
             seen.add(body_part)
-            edges.append({"body_part": body_part, "contact_type": contact_type})
+            scene_target = scene_targets.get(body_part)
+            if scene_target is None:
+                raise ValueError(
+                    f"Required body part '{body_part}' has no SIG scene target in "
+                    f"{sig_path}"
+                )
+            edges.append(
+                {
+                    "body_part": body_part,
+                    "contact_type": contact_type,
+                    "scene_target": scene_target,
+                }
+            )
     if not edges:
         raise ValueError(f"No required contact edges found in {metadata_path}")
     return edges
@@ -214,11 +263,117 @@ def mask_centroid(mask: np.ndarray) -> tuple[float, float]:
     return float(np.mean(xs)), float(np.mean(ys))
 
 
+def bilateral_gt_assignments(
+    setting: str,
+    interaction_name: str,
+    edges: list[dict[str, str]],
+    gt_mask_dir: Path,
+    predicted_mask_dir: Path,
+) -> tuple[dict[str, str], list[dict[str, Any]]]:
+    assignments = {edge["body_part"]: edge["body_part"] for edge in edges}
+    edge_by_key: dict[tuple[str, str, str], dict[str, str]] = {}
+    for edge in edges:
+        part_tokens = edge["body_part"].split()
+        if len(part_tokens) < 2 or part_tokens[0] not in {"left", "right"}:
+            continue
+        side = part_tokens[0]
+        base_part = " ".join(part_tokens[1:])
+        edge_by_key[(edge["scene_target"], base_part, side)] = edge
+
+    swaps: list[dict[str, Any]] = []
+    for scene_target, base_part, side in list(edge_by_key):
+        if side != "left":
+            continue
+        left_edge = edge_by_key.get((scene_target, base_part, "left"))
+        right_edge = edge_by_key.get((scene_target, base_part, "right"))
+        if left_edge is None or right_edge is None:
+            continue
+
+        left_part = left_edge["body_part"]
+        right_part = right_edge["body_part"]
+        paths = {
+            "predicted_left": predicted_mask_dir / f"{slugify(left_part)}.png",
+            "predicted_right": predicted_mask_dir / f"{slugify(right_part)}.png",
+            "gt_left": gt_mask_dir / f"{slugify(left_part)}.png",
+            "gt_right": gt_mask_dir / f"{slugify(right_part)}.png",
+        }
+        masks: dict[str, np.ndarray] = {}
+        pair_is_usable = True
+        for key, path in paths.items():
+            if not path.exists():
+                pair_is_usable = False
+                break
+            mask = read_binary_mask(path)
+            if mask is None or not np.any(mask):
+                pair_is_usable = False
+                break
+            masks[key] = mask
+        if not pair_is_usable:
+            continue
+        shapes = {mask.shape for mask in masks.values()}
+        if len(shapes) != 1:
+            raise ValueError(
+                f"Bilateral mask shape mismatch for {setting}/{interaction_name}/"
+                f"{base_part}: {sorted(shapes)}"
+            )
+
+        height, width = next(iter(shapes))
+        diagonal = float(math.hypot(width, height))
+        predicted_left = np.asarray(mask_centroid(masks["predicted_left"]))
+        predicted_right = np.asarray(mask_centroid(masks["predicted_right"]))
+        gt_left = np.asarray(mask_centroid(masks["gt_left"]))
+        gt_right = np.asarray(mask_centroid(masks["gt_right"]))
+        current_cost = float(
+            (
+                np.linalg.norm(predicted_left - gt_left)
+                + np.linalg.norm(predicted_right - gt_right)
+            )
+            / diagonal
+        )
+        swapped_cost = float(
+            (
+                np.linalg.norm(predicted_left - gt_right)
+                + np.linalg.norm(predicted_right - gt_left)
+            )
+            / diagonal
+        )
+        if (
+            swapped_cost + BILATERAL_SWAP_MIN_IMPROVEMENT_NORMALIZED
+            >= current_cost
+        ):
+            continue
+
+        assignments[left_part] = right_part
+        assignments[right_part] = left_part
+        swap = {
+            "setting": setting,
+            "interaction_name": interaction_name,
+            "scene_target": scene_target,
+            "base_part": base_part,
+            "left_body_part": left_part,
+            "right_body_part": right_part,
+            "current_cost_normalized": current_cost,
+            "swapped_cost_normalized": swapped_cost,
+            "minimum_improvement_normalized": (
+                BILATERAL_SWAP_MIN_IMPROVEMENT_NORMALIZED
+            ),
+        }
+        swaps.append(swap)
+        print(
+            "  spatially swapped bilateral contact masks for "
+            f"{setting}/{interaction_name}/{base_part} -> {scene_target}: "
+            f"current_cost={current_cost:.4f}, swapped_cost={swapped_cost:.4f}"
+        )
+    return assignments, swaps
+
+
 def blank_edge_row(
     setting: str,
     interaction_name: str,
     contact_type: str,
+    scene_target: str,
     body_part: str,
+    gt_body_part: str,
     gt_mask_path: Path,
     predicted_mask_path: Path,
 ) -> dict[str, Any]:
@@ -229,7 +384,10 @@ def blank_edge_row(
         "setting": setting,
         "interaction_name": interaction_name,
         "contact_type": contact_type,
+        "scene_target": scene_target,
         "body_part": body_part,
+        "gt_body_part": gt_body_part,
+        "bilateral_swapped": body_part != gt_body_part,
         "gt_mask_path": str(gt_mask_path),
         "predicted_mask_path": str(predicted_mask_path),
     }
@@ -256,8 +414,8 @@ def missed_prediction_row(
     gt_centroid_x, gt_centroid_y = mask_centroid(gt_mask)
     diagonal = float(math.hypot(width, height))
 
-    # Convention: an omitted required contact receives the maximum defined
-    # centroid penalty, the full image diagonal (normalized distance 1.0).
+    # Convention: an omitted required contact remains a containment/IoU miss,
+    # while centroid distance is left undefined and excluded from distance means.
     row.update(
         {
             "status": status,
@@ -271,8 +429,8 @@ def missed_prediction_row(
             "gt_centroid_x": gt_centroid_x,
             "gt_centroid_y": gt_centroid_y,
             "containment": 0.0,
-            "centroid_distance_px": diagonal,
-            "centroid_distance_normalized": 1.0,
+            "centroid_distance_px": None,
+            "centroid_distance_normalized": None,
             "iou": 0.0,
         }
     )
@@ -283,19 +441,21 @@ def evaluate_edge(
     setting: str,
     interaction_name: str,
     edge: dict[str, str],
+    gt_body_part: str,
     gt_mask_dir: Path,
     predicted_mask_dir: Path,
     warnings: list[str],
 ) -> dict[str, Any]:
     body_part = edge["body_part"]
-    mask_filename = f"{slugify(body_part)}.png"
-    gt_mask_path = gt_mask_dir / mask_filename
-    predicted_mask_path = predicted_mask_dir / mask_filename
+    gt_mask_path = gt_mask_dir / f"{slugify(gt_body_part)}.png"
+    predicted_mask_path = predicted_mask_dir / f"{slugify(body_part)}.png"
     row = blank_edge_row(
         setting=setting,
         interaction_name=interaction_name,
         contact_type=edge["contact_type"],
+        scene_target=edge["scene_target"],
         body_part=body_part,
+        gt_body_part=gt_body_part,
         gt_mask_path=gt_mask_path,
         predicted_mask_path=predicted_mask_path,
     )
@@ -412,6 +572,9 @@ def summarize_interaction(
     warnings: list[str],
 ) -> dict[str, Any]:
     evaluated_rows = [row for row in rows if not is_skipped_gt(row)]
+    centroid_rows = [
+        row for row in evaluated_rows if row["centroid_distance_px"] is not None
+    ]
     skipped_count = len(rows) - len(evaluated_rows)
     summary: dict[str, Any] = {
         "setting": setting,
@@ -420,6 +583,10 @@ def summarize_interaction(
         "num_evaluated_edges": int(len(evaluated_rows)),
         "num_skipped_gt_edges": int(skipped_count),
         "num_misses": int(sum(is_miss(row) for row in evaluated_rows)),
+        "num_bilateral_swapped_edges": int(
+            sum(bool(row["bilateral_swapped"]) for row in evaluated_rows)
+        ),
+        "num_centroid_evaluated_edges": int(len(centroid_rows)),
         "mean_containment": None,
         "mean_centroid_distance_px": None,
         "mean_centroid_distance_normalized": None,
@@ -436,11 +603,15 @@ def summarize_interaction(
     summary.update(
         {
             "mean_containment": mean_field(evaluated_rows, "containment"),
-            "mean_centroid_distance_px": mean_field(
-                evaluated_rows, "centroid_distance_px"
+            "mean_centroid_distance_px": (
+                mean_field(centroid_rows, "centroid_distance_px")
+                if centroid_rows
+                else None
             ),
-            "mean_centroid_distance_normalized": mean_field(
-                evaluated_rows, "centroid_distance_normalized"
+            "mean_centroid_distance_normalized": (
+                mean_field(centroid_rows, "centroid_distance_normalized")
+                if centroid_rows
+                else None
             ),
             "mean_iou": mean_field(evaluated_rows, "iou"),
         }
@@ -457,6 +628,11 @@ def summarize_setting(
     ]
     if not aggregated_rows:
         raise RuntimeError(f"No interactions with valid GT masks for setting '{setting}'")
+    centroid_interaction_rows = [
+        row
+        for row in aggregated_rows
+        if int(row["num_centroid_evaluated_edges"]) > 0
+    ]
     return {
         "setting": setting,
         "num_interactions_discovered": int(len(interaction_rows)),
@@ -471,14 +647,26 @@ def summarize_setting(
             sum(int(row["num_skipped_gt_edges"]) for row in interaction_rows)
         ),
         "num_misses": int(sum(int(row["num_misses"]) for row in interaction_rows)),
+        "num_bilateral_swapped_edges": int(
+            sum(int(row["num_bilateral_swapped_edges"]) for row in interaction_rows)
+        ),
+        "num_centroid_evaluated_edges": int(
+            sum(int(row["num_centroid_evaluated_edges"]) for row in interaction_rows)
+        ),
         # Dataset means are deliberately means of per-interaction means, not
         # pooled edge means, so every interaction receives equal weight.
         "mean_containment": mean_field(aggregated_rows, "mean_containment"),
-        "mean_centroid_distance_px": mean_field(
-            aggregated_rows, "mean_centroid_distance_px"
+        "mean_centroid_distance_px": (
+            mean_field(centroid_interaction_rows, "mean_centroid_distance_px")
+            if centroid_interaction_rows
+            else None
         ),
-        "mean_centroid_distance_normalized": mean_field(
-            aggregated_rows, "mean_centroid_distance_normalized"
+        "mean_centroid_distance_normalized": (
+            mean_field(
+                centroid_interaction_rows, "mean_centroid_distance_normalized"
+            )
+            if centroid_interaction_rows
+            else None
         ),
         "mean_iou": mean_field(aggregated_rows, "mean_iou"),
     }
@@ -550,8 +738,7 @@ def validate_palette_identity(
         if gt_color is not None and predicted_color is not None and gt_color != predicted_color:
             raise ValueError(
                 f"Palette identity mismatch for {setting}/{interaction_name}/{body_part}: "
-                f"prediction RGB {predicted_color}, GT RGB {gt_color}. Masks are not "
-                "matched spatially."
+                f"prediction RGB {predicted_color}, GT RGB {gt_color}."
             )
 
 
@@ -599,12 +786,19 @@ def evaluate(
         gt_metadata = load_json(gt_metadata_path)
         if not isinstance(gt_metadata, dict):
             raise ValueError(f"Expected JSON object in {gt_metadata_path}")
+        sig_path = (
+            PROJECT_DIR
+            / "01_Generate_SIG"
+            / "output"
+            / interaction_dir.name
+            / "sig.json"
+        )
         interaction_inputs.append(
             (
                 interaction_dir.name,
                 interaction_dir,
                 gt_metadata,
-                required_edges(gt_metadata, gt_metadata_path),
+                required_edges(gt_metadata, gt_metadata_path, sig_path),
             )
         )
 
@@ -656,11 +850,20 @@ def evaluate(
                         warnings,
                     )
 
+            gt_assignments, _swaps = bilateral_gt_assignments(
+                setting=setting,
+                interaction_name=current_interaction_name,
+                edges=edges,
+                gt_mask_dir=gt_mask_dir,
+                predicted_mask_dir=predicted_mask_dir,
+            )
+
             interaction_edge_rows = [
                 evaluate_edge(
                     setting=setting,
                     interaction_name=current_interaction_name,
                     edge=edge,
+                    gt_body_part=gt_assignments[edge["body_part"]],
                     gt_mask_dir=gt_mask_dir,
                     predicted_mask_dir=predicted_mask_dir,
                     warnings=warnings,
@@ -711,7 +914,7 @@ def build_json_payload(
             ],
         }
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "sources": {
             "gt_output_dir": str(gt_output_dir),
             "agentic_output_dir": str(agentic_output_dir),
@@ -728,16 +931,34 @@ def build_json_payload(
             "iou": "|prediction ∩ GT| / |prediction ∪ GT|; secondary metric",
             "aggregation": (
                 "edge metrics are averaged per interaction, then interaction means are "
-                "averaged per setting"
+                "averaged per setting; missing predictions remain containment/IoU "
+                "misses but are excluded from centroid-distance means"
+            ),
+            "bilateral_assignment": (
+                "for left/right contacts with the same base part and SIG scene target, "
+                "swap GT assignments when total normalized centroid distance improves "
+                f"by more than {BILATERAL_SWAP_MIN_IMPROVEMENT_NORMALIZED}"
             ),
         },
         "empty_prediction_convention": {
             "containment": 0.0,
             "iou": 0.0,
-            "centroid_distance_px": "sqrt(width^2 + height^2)",
-            "centroid_distance_normalized": 1.0,
+            "centroid_distance_px": None,
+            "centroid_distance_normalized": None,
+            "excluded_from_centroid_means": True,
             "counted_as_miss": True,
         },
+        "bilateral_swaps": [
+            {
+                "setting": row["setting"],
+                "interaction_name": row["interaction_name"],
+                "scene_target": row["scene_target"],
+                "body_part": row["body_part"],
+                "gt_body_part": row["gt_body_part"],
+            }
+            for row in edge_rows
+            if bool(row["bilateral_swapped"])
+        ],
         "warnings": warnings,
         "settings": settings,
     }
@@ -785,6 +1006,8 @@ def main(argv: list[str] | None = None) -> int:
             f"{row['num_interactions_discovered']} "
             f"edges={row['num_evaluated_edges']}/{row['num_required_edges']} "
             f"misses={row['num_misses']} "
+            f"swapped_edges={row['num_bilateral_swapped_edges']} "
+            f"centroid_edges={row['num_centroid_evaluated_edges']} "
             f"containment={row['mean_containment']:.6f} "
             f"centroid_px={row['mean_centroid_distance_px']:.6f} "
             f"centroid_normalized="
