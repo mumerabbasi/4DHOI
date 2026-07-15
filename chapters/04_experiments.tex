@@ -83,6 +83,8 @@ and are held constant over the schedule. The self-intersection term is disabled 
 
 \paragraph{Evaluation models.} The CLIP semantic-consistency metric uses the \texttt{openai/clip-vit-base-patch32} model. The vision-language rubric evaluation uses Gemini~3.5~Flash with temperature $0$ and a fixed random seed, so that the evaluation is deterministic. Both metrics operate on the $10$ rendered views described above. The metrics themselves are defined in \cref{sec:exp-metrics}.
 
+\paragraph{Runtime.} Synthesizing one interaction takes approximately ten minutes end to end on an NVIDIA RTX A6000. This figure includes the foundation-model stages, which are accessed through their APIs and whose latency therefore depends on the service rather than on local hardware, and it varies with the number of rounds the agentic contact loop requires before the evaluator accepts a composite.
+
 \section{Evaluation Metrics}
 \label{sec:exp-metrics}
 
