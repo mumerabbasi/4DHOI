@@ -154,11 +154,60 @@ The method is compared against PhySIC~\cite{muralidhar2025physic}, a recent meth
 \section{Agentic Contact Localization}
 \label{sec:exp-agentic-qualitative}
 
-Before turning to the final synthesized interactions, this section examines the agentic contact-estimation stage on its own, since it is the central contribution of the method and the component the ablations single out. The question here is whether the verify-and-correct loop produces contact regions that are better localized than those from a single generation, prior to any 3D optimization. Because contact estimation operates entirely in image space, its output can be inspected directly on the posed view, which makes its behavior visible in a way the final 3D body does not always reveal.
+Before turning to the final synthesized interactions, this section examines the agentic contact-estimation stage on its own, since it is the central contribution of the method and the component the ablations single out. The question here is whether the verify-and-correct loop produces contact regions that are better localized than those from a single generation, prior to any 3D optimization. Because contact estimation operates entirely in image space, its output can be inspected directly on the posed view, which makes its behavior visible in a way the final 3D body does not always reveal. This section therefore evaluates the stage entirely in image space: \cref{sec:exp-agentic-metrics} defines the measures used, \cref{sec:exp-agentic-quant} reports them, and \cref{sec:exp-agentic-qual} examines the localized contacts visually. The effect of the loop on the final 3D body is measured separately, in the ablation of \cref{sec:exp-quantitative}.
+
+\subsection{Image-Space Contact Metrics}
+\label{sec:exp-agentic-metrics}
+
+The localized contacts are measured against the manual ground-truth contact masks of \cref{sec:exp-setup}, on the posed view and before any 3D optimization, so that the accuracy of the localization is isolated from the optimization that later consumes it. Two measures are used, containment and centroid distance, each computed per contact edge, averaged over an interaction's edges, and then averaged over interactions, so that each interaction contributes equally regardless of how many contacts it involves.
+
+\paragraph{Containment.} For each contact edge, containment is the fraction of the predicted mask that lies inside the corresponding ground-truth region,
+%
+\begin{equation}
+  \mathrm{Containment} = \frac{|\Omega^{\mathrm{pred}} \cap \Omega^{\mathrm{gt}}|}{|\Omega^{\mathrm{pred}}|},
+  \label{eq:containment}
+\end{equation}
+%
+which measures whether the predicted contact falls on the surface region the interaction requires. Containment is used in place of intersection-over-union because the ground-truth regions are deliberately drawn slightly larger than the true contact, allowing a margin around it. Under that convention the union term of an intersection-over-union score penalizes a prediction that is correct but tightly drawn, conflating localization error with a size difference that was introduced on purpose. Containment is unaffected by the generosity of the reference and therefore measures what is of interest here, namely whether the predicted contact lies on the intended region. Higher is better.
+
+\paragraph{Centroid distance.} Containment records how much of a mask lies inside the reference region but not how far it falls from it. The centroid distance therefore measures the offset between the centroids of the predicted and ground-truth masks, reported in pixels on the posed view. Lower is better. Read together, the two measures describe complementary properties: containment states how fully a predicted contact lies on the intended region, and the centroid distance states how far it is displaced from it.
+
+\paragraph{Missing contacts.} A required contact that is left unmarked has no mask, and therefore no containment and no centroid to compare. Such an edge is counted as a miss and reported as a separate count rather than absorbed into the averages, so that the reported values describe only the contacts a setting actually drew. Omitting a required contact and drawing one imprecisely are distinct failures, and reporting the miss count alongside the localization measures keeps them distinguishable: the measures state how accurately a setting localizes the contacts it marks, and the miss count states how often it marks them at all.
+
+\paragraph{Laterality assignment.} When an interaction requires bilateral contacts of the same type, for example a left-hand and a right-hand contact on the same object, the two predicted masks are compared against the reference under both left/right assignments, and the swapped assignment is used if it reduces the total centroid distance by more than $2\%$ of the image diagonal. Confusing left with right is a distinct failure from mislocalizing a contact, and without this rule a correctly localized but transposed pair would be scored as two gross localization errors. The margin ensures that a swap is applied only when the evidence for it is unambiguous, and the rule is applied identically to both settings, so it cannot favor either; across the evaluation set it is triggered four times for each. This mirrors the left/right correction applied to the 3D contact regions during optimization (\cref{sec:implementation-details}).
+
+\paragraph{Scope.} These measures assess the localization in the image, which is where the loop operates and where its effect can be isolated. They are not a proxy for the accuracy of the resulting 3D contact targets: as \cref{sec:exp-agentic-qual} discusses, the projection to the mesh does not preserve the scale of an image-space error, so a given pixel displacement may correspond to a small or a large 3D error depending on where it falls. The 3D consequence is measured directly in \cref{sec:exp-quantitative}.
+
+\subsection{Quantitative Results}
+\label{sec:exp-agentic-quant}
+
+\Cref{tab:agentic-imagespace} reports the image-space measures for the single-shot generation and for the composite accepted by the agentic loop. The clearest difference is in the contacts that are marked at all: the single-shot generation leaves three required contacts entirely unmarked across the evaluation set, whereas the accepted composites mark all of them. This is the behavior the loop is constructed to produce, since a contact the evaluator finds absent is precisely one it requests in the following round, and it is a failure no amount of accuracy on the remaining contacts can compensate for, as an unmarked contact yields no 3D target at all.
+
+Among the contacts that both settings do mark, the loop improves the localization itself. Mean containment rises from $0.60$ to $0.74$, so a larger share of each predicted mask lies on the surface region the interaction requires, and the mean centroid distance falls from $27.6$ to $19.5$ pixels, so the masks that are drawn sit closer to the intended region. The two measures move together, which is what a genuine improvement in localization should produce: the corrected masks are both more fully on the target and less displaced from it, rather than one being traded against the other.
+
+\begin{table}[t]
+  \centering
+  \caption[Image-space contact-localization accuracy.]{Image-space contact-localization accuracy of the single-shot generation and of the composite accepted by the agentic loop, measured against the manual ground-truth contact masks of \cref{sec:exp-setup} on the posed view, before any 3D optimization. Containment is the fraction of each predicted mask lying inside its ground-truth region; the centroid distance is the offset between the predicted and ground-truth mask centroids, in pixels. A required contact left unmarked has no mask to score and is reported as a miss rather than included in the averages, so the reported values describe only the contacts each setting drew. Arrows indicate whether higher ($\uparrow$) or lower ($\downarrow$) is better; the better value in each column is in bold.}
+  \label{tab:agentic-imagespace}
+  \setlength{\tabcolsep}{12pt}
+  \begin{tabular}{lccc}
+    \toprule
+    Setting & Containment$\uparrow$ & Centroid distance (px)$\downarrow$ & Misses$\downarrow$ \\
+    \midrule
+    Single-shot & 0.60 & 27.6 & 3 \\
+    Agentic     & \textbf{0.74} & \textbf{19.5} & \textbf{0} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Qualitative Results}
+\label{sec:exp-agentic-qual}
 
 \Cref{fig:agentic-qualitative} compares, for several interactions, the generated human frame that drives contact estimation, the contact composite obtained from a single generation, and the composite accepted by the agentic loop. The single-shot composite reflects what the overlay model proposes in one pass, and it exhibits the failure modes the loop is designed to catch: a contact placed on the wrong region of the object, a required contact left unmarked, a spurious mark where no contact occurs, or a footprint of the wrong extent. The accepted composite shows the same interaction after the evaluator has inspected the masks against the generated frame and requested corrections until the contacts match the intended interaction. Across the examples, the corrected contacts are placed on the surface regions actually indicated by the interaction, on the rail a hand grips rather than beside it, on the surface a foot rests on rather than an adjacent one, and cover an extent consistent with the contacting body part.
 
-These image-space corrections matter because the composites are projected directly to the scene mesh as the optimization targets. A contact that is mislocalized in the composite becomes a mislocalized 3D target, which the optimization will then faithfully satisfy, drawing the body to the wrong place. The loop therefore does not merely improve the appearance of the annotation; it changes the target the body is optimized toward, which is why its effect propagates through to the geometric contact results reported in \cref{sec:exp-quantitative}. The qualitative improvement seen here is the image-space counterpart of the quantitative gap between the single-shot and full-method settings.
+These image-space corrections matter because the composites are projected directly to the scene mesh as the optimization targets. A contact that is mislocalized in the composite becomes a mislocalized 3D target, which the optimization will then faithfully satisfy, drawing the body to the wrong place. The loop therefore does not merely improve the appearance of the annotation; it changes the target the body is optimized toward.
+
+The severity of such an error in 3D, however, is not determined by its size in the image. The projection of a mask onto the mesh follows the scene geometry behind it, so an error that is small in pixels may be small or large in the scene depending on where it falls. Where the contacted surface is surrounded by geometry at a similar depth, a displaced mask projects to a nearby point on the same structure, and the resulting target is merely imprecise. Where the surface stands in front of distant geometry, the same displacement projects to an entirely different structure. The treadmill running example illustrates this: the side rails the hands grip stand well in front of the wall behind them, so a mask that misses a rail by a few pixels does not project a few centimetres away, but onto the wall metres beyond it. The contact target is then not an imprecise version of the intended one but a target on the wrong scene structure, which the optimization will nonetheless satisfy. This is why the pixel differences reported in \cref{sec:exp-agentic-quant} are consequential rather than cosmetic, and why their effect on the final body, measured in \cref{sec:exp-quantitative}, is not proportional to their size in the image.
 
 \begingroup
 % --- Generic row helper for the agentic contact figure ---
