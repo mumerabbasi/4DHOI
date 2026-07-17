@@ -136,7 +136,7 @@ The ablations progressively remove components of the method, isolating the effec
 
 \paragraph{GVHMR initialization.} The first setting evaluates the SMPL-X body produced by GVHMR directly, transformed into the scene coordinate frame but without any scene-aware optimization. This measures the quality of the initialization on its own, before contact and penetration are enforced, and establishes the starting point that the optimization must improve upon. Because this body is recovered from the human frame alone and is unaware of the reconstructed scene, it is expected to satisfy contact poorly and to intersect the scene.
 
-\paragraph{Single-shot contact (no agentic verification).} The second setting runs the full method, including scene-aware optimization, but replaces the agentic contact loop with a single generation. The contact overlays are taken directly from one pass of the overlay model, without any verification or correction, and used as the contact targets. Comparing this setting against the full method isolates the contribution of the agentic verify-and-correct loop specifically: both settings use the same overlay model, optimization, and initialization, and differ only in whether the contacts are verified and corrected before being projected to 3D.
+\paragraph{Single-shot contact (no agentic verification).} The second setting runs the full method, including scene-aware optimization, but replaces the agentic contact loop with a single generation; it is referred to as the \emph{single-shot} setting throughout. The contact overlays are taken directly from one pass of the overlay model, without any verification or correction, and used as the contact targets. Comparing this setting against the full method isolates the contribution of the agentic verify-and-correct loop specifically: both settings use the same overlay model, optimization, and initialization, and differ only in whether the contacts are verified and corrected before being projected to 3D.
 
 \paragraph{Full method.} The third setting is the complete method, in which the agentic contact loop verifies and corrects the contact regions before they are used, and the scene-aware optimization refines the body against the resulting targets. This is the configuration described in \cref{chap:methodology}.
 
@@ -281,27 +281,29 @@ The severity of such an error in 3D, however, is not determined by its size in t
       & Obj.$\uparrow$ & Act.$\uparrow$ & Cont.$\uparrow$ & Phys.$\uparrow$ & Mean$\uparrow$
       & Ent. & Spr. \\
     \midrule
-    Full method
-      & \textbf{0.039} & \textbf{0.005}
-      & \textbf{0.272}
-      & \textbf{5.00} & \textbf{4.39} & \textbf{4.00} & \textbf{4.04} & \textbf{4.36}
-      & 2.55 & 2.68 \\
-    \quad w/o agentic loop (single-shot)
-      & 0.070 & \textbf{0.005}
-      & 0.271
-      & \textbf{5.00} & \textbf{4.39} & 3.83 & 3.87 & 4.27
-      & 2.55 & 2.58 \\
-    \quad GVHMR initialization
-      & 0.163 & 0.017
-      & 0.270
-      & \textbf{5.00} & 3.65 & 2.87 & 3.48 & 3.75
-      & 2.57 & 2.65 \\
-    \midrule
-    PhySIC~\cite{muralidhar2025physic}
+    \multicolumn{11}{@{}l}{\emph{Baseline}} \\
+    \quad PhySIC~\cite{muralidhar2025physic}
       & 0.242 & 0.011
       & 0.259
       & 4.87 & 4.04 & 3.48 & 3.78 & 4.04
       & 2.59 & 2.57 \\
+    \midrule
+    \multicolumn{11}{@{}l}{\emph{Ours}} \\
+    \quad GVHMR init
+      & 0.163 & 0.017
+      & 0.270
+      & \textbf{5.00} & 3.65 & 2.87 & 3.48 & 3.75
+      & 2.57 & 2.65 \\
+    \quad Single-shot
+      & 0.070 & \textbf{0.005}
+      & 0.271
+      & \textbf{5.00} & \textbf{4.39} & 3.83 & 3.87 & 4.27
+      & 2.55 & 2.58 \\
+    \quad Full method
+      & \textbf{0.039} & \textbf{0.005}
+      & \textbf{0.272}
+      & \textbf{5.00} & \textbf{4.39} & \textbf{4.00} & \textbf{4.04} & \textbf{4.36}
+      & 2.55 & 2.68 \\
     \bottomrule
   \end{tabular}
   }
