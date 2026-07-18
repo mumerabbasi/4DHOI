@@ -31,16 +31,12 @@ The first module converts the instruction and the view into a \emph{Scene Intera
 
 The full prompts used for the foundation-model stages are listed in \cref{app:foundation-model-prompts}, and the concrete model versions, hyperparameters, and iteration budgets are reported in the implementation details of \cref{sec:implementation-details}. This chapter describes the algorithmic role of each component; the appendix and the experiments chapter record the exact prompt wording and numerical settings.
 
-\begin{landscape}
-  \begin{figure}[p]
-    \centering
-    \includegraphics[width=0.99\linewidth]{figures/methodology_31.pdf}
-    \caption[Overview of the proposed HSI synthesis method.]{Overview of the proposed zero-shot static HSI synthesis method. Given a natural-language instruction, a posed ScanNet++ RGB view, and the reconstructed scene mesh, the method generates a Scene Interaction Graph, synthesizes a human interaction image, estimates body-part-specific scene contact regions on the original view, projects these regions onto the scene mesh, initializes an SMPL-X body with GVHMR, and refines it through scene-aware optimization.}
-    \label{fig:method-overview}
-  \end{figure}
-\end{landscape}
-\clearpage
-
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=\textwidth]{figures/methodology_31.pdf}
+  \caption[Overview of the proposed HSI synthesis method.]{Overview of the proposed zero-shot static HSI synthesis method. Given a natural-language instruction, a posed ScanNet++ RGB view, and the reconstructed scene mesh, the method generates a Scene Interaction Graph, synthesizes a human interaction image, estimates body-part-specific scene contact regions on the original view, projects these regions onto the scene mesh, initializes an SMPL-X body with GVHMR, and refines it through scene-aware optimization.}
+  \label{fig:method-overview}
+\end{figure}
 
 \section{Problem Formulation}
 \label{sec:problem-formulation}
@@ -169,7 +165,7 @@ The SIG is generated from the instruction $y$ and the posed view $I$. A vision-l
 
 \paragraph{Body-part vocabulary.} The human nodes are restricted to a fixed vocabulary: left and right hand, left and right arm, left and right leg, left and right foot, head, hips, and back. We fix this vocabulary so that every human node maps to a predefined SMPL-X contact region, a vertex subset $B_e \subset \{1, \ldots, N_h\}$ on the body mesh (\cref{fig:smplx-contact-regions}). Hand nodes map to palm-side vertices, foot nodes to the sole-facing vertices, and sitting or leaning nodes to the corresponding regions on the hips, back, head, or legs. These subsets are defined once from the SMPL-X template and reused for all interactions. The restriction guarantees that every edge in a valid graph is grounded on one known body-side vertex set, which keeps the downstream optimization well defined and prevents the model from introducing body parts that cannot be attached to the body mesh.
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
   \centering
   \includegraphics[width=\textwidth]{figures/methodology_32.pdf}
   \caption[Predefined SMPL-X contact regions.]{Predefined SMPL-X contact regions for the supported body-part vocabulary (left hand, right hand, left arm, right arm, left leg, right leg, left foot, right foot, head, back, hips). Each body-part node in the Scene Interaction Graph maps to a fixed vertex subset $B_e$ on the SMPL-X template, shown here color-coded. These subsets are defined once and reused for all interactions; the treadmill running example activates the left-hand, right-hand, and left-foot regions.}
@@ -225,10 +221,10 @@ Minor visual artifacts in $\hat{I}$ are tolerated, since the frame serves as evi
 
 The selected human frame $\hat{I}$ provides the visual evidence used by the following modules, while the authoritative scene geometry remains the reconstructed mesh $M_s$ and the authoritative scene appearance for contact annotation remains the original view $I$. The next section describes how the contact regions implied by $\hat{I}$ are localized on $I$ and grounded on $M_s$.
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
   \centering
   \includegraphics[width=\textwidth]{figures/methodology_33.pdf}
-  \caption[Human frame generation and selection.]{Human frame generation and selection. The image diffusion model inpaints one person into the posed ScanNet++ view according to the interaction description $\hat{y}$, preserving the scene, camera viewpoint, and target object. A vision-language evaluator then selects the candidate that best preserves the scene and expresses the required body--scene contacts. The selected frame $\hat{I}$ is the shared input to GVHMR initialization and contact estimation.}
+  \caption[Human frame generation and selection.]{Human frame generation and selection. The image diffusion model inpaints one person into the posed ScanNet++ view according to the interaction description $\hat{y}$ (enhanced prompt), preserving the scene, camera viewpoint, and target object. A vision-language evaluator then selects the candidate that best preserves the scene and expresses the required body--scene contacts.}
   \label{fig:human-frame-generation}
 \end{figure}
 
@@ -327,15 +323,12 @@ represented in practice as a set of scene vertices or sampled surface points. Th
 \end{equation}
 in which each element is linked, through its edge, to one body-side contact set $B_e$. The next module initializes the SMPL-X body, after which optimization brings the two sides into contact.
 
-\begin{landscape}
-  \begin{figure}[p]
-    \centering
-    \includegraphics[width=\linewidth]{figures/methodology_34.pdf}
-    \caption[Agentic contact estimation.]{Agentic contact estimation. Linearized the agentic verification loop for easier interpretation. Using the human frame $\hat{I}$ as reference and the posed view $I$ as canvas, the image diffusion model paints colored contact footprints, of which only the colored pixels are extracted and composited back onto the untouched view $I$. A vision-language evaluator checks the composite against the reference and the canvas and either accepts it or returns a correction for another round. For the treadmill example, the left hand, right hand, and left foot receive distinct colors and are localized on the two handles and the belt.}
-    \label{fig:agentic-contact-estimation}
-  \end{figure}
-\end{landscape}
-\clearpage
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=\textwidth]{figures/methodology_34.pdf}
+  \caption[Agentic contact estimation.]{Agentic contact estimation. Linearized the agentic verification loop for easier interpretation. Using the human frame $\hat{I}$ as reference and the posed view $I$ as canvas, the image diffusion model paints colored contact footprints, of which only the colored pixels are extracted and composited back onto the untouched view $I$. A vision-language evaluator checks the composite against the reference and the canvas and either accepts it or returns a correction for another round. For the treadmill example, the left hand, right hand, and left foot receive distinct colors and are localized on the two handles and the belt.}
+  \label{fig:agentic-contact-estimation}
+\end{figure}
 
 \section{SMPL-X Pose Initialization}
 \label{sec:method-pose-init}
@@ -522,9 +515,9 @@ M_h^{\ast} = M_h(\theta^{\ast}),
 \end{equation}
 already expressed in the ScanNet++ scene coordinate frame. \Cref{fig:optimization-before-after} shows the effect of this optimization on the treadmill running example. The stage lengths, learning rate, gradient clipping, and total iteration budget are reported in \cref{sec:implementation-details}.
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
   \centering
-  \includegraphics[width=\textwidth]{figures/methodology_35.pdf}
+  \includegraphics{figures/methodology_35.pdf}
   \caption[Effect of scene-aware optimization.]{Effect of scene-aware optimization, shown on the treadmill running example, with each state rendered from two viewpoints. The body-side contact regions are colored on the mesh: the left and right hands in red and green and the supporting foot in blue. In the GVHMR initialization (left), the body is a plausible, well-articulated pose but is unaware of the scene, so its colored contact regions do not meet the treadmill: the hands hover off the side rails and the foot penetrates the belt. After scene-aware optimization (right), the contact regions are drawn onto their targets, the hands meeting the two side rails and the foot landing on the belt, and the body settles into correct contact with the treadmill while its pose remains close to the initialization.}
   \label{fig:optimization-before-after}
 \end{figure}
