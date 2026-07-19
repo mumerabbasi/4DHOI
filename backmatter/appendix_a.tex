@@ -785,46 +785,27 @@ The reported per-interaction score is the mean of the four criterion scores, and
 \section{Additional Qualitative Results}
 \label{app:qualitative-gallery}
  
-This section complements the nine interactions shown in \cref{fig:exp-qualitative-gallery} with the remaining fourteen evaluation interactions, in their evaluation-set order. The layout and view selection follow the main qualitative gallery.
+This section complements the nine interactions shown in the main qualitative galleries with the remaining fourteen evaluation interactions, in their evaluation-set order. \Cref{fig:app-qualitative-ablation} compares GVHMR init, Single-shot, and Full method, following \cref{fig:exp-qualitative-ablation}; \cref{fig:app-qualitative-baseline} compares PhySIC and Full method, following \cref{fig:exp-qualitative-baseline}. Every setting is shown from the same two selected views, and the method names match \cref{tab:exp-quantitative}.
  
 \begin{landscape}
 \begingroup
-    \newlength{\aqcellw}\setlength{\aqcellw}{0.125\linewidth}%
-    \newlength{\aqcellh}\setlength{\aqcellh}{0.098\linewidth}%
-    \newcommand{\aqresult}[1]{%
-      \raisebox{-.5\height}{\includegraphics[width=\aqcellw,height=\aqcellh,keepaspectratio]{figures/qualitative/#1}}}
-    \newcommand{\aqrow}[2]{%
-      \begin{minipage}[c]{\linewidth}\footnotesize\centering
-        \includegraphics[width=\linewidth,height=\aqcellh,keepaspectratio]{figures/qualitative/#1_frame.jpg}\par\smallskip
-        #2
-      \end{minipage} &
-      \aqresult{#1_ours1.jpg} &
-      \aqresult{#1_ours2.jpg} &
-      \aqresult{#1_single1.jpg} &
-      \aqresult{#1_single2.jpg} &
-      \aqresult{#1_physic1.jpg} &
-      \aqresult{#1_physic2.jpg} \\
-      \addlinespace[4pt]}
-    \newcommand{\aqheader}{%
-      \toprule
-      & \multicolumn{2}{c}{Ours} & \multicolumn{2}{c}{Single-shot} & \multicolumn{2}{c}{PhySIC} \\
-      \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
-      Interaction & View 1 & View 2 & View 1 & View 2 & View 1 & View 2 \\
-      \midrule}
+  \setlength{\qualresultwidth}{0.13\linewidth}%
+  \setlength{\qualresultheight}{0.14\linewidth}%
+  \setlength{\qualframeheight}{0.105\linewidth}%
+  \setlength{\qualrowheight}{0.17\linewidth}%
  
   \begin{figure}[p]
     \centering
     \setlength{\tabcolsep}{3pt}
     \small
-    \begin{tabular}{@{}p{0.17\linewidth} cc cc cc@{}}
-      \aqheader
-      \aqrow{table}{A person sitting on the small wooden table}
-      \aqrow{chair}{A person pulling back the chair to sit down}
-      \aqrow{door}{A person opening the door}
+    \begin{tabular}{@{}p{0.16\linewidth} cc cc cc@{}}
+      \qualablationheader
+      \qualablationrow{table}{1}{Sitting on the wooden table}
+      \qualablationrow{chair}{2}{Pulling back the chair}
       \bottomrule
     \end{tabular}
-    \caption[Additional qualitative comparisons.]{Additional qualitative comparisons for the fourteen interactions not shown in the main gallery. The layout follows \cref{fig:exp-qualitative-gallery}: the leftmost cell shows the generated human frame with the corresponding interaction instruction from \cref{tab:exp-interactions} beneath it; the remaining columns show two views each for the full method, the single-shot setting, and PhySIC.}
-    \label{fig:app-qualitative-gallery}
+    \caption[Additional qualitative ablation comparisons.]{Additional qualitative ablation comparisons for the fourteen appendix interactions. The leftmost cell identifies the interaction; the remaining columns show two views each for GVHMR init, Single-shot, and Full method. Complete instructions are given in \cref{tab:exp-interactions}.}
+    \label{fig:app-qualitative-ablation}
   \end{figure}
  
   \begin{figure}[p]
@@ -832,14 +813,13 @@ This section complements the nine interactions shown in \cref{fig:exp-qualitativ
     \centering
     \setlength{\tabcolsep}{3pt}
     \small
-    \begin{tabular}{@{}p{0.17\linewidth} cc cc cc@{}}
-      \aqheader
-      \aqrow{faucet}{A person turning on the faucet}
-      \aqrow{washingmachine}{A person opening the washing machine door}
-      \aqrow{coffee}{A person making coffee}
+    \begin{tabular}{@{}p{0.16\linewidth} cc cc cc@{}}
+      \qualablationheader
+      \qualablationrow{door}{3}{Opening the door}
+      \qualablationrow{faucet}{4}{Turning on the faucet}
       \bottomrule
     \end{tabular}
-    \caption[]{Additional qualitative comparisons (continued).}
+    \caption[]{Additional qualitative ablation comparisons (continued).}
   \end{figure}
  
   \begin{figure}[p]
@@ -847,14 +827,13 @@ This section complements the nine interactions shown in \cref{fig:exp-qualitativ
     \centering
     \setlength{\tabcolsep}{3pt}
     \small
-    \begin{tabular}{@{}p{0.17\linewidth} cc cc cc@{}}
-      \aqheader
-      \aqrow{shower}{A person taking a shower}
-      \aqrow{vacuum}{A person taking out the vacuum cleaner with both hands}
-      \aqrow{sofaplant}{A person sitting on the side of the sofa, playing with the leaves of a nearby potted plant using both hands}
+    \begin{tabular}{@{}p{0.16\linewidth} cc cc cc@{}}
+      \qualablationheader
+      \qualablationrow{washingmachine}{5}{Opening the washing machine}
+      \qualablationrow{coffee}{7}{Making coffee}
       \bottomrule
     \end{tabular}
-    \caption[]{Additional qualitative comparisons (continued).}
+    \caption[]{Additional qualitative ablation comparisons (continued).}
   \end{figure}
  
   \begin{figure}[p]
@@ -862,28 +841,159 @@ This section complements the nine interactions shown in \cref{fig:exp-qualitativ
     \centering
     \setlength{\tabcolsep}{3pt}
     \small
-    \begin{tabular}{@{}p{0.17\linewidth} cc cc cc@{}}
-      \aqheader
-      \aqrow{shelf}{A person sitting on the shelf with both hands supporting their body and both legs hanging down}
-      \aqrow{lamp}{A person sitting on the bed and reaching to turn off the bedside lamp}
-      \aqrow{chocolate}{A person sitting on the bed and reaching for the chocolate nearby}
+    \begin{tabular}{@{}p{0.16\linewidth} cc cc cc@{}}
+      \qualablationheader
+      \qualablationrow{shower}{8}{Taking a shower}
+      \qualablationrow{vacuum}{9}{Taking out the vacuum cleaner}
       \bottomrule
     \end{tabular}
-    \caption[]{Additional qualitative comparisons (continued).}
+    \caption[]{Additional qualitative ablation comparisons (continued).}
   \end{figure}
- 
+
   \begin{figure}[p]
     \ContinuedFloat
     \centering
     \setlength{\tabcolsep}{3pt}
     \small
-    \begin{tabular}{@{}p{0.17\linewidth} cc cc cc@{}}
-      \aqheader
-      \aqrow{drawer}{A person bending down at the lower drawer, one hand pulling the cabinet door open and the other holding the counter edge for balance}
-      \aqrow{treadmill}{A person running on the treadmill, one foot on the belt, the other leg lifted behind, and both hands holding the side handles}
+    \begin{tabular}{@{}p{0.16\linewidth} cc cc cc@{}}
+      \qualablationheader
+      \qualablationrow{sofaplant}{12}{Sitting beside the sofa and plant}
+      \qualablationrow{shelf}{13}{Sitting on the shelf}
       \bottomrule
     \end{tabular}
-    \caption[]{Additional qualitative comparisons (continued).}
+    \caption[]{Additional qualitative ablation comparisons (continued).}
+  \end{figure}
+
+  \begin{figure}[p]
+    \ContinuedFloat
+    \centering
+    \setlength{\tabcolsep}{3pt}
+    \small
+    \begin{tabular}{@{}p{0.16\linewidth} cc cc cc@{}}
+      \qualablationheader
+      \qualablationrow{lamp}{15}{Reaching for the bedside lamp}
+      \qualablationrow{chocolate}{16}{Reaching for the chocolate}
+      \bottomrule
+    \end{tabular}
+    \caption[]{Additional qualitative ablation comparisons (continued).}
+  \end{figure}
+
+  \begin{figure}[p]
+    \ContinuedFloat
+    \centering
+    \setlength{\tabcolsep}{3pt}
+    \small
+    \begin{tabular}{@{}p{0.16\linewidth} cc cc cc@{}}
+      \qualablationheader
+      \qualablationrow{drawer}{18}{Opening the lower drawer}
+      \qualablationrow{treadmill}{22}{Running on the treadmill}
+      \bottomrule
+    \end{tabular}
+    \caption[]{Additional qualitative ablation comparisons (continued).}
+  \end{figure}
+
+  \clearpage
+  \setlength{\qualresultwidth}{0.20\linewidth}%
+  \setlength{\qualresultheight}{0.19\linewidth}%
+  \setlength{\qualframeheight}{0.14\linewidth}%
+  \setlength{\qualrowheight}{0.22\linewidth}%
+
+  \begin{figure}[p]
+    \centering
+    \setlength{\tabcolsep}{3pt}
+    \small
+    \begin{tabular}{@{}p{0.16\linewidth} cc cc@{}}
+      \qualbaselineheader
+      \qualbaselinerow{table}{1}{Sitting on the wooden table}
+      \qualbaselinerow{chair}{2}{Pulling back the chair}
+      \bottomrule
+    \end{tabular}
+    \caption[Additional qualitative baseline comparisons.]{Additional qualitative baseline comparisons for the fourteen appendix interactions. The leftmost cell identifies the interaction; the remaining columns show two views each for PhySIC and Full method. Complete instructions are given in \cref{tab:exp-interactions}.}
+    \label{fig:app-qualitative-baseline}
+  \end{figure}
+
+  \begin{figure}[p]
+    \ContinuedFloat
+    \centering
+    \setlength{\tabcolsep}{3pt}
+    \small
+    \begin{tabular}{@{}p{0.16\linewidth} cc cc@{}}
+      \qualbaselineheader
+      \qualbaselinerow{door}{3}{Opening the door}
+      \qualbaselinerow{faucet}{4}{Turning on the faucet}
+      \bottomrule
+    \end{tabular}
+    \caption[]{Additional qualitative baseline comparisons (continued).}
+  \end{figure}
+
+  \begin{figure}[p]
+    \ContinuedFloat
+    \centering
+    \setlength{\tabcolsep}{3pt}
+    \small
+    \begin{tabular}{@{}p{0.16\linewidth} cc cc@{}}
+      \qualbaselineheader
+      \qualbaselinerow{washingmachine}{5}{Opening the washing machine}
+      \qualbaselinerow{coffee}{7}{Making coffee}
+      \bottomrule
+    \end{tabular}
+    \caption[]{Additional qualitative baseline comparisons (continued).}
+  \end{figure}
+
+  \begin{figure}[p]
+    \ContinuedFloat
+    \centering
+    \setlength{\tabcolsep}{3pt}
+    \small
+    \begin{tabular}{@{}p{0.16\linewidth} cc cc@{}}
+      \qualbaselineheader
+      \qualbaselinerow{shower}{8}{Taking a shower}
+      \qualbaselinerow{vacuum}{9}{Taking out the vacuum cleaner}
+      \bottomrule
+    \end{tabular}
+    \caption[]{Additional qualitative baseline comparisons (continued).}
+  \end{figure}
+
+  \begin{figure}[p]
+    \ContinuedFloat
+    \centering
+    \setlength{\tabcolsep}{3pt}
+    \small
+    \begin{tabular}{@{}p{0.16\linewidth} cc cc@{}}
+      \qualbaselineheader
+      \qualbaselinerow{sofaplant}{12}{Sitting beside the sofa and plant}
+      \qualbaselinerow{shelf}{13}{Sitting on the shelf}
+      \bottomrule
+    \end{tabular}
+    \caption[]{Additional qualitative baseline comparisons (continued).}
+  \end{figure}
+
+  \begin{figure}[p]
+    \ContinuedFloat
+    \centering
+    \setlength{\tabcolsep}{3pt}
+    \small
+    \begin{tabular}{@{}p{0.16\linewidth} cc cc@{}}
+      \qualbaselineheader
+      \qualbaselinerow{lamp}{15}{Reaching for the bedside lamp}
+      \qualbaselinerow{chocolate}{16}{Reaching for the chocolate}
+      \bottomrule
+    \end{tabular}
+    \caption[]{Additional qualitative baseline comparisons (continued).}
+  \end{figure}
+
+  \begin{figure}[p]
+    \ContinuedFloat
+    \centering
+    \setlength{\tabcolsep}{3pt}
+    \small
+    \begin{tabular}{@{}p{0.16\linewidth} cc cc@{}}
+      \qualbaselineheader
+      \qualbaselinerow{drawer}{18}{Opening the lower drawer}
+      \qualbaselinerow{treadmill}{22}{Running on the treadmill}
+      \bottomrule
+    \end{tabular}
+    \caption[]{Additional qualitative baseline comparisons (continued).}
   \end{figure}
 \endgroup
 \end{landscape}

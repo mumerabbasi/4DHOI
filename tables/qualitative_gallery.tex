@@ -1,0 +1,63 @@
+% Shared building blocks for the qualitative result galleries.
+% The enclosing chapter/appendix sets the three lengths before each series.
+\newlength{\qualresultwidth}
+\newlength{\qualresultheight}
+\newlength{\qualframeheight}
+\newlength{\qualrowheight}
+
+\newcommand{\qualresult}[1]{%
+  \begin{minipage}[c][\qualrowheight][c]{\qualresultwidth}
+    \centering
+    \includegraphics[
+      width=\qualresultwidth,
+      height=\qualresultheight,
+      keepaspectratio
+    ]{figures/qualitative/#1}
+  \end{minipage}}
+
+\newcommand{\qualinteraction}[3]{%
+  \begin{minipage}[c][\qualrowheight][c]{\linewidth}
+    \centering
+    \includegraphics[
+      width=\linewidth,
+      height=\qualframeheight,
+      keepaspectratio
+    ]{figures/qualitative/#1_frame.jpg}\par\smallskip
+    \footnotesize\textbf{Interaction #2}\par
+    \footnotesize #3
+  \end{minipage}}
+
+\newcommand{\qualablationheader}{%
+  \toprule
+  & \multicolumn{2}{c}{GVHMR init}
+  & \multicolumn{2}{c}{Single-shot}
+  & \multicolumn{2}{c}{Full method} \\
+  \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+  Interaction & View 1 & View 2 & View 1 & View 2 & View 1 & View 2 \\
+  \midrule}
+
+\newcommand{\qualablationrow}[3]{%
+  \qualinteraction{#1}{#2}{#3} &
+  \qualresult{#1_init1.jpg} &
+  \qualresult{#1_init2.jpg} &
+  \qualresult{#1_single1.jpg} &
+  \qualresult{#1_single2.jpg} &
+  \qualresult{#1_ours1.jpg} &
+  \qualresult{#1_ours2.jpg} \\
+  \addlinespace[4pt]}
+
+\newcommand{\qualbaselineheader}{%
+  \toprule
+  & \multicolumn{2}{c}{PhySIC}
+  & \multicolumn{2}{c}{Full method} \\
+  \cmidrule(lr){2-3}\cmidrule(lr){4-5}
+  Interaction & View 1 & View 2 & View 1 & View 2 \\
+  \midrule}
+
+\newcommand{\qualbaselinerow}[3]{%
+  \qualinteraction{#1}{#2}{#3} &
+  \qualresult{#1_physic1.jpg} &
+  \qualresult{#1_physic2.jpg} &
+  \qualresult{#1_ours1.jpg} &
+  \qualresult{#1_ours2.jpg} \\
+  \addlinespace[4pt]}
