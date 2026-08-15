@@ -71,7 +71,7 @@ def replace_path_prefix(value, old_prefix: str, new_prefix: str):
     if isinstance(value, list):
         return [replace_path_prefix(item, old_prefix, new_prefix) for item in value]
     if isinstance(value, str) and value.startswith(old_prefix):
-        return new_prefix + value[len(old_prefix) :]
+        return new_prefix + value[len(old_prefix):]
     return value
 
 
@@ -112,6 +112,13 @@ def gpu_metadata(torch) -> dict[str, object]:
 
 
 def serialize_result(result, observation, torch, physic_root: Path, started: float):
+    with torch.no_grad(), torch.amp.autocast(enabled=False, device_type="cuda"):
+        final_joints, _, final_vertices, _, _ = result()
+    if final_vertices.shape[0] != 1:
+        raise ValueError(
+            f"Expected one human, but PhySIC returned {final_vertices.shape[0]}."
+        )
+
     diagnostics = result.scannet_gt_diagnostics
     return {
         "depth": result.depth.cpu().numpy(),
@@ -127,6 +134,11 @@ def serialize_result(result, observation, torch, physic_root: Path, started: flo
             for key, value in result.body_params.items()
         },
         "cam_trans": result.cam_trans.detach().cpu().numpy(),
+        "human_vertices_camera": final_vertices[0].float().cpu().numpy(),
+        "human_faces": result.body_model.faces.copy(),
+        "human_root_joint_untranslated": (
+            final_joints[0, 0] - result.cam_trans[0]
+        ).float().detach().cpu().numpy(),
         "scannet_gt": {
             "protocol": observation["protocol"],
             "gt_depth": observation["depth"],

@@ -369,41 +369,15 @@ def build_scene_mesh_from_predictions(
     return vertices, faces, colors
 
 
-def build_human_mesh_from_predictions(
+def load_human_mesh_from_predictions(
     original_dir: Path,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    import smplx
-    from utils.geometry import rot6d_to_rotmat
-
     predictions = load_scene_predictions(original_dir)
-    body_params = predictions["body_params"]
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    smplx_layer = smplx.SMPLXLayer(
-        model_path="data/body_models/smplx/SMPLX_NEUTRAL.npz",
-        num_betas=10,
-        use_face_contour=True,
-    ).to(device)
-    body_params_rotmat = {
-        key: (
-            rot6d_to_rotmat(torch.as_tensor(value, dtype=torch.float32, device=device))
-            if key != "betas"
-            else torch.as_tensor(value, dtype=torch.float32, device=device)
-        )
-        for key, value in body_params.items()
-    }
-    transl = torch.as_tensor(
-        predictions["cam_trans"],
-        dtype=torch.float32,
-        device=device,
+    vertices = np.asarray(predictions["human_vertices_camera"], dtype=np.float32)
+    faces = np.asarray(predictions["human_faces"], dtype=np.int64)
+    root_joint_untranslated = np.asarray(
+        predictions["human_root_joint_untranslated"], dtype=np.float32
     )
-    with torch.no_grad():
-        output = smplx_layer(**body_params_rotmat, transl=transl)
-    vertices = output.vertices[0].float().detach().cpu().numpy().astype(np.float32)
-    root_joint_untranslated = (
-        output.joints[0, 0].float().detach().cpu().numpy().astype(np.float32)
-        - transl[0].float().detach().cpu().numpy().astype(np.float32)
-    )
-    faces = np.asarray(smplx_layer.faces, dtype=np.int64)
     colors = np.tile(
         np.asarray([188 / 255.0, 188 / 255.0, 188 / 255.0], dtype=np.float32),
         (vertices.shape[0], 1),
@@ -424,7 +398,7 @@ def write_evaluation_artifacts(
 
     scene_vertices, scene_faces, scene_colors = build_scene_mesh_from_predictions(original_dir)
     human_vertices, human_faces, human_colors, root_joint = (
-        build_human_mesh_from_predictions(original_dir)
+        load_human_mesh_from_predictions(original_dir)
     )
 
     scene_camera_path = meshes_dir / "scene_camera.ply"

@@ -93,7 +93,7 @@
   "raw_gt_point_count": 697366,
   "filtered_gt_point_count": 685221,
   "run": {
-    "cuda_visible_devices": "1",
+    "cuda_visible_devices": "0",
     "logical_torch_device": "cuda:0",
     "name": "NVIDIA RTX A6000",
     "memory_total_mb": 48540,
@@ -103,7 +103,7 @@
     "physic_root": "/my_workspace/4DHHOI/Phy-SIC",
     "peak_allocated_mb": 6510.31298828125,
     "peak_reserved_mb": 12422.0,
-    "runtime_seconds_to_serialization": 164.09447836875916,
-    "total_runtime_seconds": 166.236341714859
+    "runtime_seconds_to_serialization": 168.07283902168274,
+    "total_runtime_seconds": 168.72459888458252
   }
 }
