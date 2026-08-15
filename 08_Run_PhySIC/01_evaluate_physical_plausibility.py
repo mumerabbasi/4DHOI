@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evaluate PhySIC outputs in PhySIC's own reconstructed camera frame."""
+"""Evaluate PhySIC outputs against their camera-frame scene observation."""
 
 from __future__ import annotations
 
@@ -49,8 +49,8 @@ COMBINED_CSV_FIELDNAMES = [
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Evaluate contact and penetration for PhySIC using the reconstructed "
-            "PhySIC scene mesh instead of the GT ScanNet mesh."
+            "Evaluate contact and penetration for PhySIC using its serialized "
+            "scene observation (visible ScanNet++ GT geometry in scannet mode)."
         )
     )
     parser.add_argument("--interaction_name", default="interaction_01")

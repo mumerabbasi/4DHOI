@@ -1,0 +1,630 @@
+{
+  "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_c/output_scannet/interaction_10/semantics/assets/physic_scene_registered_module06_world.ply",
+  "human_mesh_world": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_c/output_scannet/interaction_10/semantics/assets/physic_human_registered_module06_world.ply",
+  "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_c/output_scannet/interaction_10/semantics/assets/render_scene.blend",
+  "views": [
+    {
+      "name": "view_00",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_c/output_scannet/interaction_10/semantics/renders/view_00.png",
+      "camera_matrix_world": [
+        [
+          0.43747779726982117,
+          0.1591535061597824,
+          -0.8850329518318176,
+          9.93924331665039
+        ],
+        [
+          -0.8976320028305054,
+          0.13592641055583954,
+          -0.41926226019859314,
+          2.9606733322143555
+        ],
+        [
+          0.05357227101922035,
+          0.9778518080711365,
+          0.20232607424259186,
+          1.5860168933868408
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          464.8388977050781,
+          0.0,
+          588.0
+        ],
+        [
+          0.0,
+          466.0625305175781,
+          320.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 1050,
+      "height": 700,
+      "resolution_percentage": 75,
+      "camera_transfer": "exact_module06_camera_after_scene_registration"
+    },
+    {
+      "name": "view_01",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_c/output_scannet/interaction_10/semantics/renders/view_01.png",
+      "camera_matrix_world": [
+        [
+          0.5456003546714783,
+          0.3972005248069763,
+          -0.7379377484321594,
+          9.923983573913574
+        ],
+        [
+          -0.8380454182624817,
+          0.2581436038017273,
+          -0.4806680381298065,
+          3.0564494132995605
+        ],
+        [
+          -0.0004277013649698347,
+          0.8806779384613037,
+          0.47371533513069153,
+          2.0815558433532715
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          554.2562866210938,
+          0.0,
+          319.5
+        ],
+        [
+          0.0,
+          554.2562866210938,
+          319.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 640,
+      "height": 640,
+      "resolution_percentage": 100,
+      "camera_transfer": "exact_module06_camera_after_scene_registration"
+    },
+    {
+      "name": "view_02",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_c/output_scannet/interaction_10/semantics/renders/view_02.png",
+      "camera_matrix_world": [
+        [
+          0.9818897247314453,
+          -0.02275541052222252,
+          0.1880817413330078,
+          11.77447509765625
+        ],
+        [
+          0.18945324420928955,
+          0.1185082420706749,
+          -0.9747118949890137,
+          2.066256523132324
+        ],
+        [
+          -0.00010926426330115646,
+          0.9926923513412476,
+          0.12067310512065887,
+          1.3756738901138306
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          554.2562866210938,
+          0.0,
+          319.5
+        ],
+        [
+          0.0,
+          554.2562866210938,
+          319.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 640,
+      "height": 640,
+      "resolution_percentage": 100,
+      "camera_transfer": "exact_module06_camera_after_scene_registration"
+    },
+    {
+      "name": "view_03",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_c/output_scannet/interaction_10/semantics/renders/view_03.png",
+      "camera_matrix_world": [
+        [
+          0.587769091129303,
+          0.034192707389593124,
+          -0.8083057999610901,
+          9.782515525817871
+        ],
+        [
+          -0.8090286254882812,
+          0.02479386143386364,
+          -0.5872460007667542,
+          2.8428213596343994
+        ],
+        [
+          -3.850798384519294e-05,
+          0.9991077184677124,
+          0.042235951870679855,
+          1.2188109159469604
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          554.2562866210938,
+          0.0,
+          319.5
+        ],
+        [
+          0.0,
+          554.2562866210938,
+          319.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 640,
+      "height": 640,
+      "resolution_percentage": 100,
+      "camera_transfer": "exact_module06_camera_after_scene_registration"
+    },
+    {
+      "name": "view_04",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_c/output_scannet/interaction_10/semantics/renders/view_04.png",
+      "camera_matrix_world": [
+        [
+          0.6433435678482056,
+          0.3088211119174957,
+          -0.7005273699760437,
+          9.923982620239258
+        ],
+        [
+          -0.7655775547027588,
+          0.25907886028289795,
+          -0.5888711214065552,
+          3.0564494132995605
+        ],
+        [
+          -0.0003640156064648181,
+          0.9151543974876404,
+          0.4031032621860504,
+          2.081554889678955
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          554.2562866210938,
+          0.0,
+          319.5
+        ],
+        [
+          0.0,
+          554.2562866210938,
+          319.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 640,
+      "height": 640,
+      "resolution_percentage": 100,
+      "camera_transfer": "exact_module06_camera_after_scene_registration"
+    },
+    {
+      "name": "view_05",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_c/output_scannet/interaction_10/semantics/renders/view_05.png",
+      "camera_matrix_world": [
+        [
+          0.6437160968780518,
+          0.33025047183036804,
+          -0.6903362274169922,
+          9.923981666564941
+        ],
+        [
+          -0.7652642130851746,
+          0.2773372232913971,
+          -0.5809085369110107,
+          3.056450366973877
+        ],
+        [
+          -0.00038940657395869493,
+          0.9022298455238342,
+          0.4312553107738495,
+          2.0815556049346924
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          554.2562866210938,
+          0.0,
+          319.5
+        ],
+        [
+          0.0,
+          554.2562866210938,
+          319.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 640,
+      "height": 640,
+      "resolution_percentage": 100,
+      "camera_transfer": "exact_module06_camera_after_scene_registration"
+    },
+    {
+      "name": "view_06",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_c/output_scannet/interaction_10/semantics/renders/view_06.png",
+      "camera_matrix_world": [
+        [
+          0.6692782044410706,
+          0.016053181141614914,
+          -0.7428383827209473,
+          9.782514572143555
+        ],
+        [
+          -0.7430119514465332,
+          0.014433372765779495,
+          -0.6691225171089172,
+          2.842819929122925
+        ],
+        [
+          -1.9881221305695362e-05,
+          0.9997669458389282,
+          0.021587643772363663,
+          1.218810796737671
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          554.2562866210938,
+          0.0,
+          319.5
+        ],
+        [
+          0.0,
+          554.2562866210938,
+          319.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 640,
+      "height": 640,
+      "resolution_percentage": 100,
+      "camera_transfer": "exact_module06_camera_after_scene_registration"
+    },
+    {
+      "name": "view_07",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_c/output_scannet/interaction_10/semantics/renders/view_07.png",
+      "camera_matrix_world": [
+        [
+          0.8023146986961365,
+          0.04978921264410019,
+          -0.594821035861969,
+          10.084938049316406
+        ],
+        [
+          -0.5969012379646301,
+          0.06679718941450119,
+          -0.7995292544364929,
+          2.5372705459594727
+        ],
+        [
+          -7.556165655842051e-05,
+          0.9965235590934753,
+          0.08331160247325897,
+          1.4227325916290283
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          554.2562866210938,
+          0.0,
+          319.5
+        ],
+        [
+          0.0,
+          554.2562866210938,
+          319.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 640,
+      "height": 640,
+      "resolution_percentage": 100,
+      "camera_transfer": "exact_module06_camera_after_scene_registration"
+    },
+    {
+      "name": "view_08",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_c/output_scannet/interaction_10/semantics/renders/view_08.png",
+      "camera_matrix_world": [
+        [
+          0.6688665747642517,
+          -0.007532652001827955,
+          -0.7433443069458008,
+          9.782514572143555
+        ],
+        [
+          -0.743382453918457,
+          -0.006765848025679588,
+          -0.6688323616981506,
+          2.842820405960083
+        ],
+        [
+          8.727058229851536e-06,
+          0.9999487400054932,
+          -0.01012509036809206,
+          1.218810796737671
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          554.2562866210938,
+          0.0,
+          319.5
+        ],
+        [
+          0.0,
+          554.2562866210938,
+          319.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 640,
+      "height": 640,
+      "resolution_percentage": 100,
+      "camera_transfer": "exact_module06_camera_after_scene_registration"
+    },
+    {
+      "name": "view_09",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_c/output_scannet/interaction_10/semantics/renders/view_09.png",
+      "camera_matrix_world": [
+        [
+          0.8030216693878174,
+          0.06833413243293762,
+          -0.5920190215110779,
+          10.08493709564209
+        ],
+        [
+          -0.5959497094154358,
+          0.09190499782562256,
+          -0.7977452278137207,
+          2.5372719764709473
+        ],
+        [
+          -0.00010371867392677814,
+          0.9934203624725342,
+          0.11452541500329971,
+          1.4227328300476074
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          554.2562866210938,
+          0.0,
+          319.5
+        ],
+        [
+          0.0,
+          554.2562866210938,
+          319.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 640,
+      "height": 640,
+      "resolution_percentage": 100,
+      "camera_transfer": "exact_module06_camera_after_scene_registration"
+    }
+  ],
+  "camera_source": "exact_module06_cameras_after_physic_scene_registration",
+  "camera_source_config_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_10/semantics/assets/render_config.json",
+  "intrinsics": [
+    [
+      464.8388977050781,
+      0.0,
+      588.0
+    ],
+    [
+      0.0,
+      466.0625305175781,
+      320.0
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "width": 1050,
+  "height": 700,
+  "resolution_percentage": 75,
+  "cycles_samples": 64,
+  "coordinate_frame": "module06_world",
+  "scene_registration": {
+    "icp_stages": [
+      {
+        "max_correspondence_m": 1.0,
+        "fitness": 1.0,
+        "inlier_rmse_m": 0.08225238656984926
+      },
+      {
+        "max_correspondence_m": 0.6,
+        "fitness": 1.0,
+        "inlier_rmse_m": 0.08966034916596693
+      },
+      {
+        "max_correspondence_m": 0.35,
+        "fitness": 1.0,
+        "inlier_rmse_m": 0.09295287079735241
+      },
+      {
+        "max_correspondence_m": 0.2,
+        "fitness": 0.9408406850025947,
+        "inlier_rmse_m": 0.06900811627653777
+      }
+    ],
+    "fitness": 0.9408406850025947,
+    "inlier_rmse_m": 0.06900811627653777,
+    "source_point_count": 9635,
+    "target_point_count": 25694,
+    "pixel_sample_count": 60000,
+    "pixel_ray_hit_count": 57533,
+    "pixel_ray_hit_fraction": 0.9588833333333333,
+    "pixel_registration_inlier_count": 48856,
+    "pixel_registration_rmse_m": 0.09024494111872258,
+    "pixel_registration_median_error_m": 0.08654650326957837,
+    "resize_mapping": {
+      "physic_width": 1024,
+      "physic_height": 682,
+      "module06_width": 1050,
+      "module06_height": 700,
+      "pixel_scale_x": 1.025390625,
+      "pixel_scale_y": 1.0263929618768328
+    },
+    "physic_scene_scale": 0.8903791904449463,
+    "physic_intrinsics": [
+      [
+        521.7406005859375,
+        0.0,
+        511.5
+      ],
+      [
+        0.0,
+        521.7406005859375,
+        340.5
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "rotation_physic_to_module06_world": [
+      [
+        0.47749991506317596,
+        -0.19776616208254577,
+        0.8560854958763169
+      ],
+      [
+        -0.878056547908163,
+        -0.14265885656013302,
+        0.45679880617242685
+      ],
+      [
+        0.03178883121882018,
+        -0.9698128663717017,
+        -0.24176946546171962
+      ]
+    ],
+    "translation_physic_to_module06_world": [
+      9.700654226564767,
+      3.0611461487337426,
+      1.5248135199489068
+    ],
+    "method": "robust_pixel_rigid_initialization_then_multiscale_rigid_icp",
+    "transform_type": "rigid_se3_no_scale_no_shear"
+  },
+  "source_module06_scene_mesh": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_10/semantics/assets/scene_semantics_view_crop.ply",
+  "source_physic_scene_mesh": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/output_scannet/interaction_10/meshes/scene_camera.ply",
+  "source_physic_human_mesh": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/output_scannet/interaction_10/meshes/human_camera.ply",
+  "registered_physic_scene_mesh": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_c/output_scannet/interaction_10/semantics/assets/physic_scene_registered_module06_world.ply",
+  "module06_scene_is_registration_target_only": true
+}

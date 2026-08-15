@@ -1,0 +1,37 @@
+{
+  "interaction_name": "interaction_30",
+  "interaction_instruction": "a person stepping down from the ladder, both feet on ladder steps and both hands gripping the ladder frame",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is interacting with the correct target object (the ladder/wall bars)."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 2,
+        "reason": "The pose fails to represent the requested action. The instruction requires both feet to be on the ladder steps and both hands to grip the ladder frame, but only one foot is near a step, and the hands are floating in front of the chest."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 2,
+        "reason": "The required contacts are completely missing. Both hands are floating in the air without gripping the ladder frame, and the right foot is completely floating in space, far from any step."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 2,
+        "reason": "The human is floating in mid-air next to the ladder. With no hand support and only one foot near a rung, the pose is physically impossible and lacks any plausible weight-bearing support."
+      }
+    },
+    "best_view_ids": [
+      0,
+      1,
+      2
+    ],
+    "failure_modes": [
+      "floating_human",
+      "missing_contact"
+    ],
+    "brief_summary": "The interaction fails because the human is floating in mid-air next to the ladder. Both hands are floating instead of gripping the frame, and the right foot is completely unsupported and floating in space, violating the physical requirements of the instruction."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is interacting with the correct target object (the ladder/wall bars).\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The pose fails to represent the requested action. The instruction requires both feet to be on the ladder steps and both hands to grip the ladder frame, but only one foot is near a step, and the hands are floating in front of the chest.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The required contacts are completely missing. Both hands are floating in the air without gripping the ladder frame, and the right foot is completely floating in space, far from any step.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The human is floating in mid-air next to the ladder. With no hand support and only one foot near a rung, the pose is physically impossible and lacks any plausible weight-bearing support.\"\n    }\n  },\n  \"best_view_ids\": [\n    0,\n    1,\n    2\n  ],\n  \"failure_modes\": [\n    \"floating_human\",\n    \"missing_contact\"\n  ],\n  \"brief_summary\": \"The interaction fails because the human is floating in mid-air next to the ladder. Both hands are floating instead of gripping the frame, and the right foot is completely unsupported and floating in space, violating the physical requirements of the instruction.\"\n}"
+}

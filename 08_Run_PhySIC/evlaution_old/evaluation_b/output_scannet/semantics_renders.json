@@ -1,0 +1,430 @@
+[
+  {
+    "interaction_name": "interaction_02",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_02/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_02/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_02/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_02/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_02/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_02/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_02/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_02/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_02/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_02/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_02/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_02/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_02/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_02/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_03",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_03/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_03/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_03/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_03/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_03/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_03/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_03/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_03/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_03/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_03/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_03/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_03/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_03/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_03/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_04",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_04/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_04/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_04/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_04/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_04/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_04/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_04/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_04/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_04/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_04/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_04/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_04/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_04/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_04/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_05",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_05/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_05/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_05/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_05/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_05/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_05/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_05/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_05/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_05/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_05/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_05/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_05/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_05/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_05/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_06",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_06/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_06/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_07",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_07/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_07/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_07/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_07/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_07/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_07/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_07/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_07/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_07/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_07/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_07/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_07/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_07/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_07/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_08",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_08/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_08/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_08/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_08/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_08/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_08/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_08/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_08/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_08/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_08/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_08/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_08/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_08/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_08/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_09",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_09/semantics/renders/view_00.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_09/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_09/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_09/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_09/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_10",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_10/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_10/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_10/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_10/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_10/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_10/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_10/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_10/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_10/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_10/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_10/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_10/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_10/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_10/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_11",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_11/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_11/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_11/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_11/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_11/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_11/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_11/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_11/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_11/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_11/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_11/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_11/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_11/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_11/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_14",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_14/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_14/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_14/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_14/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_14/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_14/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_14/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_14/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_14/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_14/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_14/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_14/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_14/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_14/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_15",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_15/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_15/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_15/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_15/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_15/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_15/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_15/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_15/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_15/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_15/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_15/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_15/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_15/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_15/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_16",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_16/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_16/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_16/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_16/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_16/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_16/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_16/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_16/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_16/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_16/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_16/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_16/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_16/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_16/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_18",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_18/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_18/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_18/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_18/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_18/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_18/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_18/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_18/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_18/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_18/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_18/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_18/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_18/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_18/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_20",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_20/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_20/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_20/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_20/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_20/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_20/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_20/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_20/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_20/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_20/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_20/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_20/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_20/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_20/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_21",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_21/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_21/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_21/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_21/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_21/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_21/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_21/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_21/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_21/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_21/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_21/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_21/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_21/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_21/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_22",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_22/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_22/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_22/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_22/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_22/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_22/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_22/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_22/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_22/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_22/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_22/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_22/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_22/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_22/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_23",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_23/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_23/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_23/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_23/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_23/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_23/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_23/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_23/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_23/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_23/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_23/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_23/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_23/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_23/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_24",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_24/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_24/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_24/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_24/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_24/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_24/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_24/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_24/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_24/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_24/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_24/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_24/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_24/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_24/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_26",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_26/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_26/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_26/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_26/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_26/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_26/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_26/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_26/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_26/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_26/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_26/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_26/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_26/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_26/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_27",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_27/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_27/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_27/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_27/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_27/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_27/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_27/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_27/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_27/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_27/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_27/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_27/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_27/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_27/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_28",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_28/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_28/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_28/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_28/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_28/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_28/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_28/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_28/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_28/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_28/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_28/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_28/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_28/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_28/input_scene.json"
+  },
+  {
+    "interaction_name": "interaction_30",
+    "render_paths": [
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_30/semantics/renders/view_00.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_30/semantics/renders/view_01.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_30/semantics/renders/view_02.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_30/semantics/renders/view_03.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_30/semantics/renders/view_04.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_30/semantics/renders/view_05.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_30/semantics/renders/view_06.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_30/semantics/renders/view_07.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_30/semantics/renders/view_08.png",
+      "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_30/semantics/renders/view_09.png"
+    ],
+    "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_30/semantics/assets/scene_semantics_view_crop.ply",
+    "blend_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_30/semantics/assets/render_scene.blend",
+    "selected_views_path": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/evaluation_b/output_scannet/interaction_30/semantics/assets/selected_views.json",
+    "prompt_path": "/my_workspace/4DHHOI/4DHSI/01_Generate_SIG/input_prompts/interaction_30/input_scene.json"
+  }
+]

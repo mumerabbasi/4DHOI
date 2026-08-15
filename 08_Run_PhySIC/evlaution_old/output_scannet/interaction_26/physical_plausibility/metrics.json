@@ -1,0 +1,30 @@
+[
+  {
+    "node_a": "person 1, left hand",
+    "node_b": "target object 1",
+    "contact": {
+      "min_distance_m": 0.46775945889481085,
+      "max_distance_m": 0.562254196933283,
+      "mean_distance_m": 0.5016305334119351
+    },
+    "collision": {
+      "ncs": 1.0,
+      "mean_penetration_m": 0.0,
+      "max_penetration_m": 0.0
+    }
+  },
+  {
+    "node_a": "person 1, right hand",
+    "node_b": "target object 1",
+    "contact": {
+      "min_distance_m": 0.40753835089346463,
+      "max_distance_m": 0.5054632039353291,
+      "mean_distance_m": 0.45342972878225934
+    },
+    "collision": {
+      "ncs": 1.0,
+      "mean_penetration_m": 0.0,
+      "max_penetration_m": 0.0
+    }
+  }
+]

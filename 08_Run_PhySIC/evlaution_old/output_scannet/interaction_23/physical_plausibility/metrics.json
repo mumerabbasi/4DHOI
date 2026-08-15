@@ -1,0 +1,58 @@
+[
+  {
+    "node_a": "person 1, left hand",
+    "node_b": "target object 1",
+    "contact": {
+      "min_distance_m": 0.004796144897784023,
+      "max_distance_m": 0.13876423358795495,
+      "mean_distance_m": 0.08922446650216449
+    },
+    "collision": {
+      "ncs": 0.996675,
+      "mean_penetration_m": 0.01380778733385285,
+      "max_penetration_m": 0.059353812048825574
+    }
+  },
+  {
+    "node_a": "person 1, right hand",
+    "node_b": "target object 2",
+    "contact": {
+      "min_distance_m": 0.005416534555615344,
+      "max_distance_m": 0.13913395250100835,
+      "mean_distance_m": 0.06435253513953271
+    },
+    "collision": {
+      "ncs": 0.996675,
+      "mean_penetration_m": 0.01380778733385285,
+      "max_penetration_m": 0.059353812048825574
+    }
+  },
+  {
+    "node_a": "person 1, left foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.07935837736316705,
+      "max_distance_m": 0.1191466436780841,
+      "mean_distance_m": 0.11090970275829067
+    },
+    "collision": {
+      "ncs": 0.996675,
+      "mean_penetration_m": 0.01380778733385285,
+      "max_penetration_m": 0.059353812048825574
+    }
+  },
+  {
+    "node_a": "person 1, right foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.03209159559959197,
+      "max_distance_m": 0.07963266518032094,
+      "mean_distance_m": 0.06576726731990884
+    },
+    "collision": {
+      "ncs": 0.996675,
+      "mean_penetration_m": 0.01380778733385285,
+      "max_penetration_m": 0.059353812048825574
+    }
+  }
+]

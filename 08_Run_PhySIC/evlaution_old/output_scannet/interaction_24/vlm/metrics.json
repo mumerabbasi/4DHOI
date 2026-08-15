@@ -1,0 +1,37 @@
+{
+  "interaction_name": "interaction_24",
+  "interaction_instruction": "a person climbing the step ladder, with both feet on the ladder and reaching for the top of the cupboard",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is correctly interacting with the step ladder and reaching towards the top of the cupboard."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 3,
+        "reason": "The instruction specifies 'with both feet on the ladder'. However, only the left foot is supported by the top step of the ladder, while the right foot is dangling and floating in the air behind it."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 3,
+        "reason": "The left foot makes contact with the top step of the ladder and the right hand contacts the top of the cupboard. However, the right foot is completely floating in the air, failing to make contact with any part of the ladder."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 3,
+        "reason": "The pose is physically unstable as the human is balancing on one foot on the very edge of the top step of the ladder while reaching high up, with the other leg hanging unsupported in the air."
+      }
+    },
+    "best_view_ids": [
+      0,
+      3,
+      6
+    ],
+    "failure_modes": [
+      "floating body parts",
+      "unstable balance or support"
+    ],
+    "brief_summary": "The human is reaching for the cupboard while standing on the step ladder, but only one foot is on the ladder while the other foot is floating in the air, violating the instruction's requirement of having both feet on the ladder and creating an unstable, physically implausible pose."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is correctly interacting with the step ladder and reaching towards the top of the cupboard.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 3,\n      \"reason\": \"The instruction specifies 'with both feet on the ladder'. However, only the left foot is supported by the top step of the ladder, while the right foot is dangling and floating in the air behind it.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 3,\n      \"reason\": \"The left foot makes contact with the top step of the ladder and the right hand contacts the top of the cupboard. However, the right foot is completely floating in the air, failing to make contact with any part of the ladder.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 3,\n      \"reason\": \"The pose is physically unstable as the human is balancing on one foot on the very edge of the top step of the ladder while reaching high up, with the other leg hanging unsupported in the air.\"\n    }\n  },\n  \"best_view_ids\": [\n    0,\n    3,\n    6\n  ],\n  \"failure_modes\": [\n    \"floating body parts\",\n    \"unstable balance or support\"\n  ],\n  \"brief_summary\": \"The human is reaching for the cupboard while standing on the step ladder, but only one foot is on the ladder while the other foot is floating in the air, violating the instruction's requirement of having both feet on the ladder and creating an unstable, physically implausible pose.\"\n}"
+}

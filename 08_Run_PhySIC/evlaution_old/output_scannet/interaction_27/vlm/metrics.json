@@ -1,0 +1,36 @@
+{
+  "interaction_name": "interaction_27",
+  "interaction_instruction": "a person stepping over the bathtub wall, one foot inside the tub, the other foot still on the floor, one hand holding the side glass for balance",
+  "provider": "gemini",
+  "model": "gemini-3.5-flash",
+  "vlm_result": {
+    "criteria": {
+      "target_object_correctness": {
+        "score_1_to_5": 5,
+        "reason": "The human is positioned to interact with the bathtub, the floor, and the glass partition as specified."
+      },
+      "human_action_correctness": {
+        "score_1_to_5": 3,
+        "reason": "The pose resembles the action of stepping over the bathtub wall, but because both feet are floating in mid-air, the required contacts (one foot on the floor, one foot inside the tub) are not achieved."
+      },
+      "contact_and_spatial_relation": {
+        "score_1_to_5": 2,
+        "reason": "Both feet are completely floating. The lower foot is suspended high above the floor, and the upper foot is hovering above the bathtub wall/towel rather than being inside the tub. Only the hand makes contact with the glass."
+      },
+      "physical_plausibility": {
+        "score_1_to_5": 2,
+        "reason": "The human is completely floating in mid-air without any physical support under either foot, making the interaction physically impossible."
+      }
+    },
+    "best_view_ids": [
+      0,
+      3,
+      7
+    ],
+    "failure_modes": [
+      "floating"
+    ],
+    "brief_summary": "The human is completely floating in mid-air. Neither foot is supported by the floor or the bathtub, failing the core spatial and physical requirements of the instruction."
+  },
+  "raw_response": "{\n  \"criteria\": {\n    \"target_object_correctness\": {\n      \"score_1_to_5\": 5,\n      \"reason\": \"The human is positioned to interact with the bathtub, the floor, and the glass partition as specified.\"\n    },\n    \"human_action_correctness\": {\n      \"score_1_to_5\": 3,\n      \"reason\": \"The pose resembles the action of stepping over the bathtub wall, but because both feet are floating in mid-air, the required contacts (one foot on the floor, one foot inside the tub) are not achieved.\"\n    },\n    \"contact_and_spatial_relation\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"Both feet are completely floating. The lower foot is suspended high above the floor, and the upper foot is hovering above the bathtub wall/towel rather than being inside the tub. Only the hand makes contact with the glass.\"\n    },\n    \"physical_plausibility\": {\n      \"score_1_to_5\": 2,\n      \"reason\": \"The human is completely floating in mid-air without any physical support under either foot, making the interaction physically impossible.\"\n    }\n  },\n  \"best_view_ids\": [\n    0,\n    3,\n    7\n  ],\n  \"failure_modes\": [\n    \"floating\"\n  ],\n  \"brief_summary\": \"The human is completely floating in mid-air. Neither foot is supported by the floor or the bathtub, failing the core spatial and physical requirements of the instruction.\"\n}"
+}

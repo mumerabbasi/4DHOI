@@ -215,6 +215,24 @@ def export_mesh(path: Path, vertices: np.ndarray, faces: np.ndarray, colors: np.
     mesh.export(path)
 
 
+def export_point_cloud(
+    path: Path,
+    points: np.ndarray,
+    colors: np.ndarray | None = None,
+) -> None:
+    ensure_dir(path.parent)
+    color_array = None
+    if colors is not None:
+        color_array = np.asarray(colors)
+        if color_array.max(initial=0) <= 1.0:
+            color_array = np.clip(color_array * 255.0, 0, 255)
+        color_array = color_array.astype(np.uint8)
+    trimesh.points.PointCloud(
+        vertices=np.asarray(points, dtype=np.float32),
+        colors=color_array,
+    ).export(path)
+
+
 def load_mesh(path: Path) -> trimesh.Trimesh:
     loaded = trimesh.load(path, process=False)
     if isinstance(loaded, trimesh.Scene):
@@ -260,10 +278,64 @@ def save_optimized_params(original_dir: Path, params_path: Path) -> dict[str, An
     return payload
 
 
+def save_world_optimized_params(
+    original_dir: Path,
+    camera_payload: dict[str, Any],
+    root_joint_camera_untranslated: np.ndarray,
+    params_path: Path,
+) -> dict[str, Any]:
+    predictions = load_scene_predictions(original_dir)
+    scannet_gt = predictions.get("scannet_gt")
+    if not isinstance(scannet_gt, dict):
+        raise KeyError("World SMPL-X output requires ScanNet++ GT metadata.")
+    rotation_w2c = np.asarray(
+        scannet_gt["rotation_world_to_camera"], dtype=np.float32
+    )
+    translation_w2c = np.asarray(
+        scannet_gt["translation_world_to_camera"], dtype=np.float32
+    ).reshape(3)
+    if rotation_w2c.shape != (3, 3):
+        raise ValueError(f"Expected a 3x3 world-to-camera rotation, got {rotation_w2c.shape}.")
+
+    from pytorch3d.transforms import axis_angle_to_matrix, matrix_to_axis_angle
+
+    orient_camera = torch.as_tensor(
+        camera_payload["global_orient"], dtype=torch.float32
+    ).reshape(1, 3)
+    rotation_camera = axis_angle_to_matrix(orient_camera)[0]
+    rotation_camera_to_world = torch.from_numpy(rotation_w2c.T).float()
+    rotation_world = rotation_camera_to_world @ rotation_camera
+    orient_world = matrix_to_axis_angle(rotation_world[None])[0]
+
+    transl_camera = np.asarray(camera_payload["transl"], dtype=np.float32).reshape(3)
+    root_joint = np.asarray(root_joint_camera_untranslated, dtype=np.float32).reshape(3)
+    # SMPL-X applies global orientation about its root joint, not the coordinate
+    # origin. Include that pivot when changing the global orientation so that the
+    # world-frame parameters reproduce the directly transformed camera mesh.
+    transl_world = (
+        (root_joint + transl_camera - translation_w2c) @ rotation_w2c
+        - root_joint
+    )
+    payload = dict(camera_payload)
+    payload["transl"] = transl_world.astype(np.float32).tolist()
+    payload["global_orient"] = orient_world.detach().cpu().numpy().tolist()
+    payload["coordinate_frame"] = "scannet_world"
+    ensure_dir(params_path.parent)
+    torch.save(payload, params_path)
+    return payload
+
+
 def build_scene_mesh_from_predictions(
     original_dir: Path,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     predictions = load_scene_predictions(original_dir)
+    scannet_gt = predictions.get("scannet_gt")
+    if isinstance(scannet_gt, dict):
+        return (
+            np.asarray(scannet_gt["visible_vertices_camera"], dtype=np.float32),
+            np.asarray(scannet_gt["visible_faces"], dtype=np.int64),
+            np.asarray(scannet_gt["visible_colors"], dtype=np.float32) / 255.0,
+        )
     scene_image = np.asarray(Image.open(original_dir / "scene_image.png").convert("RGB"))
     height, width = scene_image.shape[:2]
     points = np.full((height, width, 3), np.nan, dtype=np.float32)
@@ -299,7 +371,7 @@ def build_scene_mesh_from_predictions(
 
 def build_human_mesh_from_predictions(
     original_dir: Path,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     import smplx
     from utils.geometry import rot6d_to_rotmat
 
@@ -327,12 +399,16 @@ def build_human_mesh_from_predictions(
     with torch.no_grad():
         output = smplx_layer(**body_params_rotmat, transl=transl)
     vertices = output.vertices[0].float().detach().cpu().numpy().astype(np.float32)
+    root_joint_untranslated = (
+        output.joints[0, 0].float().detach().cpu().numpy().astype(np.float32)
+        - transl[0].float().detach().cpu().numpy().astype(np.float32)
+    )
     faces = np.asarray(smplx_layer.faces, dtype=np.int64)
     colors = np.tile(
         np.asarray([188 / 255.0, 188 / 255.0, 188 / 255.0], dtype=np.float32),
         (vertices.shape[0], 1),
     )
-    return vertices, faces, colors
+    return vertices, faces, colors, root_joint_untranslated
 
 
 def write_evaluation_artifacts(
@@ -347,28 +423,130 @@ def write_evaluation_artifacts(
     metadata_dir = ensure_dir(interaction_root / "metadata")
 
     scene_vertices, scene_faces, scene_colors = build_scene_mesh_from_predictions(original_dir)
-    human_vertices, human_faces, human_colors = build_human_mesh_from_predictions(original_dir)
+    human_vertices, human_faces, human_colors, root_joint = (
+        build_human_mesh_from_predictions(original_dir)
+    )
 
-    export_mesh(meshes_dir / "scene_camera.ply", scene_vertices, scene_faces, scene_colors)
-    export_mesh(meshes_dir / "human_camera.ply", human_vertices, human_faces, human_colors)
+    scene_camera_path = meshes_dir / "scene_camera.ply"
+    human_camera_path = meshes_dir / "human_camera.ply"
+    export_mesh(scene_camera_path, scene_vertices, scene_faces, scene_colors)
+    export_mesh(human_camera_path, human_vertices, human_faces, human_colors)
     params_payload = save_optimized_params(
         original_dir,
         params_dir / "optimized_frame_0000.pt",
     )
+    predictions = load_scene_predictions(original_dir)
+    scannet_gt = predictions.get("scannet_gt")
+    coordinate_frame = "physic_camera"
+    world_params_path: Path | None = None
+    scene_world_path: Path | None = None
+    human_world_path: Path | None = None
+    raw_points_camera_path: Path | None = None
+    raw_points_world_path: Path | None = None
+    filtered_points_camera_path: Path | None = None
+    filtered_points_world_path: Path | None = None
+    if isinstance(scannet_gt, dict):
+        rotation_w2c = np.asarray(
+            scannet_gt["rotation_world_to_camera"], dtype=np.float32
+        )
+        translation_w2c = np.asarray(
+            scannet_gt["translation_world_to_camera"], dtype=np.float32
+        ).reshape(3)
+        scene_world = np.asarray(
+            scannet_gt["visible_vertices_world"], dtype=np.float32
+        )
+        human_world = (human_vertices - translation_w2c[None]) @ rotation_w2c
+        scene_world_path = meshes_dir / "scene_world.ply"
+        human_world_path = meshes_dir / "human_world.ply"
+        export_mesh(scene_world_path, scene_world, scene_faces, scene_colors)
+        export_mesh(human_world_path, human_world, human_faces, human_colors)
+        raw_valid = np.asarray(scannet_gt["raw_valid_mask"], dtype=bool)
+        raw_points_camera = np.asarray(
+            scannet_gt["raw_point_map"], dtype=np.float32
+        )[raw_valid]
+        filtered_points_camera = np.asarray(
+            scannet_gt["filtered_scene_points"], dtype=np.float32
+        )
+        scene_image = np.asarray(
+            Image.open(original_dir / "scene_image.png").convert("RGB")
+        )
+        raw_colors = scene_image[raw_valid]
+        final_inliers = np.asarray(predictions["inlier_mask"], dtype=bool)
+        filtered_colors = scene_image[final_inliers]
+        if filtered_colors.shape[0] != filtered_points_camera.shape[0]:
+            raise ValueError(
+                "Filtered GT scene points and image-space inlier mask disagree: "
+                f"{filtered_points_camera.shape[0]} vs {filtered_colors.shape[0]}."
+            )
+        raw_points_world = (
+            raw_points_camera - translation_w2c[None]
+        ) @ rotation_w2c
+        filtered_points_world = (
+            filtered_points_camera - translation_w2c[None]
+        ) @ rotation_w2c
+        raw_points_camera_path = meshes_dir / "scene_raw_points_camera.ply"
+        raw_points_world_path = meshes_dir / "scene_raw_points_world.ply"
+        filtered_points_camera_path = meshes_dir / "scene_filtered_points_camera.ply"
+        filtered_points_world_path = meshes_dir / "scene_filtered_points_world.ply"
+        export_point_cloud(raw_points_camera_path, raw_points_camera, raw_colors)
+        export_point_cloud(raw_points_world_path, raw_points_world, raw_colors)
+        export_point_cloud(
+            filtered_points_camera_path,
+            filtered_points_camera,
+            filtered_colors,
+        )
+        export_point_cloud(
+            filtered_points_world_path,
+            filtered_points_world,
+            filtered_colors,
+        )
+        world_params_path = params_dir / "optimized_frame_0000_world.pt"
+        save_world_optimized_params(
+            original_dir,
+            params_payload,
+            root_joint,
+            world_params_path,
+        )
+        coordinate_frame = "scannet_camera"
+
     metadata = {
         "original_dir": str(original_dir),
-        "coordinate_frame": "physic_camera",
-        "scene_mesh": str(meshes_dir / "scene_camera.ply"),
-        "human_mesh": str(meshes_dir / "human_camera.ply"),
+        "coordinate_frame": coordinate_frame,
+        "scene_mesh": str(scene_camera_path),
+        "human_mesh": str(human_camera_path),
         "optimized_params": str(params_dir / "optimized_frame_0000.pt"),
-        "scale_note": (
-            "optimized_frame_0000.pt scale is set to 1.0 because PhySIC's "
-            "native scale applies to reconstructed scene points, not to the "
-            "SMPL-X human height scale used by 4DHSI."
-        ),
+        "scale_note": "Scene scale is fixed at exactly 1.0.",
         "physic_scene_scale": params_payload["physic_scene_scale"],
     }
-    save_json(metadata_dir / "artifacts.json", metadata)
+    if isinstance(scannet_gt, dict):
+        metadata.update(
+            {
+                "protocol": scannet_gt["protocol"],
+                "scene_world_mesh": str(scene_world_path),
+                "human_world_mesh": str(human_world_path),
+                "raw_scene_points_camera": str(raw_points_camera_path),
+                "raw_scene_points_world": str(raw_points_world_path),
+                "filtered_scene_points_camera": str(filtered_points_camera_path),
+                "filtered_scene_points_world": str(filtered_points_world_path),
+                "optimized_params_world": str(world_params_path),
+                "scene_source": scannet_gt["metadata"],
+                "gt_depth_validation": scannet_gt["validation"],
+                "moge_depth_alignment": scannet_gt["alignment"],
+                "raw_gt_point_count": int(
+                    np.asarray(scannet_gt["raw_valid_mask"], dtype=bool).sum()
+                ),
+                "filtered_gt_point_count": int(
+                    np.asarray(scannet_gt["filtered_scene_points"]).shape[0]
+                ),
+                "run": scannet_gt.get("gpu", {}),
+            }
+        )
+    manifest_path = metadata_dir / "artifacts.json"
+    if manifest_path.exists():
+        previous_metadata = load_json(manifest_path)
+        if "run" in previous_metadata:
+            metadata["run"] = previous_metadata["run"]
+    save_json(manifest_path, metadata)
     return {key: str(value) for key, value in metadata.items()}
 
 

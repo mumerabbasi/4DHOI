@@ -1,297 +1,288 @@
 #!/usr/bin/env python3
-"""Run PhySIC for 4DHSI Agentic Contact interactions."""
+"""Run the ScanNet++ GT-scene PhySIC baseline."""
 
 from __future__ import annotations
 
 import argparse
 import gc
+import json
 import os
 import pickle
-import re
-import subprocess
+import shutil
 import sys
+import tempfile
 import time
+import uuid
 from pathlib import Path
 
 from physic_eval_utils import write_evaluation_artifacts
+from scannet_gt_scene import build_scannet_gt_observation
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_DIR = SCRIPT_DIR.parent
+REPO_DIR = PROJECT_DIR.parent
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    script_dir = Path(__file__).resolve().parent
-    project_dir = script_dir.parent
-
-    parser = argparse.ArgumentParser(description="Run PhySIC for 4DHSI interactions.")
-    parser.add_argument("--interaction_name", default="interaction_01")
-    parser.add_argument(
-        "--all_interactions",
-        action=argparse.BooleanOptionalAction,
-        default=True,
+    parser = argparse.ArgumentParser(
+        description="Run PhySIC against visible ScanNet++ GT geometry."
     )
-    parser.add_argument("--mode", choices=("default", "scannet"), default="default")
-    parser.add_argument("--outdir", default=None)
-    parser.add_argument("--human-image", default=None)
-    parser.add_argument("--scene-image", default=None)
-    parser.add_argument("--physic-root", default=None)
-    parser.set_defaults(script_dir=script_dir, project_dir=project_dir)
+    parser.add_argument("--interaction_name", default="interaction_01")
+    parser.add_argument("--all_interactions", action="store_true")
+    parser.add_argument("--output_root", type=Path, default=SCRIPT_DIR / "output_scannet")
+    parser.add_argument("--scannet_root", type=Path, default=REPO_DIR / "Scannet++" / "data")
+    parser.add_argument("--physic_root", type=Path, default=REPO_DIR / "Phy-SIC")
     return parser.parse_args(argv)
 
 
-def get_gpu_memory_gb() -> float:
+def interaction_names(run_all: bool, requested: str) -> list[str]:
+    if not run_all:
+        return [requested]
+    root = PROJECT_DIR / "03_Estimate_Contact_Agentic" / "output"
+    names = [path.name for path in root.glob("interaction_*") if path.is_dir()]
+    if not names:
+        raise FileNotFoundError(f"No interactions found under {root}.")
+    return sorted(names, key=lambda name: int(name.rsplit("_", 1)[1]))
+
+
+def interaction_inputs(interaction_name: str) -> tuple[Path, Path]:
+    assets = (
+        PROJECT_DIR
+        / "03_Estimate_Contact_Agentic"
+        / "output"
+        / interaction_name
+        / "assets"
+    )
+    human_image = assets / "reference_inpainted_crop.png"
+    scene_image = assets / "target_scene_crop.png"
+    missing = [str(path) for path in (human_image, scene_image) if not path.exists()]
+    if missing:
+        raise FileNotFoundError("Missing interaction input(s): " + "; ".join(missing))
+    return human_image, scene_image
+
+
+def replace_path_prefix(value, old_prefix: str, new_prefix: str):
+    if isinstance(value, dict):
+        return {
+            key: replace_path_prefix(item, old_prefix, new_prefix)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [replace_path_prefix(item, old_prefix, new_prefix) for item in value]
+    if isinstance(value, str) and value.startswith(old_prefix):
+        return new_prefix + value[len(old_prefix) :]
+    return value
+
+
+def publish(staging_root: Path, final_root: Path) -> None:
+    manifest_path = staging_root / "metadata" / "artifacts.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest = replace_path_prefix(
+        manifest,
+        str(staging_root.resolve()),
+        str(final_root.resolve()),
+    )
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    backup = final_root.with_name(f".{final_root.name}.backup-{uuid.uuid4().hex}")
+    if final_root.exists():
+        os.replace(final_root, backup)
     try:
-        result = subprocess.run(
-            ["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode == 0:
-            return int(result.stdout.strip().splitlines()[0]) / 1024
+        os.replace(staging_root, final_root)
     except Exception:
-        pass
-    return 0
+        if backup.exists() and not final_root.exists():
+            os.replace(backup, final_root)
+        raise
+    if backup.exists():
+        shutil.rmtree(backup)
 
 
-def timed_load(label: str, fn) -> None:
-    start = time.time()
-    fn()
-    print(f"Time taken to load {label}: {time.time() - start:.4f} seconds", flush=True)
+def gpu_metadata(torch) -> dict[str, object]:
+    properties = torch.cuda.get_device_properties(0)
+    return {
+        "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
+        "logical_torch_device": "cuda:0",
+        "name": properties.name,
+        "memory_total_mb": int(properties.total_memory / 1024**2),
+    }
 
 
-def interaction_sort_key(interaction_name: str) -> tuple[int, str]:
-    match = re.fullmatch(r"interaction_(\d+)", interaction_name)
-    return (int(match.group(1)), interaction_name) if match else (sys.maxsize, interaction_name)
-
-
-def discover_agentic_interactions(project_dir: Path) -> list[str]:
-    output_root = project_dir / "03_Estimate_Contact_Agentic" / "output"
-    interaction_names = sorted(
-        [path.name for path in output_root.glob("interaction_*") if path.is_dir()],
-        key=interaction_sort_key,
-    )
-    if not interaction_names:
-        raise FileNotFoundError(
-            f"No Agentic Contact interactions found under {output_root}."
-        )
-    return interaction_names
-
-
-def resolve_interaction_paths(
-    args: argparse.Namespace,
-    interaction_name: str,
-) -> tuple[Path, Path, Path, Path]:
-    script_dir: Path = args.script_dir
-    project_dir: Path = args.project_dir
-
-    if args.outdir:
-        out_dir = Path(args.outdir).resolve()
-        interaction_root = out_dir.parent if args.mode == "scannet" else out_dir
-    elif args.mode == "scannet":
-        interaction_root = script_dir / "output_scannet" / interaction_name
-        out_dir = interaction_root / "original"
-    else:
-        interaction_root = script_dir / "output" / interaction_name
-        out_dir = interaction_root
-    human_image_path = (
-        Path(args.human_image).resolve()
-        if args.human_image
-        else project_dir
-        / "03_Estimate_Contact_Agentic"
-        / "output"
-        / interaction_name
-        / "assets"
-        / "reference_inpainted_crop.png"
-    )
-    scene_image_path = (
-        Path(args.scene_image).resolve()
-        if args.scene_image
-        else project_dir
-        / "03_Estimate_Contact_Agentic"
-        / "output"
-        / interaction_name
-        / "assets"
-        / "target_scene_crop.png"
-    )
-    if not human_image_path.exists():
-        raise FileNotFoundError(f"Human image not found: {human_image_path}")
-    if args.mode == "scannet" and not scene_image_path.exists():
-        raise FileNotFoundError(f"Scene image not found: {scene_image_path}")
-    return interaction_root, out_dir, human_image_path, scene_image_path
-
-
-def run_interaction(
-    interaction_name: str,
-    args: argparse.Namespace,
-    cfg,
-    torch,
-    optimizer_module,
-    HumanScene,
-    get_scene,
-    physic_root: Path,
-) -> Path:
-    interaction_root, out_dir, human_image_path, scene_image_path = (
-        resolve_interaction_paths(args, interaction_name)
-    )
-
-    print(f"Processing {interaction_name}: {human_image_path}", flush=True)
-    if args.mode == "scannet":
-        print(f"Using scene image: {scene_image_path}", flush=True)
-
-        from PIL import Image
-
-        def use_scene_image(image, mask):
-            return Image.open(scene_image_path).convert("RGB").resize(
-                image.size, Image.LANCZOS
-            )
-
-        optimizer_module.get_inpainted_image_omni = use_scene_image
-
-    out_dir.mkdir(parents=True, exist_ok=True)
-    with torch.amp.autocast(enabled=False, device_type="cuda"):
-        result = HumanScene(cfg, image_path=str(human_image_path), output_path=out_dir)
-
-    data = {
+def serialize_result(result, observation, torch, physic_root: Path, started: float):
+    diagnostics = result.scannet_gt_diagnostics
+    return {
         "depth": result.depth.cpu().numpy(),
         "K": result.K.cpu().numpy(),
         "pts3d": result.pts3d.cpu().numpy(),
         "inlier_mask": result.inlier_mask.cpu().numpy(),
         "scale": result.scale.detach().cpu().numpy(),
         "normals": result.normals.cpu().numpy(),
-        "plane_points": result.plane_points.cpu().numpy()
-        if hasattr(result.plane_points, "cpu")
-        else result.plane_points,
-        "plane_normal": result.plane_normal.cpu().numpy()
-        if hasattr(result.plane_normal, "cpu")
-        else result.plane_normal,
+        "plane_points": result.plane_points.cpu().numpy(),
+        "plane_normal": result.plane_normal.cpu().numpy(),
         "body_params": {
             key: value.detach().cpu().numpy()
             for key, value in result.body_params.items()
         },
         "cam_trans": result.cam_trans.detach().cpu().numpy(),
+        "scannet_gt": {
+            "protocol": observation["protocol"],
+            "gt_depth": observation["depth"],
+            "gt_intrinsics": observation["K"],
+            "raw_point_map": observation["points"],
+            "raw_valid_mask": observation["valid_mask"],
+            "raster_face_ids": observation["raster_face_ids"],
+            "visible_vertices_camera": observation["visible_vertices_camera"],
+            "visible_vertices_world": observation["visible_vertices_world"],
+            "visible_faces": observation["visible_faces"],
+            "visible_colors": observation["visible_colors"],
+            "rotation_world_to_camera": observation["rotation_world_to_camera"],
+            "translation_world_to_camera": observation["translation_world_to_camera"],
+            "validation": observation["validation"],
+            "metadata": observation["metadata"],
+            "raw_moge_depth": diagnostics["raw_moge_depth"],
+            "aligned_moge_depth": diagnostics["aligned_moge_depth"],
+            "moge_valid_mask": diagnostics["moge_valid_mask"],
+            "human_mask_undilated": diagnostics["human_mask_undilated"],
+            "per_human_masks_undilated": diagnostics["per_human_masks_undilated"],
+            "alignment_fit_mask": diagnostics["alignment_fit_mask"],
+            "aligned_valid_mask": diagnostics["aligned_valid_mask"],
+            "alignment": diagnostics["alignment"],
+            "filtered_scene_points": result.pts3d.detach().cpu().numpy(),
+            "filtered_scene_normals": result.normals.detach().cpu().numpy(),
+            "point_inlier_mask": result.inlier_mask_pts.detach().cpu().numpy(),
+            "normal_inlier_mask": result.inlier_mask_normals.detach().cpu().numpy(),
+            "human_target_points": result.pts_humans.detach().cpu().numpy(),
+            "human_target_lengths": result.pts_human_lengths.detach().cpu().numpy(),
+            "gpu": {
+                **gpu_metadata(torch),
+                "torch_version": torch.__version__,
+                "cuda_version": torch.version.cuda,
+                "python_executable": sys.executable,
+                "physic_root": str(physic_root),
+                "peak_allocated_mb": float(torch.cuda.max_memory_allocated() / 1024**2),
+                "peak_reserved_mb": float(torch.cuda.max_memory_reserved() / 1024**2),
+                "runtime_seconds_to_serialization": float(time.time() - started),
+            },
+        },
     }
-    with open(out_dir / "scene_data_final.pkl", "wb") as handle:
-        pickle.dump(data, handle)
-
-    with torch.amp.autocast(enabled=False, device_type="cuda"):
-        scene = get_scene(out_dir, max_faces=int(1e18))
-    scene.export(out_dir / "humanscene.ply")
-
-    if args.mode == "scannet":
-        print(
-            f"Writing PhySIC-native evaluation artifacts: {interaction_root}",
-            flush=True,
-        )
-        write_evaluation_artifacts(
-            original_dir=out_dir,
-            interaction_root=interaction_root,
-            physic_root=physic_root,
-        )
-
-    print(f"Wrote PhySIC outputs for {interaction_name}: {out_dir}", flush=True)
-    return out_dir
 
 
-def main(argv: list[str] | None = None) -> list[Path]:
-    args = parse_args(argv)
-    project_dir: Path = args.project_dir
-    physic_root = (
-        Path(args.physic_root).resolve()
-        if args.physic_root
-        else project_dir.parent / "Phy-SIC"
+def run_interaction(
+    interaction_name: str,
+    staging_root: Path,
+    scannet_root: Path,
+    physic_root: Path,
+    cfg,
+    torch,
+    HumanScene,
+) -> None:
+    started = time.time()
+    torch.cuda.reset_peak_memory_stats()
+    human_image, scene_image = interaction_inputs(interaction_name)
+    original_dir = staging_root / "original"
+    original_dir.mkdir(parents=True)
+
+    observation = build_scannet_gt_observation(
+        project_dir=PROJECT_DIR,
+        scannet_root=scannet_root,
+        interaction_name=interaction_name,
+        human_image_path=human_image,
+        scene_image_path=scene_image,
+        max_img_size=int(cfg.max_img_size),
+        device=torch.device("cuda:0"),
     )
-    all_mode = bool(args.all_interactions) or args.interaction_name == "all"
-    if all_mode:
-        custom_paths = [
-            option
-            for option, value in (
-                ("--outdir", args.outdir),
-                ("--human-image", args.human_image),
-                ("--scene-image", args.scene_image),
-            )
-            if value is not None
-        ]
-        if custom_paths:
-            raise ValueError(
-                "All-interactions mode cannot use per-interaction overrides: "
-                + ", ".join(custom_paths)
-            )
-        interaction_names = discover_agentic_interactions(project_dir)
-    else:
-        interaction_names = [args.interaction_name]
+    with torch.amp.autocast(enabled=False, device_type="cuda"):
+        result = HumanScene(
+            cfg,
+            image_path=str(human_image),
+            output_path=original_dir,
+            scene_observation=observation,
+        )
+    if result.scale.requires_grad or float(result.scale.item()) != 1.0:
+        raise RuntimeError("ScanNet++ scene scale must remain fixed at 1.0.")
 
-    # Validate every input before loading the expensive PhySIC models.
-    for interaction_name in interaction_names:
-        resolve_interaction_paths(args, interaction_name)
+    data = serialize_result(result, observation, torch, physic_root, started)
+    with (original_dir / "scene_data_final.pkl").open("wb") as handle:
+        pickle.dump(data, handle)
+    write_evaluation_artifacts(original_dir, staging_root, physic_root)
 
-    if get_gpu_memory_gb() > 60:
-        os.environ["DISABLE_OFFLOAD"] = "1"
+    manifest_path = staging_root / "metadata" / "artifacts.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["run"] = {
+        **data["scannet_gt"]["gpu"],
+        "total_runtime_seconds": float(time.time() - started),
+    }
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
+    output_root = args.output_root.resolve()
+    scannet_root = args.scannet_root.resolve()
+    physic_root = args.physic_root.resolve()
+    names = interaction_names(args.all_interactions, args.interaction_name)
+    for name in names:
+        interaction_inputs(name)
+
     os.environ.setdefault("PYOPENGL_PLATFORM", "egl")
-
     os.chdir(physic_root)
-    sys.path.insert(0, str(physic_root))
-    sys.path.insert(0, str(physic_root / "external" / "CameraHMR"))
+    sys.path[:0] = [str(physic_root), str(physic_root / "external" / "CameraHMR")]
 
     import torch
     from omegaconf import OmegaConf
-    import optimizer as optimizer_module
     from optimizer import (
         HumanScene,
         load_chmr,
         load_deco,
-        load_dpro,
         load_gsam,
         load_moge,
-        load_omni,
         load_vitpose,
         load_wilor,
     )
-    from utils.vis import get_scene
 
-    cfg = OmegaConf.load(str(physic_root / "cfg" / "v1.yaml"))
-    print(OmegaConf.to_yaml(cfg), flush=True)
+    if not torch.cuda.is_available():
+        raise RuntimeError("PhySIC requires CUDA, but CUDA is unavailable.")
 
-    timed_load("gsam", load_gsam)
-    timed_load("vitpose", load_vitpose)
-    if args.mode == "default":
-        timed_load("omni", load_omni)
-    else:
-        print(
-            "Using precomputed scene image as PhySIC scene_image; OmniEraser not loaded.",
-            flush=True,
+    cfg = OmegaConf.load(physic_root / "cfg" / "v1.yaml")
+    cfg.compute_floor_points = False
+    for stage in ("opt_1", "opt_2", "opt_3"):
+        cfg[stage].train_params = [
+            name for name in cfg[stage].train_params if name != "scale"
+        ]
+
+    for loader in (load_gsam, load_vitpose, load_chmr, load_deco, load_wilor, load_moge):
+        loader()
+    torch.set_default_dtype(torch.float32)
+
+    output_root.mkdir(parents=True, exist_ok=True)
+    for interaction_name in names:
+        final_root = output_root / interaction_name
+        staging_root = Path(
+            tempfile.mkdtemp(prefix=f".{interaction_name}.staging-", dir=output_root)
         )
-    if cfg.smpl_model != "chmr":
-        raise ValueError(f"Unknown SMPL model: {cfg.smpl_model}")
-    timed_load("chmr", load_chmr)
-    timed_load("deco", load_deco)
-    timed_load("wilor", load_wilor)
-    timed_load("moge", load_moge)
-    timed_load("dpro", load_dpro)
-
-    outputs = []
-    for index, interaction_name in enumerate(interaction_names, start=1):
-        print(
-            f"[{index}/{len(interaction_names)}] Starting {interaction_name}",
-            flush=True,
-        )
-        outputs.append(
+        try:
             run_interaction(
-                interaction_name=interaction_name,
-                args=args,
-                cfg=cfg,
-                torch=torch,
-                optimizer_module=optimizer_module,
-                HumanScene=HumanScene,
-                get_scene=get_scene,
-                physic_root=physic_root,
+                interaction_name,
+                staging_root,
+                scannet_root,
+                physic_root,
+                cfg,
+                torch,
+                HumanScene,
             )
-        )
+            publish(staging_root, final_root)
+        except Exception:
+            shutil.rmtree(staging_root, ignore_errors=True)
+            raise
+        print(f"{interaction_name}: {final_root}")
         gc.collect()
         torch.cuda.empty_cache()
-
-    print(
-        f"Completed {len(outputs)} interaction(s) in {args.mode} mode.",
-        flush=True,
-    )
-    return outputs
 
 
 if __name__ == "__main__":
