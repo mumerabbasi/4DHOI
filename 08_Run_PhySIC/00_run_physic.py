@@ -8,12 +8,15 @@ import gc
 import json
 import os
 import pickle
+import random
 import shutil
 import sys
 import tempfile
 import time
 import uuid
 from pathlib import Path
+
+import numpy as np
 
 from physic_eval_utils import write_evaluation_artifacts
 from scannet_gt_scene import build_scannet_gt_observation
@@ -33,6 +36,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output_root", type=Path, default=SCRIPT_DIR / "output_scannet")
     parser.add_argument("--scannet_root", type=Path, default=REPO_DIR / "Scannet++" / "data")
     parser.add_argument("--physic_root", type=Path, default=REPO_DIR / "Phy-SIC")
+    parser.add_argument("--seed", type=int, default=24017)
     return parser.parse_args(argv)
 
 
@@ -190,8 +194,13 @@ def run_interaction(
     cfg,
     torch,
     HumanScene,
+    seed: int,
 ) -> None:
     started = time.time()
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
     torch.cuda.reset_peak_memory_stats()
     human_image, scene_image = interaction_inputs(interaction_name)
     original_dir = staging_root / "original"
@@ -205,6 +214,7 @@ def run_interaction(
         scene_image_path=scene_image,
         max_img_size=int(cfg.max_img_size),
         device=torch.device("cuda:0"),
+        seed=seed,
     )
     with torch.amp.autocast(enabled=False, device_type="cuda"):
         result = HumanScene(
@@ -225,6 +235,7 @@ def run_interaction(
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["run"] = {
         **data["scannet_gt"]["gpu"],
+        "seed": seed,
         "total_runtime_seconds": float(time.time() - started),
     }
     manifest_path.write_text(
@@ -287,6 +298,7 @@ def main(argv: list[str] | None = None) -> None:
                 cfg,
                 torch,
                 HumanScene,
+                args.seed,
             )
             publish(staging_root, final_root)
         except Exception:

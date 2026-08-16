@@ -1,0 +1,109 @@
+{
+  "original_dir": "/my_workspace/4DHHOI/4DHSI/08_Run_PhySIC/output_scannet/interaction_16/original",
+  "coordinate_frame": "scannet_camera",
+  "scene_mesh": "/my_workspace/4DHHOI/4DHSI/08_Run_PhySIC/output_scannet/interaction_16/meshes/scene_camera.ply",
+  "human_mesh": "/my_workspace/4DHHOI/4DHSI/08_Run_PhySIC/output_scannet/interaction_16/meshes/human_camera.ply",
+  "optimized_params": "/my_workspace/4DHHOI/4DHSI/08_Run_PhySIC/output_scannet/interaction_16/debug/params/optimized_frame_0000.pt",
+  "scale_note": "Scene scale is fixed at exactly 1.0.",
+  "physic_scene_scale": 1.0,
+  "protocol": "scannet_gt_visible_depth_aligned_v2",
+  "scene_world_mesh": "/my_workspace/4DHHOI/4DHSI/08_Run_PhySIC/output_scannet/interaction_16/meshes/scene_world.ply",
+  "human_world_mesh": "/my_workspace/4DHHOI/4DHSI/08_Run_PhySIC/output_scannet/interaction_16/meshes/human_world.ply",
+  "raw_scene_points_camera": "/my_workspace/4DHHOI/4DHSI/08_Run_PhySIC/output_scannet/interaction_16/meshes/scene_raw_points_camera.ply",
+  "raw_scene_points_world": "/my_workspace/4DHHOI/4DHSI/08_Run_PhySIC/output_scannet/interaction_16/meshes/scene_raw_points_world.ply",
+  "filtered_scene_points_camera": "/my_workspace/4DHHOI/4DHSI/08_Run_PhySIC/output_scannet/interaction_16/meshes/scene_filtered_points_camera.ply",
+  "filtered_scene_points_world": "/my_workspace/4DHHOI/4DHSI/08_Run_PhySIC/output_scannet/interaction_16/meshes/scene_filtered_points_world.ply",
+  "optimized_params_world": "/my_workspace/4DHHOI/4DHSI/08_Run_PhySIC/output_scannet/interaction_16/debug/params/optimized_frame_0000_world.pt",
+  "scene_source": {
+    "interaction_name": "interaction_16",
+    "scene_id": "c173f62b15",
+    "camera_name": "DSC03235.JPG",
+    "camera_source": "dslr_resized_undistorted",
+    "source_image_path": "/my_workspace/4DHHOI/Scannet++/data/c173f62b15/dslr/resized_undistorted_images/DSC03235.JPG",
+    "clean_crop_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_16/assets/target_scene_crop.png",
+    "mesh_path": "/my_workspace/4DHHOI/Scannet++/data/c173f62b15/scans/mesh_aligned_0.05.ply",
+    "transforms_path": "/my_workspace/4DHHOI/Scannet++/data/c173f62b15/dslr/nerfstudio/transforms_undistorted.json",
+    "poses_path": "/my_workspace/4DHHOI/Scannet++/data/c173f62b15/dslr/colmap/images.txt",
+    "source_size": [
+      1482,
+      988
+    ],
+    "target_size": [
+      1024,
+      682
+    ],
+    "crop_offset_xy": [
+      110.0,
+      180.0
+    ],
+    "frustum_face_count": 1140164,
+    "visible_face_count": 285807,
+    "raw_valid_point_count": 682923
+  },
+  "gt_depth_validation": {
+    "sample_count": 4096,
+    "tolerance_m": 0.005,
+    "reprojection_max_px": 6.103515625e-05,
+    "point_to_triangle_mean_m": 9.837222541470479e-08,
+    "point_to_triangle_median_m": 7.656608966989087e-08,
+    "point_to_triangle_p95_m": 2.672206798823012e-07,
+    "point_to_triangle_max_m": 6.110048347381686e-07
+  },
+  "moge_depth_alignment": {
+    "scale": 1.376651644706726,
+    "depth_shift_m": 0.038501620292663574,
+    "correspondence_count": 639275,
+    "ransac_inlier_count": 629681,
+    "ransac_iterations": 20,
+    "min_samples": 0.2,
+    "ransac_tolerance_m": 0.4996907711029053,
+    "before_depth": {
+      "mean_m": 0.5719144940376282,
+      "rmse_m": 0.6200489401817322,
+      "median_m": 0.5229796171188354,
+      "p90_m": 0.8972519636154175,
+      "p95_m": 1.0035157203674316,
+      "max_m": 3.0188820362091064
+    },
+    "after_depth": {
+      "mean_m": 0.06690870225429535,
+      "rmse_m": 0.14605394005775452,
+      "median_m": 0.03474712371826172,
+      "p90_m": 0.13004589080810547,
+      "p95_m": 0.2596411108970642,
+      "max_m": 2.5433878898620605
+    },
+    "before_3d": {
+      "mean_m": 0.7181646952991548,
+      "rmse_m": 0.7624194930471192,
+      "median_m": 0.647171139717102,
+      "p90_m": 1.0690480709075927,
+      "p95_m": 1.1166014552116394,
+      "max_m": 3.1656031608581543
+    },
+    "after_3d": {
+      "mean_m": 0.08805252150232763,
+      "rmse_m": 0.1951855258559258,
+      "median_m": 0.04425889253616333,
+      "p90_m": 0.15246417224407194,
+      "p95_m": 0.3425810545682907,
+      "max_m": 2.6657395362854004
+    }
+  },
+  "raw_gt_point_count": 682923,
+  "filtered_gt_point_count": 669695,
+  "run": {
+    "cuda_visible_devices": "1",
+    "logical_torch_device": "cuda:0",
+    "name": "NVIDIA RTX A6000",
+    "memory_total_mb": 48540,
+    "torch_version": "2.3.1+cu121",
+    "cuda_version": "12.1",
+    "python_executable": "/root/miniconda3/envs/physic/bin/python",
+    "physic_root": "/my_workspace/4DHHOI/Phy-SIC",
+    "peak_allocated_mb": 7147.92333984375,
+    "peak_reserved_mb": 7638.0,
+    "runtime_seconds_to_serialization": 154.394770860672,
+    "total_runtime_seconds": 155.08166027069092
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "scene_crop_ply": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_09/semantics/assets/scene_semantics_view_crop.ply",
+  "human_mesh_world": "/my_workspace/4DHHOI/4DHSI/08_Run_PhySIC/output_scannet/interaction_09/meshes/human_world.ply",
+  "blend_path": "/my_workspace/4DHHOI/4DHSI/08_Run_PhySIC/evaluation/output_scannet/interaction_09/semantics/assets/render_scene.blend",
+  "views": [
+    {
+      "name": "view_00",
+      "render_path": "/my_workspace/4DHHOI/4DHSI/08_Run_PhySIC/evaluation/output_scannet/interaction_09/semantics/renders/view_00.png",
+      "camera_matrix_world": [
+        [
+          0.29528456926345825,
+          0.30555668473243713,
+          -0.9052304029464722,
+          11.673645973205566
+        ],
+        [
+          -0.9495824575424194,
+          0.19834384322166443,
+          -0.2428019791841507,
+          3.292505979537964
+        ],
+        [
+          0.10535712540149689,
+          0.931286633014679,
+          0.34871914982795715,
+          1.561977505683899
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "intrinsics": [
+        [
+          464.8388977050781,
+          0.0,
+          474.0
+        ],
+        [
+          0.0,
+          466.0625305175781,
+          336.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "width": 708,
+      "height": 472,
+      "resolution_percentage": 75
+    }
+  ],
+  "camera_source": "genzi_human_center_patch",
+  "camera_source_config_path": "/my_workspace/4DHHOI/GenZI/config/4dhsi_multiview_external.yml",
+  "intrinsics": [
+    [
+      464.8388977050781,
+      0.0,
+      474.0
+    ],
+    [
+      0.0,
+      466.0625305175781,
+      336.0
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "width": 708,
+  "height": 472,
+  "resolution_percentage": 75,
+  "cycles_samples": 64,
+  "interaction_name": "interaction_09",
+  "source_render_config": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_09/semantics/assets/render_config.json",
+  "source_blend_path": "/my_workspace/4DHHOI/4DHSI/06_Evaluate_Interaction/output/interaction_09/semantics/assets/render_scene.blend",
+  "source_human_mesh_world": "/my_workspace/4DHHOI/4DHSI/05_Optimize_Static_Scene/output/interaction_09/meshes/frame_0000_world.ply",
+  "coordinate_frame": "scannet_world",
+  "human_replacement_only": true
+}
