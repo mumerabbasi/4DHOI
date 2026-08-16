@@ -1,0 +1,37 @@
+{
+  "method": "sam3_visible_object_centroid_v1",
+  "sig_target_id": "target_object_1",
+  "sig_target_label": "brown small wooden table",
+  "sam3_prompt": "brown small wooden table",
+  "sam3_selection_mode": "text",
+  "selected_candidate": 1,
+  "sam3_score": 0.9018341898918152,
+  "sam3_bbox_xyxy": [
+    899.5340576171875,
+    691.271240234375,
+    1033.94775390625,
+    868.5325927734375
+  ],
+  "candidate_count": 2,
+  "object_mask_pixels": 10169,
+  "anchor_interior_mask_pixels": 8532,
+  "valid_depth_pixels": 8342,
+  "erosion_pixels": 2,
+  "anchor_pixel_xy": [
+    965,
+    742
+  ],
+  "anchor_depth_m": 1.7838070392608643,
+  "anchor_world_xyz": [
+    1.4382041692733765,
+    3.3058066368103027,
+    0.6389308571815491
+  ],
+  "source_image": "/my_workspace/4DHHOI/Scannet++/data/442b144761/dslr/resized_undistorted_images/f7226bb3_DSC03404.JPG",
+  "target_mask": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output_visibility_tsdf/interaction_02/anchor/target_mask.png",
+  "anchor_interior_mask": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output_visibility_tsdf/interaction_02/anchor/anchor_interior_mask.png",
+  "target_overlay": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output_visibility_tsdf/interaction_02/anchor/target_overlay.png",
+  "candidate_overlay": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output_visibility_tsdf/interaction_02/anchor/sam3_candidates.png",
+  "candidate_archive": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output_visibility_tsdf/interaction_02/anchor/sam3_candidates.npz",
+  "uses_contact_information": false
+}

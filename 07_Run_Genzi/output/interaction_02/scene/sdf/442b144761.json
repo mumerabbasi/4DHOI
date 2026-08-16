@@ -1,0 +1,37 @@
+{
+  "dim": 192,
+  "min": [
+    -0.4368511438369751,
+    -0.29715949296951294,
+    -0.4779762327671051
+  ],
+  "max": [
+    9.408859252929688,
+    4.465145587921143,
+    4.854555606842041
+  ],
+  "mesh_path": "/my_workspace/4DHHOI/Scannet++/data/442b144761/scans/mesh_aligned_0.05.ply",
+  "method": "selected_view_depth_tsdf_v2",
+  "trunc_m": 0.25,
+  "num_views": 16,
+  "depth_image_size": [
+    512,
+    512
+  ],
+  "unknown_value": 0.25,
+  "observed_mask_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/scene/sdf/442b144761_observed.npy",
+  "observed_voxels": 995135,
+  "total_voxels": 7077888,
+  "observed_fraction": 0.14059773197880499,
+  "negative_voxels": 662449,
+  "positive_observed_voxels": 332686,
+  "neutral_observed_voxels": 0,
+  "unknown_voxels": 6082753,
+  "sign_convention": "positive is free space in front of rendered depth; negative is behind an observed scene surface",
+  "anchor_method": "sam3_visible_object_centroid_v1",
+  "anchor_world_xyz": [
+    1.4382041692733765,
+    3.3058066368103027,
+    0.6389308571815491
+  ]
+}

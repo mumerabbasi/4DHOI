@@ -61,6 +61,7 @@ dmypy.json
 *.las
 *.laz
 *.npy
+*.pkl
 
 # --- Generated Blender Assets ---
 07_Evaluate_Interaction/output/**/semantics/assets/render_config.json
