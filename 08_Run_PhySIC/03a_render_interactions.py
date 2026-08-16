@@ -59,9 +59,6 @@ def build_render_config(
     source_config = load_json(source_config_path)
     artifacts = load_json(artifacts_path)
 
-    if artifacts.get("protocol") != "scannet_gt_visible_depth_aligned_v2":
-        raise ValueError(f"Not a ScanNet++ GT-scene result: {artifacts_path}")
-
     source_blend = Path(source_config["blend_path"]).resolve()
     scene_world = Path(source_config["scene_crop_ply"]).resolve()
     source_human = Path(source_config["human_mesh_world"]).resolve()

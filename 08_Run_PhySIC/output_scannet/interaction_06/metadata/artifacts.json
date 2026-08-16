@@ -6,7 +6,6 @@
   "optimized_params": "/my_workspace/4DHHOI/4DHSI/08_Run_PhySIC/output_scannet/interaction_06/debug/params/optimized_frame_0000.pt",
   "scale_note": "Scene scale is fixed at exactly 1.0.",
   "physic_scene_scale": 1.0,
-  "protocol": "scannet_gt_visible_depth_aligned_v2",
   "scene_world_mesh": "/my_workspace/4DHHOI/4DHSI/08_Run_PhySIC/output_scannet/interaction_06/meshes/scene_world.ply",
   "human_world_mesh": "/my_workspace/4DHHOI/4DHSI/08_Run_PhySIC/output_scannet/interaction_06/meshes/human_world.ply",
   "raw_scene_points_camera": "/my_workspace/4DHHOI/4DHSI/08_Run_PhySIC/output_scannet/interaction_06/meshes/scene_raw_points_camera.ply",
@@ -20,6 +19,7 @@
     "camera_name": "a339ef36_DSC08621.JPG",
     "camera_source": "dslr_resized_undistorted",
     "source_image_path": "/my_workspace/4DHHOI/Scannet++/data/c085ff3df4/dslr/resized_undistorted_images/a339ef36_DSC08621.JPG",
+    "full_human_image_path": "/my_workspace/4DHHOI/4DHSI/02_Generate_Human_Frame/output/interaction_06/inpainted_frame_resized.png",
     "clean_crop_path": "/my_workspace/4DHHOI/4DHSI/03_Estimate_Contact_Agentic/output/interaction_06/assets/target_scene_crop.png",
     "mesh_path": "/my_workspace/4DHHOI/Scannet++/data/c085ff3df4/scans/mesh_aligned_0.05.ply",
     "transforms_path": "/my_workspace/4DHHOI/Scannet++/data/c085ff3df4/dslr/nerfstudio/transforms_undistorted.json",
@@ -101,9 +101,10 @@
     "cuda_version": "12.1",
     "python_executable": "/root/miniconda3/envs/physic/bin/python",
     "physic_root": "/my_workspace/4DHHOI/Phy-SIC",
-    "peak_allocated_mb": 7147.92333984375,
+    "peak_allocated_mb": 6867.431640625,
     "peak_reserved_mb": 7612.0,
-    "runtime_seconds_to_serialization": 150.53962969779968,
-    "total_runtime_seconds": 151.21383142471313
+    "runtime_seconds_to_serialization": 44.28627395629883,
+    "seed": 24017,
+    "total_runtime_seconds": 44.933258295059204
   }
 }

@@ -144,7 +144,6 @@ def serialize_result(result, observation, torch, physic_root: Path, started: flo
             final_joints[0, 0] - result.cam_trans[0]
         ).float().detach().cpu().numpy(),
         "scannet_gt": {
-            "protocol": observation["protocol"],
             "gt_depth": observation["depth"],
             "gt_intrinsics": observation["K"],
             "raw_point_map": observation["points"],
@@ -158,6 +157,7 @@ def serialize_result(result, observation, torch, physic_root: Path, started: flo
             "translation_world_to_camera": observation["translation_world_to_camera"],
             "validation": observation["validation"],
             "metadata": observation["metadata"],
+            "camera_hmr_initialization": result.camera_hmr_initialization,
             "raw_moge_depth": diagnostics["raw_moge_depth"],
             "aligned_moge_depth": diagnostics["aligned_moge_depth"],
             "moge_valid_mask": diagnostics["moge_valid_mask"],

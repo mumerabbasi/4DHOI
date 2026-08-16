@@ -328,6 +328,13 @@ def build_scannet_gt_observation(
     contact_spec_path = (
         project_dir / "03_Estimate_Contact_Agentic" / "output" / interaction_name / "contact_spec.json"
     )
+    full_human_image_path = (
+        project_dir
+        / "02_Generate_Human_Frame"
+        / "output"
+        / interaction_name
+        / "inpainted_frame_resized.png"
+    )
     scene_context = _load_json(input_scene_path)["scene_context"]
     scene_id = str(scene_context["scene_id"])
     camera = scene_context["camera"]
@@ -345,6 +352,7 @@ def build_scannet_gt_observation(
     required = [
         input_scene_path,
         contact_spec_path,
+        full_human_image_path,
         scene_image_path,
         transforms_path,
         poses_path,
@@ -371,6 +379,14 @@ def build_scannet_gt_observation(
     if not np.allclose(crop_intrinsics[:2, :2], full_intrinsics[:2, :2], atol=1e-4):
         raise ValueError("Contact-crop focal lengths do not match ScanNet++ metadata.")
 
+    full_size = (int(transforms["w"]), int(transforms["h"]))
+    with Image.open(full_human_image_path) as full_human_image:
+        if full_human_image.size != full_size:
+            raise ValueError(
+                "Full human frame does not match the ScanNet++ camera image size: "
+                f"{full_human_image.size} vs {full_size}."
+            )
+
     with Image.open(human_image_path) as human_image:
         source_size = human_image.size
     with Image.open(scene_image_path) as clean_image:
@@ -382,6 +398,39 @@ def build_scannet_gt_observation(
         scene_image = clean_image.convert("RGB").resize(target_size, Image.Resampling.LANCZOS)
     intrinsics = _scale_intrinsics(crop_intrinsics, source_size, target_size)
     width, height = target_size
+    crop_offset = np.asarray(
+        [
+            full_intrinsics[0, 2] - crop_intrinsics[0, 2],
+            full_intrinsics[1, 2] - crop_intrinsics[1, 2],
+        ],
+        dtype=np.float32,
+    )
+    crop_offset_int = np.rint(crop_offset).astype(np.int64)
+    if not np.allclose(crop_offset, crop_offset_int, atol=1e-4):
+        raise ValueError(f"Non-integral contact crop offset: {crop_offset.tolist()}.")
+    crop_x, crop_y = crop_offset_int.tolist()
+    if (
+        crop_x < 0
+        or crop_y < 0
+        or crop_x + source_size[0] > full_size[0]
+        or crop_y + source_size[1] > full_size[1]
+    ):
+        raise ValueError(
+            f"Contact crop lies outside the full human frame: offset={(crop_x, crop_y)}, "
+            f"crop={source_size}, full={full_size}."
+        )
+    with Image.open(full_human_image_path) as full_human_image, Image.open(
+        human_image_path
+    ) as crop_human_image:
+        expected_crop = full_human_image.convert("RGB").crop(
+            (crop_x, crop_y, crop_x + source_size[0], crop_y + source_size[1])
+        )
+        if not np.array_equal(
+            np.asarray(expected_crop), np.asarray(crop_human_image.convert("RGB"))
+        ):
+            raise ValueError(
+                "The cropped human frame is not an exact crop of the full aligned frame."
+            )
 
     rotation_w2c, translation_w2c = _load_colmap_pose(poses_path, camera_name)
     mesh = _load_mesh(mesh_path)
@@ -439,8 +488,14 @@ def build_scannet_gt_observation(
     ) @ rotation_w2c
 
     return {
-        "protocol": "scannet_gt_visible_depth_aligned_v2",
         "scene_image": np.asarray(scene_image, dtype=np.uint8),
+        "camera_hmr_initialization": {
+            "image_path": str(full_human_image_path),
+            "intrinsics": full_intrinsics,
+            "full_size": list(full_size),
+            "crop_source_size": list(source_size),
+            "crop_offset_xy": crop_offset.astype(np.float32),
+        },
         "depth": depth,
         "K": intrinsics,
         "points": points,
@@ -460,16 +515,14 @@ def build_scannet_gt_observation(
             "camera_name": camera_name,
             "camera_source": camera_source,
             "source_image_path": str(source_image_path),
+            "full_human_image_path": str(full_human_image_path),
             "clean_crop_path": str(scene_image_path),
             "mesh_path": str(mesh_path),
             "transforms_path": str(transforms_path),
             "poses_path": str(poses_path),
             "source_size": list(source_size),
             "target_size": list(target_size),
-            "crop_offset_xy": [
-                float(full_intrinsics[0, 2] - crop_intrinsics[0, 2]),
-                float(full_intrinsics[1, 2] - crop_intrinsics[1, 2]),
-            ],
+            "crop_offset_xy": crop_offset.astype(float).tolist(),
             "frustum_face_count": int(frustum_faces.shape[0]),
             "visible_face_count": int(visible_faces.shape[0]),
             "raw_valid_point_count": int(valid.sum()),

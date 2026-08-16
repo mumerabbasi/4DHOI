@@ -495,7 +495,6 @@ def write_evaluation_artifacts(
     if isinstance(scannet_gt, dict):
         metadata.update(
             {
-                "protocol": scannet_gt["protocol"],
                 "scene_world_mesh": str(scene_world_path),
                 "human_world_mesh": str(human_world_path),
                 "raw_scene_points_camera": str(raw_points_camera_path),
