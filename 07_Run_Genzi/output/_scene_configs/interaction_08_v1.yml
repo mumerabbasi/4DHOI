@@ -1,0 +1,84 @@
+scene:
+  mesh_path: /my_workspace/4DHHOI/Scannet++/data/c085ff3df4/scans/mesh_aligned_0.05.ply
+  sdf_path: /my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_08/scene/sdf/c085ff3df4.json
+  subd_mesh_path: ''
+render:
+  bg_color:
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.0
+  ambient_light:
+  - 0.0
+  - 0.0
+  - 0.0
+  dir_light_color:
+  - 1.0
+  - 1.0
+  - 1.0
+  dir_light_intensity: 5.0
+  pt_light_color:
+  - 1.0
+  - 1.0
+  - 1.0
+  pt_light_intensity: 5.0
+  pt_light_position:
+  - 0.0
+  - 0.0
+  - 20.0
+  normal_pbr: true
+  no_lighting: false
+  all_solid: false
+  cull_faces: false
+  shadows: false
+  up_dir:
+  - 0.0
+  - 0.0
+  - 1.0
+prompt_prefix: a woman
+prompt_suffix: wearing a white shirt and blue pants, full body
+prompt_ids:
+- interaction_08
+prompts:
+- a person making coffee
+neg_prompts:
+- ''
+token_indices:
+- 2
+lookats:
+- - 9.070354461669922
+  - 1.7270911931991577
+  - 1.2596428394317627
+viewpoints:
+- - - - 8.961498260498047
+      - 3.315326452255249
+      - 2.0996780395507812
+    - - 9.366533279418945
+      - 3.3859148025512695
+      - 1.8925590515136719
+    - - 8.450239181518555
+      - 3.2447381019592285
+      - 2.0027477741241455
+    - - 8.799241065979004
+      - 3.428267478942871
+      - 1.7816545963287354
+  - - - 8.961498260498047
+      - 3.315326452255249
+      - 2.0996780395507812
+    - - 9.366533279418945
+      - 3.3859148025512695
+      - 1.8925590515136719
+    - - 8.450239181518555
+      - 3.2447381019592285
+      - 2.0027477741241455
+    - - 8.799241065979004
+      - 3.428267478942871
+      - 1.7816545963287354
+interactions:
+- A person stands at the kitchen counter making coffee with the coffee maker. The
+  right hand operates the coffee maker controls or cup area while the left hand steadies
+  the machine or counter nearby. The torso leans slightly forward toward the counter
+  and both feet remain planted on the wooden floor. The person has short dark hair,
+  a calm focused expression, a gray shirt, blue jeans, and light sneakers. The bright
+  kitchen has white cabinets, a sink, a stovetop hood, a towel hanging from the counter,
+  a trash bin, and light wooden flooring.

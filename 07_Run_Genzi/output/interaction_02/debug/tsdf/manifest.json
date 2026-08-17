@@ -1,5 +1,5 @@
 {
-  "method": "selected_view_depth_tsdf_v2",
+  "method": "selected_view_uniform_visibility_tsdf_v1",
   "source_sdf_meta": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/scene/sdf/442b144761.json",
   "source_sdf_npy": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/scene/sdf/442b144761_sdf.npy",
   "source_observed_npy": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/scene/sdf/442b144761_observed.npy",
@@ -15,8 +15,8 @@
   "categories": {
     "negative": {
       "path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/debug/tsdf/tsdf_negative.ply",
-      "full_voxel_count": 662449,
-      "written_points": 662449,
+      "full_voxel_count": 44789,
+      "written_points": 44789,
       "rgb": [
         220,
         40,
@@ -25,8 +25,8 @@
     },
     "positive_observed": {
       "path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/debug/tsdf/tsdf_positive_observed.ply",
-      "full_voxel_count": 332686,
-      "written_points": 332686,
+      "full_voxel_count": 341306,
+      "written_points": 341306,
       "rgb": [
         45,
         125,
@@ -35,8 +35,8 @@
     },
     "neutral_boundary": {
       "path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/debug/tsdf/tsdf_boundary_crossings.ply",
-      "full_voxel_count": 78373,
-      "written_points": 78373,
+      "full_voxel_count": 53838,
+      "written_points": 53838,
       "rgb": [
         255,
         220,
@@ -45,8 +45,8 @@
     },
     "unknown": {
       "path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/debug/tsdf/tsdf_unknown.ply",
-      "full_voxel_count": 6082753,
-      "written_points": 6082753,
+      "full_voxel_count": 6691793,
+      "written_points": 6691793,
       "rgb": [
         150,
         150,
@@ -74,7 +74,7 @@
     0.02493353539112351,
     0.027919015335162896
   ],
-  "truncation_m": 0.25,
+  "truncation_m": 0.075,
   "surface_band_m": 0.05154822384499755,
   "anchor_world": [
     1.4382041692733765,
@@ -86,7 +86,7 @@
     145,
     40
   ],
-  "sign_convention": "positive is free space in front of rendered depth; negative is behind an observed scene surface",
+  "sign_convention": "positive is directly observed free space in front of rendered depth; negative is only the narrow band behind an observed surface",
   "color_legend": {
     "negative": "red",
     "positive_observed": "blue",

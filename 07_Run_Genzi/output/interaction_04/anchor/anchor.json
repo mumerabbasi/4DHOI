@@ -1,0 +1,38 @@
+{
+  "method": "sam3_visible_object_centroid_v1",
+  "sig_target_id": "target_object_1",
+  "sig_target_label": "wooden door",
+  "sam3_prompt": "wooden door",
+  "sam3_selection_mode": "text",
+  "sam3_candidate_policy": "highest_confidence",
+  "selected_candidate": 0,
+  "sam3_score": 0.960361123085022,
+  "sam3_bbox_xyxy": [
+    1024.9322509765625,
+    377.6440124511719,
+    1245.8658447265625,
+    728.9652099609375
+  ],
+  "candidate_count": 1,
+  "object_mask_pixels": 59735,
+  "anchor_interior_mask_pixels": 57220,
+  "valid_depth_pixels": 55626,
+  "erosion_pixels": 2,
+  "anchor_pixel_xy": [
+    1128,
+    542
+  ],
+  "anchor_depth_m": 2.6277308464050293,
+  "anchor_world_xyz": [
+    3.626363515853882,
+    3.4008946418762207,
+    1.3420377969741821
+  ],
+  "source_image": "/my_workspace/4DHHOI/Scannet++/data/6126572846/dslr/resized_undistorted_images/02dd3b53_DSC04776.JPG",
+  "target_mask": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_04/anchor/target_mask.png",
+  "anchor_interior_mask": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_04/anchor/anchor_interior_mask.png",
+  "target_overlay": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_04/anchor/target_overlay.png",
+  "candidate_overlay": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_04/anchor/sam3_candidates.png",
+  "candidate_archive": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_04/anchor/sam3_candidates.npz",
+  "uses_contact_information": false
+}

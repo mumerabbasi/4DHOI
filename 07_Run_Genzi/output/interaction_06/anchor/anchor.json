@@ -1,0 +1,38 @@
+{
+  "method": "sam3_visible_object_centroid_v1",
+  "sig_target_id": "target_object_1",
+  "sig_target_label": "washing machine door",
+  "sam3_prompt": "washing machine door",
+  "sam3_selection_mode": "text",
+  "sam3_candidate_policy": "highest_confidence",
+  "selected_candidate": 0,
+  "sam3_score": 0.897521436214447,
+  "sam3_bbox_xyxy": [
+    1218.13720703125,
+    752.4909057617188,
+    1310.765869140625,
+    927.3854370117188
+  ],
+  "candidate_count": 1,
+  "object_mask_pixels": 11949,
+  "anchor_interior_mask_pixels": 10870,
+  "valid_depth_pixels": 9710,
+  "erosion_pixels": 2,
+  "anchor_pixel_xy": [
+    1264,
+    843
+  ],
+  "anchor_depth_m": 1.5145635604858398,
+  "anchor_world_xyz": [
+    11.698787689208984,
+    2.346478223800659,
+    0.5242764949798584
+  ],
+  "source_image": "/my_workspace/4DHHOI/Scannet++/data/c085ff3df4/dslr/resized_undistorted_images/a339ef36_DSC08621.JPG",
+  "target_mask": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_06/anchor/target_mask.png",
+  "anchor_interior_mask": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_06/anchor/anchor_interior_mask.png",
+  "target_overlay": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_06/anchor/target_overlay.png",
+  "candidate_overlay": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_06/anchor/sam3_candidates.png",
+  "candidate_archive": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_06/anchor/sam3_candidates.npz",
+  "uses_contact_information": false
+}

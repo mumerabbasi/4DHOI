@@ -4,6 +4,7 @@
   "sig_target_label": "brown small wooden table",
   "sam3_prompt": "brown small wooden table",
   "sam3_selection_mode": "text",
+  "sam3_candidate_policy": "highest_confidence",
   "selected_candidate": 1,
   "sam3_score": 0.9018341898918152,
   "sam3_bbox_xyxy": [

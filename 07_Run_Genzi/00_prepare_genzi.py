@@ -21,9 +21,11 @@ PROJECT_DIR = MODULE_DIR.parent
 WORKSPACE_ROOT = PROJECT_DIR.parent
 GENZI_ROOT = WORKSPACE_ROOT / "GenZI"
 DEFAULT_OUTPUT_BASE = MODULE_DIR / "output"
+MODULE_05_OUTPUT = PROJECT_DIR / "05_Optimize_Static_Scene" / "output"
 DEFAULT_RUN_CFG = GENZI_ROOT / "config" / "proxs_gen.yml"
 DEFAULT_SDF_DIM = 192
 DEFAULT_SDF_PADDING_M = 0.5
+DEFAULT_DEPTH_SDF_TRUNC_M = 0.075
 DEFAULT_PROMPT_PREFIX = "a woman"
 DEFAULT_PROMPT_SUFFIX = "wearing a white shirt and blue pants, full body"
 DEFAULT_TOKEN_INDICES = "2"
@@ -32,7 +34,7 @@ DEFAULT_SAM3_BPE = SAM3_ROOT / "sam3" / "assets" / "bpe_simple_vocab_16e6.txt.gz
 DEFAULT_GENZI_PYTHON = Path("/root/miniconda3/envs/genzi/bin/python")
 DEFAULT_SAM3_PYTHON = Path("/root/miniconda3/envs/sam3/bin/python")
 ANCHOR_METHOD = "sam3_visible_object_centroid_v1"
-TSDF_METHOD = "selected_view_depth_tsdf_v2"
+TSDF_METHOD = "selected_view_uniform_visibility_tsdf_v1"
 IMAGE_SOURCE_TO_REL_PATHS: dict[str, tuple[str, str]] = {
     "dslr_resized_undistorted": (
         "dslr/resized_undistorted_images",
@@ -117,13 +119,20 @@ def interaction_sort_key(name: str) -> tuple[int, str]:
     return (int(match.group(1)) if match else 10**9, name)
 
 
-def discover_interactions() -> list[str]:
+def discover_module05_interactions() -> list[str]:
+    """Return interactions with module 05's final completion artifact."""
     names = sorted(
-        (path.parent.name for path in (PROJECT_DIR / "01_Generate_SIG" / "output").glob("interaction_*/sig.json")),
+        (
+            path.parent.name
+            for path in MODULE_05_OUTPUT.glob("interaction_*/alignment_summary.json")
+        ),
         key=interaction_sort_key,
     )
     if not names:
-        raise RuntimeError("No generated SIG interactions were found.")
+        raise RuntimeError(
+            "No processed interactions were found under module 05 output: "
+            f"{MODULE_05_OUTPUT}"
+        )
     return names
 
 
@@ -457,8 +466,6 @@ def save_sam3_candidates(image: Any, predictions: list[dict[str, Any]], path: Pa
 def select_sam3_candidate(
     predictions: list[dict[str, Any]],
     requested_index: int | None,
-    ambiguity_margin: float,
-    candidate_path: Path,
 ) -> tuple[int, dict[str, Any]]:
     if not predictions:
         raise RuntimeError("SAM 3 returned no target-object masks.")
@@ -469,14 +476,6 @@ def select_sam3_candidate(
                 f"--sam3-candidate={requested_index} is invalid; available indices are 0..{len(predictions)-1}"
             )
         return requested_index, predictions[requested_index]
-    if len(ranked) > 1:
-        score_gap = float(ranked[0][1]["score"] - ranked[1][1]["score"])
-        if score_gap < float(ambiguity_margin):
-            raise RuntimeError(
-                "SAM 3 target selection is ambiguous "
-                f"(top score gap {score_gap:.3f} < {ambiguity_margin:.3f}). "
-                f"Inspect {candidate_path} and rerun with --sam3-candidate INDEX or --target-box."
-            )
     return ranked[0]
 
 
@@ -568,9 +567,7 @@ def derive_sam3_object_anchor(
     predictions = run_sam3_subprocess(args, image_path, prompt, prediction_archive)
     candidate_path = output_dir / "sam3_candidates.png"
     save_sam3_candidates(image, predictions, candidate_path)
-    selected_index, selected = select_sam3_candidate(
-        predictions, args.sam3_candidate, args.sam3_ambiguity_margin, candidate_path
-    )
+    selected_index, selected = select_sam3_candidate(predictions, args.sam3_candidate)
     object_mask = largest_connected_component(selected["mask"])
     mask = object_mask.copy()
     ys, xs = np.nonzero(object_mask)
@@ -608,6 +605,9 @@ def derive_sam3_object_anchor(
         "sig_target_label": target_label,
         "sam3_prompt": prompt,
         "sam3_selection_mode": "box" if args.target_box is not None else "text",
+        "sam3_candidate_policy": (
+            "explicit_candidate" if args.sam3_candidate is not None else "highest_confidence"
+        ),
         "selected_candidate": int(selected_index),
         "sam3_score": float(selected["score"]),
         "sam3_bbox_xyxy": selected["bbox_xyxy"],
@@ -671,6 +671,17 @@ def build_depth_tsdf_sdf(
     padding_m: float,
     trunc_m: float,
 ) -> tuple[Path, dict[str, Any]]:
+    """Fuse all selected depth views using uniform, visibility-aware weights.
+
+    For projective signed distance ``d = rendered_depth - voxel_depth``:
+
+    * ``d > 0`` is directly observed free space and contributes positively;
+    * ``-trunc_m <= d <= 0`` is the narrow negative surface band;
+    * ``d < -trunc_m`` is occluded by the first hit and contributes no vote.
+
+    Unknown voxels are stored as positive ``trunc_m`` because GenZI consumes a
+    single scalar grid and treats negative values as collision/intersection.
+    """
     import numpy as np
 
     sdf_dir.mkdir(parents=True, exist_ok=True)
@@ -682,35 +693,62 @@ def build_depth_tsdf_sdf(
     bbox_max = vertices.max(axis=0) + float(padding_m)
     dim = int(dim)
     trunc_m = float(trunc_m)
+    if dim < 2:
+        raise ValueError(f"SDF dimension must be at least 2; got {dim}")
+    if not np.isfinite(trunc_m) or trunc_m <= 0.0:
+        raise ValueError(f"TSDF truncation must be positive and finite; got {trunc_m}")
 
     xs = np.linspace(bbox_min[0], bbox_max[0], dim, dtype=np.float32)
     ys = np.linspace(bbox_min[1], bbox_max[1], dim, dtype=np.float32)
     zs = np.linspace(bbox_min[2], bbox_max[2], dim, dtype=np.float32)
     grid = np.stack(np.meshgrid(xs, ys, zs, indexing="ij"), axis=-1).reshape(-1, 3)
-    sdf = np.full((grid.shape[0],), trunc_m, dtype=np.float32)
 
     depths = np.asarray(scene_depths, dtype=np.float32)
+    if depths.ndim != 3:
+        raise ValueError(
+            f"Expected scene depths shaped [views, height, width], got {depths.shape}"
+        )
     num_views, height, width = depths.shape
+    if num_views == 0:
+        raise ValueError("Cannot build a TSDF without selected views")
+    if num_views > np.iinfo(np.uint16).max:
+        raise ValueError(f"Too many views for uint16 diagnostic counts: {num_views}")
+    if len(renderer.modelviews) != num_views:
+        raise ValueError(
+            f"Renderer has {len(renderer.modelviews)} cameras but rendered "
+            f"{num_views} depth maps"
+        )
+
     camera_ids = list(range(num_views))
     znear = float(renderer.camera_args.get("znear", 0.1))
     zfar = float(renderer.camera_args.get("zfar", 20.0))
-    observed = np.zeros((grid.shape[0],), dtype=bool)
+    total_voxels = grid.shape[0]
+    distance_sum = np.zeros((total_voxels,), dtype=np.float32)
+    vote_count = np.zeros((total_voxels,), dtype=np.uint16)
+    free_vote_count = np.zeros((total_voxels,), dtype=np.uint16)
+    negative_vote_count = np.zeros((total_voxels,), dtype=np.uint16)
+    occluded_vote_count = np.zeros((total_voxels,), dtype=np.uint16)
 
+    # This bounds the temporary [num_views, chunk, 2] projection array.
     chunk_size = 65536
-    for start in range(0, grid.shape[0], chunk_size):
-        end = min(start + chunk_size, grid.shape[0])
+    for start in range(0, total_voxels, chunk_size):
+        end = min(start + chunk_size, total_voxels)
         points = grid[start:end]
         screen = renderer.project(points, camera_ids=camera_ids)
-        best_abs = np.full((points.shape[0],), np.inf, dtype=np.float32)
-        best_sdf = np.full((points.shape[0],), trunc_m, dtype=np.float32)
-
         hom = np.concatenate(
             (points, np.ones((points.shape[0], 1), dtype=np.float32)),
             axis=1,
         )
+
+        chunk_sum = np.zeros((points.shape[0],), dtype=np.float32)
+        chunk_votes = np.zeros((points.shape[0],), dtype=np.uint16)
+        chunk_free = np.zeros((points.shape[0],), dtype=np.uint16)
+        chunk_negative = np.zeros((points.shape[0],), dtype=np.uint16)
+        chunk_occluded = np.zeros((points.shape[0],), dtype=np.uint16)
+
         for view_idx, modelview in enumerate(renderer.modelviews):
-            cam = hom @ modelview.T
-            point_depth = -cam[:, 2]
+            camera_points = hom @ modelview.T
+            point_depth = -camera_points[:, 2]
             uv = screen[view_idx]
             ui = np.rint(uv[:, 0]).astype(np.int64)
             vi = np.rint(uv[:, 1]).astype(np.int64)
@@ -726,44 +764,99 @@ def build_depth_tsdf_sdf(
                 continue
             sampled_depth = np.zeros((points.shape[0],), dtype=np.float32)
             sampled_depth[valid] = depths[view_idx, vi[valid], ui[valid]]
-            valid &= sampled_depth > 0.0
+            valid &= np.isfinite(sampled_depth) & (sampled_depth > 0.0)
             if not valid.any():
                 continue
 
             signed_distance = sampled_depth - point_depth
-            signed_distance = np.clip(signed_distance, -trunc_m, trunc_m).astype(np.float32)
-            abs_distance = np.abs(signed_distance)
-            update = valid & (abs_distance < best_abs)
-            best_abs[update] = abs_distance[update]
-            best_sdf[update] = signed_distance[update]
+            occluded = valid & (signed_distance < -trunc_m)
+            contributes = valid & ~occluded
+            chunk_occluded[occluded] += 1
+            if not contributes.any():
+                continue
 
-        observed_chunk = np.isfinite(best_abs)
-        sdf[start:end] = best_sdf
-        observed[start:end] = observed_chunk
+            contribution = np.clip(signed_distance, -trunc_m, trunc_m)
+            chunk_sum[contributes] += contribution[contributes].astype(np.float32)
+            chunk_votes[contributes] += 1
+            chunk_free[contributes & (signed_distance > 0.0)] += 1
+            chunk_negative[contributes & (signed_distance < 0.0)] += 1
 
-    sdf = sdf.reshape(dim, dim, dim).astype(np.float32)
-    observed_volume = observed.reshape(dim, dim, dim)
+        distance_sum[start:end] = chunk_sum
+        vote_count[start:end] = chunk_votes
+        free_vote_count[start:end] = chunk_free
+        negative_vote_count[start:end] = chunk_negative
+        occluded_vote_count[start:end] = chunk_occluded
+
+    observed = vote_count > 0
+    sdf = np.full((total_voxels,), trunc_m, dtype=np.float32)
+    sdf[observed] = distance_sum[observed] / vote_count[observed].astype(np.float32)
+
+    volume_shape = (dim, dim, dim)
+    sdf = sdf.reshape(volume_shape)
+    observed_volume = observed.reshape(volume_shape)
+    vote_count = vote_count.reshape(volume_shape)
+    free_vote_count = free_vote_count.reshape(volume_shape)
+    negative_vote_count = negative_vote_count.reshape(volume_shape)
+    occluded_vote_count = occluded_vote_count.reshape(volume_shape)
     np.save(sdf_path, sdf)
     np.save(observed_path, observed_volume)
+
+    vote_count_path = sdf_dir / f"{scene_id}_vote_count.npy"
+    free_vote_count_path = sdf_dir / f"{scene_id}_free_vote_count.npy"
+    negative_vote_count_path = sdf_dir / f"{scene_id}_negative_vote_count.npy"
+    occluded_vote_count_path = sdf_dir / f"{scene_id}_occluded_vote_count.npy"
+    np.save(vote_count_path, vote_count)
+    np.save(free_vote_count_path, free_vote_count)
+    np.save(negative_vote_count_path, negative_vote_count)
+    np.save(occluded_vote_count_path, occluded_vote_count)
+
+    voxel_size = (bbox_max - bbox_min) / float(dim - 1)
+    conflict = (free_vote_count > 0) & (negative_vote_count > 0)
     metadata = {
         "dim": dim,
         "min": bbox_min.astype(float).tolist(),
         "max": bbox_max.astype(float).tolist(),
         "mesh_path": "",
         "method": TSDF_METHOD,
+        "fusion": "uniform arithmetic mean over all non-occluded selected-view observations",
+        "view_weight": 1.0,
         "trunc_m": trunc_m,
+        "trunc_voxels_per_axis": (trunc_m / voxel_size).astype(float).tolist(),
         "num_views": int(num_views),
+        "uses_all_selected_views": True,
         "depth_image_size": [int(height), int(width)],
         "unknown_value": trunc_m,
+        "unknown_semantics": "no contributing view; stored positive for GenZI compatibility",
+        "observation_rule": {
+            "free": "d = rendered_depth - voxel_camera_depth > 0; positive vote clipped at +trunc_m",
+            "negative_band": "-trunc_m <= d < 0; negative vote",
+            "occluded": "d < -trunc_m; no TSDF vote",
+            "invalid": "outside image/frustum or no rendered depth; no vote",
+        },
         "observed_mask_path": str(observed_path.resolve()),
-        "observed_voxels": int(observed.sum()),
-        "total_voxels": int(observed.shape[0]),
-        "observed_fraction": float(observed.mean()),
+        "vote_count_path": str(vote_count_path.resolve()),
+        "free_vote_count_path": str(free_vote_count_path.resolve()),
+        "negative_vote_count_path": str(negative_vote_count_path.resolve()),
+        "occluded_vote_count_path": str(occluded_vote_count_path.resolve()),
+        "observed_voxels": int(np.count_nonzero(observed_volume)),
+        "total_voxels": int(observed_volume.size),
+        "observed_fraction": float(observed_volume.mean()),
         "negative_voxels": int(np.count_nonzero(observed_volume & (sdf < 0.0))),
         "positive_observed_voxels": int(np.count_nonzero(observed_volume & (sdf > 0.0))),
         "neutral_observed_voxels": int(np.count_nonzero(observed_volume & (sdf == 0.0))),
         "unknown_voxels": int(np.count_nonzero(~observed_volume)),
-        "sign_convention": "positive is free space in front of rendered depth; negative is behind an observed scene surface",
+        "conflicting_observed_voxels": int(np.count_nonzero(conflict)),
+        "mean_contributing_views_per_observed_voxel": float(
+            vote_count[observed_volume].mean()
+        ),
+        "max_contributing_views_per_voxel": int(vote_count.max()),
+        "total_free_votes": int(free_vote_count.sum(dtype=np.uint64)),
+        "total_negative_votes": int(negative_vote_count.sum(dtype=np.uint64)),
+        "total_occluded_no_votes": int(occluded_vote_count.sum(dtype=np.uint64)),
+        "sign_convention": (
+            "positive is directly observed free space in front of rendered depth; "
+            "negative is only the narrow band behind an observed surface"
+        ),
     }
     save_json(meta_path, metadata)
     return meta_path, metadata
@@ -1277,7 +1370,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     selection = parser.add_mutually_exclusive_group()
     selection.add_argument("--interaction-name", "--interaction_name", dest="interaction_name", default="interaction_01")
-    selection.add_argument("--all-interactions", "--all_interactions", dest="all_interactions", action="store_true")
+    selection.add_argument(
+        "--all-interactions",
+        "--all_interactions",
+        dest="all_interactions",
+        action="store_true",
+        help=(
+            "Prepare every interaction with an alignment_summary.json under "
+            "05_Optimize_Static_Scene/output."
+        ),
+    )
     parser.add_argument("--run-cfg", dest="run_cfg", default=str(DEFAULT_RUN_CFG))
     parser.add_argument("--output-base", dest="output_base", default=str(DEFAULT_OUTPUT_BASE))
     parser.add_argument("--scannet-root", dest="scannet_root", default=None)
@@ -1290,7 +1392,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--genzi-python", default=str(DEFAULT_GENZI_PYTHON))
     parser.add_argument("--sam3-device", default="cuda")
     parser.add_argument("--sam3-confidence-threshold", type=float, default=0.5)
-    parser.add_argument("--sam3-ambiguity-margin", type=float, default=0.05)
     parser.add_argument("--sam3-candidate", type=int, default=None)
     parser.add_argument("--target-prompt", default=None)
     parser.add_argument("--target-box", type=float, nargs=4, metavar=("X0", "Y0", "X1", "Y1"), default=None)
@@ -1309,8 +1410,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--depth-sdf-trunc-m",
         dest="depth_sdf_trunc_m",
         type=float,
-        default=0.25,
-        help="Truncation distance for the selected-view depth TSDF used by GenZI.",
+        default=DEFAULT_DEPTH_SDF_TRUNC_M,
+        help=(
+            "Truncation distance for the visibility-aware selected-view TSDF "
+            f"used by GenZI (default: {DEFAULT_DEPTH_SDF_TRUNC_M} m)."
+        ),
     )
     parser.add_argument("--bootstrap-sdf-dim", dest="bootstrap_sdf_dim", type=int, default=16)
     parser.add_argument("--tsdf-debug-max-points", type=int, default=0, help="Per-category PLY limit; 0 writes every voxel.")
@@ -1374,7 +1478,16 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     configure_headless_rendering(args.opengl_platform)
-    interaction_names = discover_interactions() if args.all_interactions else [args.interaction_name]
+    interaction_names = (
+        discover_module05_interactions()
+        if args.all_interactions
+        else [args.interaction_name]
+    )
+    if args.all_interactions:
+        log(
+            f"[*] Selected {len(interaction_names)} interaction(s) processed by module 05: "
+            + ", ".join(interaction_names)
+        )
     if args.all_interactions and any(
         value is not None for value in (args.sam3_candidate, args.target_prompt, args.target_box)
     ):

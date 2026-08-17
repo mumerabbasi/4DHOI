@@ -1,0 +1,40 @@
+interactions: ['A person stands at the kitchen counter making coffee with the coffee
+    maker. The right hand operates the coffee maker controls or cup area while the
+    left hand steadies the machine or counter nearby. The torso leans slightly forward
+    toward the counter and both feet remain planted on the wooden floor. The person
+    has short dark hair, a calm focused expression, a gray shirt, blue jeans, and
+    light sneakers. The bright kitchen has white cabinets, a sink, a stovetop hood,
+    a towel hanging from the counter, a trash bin, and light wooden flooring.']
+lookats:
+- [9.070354461669922, 1.7270911931991577, 1.2596428394317627]
+neg_prompts: ['']
+prompt_ids: [interaction_08]
+prompt_prefix: a woman
+prompt_suffix: wearing a white shirt and blue pants, full body
+prompts: [a person making coffee]
+render.all_solid: false
+render.ambient_light: [0.0, 0.0, 0.0]
+render.bg_color: [0.5, 0.5, 0.5, 0.0]
+render.cull_faces: false
+render.dir_light_color: [1.0, 1.0, 1.0]
+render.dir_light_intensity: 5.0
+render.no_lighting: false
+render.normal_pbr: true
+render.pt_light_color: [1.0, 1.0, 1.0]
+render.pt_light_intensity: 5.0
+render.pt_light_position: [0.0, 0.0, 20.0]
+render.shadows: false
+render.up_dir: [0.0, 0.0, 1.0]
+scene.mesh_path: /my_workspace/4DHHOI/Scannet++/data/c085ff3df4/scans/mesh_aligned_0.05.ply
+scene.sdf_path: /my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_08/scene/sdf/c085ff3df4.json
+scene.subd_mesh_path: ''
+token_indices: [2]
+viewpoints:
+- - - [8.961498260498047, 3.315326452255249, 2.0996780395507812]
+    - [9.366533279418945, 3.3859148025512695, 1.8925590515136719]
+    - [8.450239181518555, 3.2447381019592285, 2.0027477741241455]
+    - [8.799241065979004, 3.428267478942871, 1.7816545963287354]
+  - - [8.961498260498047, 3.315326452255249, 2.0996780395507812]
+    - [9.366533279418945, 3.3859148025512695, 1.8925590515136719]
+    - [8.450239181518555, 3.2447381019592285, 2.0027477741241455]
+    - [8.799241065979004, 3.428267478942871, 1.7816545963287354]

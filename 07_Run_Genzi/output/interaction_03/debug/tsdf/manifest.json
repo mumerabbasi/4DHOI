@@ -1,0 +1,97 @@
+{
+  "method": "selected_view_uniform_visibility_tsdf_v1",
+  "source_sdf_meta": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_03/scene/sdf/6126572846.json",
+  "source_sdf_npy": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_03/scene/sdf/6126572846_sdf.npy",
+  "source_observed_npy": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_03/scene/sdf/6126572846_observed.npy",
+  "full_tsdf_npz": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_03/debug/tsdf/tsdf_full.npz",
+  "full_colored_ply": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_03/debug/tsdf/tsdf_full_colored.ply",
+  "zero_isosurface_ply": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_03/debug/tsdf/tsdf_zero_isosurface.ply",
+  "zero_isosurface_error": null,
+  "slices": {
+    "xy": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_03/debug/tsdf/slices_xy.png",
+    "xz": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_03/debug/tsdf/slices_xz.png",
+    "yz": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_03/debug/tsdf/slices_yz.png"
+  },
+  "categories": {
+    "negative": {
+      "path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_03/debug/tsdf/tsdf_negative.ply",
+      "full_voxel_count": 160884,
+      "written_points": 160884,
+      "rgb": [
+        220,
+        40,
+        40
+      ]
+    },
+    "positive_observed": {
+      "path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_03/debug/tsdf/tsdf_positive_observed.ply",
+      "full_voxel_count": 1519553,
+      "written_points": 1519553,
+      "rgb": [
+        45,
+        125,
+        255
+      ]
+    },
+    "neutral_boundary": {
+      "path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_03/debug/tsdf/tsdf_boundary_crossings.ply",
+      "full_voxel_count": 123223,
+      "written_points": 123223,
+      "rgb": [
+        255,
+        220,
+        0
+      ]
+    },
+    "unknown": {
+      "path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_03/debug/tsdf/tsdf_unknown.ply",
+      "full_voxel_count": 5397451,
+      "written_points": 5397451,
+      "rgb": [
+        150,
+        150,
+        150
+      ]
+    }
+  },
+  "grid_shape": [
+    192,
+    192,
+    192
+  ],
+  "grid_min": [
+    -0.46533486247062683,
+    -0.5000186562538147,
+    -0.39757630228996277
+  ],
+  "grid_max": [
+    4.612262725830078,
+    4.0814208984375,
+    3.07421875
+  ],
+  "voxel_size": [
+    0.026584280723052498,
+    0.023986594215113455,
+    0.01817693760257741
+  ],
+  "truncation_m": 0.075,
+  "surface_band_m": 0.026584280723052498,
+  "anchor_world": [
+    1.5039770603179932,
+    1.9341466426849365,
+    0.7713304758071899
+  ],
+  "anchor_ijk": [
+    74,
+    101,
+    64
+  ],
+  "sign_convention": "positive is directly observed free space in front of rendered depth; negative is only the narrow band behind an observed surface",
+  "color_legend": {
+    "negative": "red",
+    "positive_observed": "blue",
+    "neutral_or_boundary_crossing": "yellow",
+    "unknown": "gray",
+    "anchor_in_slices": "green cross"
+  }
+}

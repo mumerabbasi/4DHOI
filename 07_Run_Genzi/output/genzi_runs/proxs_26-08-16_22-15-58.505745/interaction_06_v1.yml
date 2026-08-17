@@ -1,0 +1,60 @@
+interactions: ['A person stands in front of the washing machine and opens the washing
+    machine door with the right hand. The right hand grips the round door or handle,
+    pulling it outward while the torso leans slightly toward the appliance. The left
+    arm stays relaxed near the body and both feet remain on the gray tile floor. The
+    person has short dark hair, a neutral focused expression, a gray shirt, blue jeans,
+    and light sneakers. The laundry area has white walls, a window, shelving, a vacuum
+    cleaner nearby, and a bathroom doorway in the background.']
+lookats:
+- [11.698787689208984, 2.346478223800659, 0.5242764949798584]
+neg_prompts: ['']
+prompt_ids: [interaction_06]
+prompt_prefix: a woman
+prompt_suffix: wearing a white shirt and blue pants, full body
+prompts: [a person opening the washing machine door]
+render.all_solid: false
+render.ambient_light: [0.0, 0.0, 0.0]
+render.bg_color: [0.5, 0.5, 0.5, 0.0]
+render.cull_faces: false
+render.dir_light_color: [1.0, 1.0, 1.0]
+render.dir_light_intensity: 5.0
+render.no_lighting: false
+render.normal_pbr: true
+render.pt_light_color: [1.0, 1.0, 1.0]
+render.pt_light_intensity: 5.0
+render.pt_light_position: [0.0, 0.0, 20.0]
+render.shadows: false
+render.up_dir: [0.0, 0.0, 1.0]
+scene.mesh_path: /my_workspace/4DHHOI/Scannet++/data/c085ff3df4/scans/mesh_aligned_0.05.ply
+scene.sdf_path: /my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_06/scene/sdf/c085ff3df4.json
+scene.subd_mesh_path: ''
+token_indices: [2]
+viewpoints:
+- - - [10.308915138244629, 3.6249096393585205, 1.1829628944396973]
+    - [10.637280464172363, 3.828831195831299, 1.3463671207427979]
+    - [10.22264575958252, 3.2954978942871094, 1.4836339950561523]
+    - [11.009771347045898, 4.032752990722656, 1.3499486446380615]
+    - [10.565587997436523, 3.9543213844299316, 0.8857982754707336]
+    - [10.054903984069824, 3.420988082885742, 0.9025301933288574]
+    - [9.961678504943848, 3.091576337814331, 1.1779439449310303]
+    - [10.280434608459473, 3.7503998279571533, 0.6557291150093079]
+    - [11.577836036682129, 4.111184120178223, 1.4576488733291626]
+    - [10.965903282165527, 4.158243179321289, 0.948998212814331]
+    - [9.898296356201172, 3.217066526412964, 0.5418437123298645]
+    - [11.397550582885742, 4.2366743087768555, 1.1042895317077637]
+    - [11.2093505859375, 4.283733367919922, 0.6108509302139282]
+    - [9.793188095092773, 2.8876547813415527, 0.7996264696121216]
+  - - [10.308915138244629, 3.6249096393585205, 1.1829628944396973]
+    - [10.637280464172363, 3.828831195831299, 1.3463671207427979]
+    - [10.22264575958252, 3.2954978942871094, 1.4836339950561523]
+    - [11.009771347045898, 4.032752990722656, 1.3499486446380615]
+    - [10.565587997436523, 3.9543213844299316, 0.8857982754707336]
+    - [10.054903984069824, 3.420988082885742, 0.9025301933288574]
+    - [9.961678504943848, 3.091576337814331, 1.1779439449310303]
+    - [10.280434608459473, 3.7503998279571533, 0.6557291150093079]
+    - [11.577836036682129, 4.111184120178223, 1.4576488733291626]
+    - [10.965903282165527, 4.158243179321289, 0.948998212814331]
+    - [9.898296356201172, 3.217066526412964, 0.5418437123298645]
+    - [11.397550582885742, 4.2366743087768555, 1.1042895317077637]
+    - [11.2093505859375, 4.283733367919922, 0.6108509302139282]
+    - [9.793188095092773, 2.8876547813415527, 0.7996264696121216]

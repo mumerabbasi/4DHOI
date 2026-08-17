@@ -18,6 +18,7 @@ PROJECT_DIR = MODULE_DIR.parent
 WORKSPACE_ROOT = PROJECT_DIR.parent
 GENZI_ROOT = WORKSPACE_ROOT / "GenZI"
 DEFAULT_OUTPUT_BASE = MODULE_DIR / "output"
+MODULE_05_OUTPUT = PROJECT_DIR / "05_Optimize_Static_Scene" / "output"
 DEFAULT_RUN_CFG = GENZI_ROOT / "config" / "proxs_gen.yml"
 DEFAULT_GENZI_PYTHON = Path("/root/miniconda3/envs/genzi/bin/python")
 
@@ -72,19 +73,45 @@ def load_cfg(path: Path) -> dict[str, Any]:
     return cfg
 
 
-def discover_prepared_interactions(scene_config_root: Path) -> list[str]:
-    suffix = "_v1.yml"
+def interaction_sort_key(name: str) -> tuple[int, str]:
+    prefix = "interaction_"
+    suffix = name[len(prefix):] if name.startswith(prefix) else ""
+    return (int(suffix) if suffix.isdigit() else 10**9, name)
+
+
+def discover_module05_interactions() -> list[str]:
+    """Return interactions with module 05's final completion artifact."""
     names = sorted(
-        path.name[: -len(suffix)]
-        for path in scene_config_root.glob(f"interaction_*{suffix}")
-        if path.name.endswith(suffix)
+        (
+            path.parent.name
+            for path in MODULE_05_OUTPUT.glob("interaction_*/alignment_summary.json")
+        ),
+        key=interaction_sort_key,
     )
     if not names:
-        raise FileNotFoundError(
-            f"No prepared GenZI scene configs found in {scene_config_root}. "
-            "Run 00_prepare_genzi.py first."
+        raise RuntimeError(
+            "No processed interactions were found under module 05 output: "
+            f"{MODULE_05_OUTPUT}"
         )
     return names
+
+
+def select_prepared_module05_interactions(
+    scene_config_root: Path,
+) -> tuple[list[str], list[str]]:
+    """Split module-05 interactions into prepared and not-yet-prepared sets."""
+    processed = discover_module05_interactions()
+    prepared = []
+    missing = []
+    for interaction_name in processed:
+        config_path = scene_config_root / f"{interaction_name}_v1.yml"
+        (prepared if config_path.is_file() else missing).append(interaction_name)
+    if not prepared:
+        raise FileNotFoundError(
+            "No module-05 interactions have prepared GenZI scene configs under "
+            f"{scene_config_root}. Run 00_prepare_genzi.py first."
+        )
+    return prepared, missing
 
 
 def validate_scene_configs(scene_config_root: Path, interaction_names: list[str]) -> None:
@@ -312,6 +339,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--all_interactions",
         dest="all_interactions",
         action="store_true",
+        help=(
+            "Run interactions that are both processed by module 05 and have a "
+            "prepared GenZI scene config; report and skip unprepared interactions."
+        ),
     )
     parser.add_argument("--run-cfg", default=str(DEFAULT_RUN_CFG))
     parser.add_argument("--output-base", default=str(DEFAULT_OUTPUT_BASE))
@@ -344,11 +375,23 @@ def main(argv: list[str] | None = None) -> None:
 
     output_base = Path(args.output_base).resolve()
     scene_config_root = output_base / "_scene_configs"
-    interaction_names = (
-        discover_prepared_interactions(scene_config_root)
-        if args.all_interactions
-        else [args.interaction_name]
-    )
+    skipped_unprepared: list[str] = []
+    if args.all_interactions:
+        interaction_names, skipped_unprepared = select_prepared_module05_interactions(
+            scene_config_root
+        )
+        log(
+            f"[*] Selected {len(interaction_names)} prepared module-05 interaction(s): "
+            + ", ".join(interaction_names)
+        )
+        if skipped_unprepared:
+            log(
+                f"[!] Skipping {len(skipped_unprepared)} module-05 interaction(s) "
+                "without prepared GenZI configs: "
+                + ", ".join(skipped_unprepared)
+            )
+    else:
+        interaction_names = [args.interaction_name]
     validate_scene_configs(scene_config_root, interaction_names)
     cfg = build_runtime_cfg(args, interaction_names)
 
@@ -359,6 +402,7 @@ def main(argv: list[str] | None = None) -> None:
 
     summary = {
         "interactions": interaction_names,
+        "skipped_unprepared_interactions": skipped_unprepared,
         "run_cfg": str(Path(args.run_cfg).resolve()),
         "scene_config_root": scene_config_root,
         "genzi_log_dir": cfg["log_dir"],

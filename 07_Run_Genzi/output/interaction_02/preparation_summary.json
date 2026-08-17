@@ -38,23 +38,48 @@
       4.854555606842041
     ],
     "mesh_path": "/my_workspace/4DHHOI/Scannet++/data/442b144761/scans/mesh_aligned_0.05.ply",
-    "method": "selected_view_depth_tsdf_v2",
-    "trunc_m": 0.25,
+    "method": "selected_view_uniform_visibility_tsdf_v1",
+    "fusion": "uniform arithmetic mean over all non-occluded selected-view observations",
+    "view_weight": 1.0,
+    "trunc_m": 0.075,
+    "trunc_voxels_per_axis": [
+      1.4549483060836792,
+      3.0079970359802246,
+      2.6863412857055664
+    ],
     "num_views": 16,
+    "uses_all_selected_views": true,
     "depth_image_size": [
       512,
       512
     ],
-    "unknown_value": 0.25,
+    "unknown_value": 0.075,
+    "unknown_semantics": "no contributing view; stored positive for GenZI compatibility",
+    "observation_rule": {
+      "free": "d = rendered_depth - voxel_camera_depth > 0; positive vote clipped at +trunc_m",
+      "negative_band": "-trunc_m <= d < 0; negative vote",
+      "occluded": "d < -trunc_m; no TSDF vote",
+      "invalid": "outside image/frustum or no rendered depth; no vote"
+    },
     "observed_mask_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/scene/sdf/442b144761_observed.npy",
-    "observed_voxels": 995135,
+    "vote_count_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/scene/sdf/442b144761_vote_count.npy",
+    "free_vote_count_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/scene/sdf/442b144761_free_vote_count.npy",
+    "negative_vote_count_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/scene/sdf/442b144761_negative_vote_count.npy",
+    "occluded_vote_count_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/scene/sdf/442b144761_occluded_vote_count.npy",
+    "observed_voxels": 386095,
     "total_voxels": 7077888,
-    "observed_fraction": 0.14059773197880499,
-    "negative_voxels": 662449,
-    "positive_observed_voxels": 332686,
+    "observed_fraction": 0.05454946447301794,
+    "negative_voxels": 44789,
+    "positive_observed_voxels": 341306,
     "neutral_observed_voxels": 0,
-    "unknown_voxels": 6082753,
-    "sign_convention": "positive is free space in front of rendered depth; negative is behind an observed scene surface",
+    "unknown_voxels": 6691793,
+    "conflicting_observed_voxels": 3741,
+    "mean_contributing_views_per_observed_voxel": 6.950411168235797,
+    "max_contributing_views_per_voxel": 16,
+    "total_free_votes": 2440676,
+    "total_negative_votes": 242843,
+    "total_occluded_no_votes": 3711858,
+    "sign_convention": "positive is directly observed free space in front of rendered depth; negative is only the narrow band behind an observed surface",
     "anchor_method": "sam3_visible_object_centroid_v1",
     "anchor_world_xyz": [
       1.4382041692733765,
@@ -63,7 +88,7 @@
     ]
   },
   "sdf_visualization": {
-    "method": "selected_view_depth_tsdf_v2",
+    "method": "selected_view_uniform_visibility_tsdf_v1",
     "source_sdf_meta": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/scene/sdf/442b144761.json",
     "source_sdf_npy": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/scene/sdf/442b144761_sdf.npy",
     "source_observed_npy": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/scene/sdf/442b144761_observed.npy",
@@ -79,8 +104,8 @@
     "categories": {
       "negative": {
         "path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/debug/tsdf/tsdf_negative.ply",
-        "full_voxel_count": 662449,
-        "written_points": 662449,
+        "full_voxel_count": 44789,
+        "written_points": 44789,
         "rgb": [
           220,
           40,
@@ -89,8 +114,8 @@
       },
       "positive_observed": {
         "path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/debug/tsdf/tsdf_positive_observed.ply",
-        "full_voxel_count": 332686,
-        "written_points": 332686,
+        "full_voxel_count": 341306,
+        "written_points": 341306,
         "rgb": [
           45,
           125,
@@ -99,8 +124,8 @@
       },
       "neutral_boundary": {
         "path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/debug/tsdf/tsdf_boundary_crossings.ply",
-        "full_voxel_count": 78373,
-        "written_points": 78373,
+        "full_voxel_count": 53838,
+        "written_points": 53838,
         "rgb": [
           255,
           220,
@@ -109,8 +134,8 @@
       },
       "unknown": {
         "path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/debug/tsdf/tsdf_unknown.ply",
-        "full_voxel_count": 6082753,
-        "written_points": 6082753,
+        "full_voxel_count": 6691793,
+        "written_points": 6691793,
         "rgb": [
           150,
           150,
@@ -138,7 +163,7 @@
       0.02493353539112351,
       0.027919015335162896
     ],
-    "truncation_m": 0.25,
+    "truncation_m": 0.075,
     "surface_band_m": 0.05154822384499755,
     "anchor_world": [
       1.4382041692733765,
@@ -150,7 +175,7 @@
       145,
       40
     ],
-    "sign_convention": "positive is free space in front of rendered depth; negative is behind an observed scene surface",
+    "sign_convention": "positive is directly observed free space in front of rendered depth; negative is only the narrow band behind an observed surface",
     "color_legend": {
       "negative": "red",
       "positive_observed": "blue",
@@ -172,6 +197,7 @@
     "sig_target_label": "brown small wooden table",
     "sam3_prompt": "brown small wooden table",
     "sam3_selection_mode": "text",
+    "sam3_candidate_policy": "highest_confidence",
     "selected_candidate": 1,
     "sam3_score": 0.9018341898918152,
     "sam3_bbox_xyxy": [
@@ -299,7 +325,7 @@
   "use_at_normal": true,
   "viewpoint_selection": {
     "source": "genzi.Scene.get_viewpoints",
-    "elapsed_s": 18.071988582611084
+    "elapsed_s": 17.879685640335083
   },
   "anchor": {
     "method": "sam3_visible_object_centroid_v1",
@@ -307,6 +333,7 @@
     "sig_target_label": "brown small wooden table",
     "sam3_prompt": "brown small wooden table",
     "sam3_selection_mode": "text",
+    "sam3_candidate_policy": "highest_confidence",
     "selected_candidate": 1,
     "sam3_score": 0.9018341898918152,
     "sam3_bbox_xyxy": [
@@ -337,6 +364,5 @@
     "candidate_overlay": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/anchor/sam3_candidates.png",
     "candidate_archive": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_02/anchor/sam3_candidates.npz",
     "uses_contact_information": false
-  },
-  "preparation_elapsed_s": 61.737955808639526
+  }
 }

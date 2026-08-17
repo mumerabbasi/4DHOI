@@ -1,0 +1,350 @@
+{
+  "interaction_name": "interaction_05",
+  "scene_id": "c085ff3df4",
+  "artifact_mode": "complete_native_genzi_preparation",
+  "genzi_scene_config": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/_scene_configs/interaction_05_v1.yml",
+  "audit_scene_config": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/scene/config/interaction_05_v1.yml",
+  "debug_views_dir": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/selected_views",
+  "debug_view_paths": [
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/selected_views/view000.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/selected_views/view001.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/selected_views/view002.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/selected_views/view003.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/selected_views/view004.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/selected_views/view005.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/selected_views/view006.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/selected_views/view007.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/selected_views/view008.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/selected_views/view009.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/selected_views/view010.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/selected_views/view011.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/selected_views/view012.png"
+  ],
+  "mesh_path": "/my_workspace/4DHHOI/Scannet++/data/c085ff3df4/scans/mesh_aligned_0.05.ply",
+  "sdf_meta": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/scene/sdf/c085ff3df4.json",
+  "sdf_stats": {
+    "dim": 192,
+    "min": [
+      -0.42294836044311523,
+      -0.4929710328578949,
+      -0.47315317392349243
+    ],
+    "max": [
+      15.14864444732666,
+      9.634431838989258,
+      3.087392807006836
+    ],
+    "mesh_path": "/my_workspace/4DHHOI/Scannet++/data/c085ff3df4/scans/mesh_aligned_0.05.ply",
+    "method": "selected_view_uniform_visibility_tsdf_v1",
+    "fusion": "uniform arithmetic mean over all non-occluded selected-view observations",
+    "view_weight": 1.0,
+    "trunc_m": 0.075,
+    "trunc_voxels_per_axis": [
+      0.9199445247650146,
+      1.41447913646698,
+      4.02325963973999
+    ],
+    "num_views": 13,
+    "uses_all_selected_views": true,
+    "depth_image_size": [
+      512,
+      512
+    ],
+    "unknown_value": 0.075,
+    "unknown_semantics": "no contributing view; stored positive for GenZI compatibility",
+    "observation_rule": {
+      "free": "d = rendered_depth - voxel_camera_depth > 0; positive vote clipped at +trunc_m",
+      "negative_band": "-trunc_m <= d < 0; negative vote",
+      "occluded": "d < -trunc_m; no TSDF vote",
+      "invalid": "outside image/frustum or no rendered depth; no vote"
+    },
+    "observed_mask_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/scene/sdf/c085ff3df4_observed.npy",
+    "vote_count_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/scene/sdf/c085ff3df4_vote_count.npy",
+    "free_vote_count_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/scene/sdf/c085ff3df4_free_vote_count.npy",
+    "negative_vote_count_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/scene/sdf/c085ff3df4_negative_vote_count.npy",
+    "occluded_vote_count_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/scene/sdf/c085ff3df4_occluded_vote_count.npy",
+    "observed_voxels": 73341,
+    "total_voxels": 7077888,
+    "observed_fraction": 0.010361989339192709,
+    "negative_voxels": 8225,
+    "positive_observed_voxels": 65116,
+    "neutral_observed_voxels": 0,
+    "unknown_voxels": 7004547,
+    "conflicting_observed_voxels": 988,
+    "mean_contributing_views_per_observed_voxel": 5.466805743035955,
+    "max_contributing_views_per_voxel": 13,
+    "total_free_votes": 357101,
+    "total_negative_votes": 43840,
+    "total_occluded_no_votes": 6396551,
+    "sign_convention": "positive is directly observed free space in front of rendered depth; negative is only the narrow band behind an observed surface",
+    "anchor_method": "sam3_visible_object_centroid_v1",
+    "anchor_world_xyz": [
+      12.648390769958496,
+      2.1405279636383057,
+      1.0458707809448242
+    ]
+  },
+  "sdf_visualization": {
+    "method": "selected_view_uniform_visibility_tsdf_v1",
+    "source_sdf_meta": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/scene/sdf/c085ff3df4.json",
+    "source_sdf_npy": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/scene/sdf/c085ff3df4_sdf.npy",
+    "source_observed_npy": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/scene/sdf/c085ff3df4_observed.npy",
+    "full_tsdf_npz": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/tsdf/tsdf_full.npz",
+    "full_colored_ply": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/tsdf/tsdf_full_colored.ply",
+    "zero_isosurface_ply": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/tsdf/tsdf_zero_isosurface.ply",
+    "zero_isosurface_error": null,
+    "slices": {
+      "xy": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/tsdf/slices_xy.png",
+      "xz": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/tsdf/slices_xz.png",
+      "yz": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/tsdf/slices_yz.png"
+    },
+    "categories": {
+      "negative": {
+        "path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/tsdf/tsdf_negative.ply",
+        "full_voxel_count": 8225,
+        "written_points": 8225,
+        "rgb": [
+          220,
+          40,
+          40
+        ]
+      },
+      "positive_observed": {
+        "path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/tsdf/tsdf_positive_observed.ply",
+        "full_voxel_count": 65116,
+        "written_points": 65116,
+        "rgb": [
+          45,
+          125,
+          255
+        ]
+      },
+      "neutral_boundary": {
+        "path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/tsdf/tsdf_boundary_crossings.ply",
+        "full_voxel_count": 73341,
+        "written_points": 73341,
+        "rgb": [
+          255,
+          220,
+          0
+        ]
+      },
+      "unknown": {
+        "path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/debug/tsdf/tsdf_unknown.ply",
+        "full_voxel_count": 7004547,
+        "written_points": 7004547,
+        "rgb": [
+          150,
+          150,
+          150
+        ]
+      }
+    },
+    "grid_shape": [
+      192,
+      192,
+      192
+    ],
+    "grid_min": [
+      -0.42294836044311523,
+      -0.4929710328578949,
+      -0.47315317392349243
+    ],
+    "grid_max": [
+      15.14864444732666,
+      9.634431838989258,
+      3.087392807006836
+    ],
+    "voxel_size": [
+      0.08152666141849538,
+      0.053023053713493945,
+      0.018641601682333423
+    ],
+    "truncation_m": 0.075,
+    "surface_band_m": 0.08152666141849538,
+    "anchor_world": [
+      12.648390769958496,
+      2.1405279636383057,
+      1.0458707809448242
+    ],
+    "anchor_ijk": [
+      160,
+      50,
+      81
+    ],
+    "sign_convention": "positive is directly observed free space in front of rendered depth; negative is only the narrow band behind an observed surface",
+    "color_legend": {
+      "negative": "red",
+      "positive_observed": "blue",
+      "neutral_or_boundary_crossing": "yellow",
+      "unknown": "gray",
+      "anchor_in_slices": "green cross"
+    }
+  },
+  "view_selection_sdf_source": "temporary_neutral_bootstrap",
+  "view_selection_sdf_note": "Temporary bootstrap removed after viewpoint selection.",
+  "look_at": [
+    12.648390769958496,
+    2.1405279636383057,
+    1.0458707809448242
+  ],
+  "look_at_stats": {
+    "method": "sam3_visible_object_centroid_v1",
+    "sig_target_id": "target_object_1",
+    "sig_target_label": "bathroom faucet",
+    "sam3_prompt": "bathroom faucet",
+    "sam3_selection_mode": "text",
+    "sam3_candidate_policy": "highest_confidence",
+    "selected_candidate": 0,
+    "sam3_score": 0.8227795362472534,
+    "sam3_bbox_xyxy": [
+      674.2999267578125,
+      521.7255859375,
+      711.76904296875,
+      571.0264282226562
+    ],
+    "candidate_count": 1,
+    "object_mask_pixels": 1066,
+    "anchor_interior_mask_pixels": 703,
+    "valid_depth_pixels": 703,
+    "erosion_pixels": 2,
+    "anchor_pixel_xy": [
+      685,
+      546
+    ],
+    "anchor_depth_m": 1.578032374382019,
+    "anchor_world_xyz": [
+      12.648390769958496,
+      2.1405279636383057,
+      1.0458707809448242
+    ],
+    "source_image": "/my_workspace/4DHHOI/Scannet++/data/c085ff3df4/dslr/resized_undistorted_images/a339ef36_DSC09288.JPG",
+    "target_mask": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/anchor/target_mask.png",
+    "anchor_interior_mask": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/anchor/anchor_interior_mask.png",
+    "target_overlay": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/anchor/target_overlay.png",
+    "candidate_overlay": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/anchor/sam3_candidates.png",
+    "candidate_archive": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/anchor/sam3_candidates.npz",
+    "uses_contact_information": false
+  },
+  "viewpoints": [
+    [
+      12.52743911743164,
+      3.905233860015869,
+      1.9792431592941284
+    ],
+    [
+      11.95937442779541,
+      3.8268024921417236,
+      1.8715429306030273
+    ],
+    [
+      12.347153663635254,
+      4.030724048614502,
+      1.6258838176727295
+    ],
+    [
+      12.97747802734375,
+      3.9836652278900146,
+      1.7491109371185303
+    ],
+    [
+      13.795215606689453,
+      3.5287632942199707,
+      1.916270136833191
+    ],
+    [
+      13.374616622924805,
+      3.858175039291382,
+      1.768562912940979
+    ],
+    [
+      12.679239273071289,
+      4.109155654907227,
+      1.3973737955093384
+    ],
+    [
+      13.747169494628906,
+      3.732684850692749,
+      1.5535342693328857
+    ],
+    [
+      13.116332054138184,
+      4.06209659576416,
+      1.3435367345809937
+    ],
+    [
+      12.158953666687012,
+      4.07778263092041,
+      1.132445216178894
+    ],
+    [
+      14.124650955200195,
+      3.1993515491485596,
+      1.882260799407959
+    ],
+    [
+      14.003486633300781,
+      3.607194662094116,
+      1.1581376791000366
+    ],
+    [
+      13.507699966430664,
+      3.9366064071655273,
+      1.2347875833511353
+    ]
+  ],
+  "up_dir": [
+    0.0,
+    0.0,
+    1.0
+  ],
+  "fov": 60.0,
+  "num_candidate_viewpoints": 256,
+  "max_views": 16,
+  "selected_views": 13,
+  "view_distance": 2.0,
+  "patch_radius": 0.15,
+  "use_at_normal": true,
+  "viewpoint_selection": {
+    "source": "genzi.Scene.get_viewpoints",
+    "elapsed_s": 145.02417874336243
+  },
+  "anchor": {
+    "method": "sam3_visible_object_centroid_v1",
+    "sig_target_id": "target_object_1",
+    "sig_target_label": "bathroom faucet",
+    "sam3_prompt": "bathroom faucet",
+    "sam3_selection_mode": "text",
+    "sam3_candidate_policy": "highest_confidence",
+    "selected_candidate": 0,
+    "sam3_score": 0.8227795362472534,
+    "sam3_bbox_xyxy": [
+      674.2999267578125,
+      521.7255859375,
+      711.76904296875,
+      571.0264282226562
+    ],
+    "candidate_count": 1,
+    "object_mask_pixels": 1066,
+    "anchor_interior_mask_pixels": 703,
+    "valid_depth_pixels": 703,
+    "erosion_pixels": 2,
+    "anchor_pixel_xy": [
+      685,
+      546
+    ],
+    "anchor_depth_m": 1.578032374382019,
+    "anchor_world_xyz": [
+      12.648390769958496,
+      2.1405279636383057,
+      1.0458707809448242
+    ],
+    "source_image": "/my_workspace/4DHHOI/Scannet++/data/c085ff3df4/dslr/resized_undistorted_images/a339ef36_DSC09288.JPG",
+    "target_mask": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/anchor/target_mask.png",
+    "anchor_interior_mask": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/anchor/anchor_interior_mask.png",
+    "target_overlay": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/anchor/target_overlay.png",
+    "candidate_overlay": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/anchor/sam3_candidates.png",
+    "candidate_archive": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_05/anchor/sam3_candidates.npz",
+    "uses_contact_information": false
+  }
+}
