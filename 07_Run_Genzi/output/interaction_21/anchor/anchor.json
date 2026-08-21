@@ -1,0 +1,38 @@
+{
+  "method": "sam3_visible_object_centroid_v1",
+  "sig_target_id": "target_object_1",
+  "sig_target_label": "bed",
+  "sam3_prompt": "bed",
+  "sam3_selection_mode": "text",
+  "sam3_candidate_policy": "highest_confidence",
+  "selected_candidate": 0,
+  "sam3_score": 0.961035966873169,
+  "sam3_bbox_xyxy": [
+    -1.481014609336853,
+    609.7824096679688,
+    621.432861328125,
+    1168.4461669921875
+  ],
+  "candidate_count": 1,
+  "object_mask_pixels": 142151,
+  "anchor_interior_mask_pixels": 126476,
+  "valid_depth_pixels": 126475,
+  "erosion_pixels": 5,
+  "anchor_pixel_xy": [
+    349,
+    867
+  ],
+  "anchor_depth_m": 0.9301533699035645,
+  "anchor_world_xyz": [
+    1.6261919736862183,
+    1.7853012084960938,
+    0.6806654930114746
+  ],
+  "source_image": "/my_workspace/4DHHOI/Scannet++/data/d902931864/dslr/resized_undistorted_images/DSC01070.JPG",
+  "target_mask": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_21/anchor/target_mask.png",
+  "anchor_interior_mask": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_21/anchor/anchor_interior_mask.png",
+  "target_overlay": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_21/anchor/target_overlay.png",
+  "candidate_overlay": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_21/anchor/sam3_candidates.png",
+  "candidate_archive": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_21/anchor/sam3_candidates.npz",
+  "uses_contact_information": false
+}

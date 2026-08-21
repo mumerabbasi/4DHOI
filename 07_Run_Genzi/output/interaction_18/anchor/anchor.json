@@ -1,0 +1,38 @@
+{
+  "method": "sam3_visible_object_centroid_v1",
+  "sig_target_id": "target_object_1",
+  "sig_target_label": "bunk bed ladder",
+  "sam3_prompt": "bunk bed ladder",
+  "sam3_selection_mode": "text",
+  "sam3_candidate_policy": "highest_confidence",
+  "selected_candidate": 0,
+  "sam3_score": 0.3907511532306671,
+  "sam3_bbox_xyxy": [
+    536.3768920898438,
+    544.2608032226562,
+    649.7783813476562,
+    921.5075073242188
+  ],
+  "candidate_count": 1,
+  "object_mask_pixels": 32080,
+  "anchor_interior_mask_pixels": 29925,
+  "valid_depth_pixels": 29886,
+  "erosion_pixels": 2,
+  "anchor_pixel_xy": [
+    593,
+    728
+  ],
+  "anchor_depth_m": 1.0765358209609985,
+  "anchor_world_xyz": [
+    1.9181382656097412,
+    2.233804941177368,
+    0.9166479706764221
+  ],
+  "source_image": "/my_workspace/4DHHOI/Scannet++/data/e86c6742b9/dslr/resized_undistorted_images/98e6d38e_DSC06369.JPG",
+  "target_mask": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_18/anchor/target_mask.png",
+  "anchor_interior_mask": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_18/anchor/anchor_interior_mask.png",
+  "target_overlay": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_18/anchor/target_overlay.png",
+  "candidate_overlay": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_18/anchor/sam3_candidates.png",
+  "candidate_archive": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_18/anchor/sam3_candidates.npz",
+  "uses_contact_information": false
+}

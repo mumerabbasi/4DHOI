@@ -1,0 +1,114 @@
+scene:
+  mesh_path: /my_workspace/4DHHOI/Scannet++/data/c085ff3df4/scans/mesh_aligned_0.05.ply
+  sdf_path: /my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/scene/sdf/c085ff3df4.json
+  subd_mesh_path: ''
+render:
+  bg_color:
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.0
+  ambient_light:
+  - 0.0
+  - 0.0
+  - 0.0
+  dir_light_color:
+  - 1.0
+  - 1.0
+  - 1.0
+  dir_light_intensity: 5.0
+  pt_light_color:
+  - 1.0
+  - 1.0
+  - 1.0
+  pt_light_intensity: 5.0
+  pt_light_position:
+  - 0.0
+  - 0.0
+  - 20.0
+  normal_pbr: true
+  no_lighting: false
+  all_solid: false
+  cull_faces: false
+  shadows: false
+  up_dir:
+  - 0.0
+  - 0.0
+  - 1.0
+prompt_prefix: a woman
+prompt_suffix: wearing a white shirt and blue pants, full body
+prompt_ids:
+- interaction_10
+prompts:
+- a person taking out the vacuum cleaner with both hands
+neg_prompts:
+- ''
+token_indices:
+- 2
+lookats:
+- - 11.591830253601074
+  - 4.395258903503418
+  - 1.0986483097076416
+viewpoints:
+- - - - 10.340842247009277
+      - 3.0854549407958984
+      - 1.9468481540679932
+    - - 10.028576850891113
+      - 3.2109451293945312
+      - 1.490617275238037
+    - - 10.377647399902344
+      - 2.88153338432312
+      - 1.5827915668487549
+    - - 10.031421661376953
+      - 3.4148666858673096
+      - 1.8757951259613037
+    - - 10.15272331237793
+      - 3.007023572921753
+      - 1.1407827138900757
+    - - 10.737643241882324
+      - 2.7560431957244873
+      - 1.8624131679534912
+    - - 10.580869674682617
+      - 2.677611827850342
+      - 1.2649255990982056
+    - - 11.147994041442871
+      - 2.6305530071258545
+      - 1.9286017417907715
+    - - 10.915407180786133
+      - 2.552121639251709
+      - 1.4798270463943481
+  - - - 10.340842247009277
+      - 3.0854549407958984
+      - 1.9468481540679932
+    - - 10.028576850891113
+      - 3.2109451293945312
+      - 1.490617275238037
+    - - 10.377647399902344
+      - 2.88153338432312
+      - 1.5827915668487549
+    - - 10.031421661376953
+      - 3.4148666858673096
+      - 1.8757951259613037
+    - - 10.15272331237793
+      - 3.007023572921753
+      - 1.1407827138900757
+    - - 10.737643241882324
+      - 2.7560431957244873
+      - 1.8624131679534912
+    - - 10.580869674682617
+      - 2.677611827850342
+      - 1.2649255990982056
+    - - 11.147994041442871
+      - 2.6305530071258545
+      - 1.9286017417907715
+    - - 10.915407180786133
+      - 2.552121639251709
+      - 1.4798270463943481
+interactions:
+- A person stands beside the white shelving unit and prepares to take out the vacuum
+  cleaner stored behind it using both hands. The left and right hands firmly grasp
+  the vacuum cleaner's handle or body to pull it forward. Both feet are planted on
+  the grey tiled floor in a balanced standing stance, with the torso slightly leaning
+  towards the object. The person has short black hair, a neutral focused facial expression,
+  a gray shirt, blue jeans, and white sneakers. The room features white walls, a window
+  on the left, and a washing machine on the right.

@@ -1,0 +1,144 @@
+scene:
+  mesh_path: /my_workspace/4DHHOI/Scannet++/data/c085ff3df4/scans/mesh_aligned_0.05.ply
+  sdf_path: /my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_09/scene/sdf/c085ff3df4.json
+  subd_mesh_path: ''
+render:
+  bg_color:
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.0
+  ambient_light:
+  - 0.0
+  - 0.0
+  - 0.0
+  dir_light_color:
+  - 1.0
+  - 1.0
+  - 1.0
+  dir_light_intensity: 5.0
+  pt_light_color:
+  - 1.0
+  - 1.0
+  - 1.0
+  pt_light_intensity: 5.0
+  pt_light_position:
+  - 0.0
+  - 0.0
+  - 20.0
+  normal_pbr: true
+  no_lighting: false
+  all_solid: false
+  cull_faces: false
+  shadows: false
+  up_dir:
+  - 0.0
+  - 0.0
+  - 1.0
+prompt_prefix: a woman
+prompt_suffix: wearing a white shirt and blue pants, full body
+prompt_ids:
+- interaction_09
+prompts:
+- a person taking a shower
+neg_prompts:
+- ''
+token_indices:
+- 2
+lookats:
+- - 14.282027244567871
+  - 4.873021602630615
+  - 1.4304723739624023
+viewpoints:
+- - - - 12.34530258178711
+      - 4.551453113555908
+      - 1.8121658563613892
+    - - 12.71877384185791
+      - 3.6887078285217285
+      - 1.8224413394927979
+    - - 12.72161865234375
+      - 3.892629384994507
+      - 2.2076191902160645
+    - - 12.451752662658691
+      - 4.755374431610107
+      - 2.228127956390381
+    - - 12.842920303344727
+      - 3.48478627204895
+      - 1.4726067781448364
+    - - 13.031039237976074
+      - 3.5632176399230957
+      - 2.278672218322754
+    - - 13.271066665649414
+      - 3.155374526977539
+      - 1.5967496633529663
+    - - 13.427840232849121
+      - 3.2338058948516846
+      - 2.194237232208252
+    - - 12.285743713378906
+      - 4.88086462020874
+      - 1.5520819425582886
+    - - 12.48526382446289
+      - 4.018119812011719
+      - 1.6324262619018555
+    - - 13.60560417175293
+      - 3.0298843383789062
+      - 1.8116511106491089
+    - - 12.49195671081543
+      - 4.222041130065918
+      - 2.0402848720550537
+    - - 14.05270004272461
+      - 2.9043941497802734
+      - 1.6986418962478638
+    - - 13.06784439086914
+      - 3.3592960834503174
+      - 1.9146156311035156
+  - - - 12.34530258178711
+      - 4.551453113555908
+      - 1.8121658563613892
+    - - 12.71877384185791
+      - 3.6887078285217285
+      - 1.8224413394927979
+    - - 12.72161865234375
+      - 3.892629384994507
+      - 2.2076191902160645
+    - - 12.451752662658691
+      - 4.755374431610107
+      - 2.228127956390381
+    - - 12.842920303344727
+      - 3.48478627204895
+      - 1.4726067781448364
+    - - 13.031039237976074
+      - 3.5632176399230957
+      - 2.278672218322754
+    - - 13.271066665649414
+      - 3.155374526977539
+      - 1.5967496633529663
+    - - 13.427840232849121
+      - 3.2338058948516846
+      - 2.194237232208252
+    - - 12.285743713378906
+      - 4.88086462020874
+      - 1.5520819425582886
+    - - 12.48526382446289
+      - 4.018119812011719
+      - 1.6324262619018555
+    - - 13.60560417175293
+      - 3.0298843383789062
+      - 1.8116511106491089
+    - - 12.49195671081543
+      - 4.222041130065918
+      - 2.0402848720550537
+    - - 14.05270004272461
+      - 2.9043941497802734
+      - 1.6986418962478638
+    - - 13.06784439086914
+      - 3.3592960834503174
+      - 1.9146156311035156
+interactions:
+- A person stands inside the shower stall taking a shower. Both feet are on the shower
+  floor within the glass enclosure, and the right hand reaches toward the shower control
+  or glass door while the body faces the shower wall. The torso is upright and relaxed,
+  with the head angled forward as if under the shower area. The person has short dark
+  hair and a calm neutral expression. The bathroom is bright with white walls, gray
+  tile flooring, a window, a toilet, a sink, open shelving, a mirror, and a potted
+  plant near the vanity.

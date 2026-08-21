@@ -80,6 +80,13 @@ outputs/
 runs/
 wandb/
 
+# --- GenZI Inference Artifacts ---
+# Native GenZI writes timestamped optimization runs containing generated views,
+# masks, videos, temporary pose files, W&B state, meshes, and copied configs.
+/07_Run_Genzi/output/genzi_runs/
+/07_Run_Genzi/output/genzi_run_summary.json
+/07_Run_Genzi/output/interaction_*/genzi_run_summary.json
+
 # --- Model Weights (Large Files) ---
 *.safetensors
 *.ckpt

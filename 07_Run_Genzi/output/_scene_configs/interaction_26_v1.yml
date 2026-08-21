@@ -1,0 +1,89 @@
+scene:
+  mesh_path: /my_workspace/4DHHOI/Scannet++/data/7692b88644/scans/mesh_aligned_0.05.ply
+  sdf_path: /my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_26/scene/sdf/7692b88644.json
+  subd_mesh_path: ''
+render:
+  bg_color:
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.0
+  ambient_light:
+  - 0.0
+  - 0.0
+  - 0.0
+  dir_light_color:
+  - 1.0
+  - 1.0
+  - 1.0
+  dir_light_intensity: 5.0
+  pt_light_color:
+  - 1.0
+  - 1.0
+  - 1.0
+  pt_light_intensity: 5.0
+  pt_light_position:
+  - 0.0
+  - 0.0
+  - 20.0
+  normal_pbr: true
+  no_lighting: false
+  all_solid: false
+  cull_faces: false
+  shadows: false
+  up_dir:
+  - 0.0
+  - 0.0
+  - 1.0
+prompt_prefix: a woman
+prompt_suffix: wearing a white shirt and blue pants, full body
+prompt_ids:
+- interaction_26
+prompts:
+- a person hanging from the pull-up bar with both hands, elbows bent, knees tucked
+  upward, and both feet off the floor
+neg_prompts:
+- ''
+token_indices:
+- 2
+lookats:
+- - 2.9880661964416504
+  - 0.5948570966720581
+  - 2.3416407108306885
+viewpoints:
+- - - - 2.7433478832244873
+      - 1.5634845495224
+      - 2.384927988052368
+    - - 3.4177207946777344
+      - 1.492896318435669
+      - 2.436099052429199
+    - - 3.665614128112793
+      - 1.3281904458999634
+      - 2.3977742195129395
+    - - 2.2788898944854736
+      - 1.2968178987503052
+      - 2.407366991043091
+    - - 2.0878207683563232
+      - 1.0301512479782104
+      - 2.350424289703369
+  - - - 2.7433478832244873
+      - 1.5634845495224
+      - 2.384927988052368
+    - - 3.4177207946777344
+      - 1.492896318435669
+      - 2.436099052429199
+    - - 3.665614128112793
+      - 1.3281904458999634
+      - 2.3977742195129395
+    - - 2.2788898944854736
+      - 1.2968178987503052
+      - 2.407366991043091
+    - - 2.0878207683563232
+      - 1.0301512479782104
+      - 2.350424289703369
+interactions:
+- A person hangs from the pull-up bar with elbows bent and knees tucked upward. The
+  left hand grips the pull-up bar, the right hand grips the pull-up bar, the left
+  foot stays off the floor, and the right foot stays off the floor. The person has
+  short black hair, a strained focused facial expression, a gray athletic shirt, dark
+  shorts, and sneakers.

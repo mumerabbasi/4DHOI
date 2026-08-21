@@ -1,0 +1,327 @@
+{
+  "interaction_name": "interaction_10",
+  "scene_id": "c085ff3df4",
+  "artifact_mode": "complete_native_genzi_preparation",
+  "genzi_scene_config": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/_scene_configs/interaction_10_v1.yml",
+  "audit_scene_config": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/scene/config/interaction_10_v1.yml",
+  "debug_views_dir": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/debug/selected_views",
+  "debug_view_paths": [
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/debug/selected_views/view000.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/debug/selected_views/view001.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/debug/selected_views/view002.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/debug/selected_views/view003.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/debug/selected_views/view004.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/debug/selected_views/view005.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/debug/selected_views/view006.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/debug/selected_views/view007.png",
+    "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/debug/selected_views/view008.png"
+  ],
+  "mesh_path": "/my_workspace/4DHHOI/Scannet++/data/c085ff3df4/scans/mesh_aligned_0.05.ply",
+  "sdf_meta": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/scene/sdf/c085ff3df4.json",
+  "sdf_stats": {
+    "dim": 192,
+    "min": [
+      -0.42294836044311523,
+      -0.4929710328578949,
+      -0.47315317392349243
+    ],
+    "max": [
+      15.14864444732666,
+      9.634431838989258,
+      3.087392807006836
+    ],
+    "mesh_path": "/my_workspace/4DHHOI/Scannet++/data/c085ff3df4/scans/mesh_aligned_0.05.ply",
+    "method": "selected_view_uniform_visibility_tsdf_v1",
+    "fusion": "uniform arithmetic mean over all non-occluded selected-view observations",
+    "view_weight": 1.0,
+    "trunc_m": 0.075,
+    "trunc_voxels_per_axis": [
+      0.9199445247650146,
+      1.41447913646698,
+      4.02325963973999
+    ],
+    "num_views": 9,
+    "uses_all_selected_views": true,
+    "depth_image_size": [
+      512,
+      512
+    ],
+    "unknown_value": 0.075,
+    "unknown_semantics": "no contributing view; stored positive for GenZI compatibility",
+    "observation_rule": {
+      "free": "d = rendered_depth - voxel_camera_depth > 0; positive vote clipped at +trunc_m",
+      "negative_band": "-trunc_m <= d < 0; negative vote",
+      "occluded": "d < -trunc_m; no TSDF vote",
+      "invalid": "outside image/frustum or no rendered depth; no vote"
+    },
+    "observed_mask_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/scene/sdf/c085ff3df4_observed.npy",
+    "vote_count_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/scene/sdf/c085ff3df4_vote_count.npy",
+    "free_vote_count_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/scene/sdf/c085ff3df4_free_vote_count.npy",
+    "negative_vote_count_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/scene/sdf/c085ff3df4_negative_vote_count.npy",
+    "occluded_vote_count_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/scene/sdf/c085ff3df4_occluded_vote_count.npy",
+    "observed_voxels": 138401,
+    "total_voxels": 7077888,
+    "observed_fraction": 0.019553996898509837,
+    "negative_voxels": 13857,
+    "positive_observed_voxels": 124544,
+    "neutral_observed_voxels": 0,
+    "unknown_voxels": 6939487,
+    "conflicting_observed_voxels": 929,
+    "mean_contributing_views_per_observed_voxel": 3.990007297635133,
+    "max_contributing_views_per_voxel": 9,
+    "total_free_votes": 504004,
+    "total_negative_votes": 48217,
+    "total_occluded_no_votes": 7690818,
+    "sign_convention": "positive is directly observed free space in front of rendered depth; negative is only the narrow band behind an observed surface",
+    "anchor_method": "sam3_visible_object_centroid_v1",
+    "anchor_world_xyz": [
+      11.591830253601074,
+      4.395258903503418,
+      1.0986483097076416
+    ]
+  },
+  "sdf_visualization": {
+    "method": "selected_view_uniform_visibility_tsdf_v1",
+    "source_sdf_meta": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/scene/sdf/c085ff3df4.json",
+    "source_sdf_npy": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/scene/sdf/c085ff3df4_sdf.npy",
+    "source_observed_npy": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/scene/sdf/c085ff3df4_observed.npy",
+    "full_tsdf_npz": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/debug/tsdf/tsdf_full.npz",
+    "full_colored_ply": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/debug/tsdf/tsdf_full_colored.ply",
+    "zero_isosurface_ply": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/debug/tsdf/tsdf_zero_isosurface.ply",
+    "zero_isosurface_error": null,
+    "slices": {
+      "xy": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/debug/tsdf/slices_xy.png",
+      "xz": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/debug/tsdf/slices_xz.png",
+      "yz": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/debug/tsdf/slices_yz.png"
+    },
+    "categories": {
+      "negative": {
+        "path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/debug/tsdf/tsdf_negative.ply",
+        "full_voxel_count": 13857,
+        "written_points": 13857,
+        "rgb": [
+          220,
+          40,
+          40
+        ]
+      },
+      "positive_observed": {
+        "path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/debug/tsdf/tsdf_positive_observed.ply",
+        "full_voxel_count": 124544,
+        "written_points": 124544,
+        "rgb": [
+          45,
+          125,
+          255
+        ]
+      },
+      "neutral_boundary": {
+        "path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/debug/tsdf/tsdf_boundary_crossings.ply",
+        "full_voxel_count": 138401,
+        "written_points": 138401,
+        "rgb": [
+          255,
+          220,
+          0
+        ]
+      },
+      "unknown": {
+        "path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/debug/tsdf/tsdf_unknown.ply",
+        "full_voxel_count": 6939487,
+        "written_points": 6939487,
+        "rgb": [
+          150,
+          150,
+          150
+        ]
+      }
+    },
+    "grid_shape": [
+      192,
+      192,
+      192
+    ],
+    "grid_min": [
+      -0.42294836044311523,
+      -0.4929710328578949,
+      -0.47315317392349243
+    ],
+    "grid_max": [
+      15.14864444732666,
+      9.634431838989258,
+      3.087392807006836
+    ],
+    "voxel_size": [
+      0.08152666141849538,
+      0.053023053713493945,
+      0.018641601682333423
+    ],
+    "truncation_m": 0.075,
+    "surface_band_m": 0.08152666141849538,
+    "anchor_world": [
+      11.591830253601074,
+      4.395258903503418,
+      1.0986483097076416
+    ],
+    "anchor_ijk": [
+      147,
+      92,
+      84
+    ],
+    "sign_convention": "positive is directly observed free space in front of rendered depth; negative is only the narrow band behind an observed surface",
+    "color_legend": {
+      "negative": "red",
+      "positive_observed": "blue",
+      "neutral_or_boundary_crossing": "yellow",
+      "unknown": "gray",
+      "anchor_in_slices": "green cross"
+    }
+  },
+  "view_selection_sdf_source": "temporary_neutral_bootstrap",
+  "view_selection_sdf_note": "Temporary bootstrap removed after viewpoint selection.",
+  "look_at": [
+    11.591830253601074,
+    4.395258903503418,
+    1.0986483097076416
+  ],
+  "look_at_stats": {
+    "method": "sam3_visible_object_centroid_v1",
+    "sig_target_id": "target_object_1",
+    "sig_target_label": "vacuum cleaner",
+    "sam3_prompt": "vacuum cleaner",
+    "sam3_selection_mode": "text",
+    "sam3_candidate_policy": "highest_confidence",
+    "selected_candidate": 0,
+    "sam3_score": 0.8935831189155579,
+    "sam3_bbox_xyxy": [
+      692.8136596679688,
+      498.7994079589844,
+      825.8717651367188,
+      796.1021118164062
+    ],
+    "candidate_count": 1,
+    "object_mask_pixels": 5340,
+    "anchor_interior_mask_pixels": 3038,
+    "valid_depth_pixels": 2604,
+    "erosion_pixels": 2,
+    "anchor_pixel_xy": [
+      749,
+      588
+    ],
+    "anchor_depth_m": 2.1626687049865723,
+    "anchor_world_xyz": [
+      11.591830253601074,
+      4.395258903503418,
+      1.0986483097076416
+    ],
+    "source_image": "/my_workspace/4DHHOI/Scannet++/data/c085ff3df4/dslr/resized_undistorted_images/a339ef36_DSC08621.JPG",
+    "target_mask": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/anchor/target_mask.png",
+    "anchor_interior_mask": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/anchor/anchor_interior_mask.png",
+    "target_overlay": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/anchor/target_overlay.png",
+    "candidate_overlay": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/anchor/sam3_candidates.png",
+    "candidate_archive": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/anchor/sam3_candidates.npz",
+    "uses_contact_information": false
+  },
+  "viewpoints": [
+    [
+      10.340842247009277,
+      3.0854549407958984,
+      1.9468481540679932
+    ],
+    [
+      10.028576850891113,
+      3.2109451293945312,
+      1.490617275238037
+    ],
+    [
+      10.377647399902344,
+      2.88153338432312,
+      1.5827915668487549
+    ],
+    [
+      10.031421661376953,
+      3.4148666858673096,
+      1.8757951259613037
+    ],
+    [
+      10.15272331237793,
+      3.007023572921753,
+      1.1407827138900757
+    ],
+    [
+      10.737643241882324,
+      2.7560431957244873,
+      1.8624131679534912
+    ],
+    [
+      10.580869674682617,
+      2.677611827850342,
+      1.2649255990982056
+    ],
+    [
+      11.147994041442871,
+      2.6305530071258545,
+      1.9286017417907715
+    ],
+    [
+      10.915407180786133,
+      2.552121639251709,
+      1.4798270463943481
+    ]
+  ],
+  "up_dir": [
+    0.0,
+    0.0,
+    1.0
+  ],
+  "fov": 60.0,
+  "num_candidate_viewpoints": 256,
+  "max_views": 16,
+  "selected_views": 9,
+  "view_distance": 2.0,
+  "patch_radius": 0.15,
+  "use_at_normal": true,
+  "viewpoint_selection": {
+    "source": "genzi.Scene.get_viewpoints",
+    "elapsed_s": 24.60018801689148
+  },
+  "anchor": {
+    "method": "sam3_visible_object_centroid_v1",
+    "sig_target_id": "target_object_1",
+    "sig_target_label": "vacuum cleaner",
+    "sam3_prompt": "vacuum cleaner",
+    "sam3_selection_mode": "text",
+    "sam3_candidate_policy": "highest_confidence",
+    "selected_candidate": 0,
+    "sam3_score": 0.8935831189155579,
+    "sam3_bbox_xyxy": [
+      692.8136596679688,
+      498.7994079589844,
+      825.8717651367188,
+      796.1021118164062
+    ],
+    "candidate_count": 1,
+    "object_mask_pixels": 5340,
+    "anchor_interior_mask_pixels": 3038,
+    "valid_depth_pixels": 2604,
+    "erosion_pixels": 2,
+    "anchor_pixel_xy": [
+      749,
+      588
+    ],
+    "anchor_depth_m": 2.1626687049865723,
+    "anchor_world_xyz": [
+      11.591830253601074,
+      4.395258903503418,
+      1.0986483097076416
+    ],
+    "source_image": "/my_workspace/4DHHOI/Scannet++/data/c085ff3df4/dslr/resized_undistorted_images/a339ef36_DSC08621.JPG",
+    "target_mask": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/anchor/target_mask.png",
+    "anchor_interior_mask": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/anchor/anchor_interior_mask.png",
+    "target_overlay": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/anchor/target_overlay.png",
+    "candidate_overlay": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/anchor/sam3_candidates.png",
+    "candidate_archive": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_10/anchor/sam3_candidates.npz",
+    "uses_contact_information": false
+  },
+  "preparation_elapsed_s": 66.90261340141296
+}

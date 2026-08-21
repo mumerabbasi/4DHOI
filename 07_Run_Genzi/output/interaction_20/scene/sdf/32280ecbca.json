@@ -1,0 +1,62 @@
+{
+  "dim": 192,
+  "min": [
+    -0.5000253915786743,
+    -0.45803380012512207,
+    -0.45752647519111633
+  ],
+  "max": [
+    7.972001552581787,
+    3.8854005336761475,
+    3.1280977725982666
+  ],
+  "mesh_path": "/my_workspace/4DHHOI/Scannet++/data/32280ecbca/scans/mesh_aligned_0.05.ply",
+  "method": "selected_view_uniform_visibility_tsdf_v1",
+  "fusion": "uniform arithmetic mean over all non-occluded selected-view observations",
+  "view_weight": 1.0,
+  "trunc_m": 0.075,
+  "trunc_voxels_per_axis": [
+    1.6908588409423828,
+    3.298081398010254,
+    3.9951202869415283
+  ],
+  "num_views": 12,
+  "uses_all_selected_views": true,
+  "depth_image_size": [
+    512,
+    512
+  ],
+  "unknown_value": 0.075,
+  "unknown_semantics": "no contributing view; stored positive for GenZI compatibility",
+  "observation_rule": {
+    "free": "d = rendered_depth - voxel_camera_depth > 0; positive vote clipped at +trunc_m",
+    "negative_band": "-trunc_m <= d < 0; negative vote",
+    "occluded": "d < -trunc_m; no TSDF vote",
+    "invalid": "outside image/frustum or no rendered depth; no vote"
+  },
+  "observed_mask_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_20/scene/sdf/32280ecbca_observed.npy",
+  "vote_count_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_20/scene/sdf/32280ecbca_vote_count.npy",
+  "free_vote_count_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_20/scene/sdf/32280ecbca_free_vote_count.npy",
+  "negative_vote_count_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_20/scene/sdf/32280ecbca_negative_vote_count.npy",
+  "occluded_vote_count_path": "/my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_20/scene/sdf/32280ecbca_occluded_vote_count.npy",
+  "observed_voxels": 1289916,
+  "total_voxels": 7077888,
+  "observed_fraction": 0.18224589029947916,
+  "negative_voxels": 124188,
+  "positive_observed_voxels": 1165728,
+  "neutral_observed_voxels": 0,
+  "unknown_voxels": 5787972,
+  "conflicting_observed_voxels": 11187,
+  "mean_contributing_views_per_observed_voxel": 3.9389185032203646,
+  "max_contributing_views_per_voxel": 12,
+  "total_free_votes": 4726467,
+  "total_negative_votes": 354404,
+  "total_occluded_no_votes": 13741519,
+  "sign_convention": "positive is directly observed free space in front of rendered depth; negative is only the narrow band behind an observed surface",
+  "anchor_method": "sam3_visible_object_centroid_v1",
+  "anchor_world_xyz": [
+    4.286616802215576,
+    1.2472457885742188,
+    0.7321934103965759
+  ]
+}

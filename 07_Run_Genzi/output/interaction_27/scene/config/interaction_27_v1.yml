@@ -1,0 +1,76 @@
+scene:
+  mesh_path: /my_workspace/4DHHOI/Scannet++/data/6ffdcc3022/scans/mesh_aligned_0.05.ply
+  sdf_path: /my_workspace/4DHHOI/4DHSI/07_Run_Genzi/output/interaction_27/scene/sdf/6ffdcc3022.json
+  subd_mesh_path: ''
+render:
+  bg_color:
+  - 0.5
+  - 0.5
+  - 0.5
+  - 0.0
+  ambient_light:
+  - 0.0
+  - 0.0
+  - 0.0
+  dir_light_color:
+  - 1.0
+  - 1.0
+  - 1.0
+  dir_light_intensity: 5.0
+  pt_light_color:
+  - 1.0
+  - 1.0
+  - 1.0
+  pt_light_intensity: 5.0
+  pt_light_position:
+  - 0.0
+  - 0.0
+  - 20.0
+  normal_pbr: true
+  no_lighting: false
+  all_solid: false
+  cull_faces: false
+  shadows: false
+  up_dir:
+  - 0.0
+  - 0.0
+  - 1.0
+prompt_prefix: a woman
+prompt_suffix: wearing a white shirt and blue pants, full body
+prompt_ids:
+- interaction_27
+prompts:
+- a person stepping over the bathtub wall, one foot inside the tub, the other foot
+  still on the floor, one hand holding the side glass for balance
+neg_prompts:
+- ''
+token_indices:
+- 2
+lookats:
+- - 0.964963972568512
+  - 1.5875409841537476
+  - 0.5997549295425415
+viewpoints:
+- - - - 2.691817045211792
+      - 0.9208742380142212
+      - 1.3570756912231445
+    - - 2.043004274368286
+      - 0.18361937999725342
+      - 1.5307936668395996
+    - - 2.372187376022339
+      - 0.38754093647003174
+      - 1.3611500263214111
+  - - - 2.691817045211792
+      - 0.9208742380142212
+      - 1.3570756912231445
+    - - 2.043004274368286
+      - 0.18361937999725342
+      - 1.5307936668395996
+    - - 2.372187376022339
+      - 0.38754093647003174
+      - 1.3611500263214111
+interactions:
+- A person steps over the bathtub wall in a careful balancing pose. The left hand
+  grips the side glass, the left foot presses inside the bathtub, and the right foot
+  is planted on the floor outside the tub. The person has short black hair, a focused
+  facial expression, a gray shirt, rolled-up pants, and bare feet.
