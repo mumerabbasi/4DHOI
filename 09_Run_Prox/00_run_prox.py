@@ -45,18 +45,18 @@ CONTACT_BODY_PARTS = [
     "back",
     "thighs",
 ]
-SDF_TARGET_VOXEL_SIZE_M = 0.005
-SDF_TRUNCATION_M = 0.075
-SDF_NEGATIVE_BAND_M = 0.005
+SDF_GRID_DIM = 384
+SDF_TRUNCATION_M = 0.20
+SDF_NEGATIVE_BAND_M = 0.20
 SDF_HORIZONTAL_MARGIN_M = 0.25
 SDF_VERTICAL_MARGIN_M = 0.10
 SCENE_CROP_EXTRA_M = 0.25
 MAX_TSDF_VIEWS = 64
-DEPTH_RENDER_WIDTH = 512
-TSDF_METHOD = "scannet_dslr_diverse_visibility_tsdf_5mm_v3"
+DEPTH_RENDER_WIDTH = 2048
+TSDF_METHOD = "scannet_dslr_diverse_visibility_tsdf_symmetric_200mm_384_depth2048_v6"
 SIGN_CONVENTION = (
     "positive is directly observed free space in front of rendered depth; "
-    "negative is only the narrow band behind an observed surface; positive "
+    "negative is the symmetric truncation band behind an observed surface; positive "
     "free-space evidence overrides negative evidence"
 )
 
@@ -515,13 +515,9 @@ def human_grid_bounds(vertices_world: Any) -> tuple[Any, Any]:
 
 
 def sdf_grid_dimension(bbox_min: Any, bbox_max: Any) -> int:
-    """Return a cubic PROX grid whose largest voxel edge is at most 5 mm."""
-    import numpy as np
-
-    extent = np.asarray(bbox_max, dtype=np.float64) - np.asarray(
-        bbox_min, dtype=np.float64
-    )
-    return int(np.ceil(float(extent.max()) / SDF_TARGET_VOXEL_SIZE_M)) + 1
+    """Return the fixed cubic resolution used by the PROX scene SDF."""
+    del bbox_min, bbox_max
+    return SDF_GRID_DIM
 
 
 def load_and_crop_scene_mesh(path: Path, bbox_min: Any, bbox_max: Any) -> Any:
@@ -872,6 +868,13 @@ def build_visibility_tsdf(
         np.maximum(gradient_norm, 1e-8),
         out=np.zeros_like(gradient),
     )
+    # Released PROX multiplies penetrating SDF values by these normals and then
+    # evaluates an explicit sqrt(sum(x**2)).  A zero normal makes that expression
+    # numerically undefined at zero even though its intended scalar magnitude is
+    # simply abs(SDF).  Any unit vector has exactly the same magnitude in PROX's
+    # loss, so give constant TSDF regions a deterministic unit fallback.
+    zero_normal = gradient_norm[..., 0] <= 1e-8
+    normals[zero_normal, 0] = 1.0
 
     meta_path = output_dir / f"{scene_id}.json"
     sdf_path = output_dir / f"{scene_id}_sdf.npy"
@@ -890,7 +893,7 @@ def build_visibility_tsdf(
     np.save(occluded_count_path, occluded_count)
     metadata = {
         "dim": dim,
-        "target_voxel_size_m": SDF_TARGET_VOXEL_SIZE_M,
+        "grid_resolution": [dim, dim, dim],
         "voxel_size_m": voxel_size,
         "min": bbox_min,
         "max": bbox_max,
@@ -988,9 +991,6 @@ def write_tsdf_debug(sdf_meta_path: Path, output_dir: Path, anchor_world: Any) -
     truncation = float(metadata["trunc_m"])
     negative_band = float(metadata.get("negative_band_m", truncation))
     dim = np.asarray(sdf.shape, dtype=np.int64)
-    target_voxel_size = float(
-        metadata.get("target_voxel_size_m", np.max((bbox_max - bbox_min) / (dim - 1)))
-    )
     voxel_size = (bbox_max - bbox_min) / np.maximum(dim - 1, 1)
     surface_band = max(float(voxel_size.max()), truncation * 0.08)
     boundary = np.zeros_like(observed)
@@ -1043,7 +1043,7 @@ def write_tsdf_debug(sdf_meta_path: Path, output_dir: Path, anchor_world: Any) -
         voxel_size=voxel_size,
         truncation_m=np.asarray(truncation, dtype=np.float32),
         negative_band_m=np.asarray(negative_band, dtype=np.float32),
-        target_voxel_size_m=np.asarray(target_voxel_size, dtype=np.float32),
+        max_voxel_spacing_m=np.asarray(voxel_size.max(), dtype=np.float32),
         anchor_world=anchor,
     )
     full_ply = output_dir / "tsdf_full_colored.ply"
@@ -1157,7 +1157,7 @@ def write_tsdf_debug(sdf_meta_path: Path, output_dir: Path, anchor_world: Any) -
         "grid_min": bbox_min,
         "grid_max": bbox_max,
         "voxel_size": voxel_size,
-        "target_voxel_size_m": target_voxel_size,
+        "max_voxel_spacing_m": float(voxel_size.max()),
         "truncation_m": truncation,
         "negative_band_m": negative_band,
         "surface_band_m": surface_band,
@@ -1358,6 +1358,44 @@ def patch_prox_grid_sample(fitting: Any, torch: Any) -> None:
     fitting.F = ProxFunctional
 
 
+def patch_prox_numerical_stability(fitting: Any, torch: Any) -> None:
+    """Define released-PROX contact behavior at floating-point edge cases.
+
+    The original contact implementation can feed a value just above one to
+    asin, and takes the mean of an empty tensor when no contact normals pass
+    its angle filter.  Both cases turn the complete LBFGS parameter vector into
+    NaNs.  These patches leave every ordinary, non-empty loss unchanged.
+    """
+    if not getattr(fitting.torch, "_prox_safe_asin", False):
+        native_torch = torch
+
+        class ProxTorchProxy:
+            _prox_safe_asin = True
+
+            def __getattr__(self, name: str) -> Any:
+                return getattr(native_torch, name)
+
+            @staticmethod
+            def asin(value: Any) -> Any:
+                return native_torch.asin(value.clamp(min=-1.0, max=1.0))
+
+        fitting.torch = ProxTorchProxy()
+
+    robustifier_class = fitting.utils.GMoF_unscaled
+    if not getattr(robustifier_class.forward, "_prox_empty_safe", False):
+        native_forward = robustifier_class.forward
+
+        def empty_safe_forward(self: Any, residual: Any) -> Any:
+            if residual.numel() == 0:
+                # A differentiable zero makes "no compatible contact" contribute
+                # zero loss rather than NaN, which is the mathematical empty sum.
+                return residual.sum().reshape(1)
+            return native_forward(self, residual)
+
+        empty_safe_forward._prox_empty_safe = True
+        robustifier_class.forward = empty_safe_forward
+
+
 def create_fixed_camera(intrinsics: Any, torch: Any, device: Any) -> Any:
     from camera import create_camera
 
@@ -1556,6 +1594,7 @@ def run_upstream_prox(
     from fit_single_frame import fit_single_frame
 
     patch_prox_grid_sample(fitting, torch)
+    patch_prox_numerical_stability(fitting, torch)
     runtime = create_prox_runtime(intrinsics, config, torch, device)
     image = np.asarray(Image.open(image_path).convert("RGB"), dtype=np.float32) / 255.0
     kwargs = dict(config)
@@ -1728,7 +1767,6 @@ def run_interaction(name: str, torch: Any, config: dict[str, Any]) -> None:
     )
     log(
         f"  building visibility-aware TSDF dim={sdf_grid_dimension(bbox_min, bbox_max)} "
-        f"target_voxel<={SDF_TARGET_VOXEL_SIZE_M:.3f}m "
         f"trunc={SDF_TRUNCATION_M:.3f}m "
         f"negative_band={SDF_NEGATIVE_BAND_M:.3f}m"
     )

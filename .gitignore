@@ -87,6 +87,10 @@ wandb/
 /07_Run_Genzi/output/genzi_run_summary.json
 /07_Run_Genzi/output/interaction_*/genzi_run_summary.json
 
+# --- PROX Baseline Artifacts ---
+/09_Run_Prox/output/
+/09_Run_Prox/output_old/
+
 # --- Model Weights (Large Files) ---
 *.safetensors
 *.ckpt
