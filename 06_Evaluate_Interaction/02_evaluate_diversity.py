@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import pickle
 from pathlib import Path
 from typing import Any
 
@@ -92,8 +93,12 @@ def flatten_numeric(value: Any) -> np.ndarray:
 
 
 def load_smplx_parameter_vector(path: Path) -> np.ndarray:
-    payload = torch.load(path, map_location="cpu", weights_only=True)
-    required_keys = ("transl", "global_orient", "body_pose", "betas", "scale")
+    if path.suffix.lower() == ".pkl":
+        with path.open("rb") as file_obj:
+            payload = pickle.load(file_obj, encoding="latin1")
+    else:
+        payload = torch.load(path, map_location="cpu", weights_only=True)
+    required_keys = ("transl", "global_orient", "body_pose", "betas")
     missing = [key for key in required_keys if key not in payload]
     if missing:
         raise KeyError(f"Missing keys in {path}: {missing}")
@@ -173,6 +178,82 @@ def compute_entropy(labels: np.ndarray, num_clusters: int) -> float:
     return float(-np.sum(probs[nonzero] * np.log(probs[nonzero])))
 
 
+def interaction_sort_key(item: tuple[str, Path]) -> tuple[int, str]:
+    name = item[0]
+    try:
+        return int(name.rsplit("_", 1)[1]), name
+    except (IndexError, ValueError):
+        return 10**9, name
+
+
+def evaluate_parameter_diversity(
+    param_items: list[tuple[str, Path]],
+    output_root: Path,
+    num_clusters: int = 15,
+    max_iters: int = 100,
+    standardize: bool = True,
+    initial_parameter_format: bool = False,
+) -> dict[str, Any]:
+    """Run the authoritative diversity metric on method parameter artifacts."""
+    if not param_items:
+        raise ValueError("Cannot evaluate diversity without parameter artifacts.")
+    param_items = sorted(param_items, key=interaction_sort_key)
+    interaction_names = [name for name, _path in param_items]
+    loader = (
+        load_initial_smplx_parameter_vector
+        if initial_parameter_format
+        else load_smplx_parameter_vector
+    )
+    param_vectors = np.stack(
+        [loader(path) for _name, path in param_items],
+        axis=0,
+    )
+    features = standardize_features(param_vectors) if standardize else param_vectors
+    actual_num_clusters = min(int(num_clusters), features.shape[0])
+    labels, _centers, distances = run_kmeans(
+        features=features,
+        num_clusters=actual_num_clusters,
+        max_iters=int(max_iters),
+    )
+    entropy = compute_entropy(labels, num_clusters=actual_num_clusters)
+    cluster_size = float(np.mean(distances))
+    counts = np.bincount(labels.astype(np.int64), minlength=actual_num_clusters)
+    summary = {
+        "num_samples": int(features.shape[0]),
+        "num_clusters": int(actual_num_clusters),
+        "entropy": entropy,
+        "cluster_size": cluster_size,
+    }
+    output_root = ensure_dir(Path(output_root).resolve())
+    save_csv_rows(
+        output_root / "diversity.csv",
+        [summary],
+        fieldnames=["num_samples", "num_clusters", "entropy", "cluster_size"],
+    )
+    save_json(
+        output_root / "diversity.json",
+        {
+            **summary,
+            "standardized": bool(standardize),
+            "feature_definition": ["transl", "global_orient", "body_pose", "betas"],
+            "cluster_counts": counts.astype(int).tolist(),
+            "assignments": [
+                {
+                    "interaction_name": interaction_name,
+                    "cluster_id": int(cluster_id),
+                    "distance_to_cluster_center": float(distance),
+                }
+                for interaction_name, cluster_id, distance in zip(
+                    interaction_names,
+                    labels.tolist(),
+                    distances.tolist(),
+                )
+            ],
+        },
+    )
+    return summary
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
@@ -233,76 +314,22 @@ def main() -> None:
         if args.output_mode == "output_init"
         else discover_optimized_param_paths(optimization_output_root)
     )
-    interaction_names = [name for name, _path in param_items]
-    param_vectors = np.stack(
-        [
-            (
-                load_initial_smplx_parameter_vector(path)
-                if args.output_mode == "output_init"
-                else load_smplx_parameter_vector(path)
-            )
-            for _name, path in param_items
-        ],
-        axis=0,
-    )
-    features = param_vectors if args.no_standardize else standardize_features(param_vectors)
-    num_clusters = min(int(args.num_clusters), features.shape[0])
-    labels, centers, distances = run_kmeans(
-        features=features,
-        num_clusters=num_clusters,
+    summary = evaluate_parameter_diversity(
+        param_items=param_items,
+        output_root=output_root,
+        num_clusters=int(args.num_clusters),
         max_iters=int(args.kmeans_iters),
-    )
-
-    entropy = compute_entropy(labels, num_clusters=num_clusters)
-    cluster_size = float(np.mean(distances))
-    counts = np.bincount(labels.astype(np.int64), minlength=num_clusters)
-
-    csv_path = output_root / "diversity.csv"
-    json_path = output_root / "diversity.json"
-    rows = [
-        {
-            "num_samples": int(features.shape[0]),
-            "num_clusters": int(num_clusters),
-            "entropy": entropy,
-            "cluster_size": cluster_size,
-        }
-    ]
-    save_csv_rows(
-        csv_path,
-        rows,
-        fieldnames=["num_samples", "num_clusters", "entropy", "cluster_size"],
-    )
-    save_json(
-        json_path,
-        {
-            "num_samples": int(features.shape[0]),
-            "num_clusters": int(num_clusters),
-            "entropy": entropy,
-            "cluster_size": cluster_size,
-            "standardized": not bool(args.no_standardize),
-            "cluster_counts": counts.astype(int).tolist(),
-            "assignments": [
-                {
-                    "interaction_name": interaction_name,
-                    "cluster_id": int(cluster_id),
-                    "distance_to_cluster_center": float(distance),
-                }
-                for interaction_name, cluster_id, distance in zip(
-                    interaction_names,
-                    labels.tolist(),
-                    distances.tolist(),
-                )
-            ],
-        },
+        standardize=not bool(args.no_standardize),
+        initial_parameter_format=args.output_mode == "output_init",
     )
 
     print("Diversity metrics")
-    print(f"  num_samples={features.shape[0]}")
-    print(f"  num_clusters={num_clusters}")
-    print(f"  entropy={entropy:.6f}")
-    print(f"  cluster_size={cluster_size:.6f}")
-    print(f"  csv={csv_path}")
-    print(f"  json={json_path}")
+    print(f"  num_samples={summary['num_samples']}")
+    print(f"  num_clusters={summary['num_clusters']}")
+    print(f"  entropy={summary['entropy']:.6f}")
+    print(f"  cluster_size={summary['cluster_size']:.6f}")
+    print(f"  csv={output_root / 'diversity.csv'}")
+    print(f"  json={output_root / 'diversity.json'}")
 
 
 if __name__ == "__main__":

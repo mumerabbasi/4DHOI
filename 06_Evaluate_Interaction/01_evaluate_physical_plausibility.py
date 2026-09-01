@@ -4,6 +4,7 @@ import argparse
 import csv
 import json
 import math
+import pickle
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -75,6 +76,15 @@ class IdentityCameraContext:
     width: int
     height: int
     camera: Any
+
+
+@dataclass(frozen=True)
+class ExternalHumanEvaluationInput:
+    """Method-specific SMPL-X artifacts consumed by the shared evaluator."""
+
+    interaction_name: str
+    human_mesh_world: Path
+    optimized_params_camera: Path
 
 
 @dataclass
@@ -1257,8 +1267,12 @@ def build_smplx_layer(smpl_folder: Path, device: torch.device) -> Any:
 def load_optimized_smplx_params(path: Path, device: torch.device) -> dict[str, torch.Tensor]:
     if not path.exists():
         raise FileNotFoundError(f"Optimized SMPL-X params not found: {path}")
-    payload = torch.load(path, map_location="cpu", weights_only=True)
-    required = ("transl", "global_orient", "body_pose", "betas", "scale")
+    if path.suffix.lower() == ".pkl":
+        with path.open("rb") as file_obj:
+            payload = pickle.load(file_obj, encoding="latin1")
+    else:
+        payload = torch.load(path, map_location="cpu", weights_only=True)
+    required = ("transl", "global_orient", "body_pose", "betas")
     missing = [key for key in required if key not in payload]
     if missing:
         raise KeyError(f"Missing keys in {path}: {missing}")
@@ -1271,7 +1285,11 @@ def load_optimized_smplx_params(path: Path, device: torch.device) -> dict[str, t
         ),
         "body_pose": torch.as_tensor(payload["body_pose"], dtype=torch.float32, device=device),
         "betas": torch.as_tensor(payload["betas"], dtype=torch.float32, device=device),
-        "scale": torch.as_tensor(float(payload["scale"]), dtype=torch.float32, device=device),
+        "scale": torch.as_tensor(
+            float(np.asarray(payload.get("scale", 1.0)).reshape(-1)[0]),
+            dtype=torch.float32,
+            device=device,
+        ),
     }
 
 
@@ -1817,6 +1835,67 @@ def update_combined_from_existing_metrics(output_base: Path) -> tuple[Path, Path
     return combined_csv, combined_json
 
 
+def evaluate_external_world_humans(
+    items: list[ExternalHumanEvaluationInput],
+    output_base: Path,
+    device_name: str = "cuda:0",
+) -> list[dict[str, Any]]:
+    """Evaluate method outputs through the authoritative Module 06 pipeline.
+
+    The scene, camera, SIG, contact masks, surface sampling, random seeds, and
+    VolumetricSMPL collision calculation are all resolved here.  Callers only
+    supply each method's optimized world mesh and matching camera-frame SMPL-X
+    parameters.
+    """
+    if not items:
+        raise ValueError("Cannot evaluate an empty external-human list.")
+    items = sorted(items, key=lambda item: interaction_sort_key(item.interaction_name))
+    output_base = ensure_dir(Path(output_base).resolve())
+    device = parse_device(device_name)
+    defaults = build_default_paths(items[0].interaction_name, "output")
+    smplx_layer = build_smplx_layer(defaults["smpl_folder"], device)
+    summaries: list[dict[str, Any]] = []
+    for item in items:
+        args = argparse.Namespace(
+            output_mode="output",
+            input_scene_json=None,
+            human_pose_root=None,
+            sig_json=None,
+            smpl_seg_json=None,
+            scannet_root=None,
+            smpl_folder=None,
+            contact_masks_dir=None,
+            contact_canvas_path=None,
+            contact_spec=None,
+            human_mesh_camera=None,
+            human_mesh_world=str(Path(item.human_mesh_world).resolve()),
+            optimized_params=str(Path(item.optimized_params_camera).resolve()),
+            smpl_param_key="smpl_params_incam",
+            seed=0,
+            non_collision_surface_samples=700000,
+            contact_region_expand_rings=0,
+            contact_projection_depth_jump_m=0.05,
+            contact_projection_nearby_depth_m=0.05,
+            contact_projection_min_component_pixels=16,
+            contact_projection_max_component_gap_px=48.0,
+        )
+        summaries.append(
+            evaluate_interaction(
+                args=args,
+                interaction_name=item.interaction_name,
+                device=device,
+                smplx_layer=smplx_layer,
+                output_root=(
+                    output_base
+                    / item.interaction_name
+                    / "physical_plausibility"
+                ),
+            )
+        )
+    write_combined_metric_files(output_base, summaries)
+    return summaries
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
@@ -1844,6 +1923,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--contact_canvas_path", type=str, default=None)
     parser.add_argument("--contact_spec", type=str, default=None)
     parser.add_argument("--human_mesh_camera", type=str, default=None)
+    parser.add_argument(
+        "--human_mesh_world",
+        type=str,
+        default=None,
+        help=(
+            "Optional world-coordinate SMPL-X mesh supplied by another method. "
+            "It is transformed with the same ScanNet++ camera and replaces only "
+            "the evaluated human."
+        ),
+    )
     parser.add_argument("--optimized_params", type=str, default=None)
     parser.add_argument("--output_root", type=str, default=None)
     parser.add_argument(
@@ -1909,13 +1998,23 @@ def evaluate_interaction(
     contact_canvas_path = resolve_path(args.contact_canvas_path, defaults["contact_canvas_path"])
     contact_spec_path = resolve_path(args.contact_spec, defaults["contact_spec"])
     human_mesh_camera_path = resolve_path(args.human_mesh_camera, defaults["human_mesh_camera"])
+    human_mesh_world_raw = getattr(args, "human_mesh_world", None)
+    human_mesh_world_path = (
+        Path(human_mesh_world_raw).resolve()
+        if human_mesh_world_raw is not None
+        else None
+    )
     optimized_params_path = resolve_path(args.optimized_params, defaults["optimized_params"])
     scannet_root = resolve_scannet_root(args.scannet_root)
     output_root = ensure_dir(output_root)
 
     if not contact_masks_dir.is_dir():
         raise FileNotFoundError(f"Contact masks directory not found: {contact_masks_dir}")
-    if not human_mesh_camera_path.exists():
+    if human_mesh_world_path is not None and not human_mesh_world_path.exists():
+        raise FileNotFoundError(
+            f"Evaluated world-coordinate human mesh not found: {human_mesh_world_path}"
+        )
+    if human_mesh_world_path is None and not human_mesh_camera_path.exists():
         raise FileNotFoundError(f"Evaluated human mesh not found: {human_mesh_camera_path}")
     if args.output_mode != "output_init" and not optimized_params_path.exists():
         raise FileNotFoundError(f"Optimized SMPL-X params not found: {optimized_params_path}")
@@ -1989,12 +2088,10 @@ def evaluate_interaction(
             f"segmentation={segment_catalog.vertex_count}"
         )
 
-    print(f"Loading evaluated human mesh from: {human_mesh_camera_path}")
-    evaluated_vertices, _evaluated_faces = load_mesh(
-        human_mesh_camera_path,
-        process=False,
-    )
-    if args.output_mode == "output_init":
+    evaluated_human_path = human_mesh_world_path or human_mesh_camera_path
+    print(f"Loading evaluated human mesh from: {evaluated_human_path}")
+    evaluated_vertices, _evaluated_faces = load_mesh(evaluated_human_path, process=False)
+    if human_mesh_world_path is not None or args.output_mode == "output_init":
         evaluated_vertices = transform_world_to_camera(
             evaluated_vertices,
             rotation_world_to_camera=rotation_world_to_camera,
@@ -2066,6 +2163,31 @@ def evaluate_interaction(
             smplx_layer=smplx_layer,
             optimized_params=optimized_params,
         )
+    if human_mesh_world_path is not None:
+        # VolumetricSMPL needs pose/joints in addition to geometry.  Preserve the
+        # method's parameters for articulation, but make the supplied world mesh
+        # (now in the shared camera frame) the exact surface encoded by the SDF.
+        evaluated_vertices_t = torch.from_numpy(
+            evaluated_vertices.astype(np.float32)
+        ).to(device)
+        reconstructed_vertices = optimized_current["verts"]
+        if reconstructed_vertices.shape == evaluated_vertices_t.shape:
+            max_reconstruction_error = float(
+                torch.linalg.vector_norm(
+                    reconstructed_vertices - evaluated_vertices_t,
+                    dim=-1,
+                ).max().detach().cpu().item()
+            )
+            print(
+                "  method mesh/parameter reconstruction max error: "
+                f"{max_reconstruction_error:.6f}m"
+            )
+        optimized_current["smplx_output"].vertices = evaluated_vertices_t.unsqueeze(0)
+        optimized_current["smplx_output"].joints = optimized_current["joints"].unsqueeze(0)
+        optimized_current["verts"] = evaluated_vertices_t
+        optimized_current["scale"] = torch.ones(
+            (), dtype=torch.float32, device=device
+        )
     interaction_metrics = compute_interaction_non_collision_metrics(
         scene_points_camera=non_collision_scene_points,
         smplx_layer=smplx_layer,
@@ -2118,6 +2240,7 @@ def _ensure_all_mode_compatible_args(args: argparse.Namespace) -> None:
         "contact_canvas_path",
         "contact_spec",
         "human_mesh_camera",
+        "human_mesh_world",
         "optimized_params",
     ]
     used = [name for name in per_interaction_overrides if getattr(args, name) is not None]

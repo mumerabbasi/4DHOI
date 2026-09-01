@@ -23,6 +23,7 @@ OUTPUT_MODES = ("output", "output_round1", "output_init")
 VLM_PROVIDERS = ("qwen", "gemini")
 DEFAULT_QWEN_MODEL = "qwen3-vl:32b"
 DEFAULT_GEMINI_MODEL = "gemini-3.5-flash"
+DEFAULT_TEMPERATURE = 0.5
 
 CSV_FIELDNAMES = [
     "target_object_score",
@@ -626,7 +627,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--render_root", type=str, default=None)
     parser.add_argument("--output_root", type=str, default=None)
     parser.add_argument("--max_image_side", type=int, default=1024)
-    parser.add_argument("--temperature", type=float, default=0.9)
+    parser.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE)
     parser.add_argument("--seed", type=int, default=12345)
     parser.add_argument("--timeout_s", type=int, default=600)
     parser.add_argument("--gemini_max_output_tokens", type=int, default=4096)

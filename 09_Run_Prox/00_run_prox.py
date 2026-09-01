@@ -1121,20 +1121,6 @@ def render_body_overlay(
     Image.fromarray(composite).save(output_path)
 
 
-def load_contact_vertices() -> Any:
-    import numpy as np
-
-    part_indices: list[Any] = []
-    for part in CONTACT_BODY_PARTS:
-        payload = load_json(BODY_SEGMENTS_DIR / f"{part}.json")
-        # Match the released PROX loader exactly: de-duplicate each official
-        # segment independently, then concatenate the original named regions.
-        part_indices.append(
-            np.asarray(list(set(payload["verts_ind"])), dtype=np.int64)
-        )
-    return np.concatenate(part_indices)
-
-
 def patch_torchgeometry_for_modern_torch(torch: Any) -> None:
     """Make VPoser v1's torchgeometry 0.1.2 work with PyTorch 2.
 
@@ -2320,7 +2306,9 @@ def main(argv: list[str] | None = None) -> None:
         sys.path.insert(0, str(PROX_ROOT / "prox"))
     # Import upstream PROX/psbody before selecting EGL for our headless debug
     # renderers. This keeps PROX's real Mesh implementation instead of stubbing it.
-    import fit_single_frame as _upstream_fit_single_frame  # noqa: F401
+    import fit_single_frame as _upstream_fit_single_frame
+
+    del _upstream_fit_single_frame
 
     os.environ.setdefault("PYOPENGL_PLATFORM", "egl")
     import torch

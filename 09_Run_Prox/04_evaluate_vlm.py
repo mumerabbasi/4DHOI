@@ -52,7 +52,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--system_prompt", default=None)
     parser.add_argument("--output_root", default=None)
     parser.add_argument("--max_image_side", type=int, default=1024)
-    parser.add_argument("--temperature", type=float, default=0.0)
+    parser.add_argument("--temperature", type=float, default=BASE.DEFAULT_TEMPERATURE)
     parser.add_argument("--seed", type=int, default=12345)
     parser.add_argument("--timeout_s", type=int, default=600)
     parser.add_argument("--gemini_max_output_tokens", type=int, default=4096)

@@ -172,10 +172,11 @@ The diversity evaluator describes the distribution of poses across the complete 
 For an optimized interaction, the evaluator concatenates the following SMPL-X parameters:
 
 \[
-x=[\texttt{transl},\ \texttt{global\_orient},\ \texttt{body\_pose},\ \texttt{betas},\ \texttt{scale}].
+x=[\texttt{transl},\ \texttt{global\_orient},\ \texttt{body\_pose},\ \texttt{betas}].
 \]
 
-For `output_init`, it uses the first-frame `transl`, `global_orient`, `body_pose`, and `betas`; no scale value is appended.
+Scale is deliberately excluded for every method so the same feature definition
+can be applied to methods that do not optimize a free body scale.
 
 By default, every feature dimension is standardized over the evaluated dataset:
 
