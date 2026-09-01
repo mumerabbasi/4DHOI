@@ -79,12 +79,24 @@ class IdentityCameraContext:
 
 
 @dataclass(frozen=True)
+class SMPLXModelSpec:
+    """Exact SMPL-X model configuration used by an external method."""
+
+    model_path: Path
+    gender: str = "neutral"
+    use_pca: bool = True
+    num_pca_comps: int = 12
+    flat_hand_mean: bool = False
+
+
+@dataclass(frozen=True)
 class ExternalHumanEvaluationInput:
     """Method-specific SMPL-X artifacts consumed by the shared evaluator."""
 
     interaction_name: str
     human_mesh_world: Path
     optimized_params_camera: Path
+    smplx_model: SMPLXModelSpec
 
 
 @dataclass
@@ -1245,13 +1257,23 @@ def load_first_frame_smplx_params(
     }
 
 
-def build_smplx_layer(smpl_folder: Path, device: torch.device) -> Any:
+def build_smplx_layer(
+    smpl_folder: Path,
+    device: torch.device,
+    *,
+    gender: str = "neutral",
+    use_pca: bool = True,
+    num_pca_comps: int = 12,
+    flat_hand_mean: bool = False,
+) -> Any:
     layer = smplx.create(
         str(smpl_folder),
         model_type="smplx",
-        gender="neutral",
-        num_pca_comps=12,
-        flat_hand_mean=False,
+        gender=gender,
+        ext="npz",
+        use_pca=use_pca,
+        num_pca_comps=num_pca_comps,
+        flat_hand_mean=flat_hand_mean,
         create_body_pose=False,
         create_betas=False,
         create_global_orient=False,
@@ -1276,7 +1298,7 @@ def load_optimized_smplx_params(path: Path, device: torch.device) -> dict[str, t
     missing = [key for key in required if key not in payload]
     if missing:
         raise KeyError(f"Missing keys in {path}: {missing}")
-    return {
+    params = {
         "transl": torch.as_tensor(payload["transl"], dtype=torch.float32, device=device),
         "global_orient": torch.as_tensor(
             payload["global_orient"],
@@ -1291,18 +1313,33 @@ def load_optimized_smplx_params(path: Path, device: torch.device) -> dict[str, t
             device=device,
         ),
     }
+    for key in (
+        "left_hand_pose",
+        "right_hand_pose",
+        "jaw_pose",
+        "leye_pose",
+        "reye_pose",
+        "expression",
+    ):
+        if key in payload:
+            params[key] = torch.as_tensor(
+                payload[key], dtype=torch.float32, device=device
+            )
+    return params
 
 
 def build_optimized_smplx_current(
     smplx_layer: Any,
     optimized_params: dict[str, torch.Tensor],
 ) -> dict[str, torch.Tensor]:
+    model_params = {
+        key: value.view(1, -1)
+        for key, value in optimized_params.items()
+        if key != "scale"
+    }
     with torch.no_grad():
         smplx_output = smplx_layer(
-            transl=optimized_params["transl"].view(1, 3),
-            global_orient=optimized_params["global_orient"].view(1, 3),
-            body_pose=optimized_params["body_pose"].view(1, -1),
-            betas=optimized_params["betas"].view(1, -1),
+            **model_params,
             return_full_pose=True,
         )
     transl = optimized_params["transl"].view(3)
@@ -1843,9 +1880,9 @@ def evaluate_external_world_humans(
     """Evaluate method outputs through the authoritative Module 06 pipeline.
 
     The scene, camera, SIG, contact masks, surface sampling, random seeds, and
-    VolumetricSMPL collision calculation are all resolved here.  Callers only
-    supply each method's optimized world mesh and matching camera-frame SMPL-X
-    parameters.
+    VolumetricSMPL collision calculation are all resolved here. Callers supply
+    the exact world mesh, complete camera-frame SMPL-X parameters, and the
+    model configuration used to generate that mesh.
     """
     if not items:
         raise ValueError("Cannot evaluate an empty external-human list.")
@@ -1853,9 +1890,20 @@ def evaluate_external_world_humans(
     output_base = ensure_dir(Path(output_base).resolve())
     device = parse_device(device_name)
     defaults = build_default_paths(items[0].interaction_name, "output")
-    smplx_layer = build_smplx_layer(defaults["smpl_folder"], device)
+    initial_smplx_layer = build_smplx_layer(defaults["smpl_folder"], device)
+    method_layers: dict[SMPLXModelSpec, Any] = {}
     summaries: list[dict[str, Any]] = []
     for item in items:
+        spec = item.smplx_model
+        if spec not in method_layers:
+            method_layers[spec] = build_smplx_layer(
+                Path(spec.model_path).resolve(),
+                device,
+                gender=spec.gender,
+                use_pca=spec.use_pca,
+                num_pca_comps=spec.num_pca_comps,
+                flat_hand_mean=spec.flat_hand_mean,
+            )
         args = argparse.Namespace(
             output_mode="output",
             input_scene_json=None,
@@ -1878,13 +1926,15 @@ def evaluate_external_world_humans(
             contact_projection_nearby_depth_m=0.05,
             contact_projection_min_component_pixels=16,
             contact_projection_max_component_gap_px=48.0,
+            mesh_reconstruction_tolerance_m=1e-4,
         )
         summaries.append(
             evaluate_interaction(
                 args=args,
                 interaction_name=item.interaction_name,
                 device=device,
-                smplx_layer=smplx_layer,
+                smplx_layer=method_layers[spec],
+                initial_smplx_layer=initial_smplx_layer,
                 output_root=(
                     output_base
                     / item.interaction_name
@@ -1988,6 +2038,7 @@ def evaluate_interaction(
     device: torch.device,
     smplx_layer: Any,
     output_root: Path,
+    initial_smplx_layer: Any | None = None,
 ) -> dict[str, Any]:
     defaults = build_default_paths(interaction_name, args.output_mode)
     input_scene_json_path = resolve_path(args.input_scene_json, defaults["input_scene_json"])
@@ -2079,7 +2130,11 @@ def evaluate_interaction(
         human_pose_root=human_pose_root,
         smpl_param_key=args.smpl_param_key,
         device=device,
-        smplx_layer=smplx_layer,
+        smplx_layer=(
+            initial_smplx_layer
+            if initial_smplx_layer is not None
+            else smplx_layer
+        ),
     )
     if init_verts_camera.shape[0] != segment_catalog.vertex_count:
         raise ValueError(
@@ -2164,30 +2219,37 @@ def evaluate_interaction(
             optimized_params=optimized_params,
         )
     if human_mesh_world_path is not None:
-        # VolumetricSMPL needs pose/joints in addition to geometry.  Preserve the
-        # method's parameters for articulation, but make the supplied world mesh
-        # (now in the shared camera frame) the exact surface encoded by the SDF.
         evaluated_vertices_t = torch.from_numpy(
             evaluated_vertices.astype(np.float32)
         ).to(device)
         reconstructed_vertices = optimized_current["verts"]
-        if reconstructed_vertices.shape == evaluated_vertices_t.shape:
-            max_reconstruction_error = float(
-                torch.linalg.vector_norm(
-                    reconstructed_vertices - evaluated_vertices_t,
-                    dim=-1,
-                ).max().detach().cpu().item()
+        if reconstructed_vertices.shape != evaluated_vertices_t.shape:
+            raise ValueError(
+                "Method SMPL-X reconstruction and exported mesh have different "
+                f"shapes: {tuple(reconstructed_vertices.shape)} vs "
+                f"{tuple(evaluated_vertices_t.shape)}."
             )
-            print(
-                "  method mesh/parameter reconstruction max error: "
-                f"{max_reconstruction_error:.6f}m"
-            )
-        optimized_current["smplx_output"].vertices = evaluated_vertices_t.unsqueeze(0)
-        optimized_current["smplx_output"].joints = optimized_current["joints"].unsqueeze(0)
-        optimized_current["verts"] = evaluated_vertices_t
-        optimized_current["scale"] = torch.ones(
-            (), dtype=torch.float32, device=device
+        max_reconstruction_error = float(
+            torch.linalg.vector_norm(
+                reconstructed_vertices - evaluated_vertices_t,
+                dim=-1,
+            ).max().detach().cpu().item()
         )
+        tolerance_m = float(
+            getattr(args, "mesh_reconstruction_tolerance_m", 1e-4)
+        )
+        print(
+            "  exact method mesh reconstruction max error: "
+            f"{max_reconstruction_error:.9f}m"
+        )
+        if not math.isfinite(max_reconstruction_error) or (
+            max_reconstruction_error > tolerance_m
+        ):
+            raise RuntimeError(
+                "Method SMPL-X parameters do not reconstruct the exported mesh: "
+                f"max error={max_reconstruction_error:.9f}m, "
+                f"tolerance={tolerance_m:.9f}m."
+            )
     interaction_metrics = compute_interaction_non_collision_metrics(
         scene_points_camera=non_collision_scene_points,
         smplx_layer=smplx_layer,

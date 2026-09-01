@@ -42,11 +42,19 @@ def main() -> None:
         else [args.interaction_name]
     )
     source_root = prox_output_root(args.output_mode)
+    model_spec = BASE.SMPLXModelSpec(
+        model_path=PROJECT_DIR.parent / "PROX" / "models",
+        gender="male",
+        use_pca=True,
+        num_pca_comps=12,
+        flat_hand_mean=False,
+    )
     items = [
         BASE.ExternalHumanEvaluationInput(
             interaction_name=name,
             human_mesh_world=source_root / name / "final_smplx_world.ply",
             optimized_params_camera=source_root / name / "result.pkl",
+            smplx_model=model_spec,
         )
         for name in names
     ]

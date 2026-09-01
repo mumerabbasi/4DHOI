@@ -1,0 +1,44 @@
+[
+  {
+    "node_a": "human.right_hand",
+    "node_b": "washing machine door",
+    "contact": {
+      "min_distance_m": 0.22442667186260223,
+      "max_distance_m": 0.39511919021606445,
+      "mean_distance_m": 0.2999970316886902
+    },
+    "collision": {
+      "ncs": 0.9999814285714286,
+      "mean_penetration_m": 0.001611037994734943,
+      "max_penetration_m": 0.0038224905729293823
+    }
+  },
+  {
+    "node_a": "human.left_foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.004690091125667095,
+      "max_distance_m": 0.11319883912801743,
+      "mean_distance_m": 0.0611189529299736
+    },
+    "collision": {
+      "ncs": 0.9999814285714286,
+      "mean_penetration_m": 0.001611037994734943,
+      "max_penetration_m": 0.0038224905729293823
+    }
+  },
+  {
+    "node_a": "human.right_foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.006619755178689957,
+      "max_distance_m": 0.08763967454433441,
+      "mean_distance_m": 0.04948240891098976
+    },
+    "collision": {
+      "ncs": 0.9999814285714286,
+      "mean_penetration_m": 0.001611037994734943,
+      "max_penetration_m": 0.0038224905729293823
+    }
+  }
+]

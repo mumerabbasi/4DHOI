@@ -42,6 +42,13 @@ def main() -> None:
         else [args.interaction_name]
     )
     source_root = physic_output_root(args.output_mode)
+    model_spec = BASE.SMPLXModelSpec(
+        model_path=PROJECT_DIR.parent / "Phy-SIC" / "data" / "body_models",
+        gender="neutral",
+        use_pca=False,
+        num_pca_comps=12,
+        flat_hand_mean=True,
+    )
     items = [
         BASE.ExternalHumanEvaluationInput(
             interaction_name=name,
@@ -53,6 +60,7 @@ def main() -> None:
                 / "params"
                 / "optimized_frame_0000.pt"
             ),
+            smplx_model=model_spec,
         )
         for name in names
     ]

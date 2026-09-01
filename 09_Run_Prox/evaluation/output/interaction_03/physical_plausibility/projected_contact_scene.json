@@ -1,0 +1,59 @@
+{
+  "ply_path": "/my_workspace/4DHHOI/4DHSI/09_Run_Prox/evaluation/output/interaction_03/physical_plausibility/projected_contact_scene.ply",
+  "coordinate_frame": "camera",
+  "base_rgb": [
+    170,
+    170,
+    170
+  ],
+  "edges": [
+    {
+      "node_a": "human.left_hand",
+      "node_b": "wooden chair",
+      "moving_part": "left hand",
+      "fixed_node": "wooden chair",
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "colored_faces": 201
+    },
+    {
+      "node_a": "human.right_hand",
+      "node_b": "wooden chair",
+      "moving_part": "right hand",
+      "fixed_node": "wooden chair",
+      "rgb": [
+        0,
+        170,
+        0
+      ],
+      "colored_faces": 220
+    },
+    {
+      "node_a": "human.left_foot",
+      "node_b": "floor",
+      "moving_part": "left foot",
+      "fixed_node": "floor",
+      "rgb": [
+        0,
+        80,
+        255
+      ],
+      "colored_faces": 20859
+    },
+    {
+      "node_a": "human.right_foot",
+      "node_b": "floor",
+      "moving_part": "right foot",
+      "fixed_node": "floor",
+      "rgb": [
+        255,
+        140,
+        0
+      ],
+      "colored_faces": 20859
+    }
+  ]
+}

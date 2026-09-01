@@ -1,0 +1,58 @@
+[
+  {
+    "node_a": "human.hips",
+    "node_b": "bed",
+    "contact": {
+      "min_distance_m": 0.0035532554611563683,
+      "max_distance_m": 0.11158871650695801,
+      "mean_distance_m": 0.05574232339859009
+    },
+    "collision": {
+      "ncs": 0.9942571428571428,
+      "mean_penetration_m": 0.028259389102458954,
+      "max_penetration_m": 0.06347964704036713
+    }
+  },
+  {
+    "node_a": "human.left_leg",
+    "node_b": "bed",
+    "contact": {
+      "min_distance_m": 0.024083681404590607,
+      "max_distance_m": 0.16523198783397675,
+      "mean_distance_m": 0.09644189476966858
+    },
+    "collision": {
+      "ncs": 0.9942571428571428,
+      "mean_penetration_m": 0.028259389102458954,
+      "max_penetration_m": 0.06347964704036713
+    }
+  },
+  {
+    "node_a": "human.right_leg",
+    "node_b": "bed",
+    "contact": {
+      "min_distance_m": 0.015515361912548542,
+      "max_distance_m": 0.26294732093811035,
+      "mean_distance_m": 0.13354326784610748
+    },
+    "collision": {
+      "ncs": 0.9942571428571428,
+      "mean_penetration_m": 0.028259389102458954,
+      "max_penetration_m": 0.06347964704036713
+    }
+  },
+  {
+    "node_a": "human.right_hand",
+    "node_b": "bed",
+    "contact": {
+      "min_distance_m": 0.4205739498138428,
+      "max_distance_m": 0.5252031683921814,
+      "mean_distance_m": 0.4731287658214569
+    },
+    "collision": {
+      "ncs": 0.9942571428571428,
+      "mean_penetration_m": 0.028259389102458954,
+      "max_penetration_m": 0.06347964704036713
+    }
+  }
+]

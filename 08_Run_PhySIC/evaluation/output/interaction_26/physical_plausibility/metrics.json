@@ -1,0 +1,30 @@
+[
+  {
+    "node_a": "human.left_hand",
+    "node_b": "pull-up bar",
+    "contact": {
+      "min_distance_m": 0.04461507126688957,
+      "max_distance_m": 0.14359912276268005,
+      "mean_distance_m": 0.0860043540596962
+    },
+    "collision": {
+      "ncs": 1.0,
+      "mean_penetration_m": 0.0,
+      "max_penetration_m": 0.0
+    }
+  },
+  {
+    "node_a": "human.right_hand",
+    "node_b": "pull-up bar",
+    "contact": {
+      "min_distance_m": 0.10022778809070587,
+      "max_distance_m": 0.20176850259304047,
+      "mean_distance_m": 0.14773337543010712
+    },
+    "collision": {
+      "ncs": 1.0,
+      "mean_penetration_m": 0.0,
+      "max_penetration_m": 0.0
+    }
+  }
+]

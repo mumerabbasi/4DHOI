@@ -1,0 +1,147 @@
+{
+  "num_samples": 23,
+  "num_clusters": 15,
+  "entropy": 2.532757537181371,
+  "cluster_size": 2.5342819690704346,
+  "standardized": true,
+  "feature_definition": [
+    "transl",
+    "global_orient",
+    "body_pose",
+    "betas"
+  ],
+  "cluster_counts": [
+    4,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    2,
+    2,
+    1,
+    1,
+    1,
+    4,
+    1
+  ],
+  "assignments": [
+    {
+      "interaction_name": "interaction_02",
+      "cluster_id": 0,
+      "distance_to_cluster_center": 3.9307913780212402
+    },
+    {
+      "interaction_name": "interaction_03",
+      "cluster_id": 13,
+      "distance_to_cluster_center": 4.961002826690674
+    },
+    {
+      "interaction_name": "interaction_04",
+      "cluster_id": 7,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_05",
+      "cluster_id": 8,
+      "distance_to_cluster_center": 4.091393947601318
+    },
+    {
+      "interaction_name": "interaction_06",
+      "cluster_id": 13,
+      "distance_to_cluster_center": 5.537655353546143
+    },
+    {
+      "interaction_name": "interaction_07",
+      "cluster_id": 8,
+      "distance_to_cluster_center": 4.091393947601318
+    },
+    {
+      "interaction_name": "interaction_08",
+      "cluster_id": 13,
+      "distance_to_cluster_center": 5.472205638885498
+    },
+    {
+      "interaction_name": "interaction_09",
+      "cluster_id": 9,
+      "distance_to_cluster_center": 4.0626068115234375
+    },
+    {
+      "interaction_name": "interaction_10",
+      "cluster_id": 13,
+      "distance_to_cluster_center": 4.969717502593994
+    },
+    {
+      "interaction_name": "interaction_11",
+      "cluster_id": 0,
+      "distance_to_cluster_center": 6.209936141967773
+    },
+    {
+      "interaction_name": "interaction_14",
+      "cluster_id": 6,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_15",
+      "cluster_id": 10,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_16",
+      "cluster_id": 0,
+      "distance_to_cluster_center": 4.384331226348877
+    },
+    {
+      "interaction_name": "interaction_18",
+      "cluster_id": 12,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_20",
+      "cluster_id": 5,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_21",
+      "cluster_id": 3,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_22",
+      "cluster_id": 9,
+      "distance_to_cluster_center": 4.0626068115234375
+    },
+    {
+      "interaction_name": "interaction_23",
+      "cluster_id": 11,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_24",
+      "cluster_id": 1,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_26",
+      "cluster_id": 2,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_27",
+      "cluster_id": 14,
+      "distance_to_cluster_center": 0.0
+    },
+    {
+      "interaction_name": "interaction_28",
+      "cluster_id": 0,
+      "distance_to_cluster_center": 6.5148396492004395
+    },
+    {
+      "interaction_name": "interaction_30",
+      "cluster_id": 4,
+      "distance_to_cluster_center": 0.0
+    }
+  ]
+}

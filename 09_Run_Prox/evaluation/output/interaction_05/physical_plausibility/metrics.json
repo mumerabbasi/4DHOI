@@ -1,0 +1,44 @@
+[
+  {
+    "node_a": "human.right_hand",
+    "node_b": "bathroom faucet",
+    "contact": {
+      "min_distance_m": 0.018832769244909286,
+      "max_distance_m": 0.14745180308818817,
+      "mean_distance_m": 0.07060056924819946
+    },
+    "collision": {
+      "ncs": 0.9999871428571429,
+      "mean_penetration_m": 0.0012951426906511188,
+      "max_penetration_m": 0.00502641499042511
+    }
+  },
+  {
+    "node_a": "human.left_foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.03974306955933571,
+      "max_distance_m": 0.11783108860254288,
+      "mean_distance_m": 0.08167900145053864
+    },
+    "collision": {
+      "ncs": 0.9999871428571429,
+      "mean_penetration_m": 0.0012951426906511188,
+      "max_penetration_m": 0.00502641499042511
+    }
+  },
+  {
+    "node_a": "human.right_foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.001966121606528759,
+      "max_distance_m": 0.07110073417425156,
+      "mean_distance_m": 0.036860931664705276
+    },
+    "collision": {
+      "ncs": 0.9999871428571429,
+      "mean_penetration_m": 0.0012951426906511188,
+      "max_penetration_m": 0.00502641499042511
+    }
+  }
+]

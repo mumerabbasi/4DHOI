@@ -1,0 +1,44 @@
+[
+  {
+    "node_a": "human.left_hand",
+    "node_b": "bathtub",
+    "contact": {
+      "min_distance_m": 0.0007041625794954598,
+      "max_distance_m": 0.10506633669137955,
+      "mean_distance_m": 0.03581146150827408
+    },
+    "collision": {
+      "ncs": 0.9968542857142857,
+      "mean_penetration_m": 0.027934402227401733,
+      "max_penetration_m": 0.07214955985546112
+    }
+  },
+  {
+    "node_a": "human.left_foot",
+    "node_b": "bathtub",
+    "contact": {
+      "min_distance_m": 0.0021382980048656464,
+      "max_distance_m": 0.10473951697349548,
+      "mean_distance_m": 0.05700302496552467
+    },
+    "collision": {
+      "ncs": 0.9968542857142857,
+      "mean_penetration_m": 0.027934402227401733,
+      "max_penetration_m": 0.07214955985546112
+    }
+  },
+  {
+    "node_a": "human.right_foot",
+    "node_b": "floor",
+    "contact": {
+      "min_distance_m": 0.17006203532218933,
+      "max_distance_m": 0.2422807216644287,
+      "mean_distance_m": 0.19971942901611328
+    },
+    "collision": {
+      "ncs": 0.9968542857142857,
+      "mean_penetration_m": 0.027934402227401733,
+      "max_penetration_m": 0.07214955985546112
+    }
+  }
+]
