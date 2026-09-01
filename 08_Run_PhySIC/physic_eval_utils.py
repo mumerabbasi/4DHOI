@@ -21,7 +21,7 @@ from PIL import Image
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
 REPO_DIR = PROJECT_DIR.parent
-DEFAULT_OUTPUT_MODE = "output_scannet"
+DEFAULT_OUTPUT_MODE = "output"
 
 
 def ensure_dir(path: Path) -> Path:

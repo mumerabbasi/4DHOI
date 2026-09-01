@@ -553,7 +553,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--interaction_name", default="interaction_01")
     parser.add_argument("--all_interactions", action="store_true")
-    parser.add_argument("--output_root", type=Path, default=SCRIPT_DIR / "output_scannet")
+    parser.add_argument("--output_root", type=Path, default=SCRIPT_DIR / "output")
     parser.add_argument("--scannet_root", type=Path, default=REPO_DIR / "Scannet++" / "data")
     parser.add_argument("--physic_root", type=Path, default=REPO_DIR / "Phy-SIC")
     parser.add_argument("--seed", type=int, default=24017)
