@@ -1,9 +1,0 @@
-{
-  "original_dir": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/output_scannet/interaction_02/original",
-  "coordinate_frame": "physic_camera",
-  "scene_mesh": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/output_scannet/interaction_02/meshes/scene_camera.ply",
-  "human_mesh": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/output_scannet/interaction_02/meshes/human_camera.ply",
-  "optimized_params": "/my_workspace/4DHHOI/4DHSI/09_Run_PhySIC/output_scannet/interaction_02/debug/params/optimized_frame_0000.pt",
-  "scale_note": "optimized_frame_0000.pt scale is set to 1.0 because PhySIC's native scale applies to reconstructed scene points, not to the SMPL-X human height scale used by 4DHSI.",
-  "physic_scene_scale": 0.9853090643882751
-}

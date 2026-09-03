@@ -165,9 +165,9 @@ The thesis protocol documents five candidate human frames, an agentic budget of 
 | [`04_Estimate_Human_Pose/`](04_Estimate_Human_Pose/) | GVHMR-based static SMPL-X initialization and scene-frame conversion |
 | [`05_Optimize_Static_Scene/`](05_Optimize_Static_Scene/) | Contact- and penetration-aware SMPL-X optimization |
 | [`06_Evaluate_Interaction/`](06_Evaluate_Interaction/) | 3D geometry, diversity, CLIP, VLM, and 2D contact evaluation |
-| [`07_Run_Genzi/`](07_Run_Genzi/) | GenZI baseline adapter and experiments |
-| [`08_Visualizations_Thesis/`](08_Visualizations_Thesis/) | Multi-view rendering and thesis visualization utilities |
-| [`09_Run_PhySIC/`](09_Run_PhySIC/) | PhySIC baseline adapter and matched evaluation |
+| [`07_Run_PhySIC/`](07_Run_PhySIC/) | PhySIC baseline adapter and experiments |
+| [`08_Run_Prox/`](08_Run_Prox/) | PROX baseline adapter and experiments |
+| [`09_Run_Genzi/`](09_Run_Genzi/) | GenZI baseline adapter and experiments |
 
 Interaction definitions start under `01_Generate_SIG/input_prompts/interaction_XX/`. Each subsequent stage generally reads the previous stage's artifacts and writes its own `output/interaction_XX/` directory. The 23 completed benchmark instructions are listed in [INTERACTIONS.md](01_Generate_SIG/INTERACTIONS.md).
 

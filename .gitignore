@@ -80,16 +80,23 @@ outputs/
 runs/
 wandb/
 
-# --- GenZI Inference Artifacts ---
-# Native GenZI writes timestamped optimization runs containing generated views,
-# masks, videos, temporary pose files, W&B state, meshes, and copied configs.
-/07_Run_Genzi/output/genzi_runs/
-/07_Run_Genzi/output/genzi_run_summary.json
-/07_Run_Genzi/output/interaction_*/genzi_run_summary.json
-
-# --- PROX Baseline Artifacts ---
-/09_Run_Prox/output/
-/09_Run_Prox/output_old/
+# --- Generated Artifacts: Modules 04-09 ---
+# Keep source, documentation, static configuration, and canonical small assets;
+# keep generated pipeline/evaluation artifacts local only.
+/04_Estimate_Human_Pose/output*/
+/04_Estimate_Human_Pose/assets/smplx_contact_regions_*.png
+/04_Estimate_Human_Pose/assets/smplx_contact_regions_render_assets/
+/05_Optimize_Static_Scene/output*/
+/06_Evaluate_Interaction/output*/
+/06_Evaluate_Interaction/ablation_metrics.csv
+/07_Run_PhySIC/output*/
+/07_Run_PhySIC/old_output*/
+/07_Run_PhySIC/evaluation/output*/
+/08_Run_Prox/output*/
+/08_Run_Prox/old_output*/
+/08_Run_Prox/evaluation/output*/
+/09_Run_Genzi/output*/
+/09_Run_Genzi/old/
 
 # --- Model Weights (Large Files) ---
 *.safetensors
