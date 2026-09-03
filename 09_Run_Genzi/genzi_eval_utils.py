@@ -122,22 +122,6 @@ def load_evaluation_selections(path: Path | None = None) -> dict[str, int]:
     return selections
 
 
-def _load_stage0_ranks(scene_output_root: Path) -> list[str]:
-    ranks_path = scene_output_root / "stage000_ranks.csv"
-    if not ranks_path.is_file():
-        raise FileNotFoundError(f"Missing GenZI stage-0 ranking file: {ranks_path}")
-    ranked: list[tuple[int, str, float]] = []
-    for order, line in enumerate(ranks_path.read_text(encoding="utf-8").splitlines()):
-        if not line.strip():
-            continue
-        candidate_name, score_raw = line.rsplit(",", 1)
-        ranked.append((order, candidate_name, float(score_raw)))
-    if len(ranked) < 2:
-        raise RuntimeError(f"Expected at least two stage-0 candidates in {ranks_path}.")
-    ranked.sort(key=lambda item: (-item[2], item[0]))
-    return [item[1] for item in ranked]
-
-
 def list_final_candidates(
     interaction_name: str,
     output_mode: str = DEFAULT_OUTPUT_MODE,
@@ -152,17 +136,15 @@ def list_final_candidates(
             f"Missing GenZI scene output directory: {scene_output_root}"
         )
 
-    ranked_stage0 = _load_stage0_ranks(scene_output_root)
-    candidate_dirs: list[Path] = []
-    for parent in ranked_stage0:
-        children = sorted(
-            path
-            for path in scene_output_root.glob(f"{parent}_stage001_inpaint*")
-            if path.is_dir()
-            and (path / "optim_human.ply").is_file()
-            and (path / "smplx.pkl").is_file()
-        )
-        candidate_dirs.extend(children)
+    # Match the stable alphabetical order shown by file managers. Only final
+    # stage-1 outputs participate; intermediate stage-0 folders are excluded.
+    candidate_dirs = sorted(
+        path
+        for path in scene_output_root.glob("stage*_stage001_inpaint*")
+        if path.is_dir()
+        and (path / "optim_human.ply").is_file()
+        and (path / "smplx.pkl").is_file()
+    )
     if len(candidate_dirs) != FINAL_CANDIDATE_COUNT:
         raise RuntimeError(
             f"Expected exactly four final GenZI outputs for {interaction_name}, "
@@ -245,10 +227,7 @@ def write_selection_manifest(
         path,
         {
             "selection_config": str(config_path),
-            "candidate_order": (
-                "stage-0 parents by descending GenZI semantic rank, then "
-                "stage-1 inpaint index"
-            ),
+            "candidate_order": "alphabetical final stage-1 directory order",
             "interactions": entries,
         },
     )
@@ -277,7 +256,8 @@ def validate_render_selection(
     ):
         raise RuntimeError(
             f"Existing renders for {interaction_name} use GenZI candidate "
-            f"{rendered_index}, but the current selection is {candidate.index}. "
+            f"{rendered_index} at {rendered_dir}, but the current selection "
+            f"resolves to candidate {candidate.index} at {candidate.candidate_dir}. "
             "Run 03a_render_interactions.py again before semantic or VLM evaluation."
         )
     return render_config_path
