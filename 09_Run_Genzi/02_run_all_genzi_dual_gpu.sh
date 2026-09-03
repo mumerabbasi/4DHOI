@@ -192,6 +192,11 @@ prepare_worker() {
                 --seed "${worker_seed}"
                 --no-root-summary
             )
+            if [[ "${interaction}" == "interaction_23" ]]; then
+                # Disambiguate the requested drawer cabinet from the visually
+                # similar cabinet at the bottom-right of the source image.
+                prep_args+=(--target-box 900 500 1140 800)
+            fi
             if [[ "${OVERWRITE_PREP}" == "1" || -d "${interaction_output}" ]]; then
                 if [[ "${OVERWRITE_PREP}" == "0" ]]; then
                     echo "[prep worker ${worker_id}] ${interaction}: replacing stale or incomplete preparation"

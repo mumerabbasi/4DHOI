@@ -2337,7 +2337,8 @@ def main(argv: list[str] | None = None) -> None:
         processor = build_sam3_processor(args)
         image = Image.open(args._sam3_image).convert("RGB")
         predictions = run_sam3(processor, image, args.target_prompt, args.target_box)
-        save_sam3_prediction_archive(Path(args._sam3_output), predictions)
+        _best_index, best_prediction = select_sam3_candidate(predictions, None)
+        save_sam3_prediction_archive(Path(args._sam3_output), [best_prediction])
         return
 
     requested_genzi_python = Path(args.genzi_python).resolve()
