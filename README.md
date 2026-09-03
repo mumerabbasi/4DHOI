@@ -33,9 +33,9 @@ The complete pipeline is zero-shot with respect to 3D human–scene interaction:
     <th width="38%">3. Scene-grounded SMPL-X result</th>
   </tr>
   <tr>
-    <td><img width="100%" src="02_Generate_Human_Frame/output/interaction_28/inpainted_frame_resized.png" alt="Generated image of a person running on a treadmill"></td>
-    <td><img width="100%" src="03_Estimate_Contact_Agentic/output/interaction_28/contact_overlay_visualization.png" alt="Verified contact masks on the treadmill handles and belt"></td>
-    <td><img width="100%" src="06_Evaluate_Interaction/output/interaction_28/semantics/renders/view_01.png" alt="Final scene-grounded SMPL-X human running on the treadmill"></td>
+    <td><img width="100%" src="docs/readme_images/treadmill-generated-frame.png" alt="Generated image of a person running on a treadmill"></td>
+    <td><img width="100%" src="docs/readme_images/treadmill-contact-overlay.png" alt="Verified contact masks on the treadmill handles and belt"></td>
+    <td><img width="100%" src="docs/readme_images/treadmill-final-scene.png" alt="Final scene-grounded SMPL-X human running on the treadmill"></td>
   </tr>
 </table>
 
@@ -105,16 +105,16 @@ In the nine contact-localization examples, single-shot masks can be missing, spu
     <th width="50%">Sitting on a bicycle</th>
   </tr>
   <tr>
-    <td><img width="100%" src="06_Evaluate_Interaction/output/interaction_04/semantics/renders/view_00.png" alt="Scene-grounded human opening a door"></td>
-    <td><img width="100%" src="06_Evaluate_Interaction/output/interaction_14/semantics/renders/view_00.png" alt="Scene-grounded human sitting on a bicycle"></td>
+    <td><img width="100%" src="docs/readme_images/door-opening-final-scene.png" alt="Scene-grounded human opening a door"></td>
+    <td><img width="100%" src="docs/readme_images/bicycle-sitting-final-scene.png" alt="Scene-grounded human sitting on a bicycle"></td>
   </tr>
   <tr>
     <th>Climbing onto a top bed</th>
     <th>Hanging from a pull-up bar</th>
   </tr>
   <tr>
-    <td><img width="100%" src="06_Evaluate_Interaction/output/interaction_18/semantics/renders/view_00.png" alt="Scene-grounded human climbing onto a top bed"></td>
-    <td><img width="100%" src="06_Evaluate_Interaction/output/interaction_26/semantics/renders/view_00.png" alt="Scene-grounded human hanging from a pull-up bar"></td>
+    <td><img width="100%" src="docs/readme_images/top-bed-climbing-final-scene.png" alt="Scene-grounded human climbing onto a top bed"></td>
+    <td><img width="100%" src="docs/readme_images/pull-up-bar-hanging-final-scene.png" alt="Scene-grounded human hanging from a pull-up bar"></td>
   </tr>
 </table>
 
