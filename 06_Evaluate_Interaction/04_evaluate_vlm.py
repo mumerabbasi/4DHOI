@@ -22,7 +22,7 @@ DEFAULT_PROMPT_TEMPLATE_PATH = SCRIPT_DIR / "prompt_eval_interactions.md"
 OUTPUT_MODES = ("output", "output_round1", "output_init")
 VLM_PROVIDERS = ("qwen", "gemini")
 DEFAULT_QWEN_MODEL = "qwen3-vl:32b"
-DEFAULT_GEMINI_MODEL = "gemini-3.5-flash"
+DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
 DEFAULT_TEMPERATURE = 0.5
 
 CSV_FIELDNAMES = [

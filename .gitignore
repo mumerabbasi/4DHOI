@@ -97,6 +97,7 @@ wandb/
 /08_Run_Prox/evaluation/output*/
 /09_Run_Genzi/output*/
 /09_Run_Genzi/old/
+/09_Run_Genzi/evaluation/output*/
 
 # --- Model Weights (Large Files) ---
 *.safetensors
