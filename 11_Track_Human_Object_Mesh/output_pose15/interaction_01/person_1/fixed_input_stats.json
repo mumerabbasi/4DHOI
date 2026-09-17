@@ -1,0 +1,21 @@
+{
+  "status": "arm_pose_optimized",
+  "source": "module_06_smplx_with_module_09_transform",
+  "name": "person 1",
+  "slug": "person_1",
+  "num_frames": 81,
+  "num_verts": 10475,
+  "num_faces": 20908,
+  "active_chains": [
+    "right"
+  ],
+  "active_body_pose_ids": [
+    13,
+    16,
+    18,
+    20
+  ],
+  "max_delta_pose_deg": 5.634759643080187,
+  "mean_delta_pose_deg": 1.7616221136055903,
+  "global_scale": 1.0
+}

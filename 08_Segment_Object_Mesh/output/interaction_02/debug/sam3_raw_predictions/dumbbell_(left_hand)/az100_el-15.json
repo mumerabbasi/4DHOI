@@ -1,0 +1,67 @@
+{
+  "object_name": "dumbbell (left hand)",
+  "image": "az100_el-15.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_02/dumbbell_(left_hand)/renders/face_id/az100_el-150001.exr",
+  "parts": {
+    "handle": {
+      "sam3_prompt": "The central cylindrical handle of the dumbbell. on the dumbbell (left hand)",
+      "used_prompt": "The central cylindrical handle of the dumbbell. on the dumbbell (left hand)",
+      "prompt": "The central cylindrical handle of the dumbbell. on the dumbbell (left hand)",
+      "raw_candidates": [
+        {
+          "box": [
+            426.3608703613281,
+            428.4610290527344,
+            659.7283935546875,
+            648.0482788085938
+          ],
+          "score": 0.84375
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            426.3608703613281,
+            428.4610290527344,
+            659.7283935546875,
+            648.0482788085938
+          ],
+          "score": 0.84375,
+          "original_area": 24247,
+          "clipped_area": 24241,
+          "silhouette_overlap": 0.9997525467068091
+        }
+      ]
+    },
+    "weight plates": {
+      "sam3_prompt": "The circular weight plates on the ends of the dumbbell. on the dumbbell (left hand)",
+      "used_prompt": "The circular weight plates on the ends of the dumbbell. on the dumbbell (left hand)",
+      "prompt": "The circular weight plates on the ends of the dumbbell. on the dumbbell (left hand)",
+      "raw_candidates": [
+        {
+          "box": [
+            506.24029541015625,
+            485.9873962402344,
+            767.9546508789062,
+            751.7440185546875
+          ],
+          "score": 0.8984375
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            506.24029541015625,
+            485.9873962402344,
+            767.9546508789062,
+            751.7440185546875
+          ],
+          "score": 0.8984375,
+          "original_area": 39095,
+          "clipped_area": 39090,
+          "silhouette_overlap": 0.999872106407469
+        }
+      ]
+    }
+  }
+}

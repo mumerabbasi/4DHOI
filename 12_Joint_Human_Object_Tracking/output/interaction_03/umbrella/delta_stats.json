@@ -1,0 +1,16 @@
+{
+  "slug": "umbrella",
+  "state_type": "absolute_object_trajectory_from_module12",
+  "frame0_fixed_identity": true,
+  "max_rot_deg": 16.340015230677828,
+  "mean_rot_deg": 11.556254042612094,
+  "max_trans_m": 1.2423325777053833,
+  "mean_trans_m": 0.7243130803108215,
+  "global_scale": 1.019058346748352,
+  "num_input_tracks": 5000,
+  "num_valid_seed_tracks": 4102,
+  "num_dropped_invalid_face": 898,
+  "num_dropped_outside_mask0": 0,
+  "num_dropped_nonfinite_seed": 0,
+  "active_track_frame_pairs": 205480
+}

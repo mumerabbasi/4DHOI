@@ -1,0 +1,22 @@
+{
+  "object_name": "ironing board",
+  "parts": [
+    "top flat panel",
+    "legs"
+  ],
+  "prompt_views": [
+    "az010_el+10.png",
+    "az100_el+10.png",
+    "az190_el+10.png"
+  ],
+  "prompts": {
+    "top flat panel": {
+      "sam3_prompt": "top flat panel of the ironing board",
+      "fallback_prompt": "top flat panel"
+    },
+    "legs": {
+      "sam3_prompt": "The metal support legs and feet of the ironing board.",
+      "fallback_prompt": "legs"
+    }
+  }
+}

@@ -1,0 +1,422 @@
+{
+  "object_name": "harp",
+  "views": [
+    {
+      "image": "az010_el+10.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": [
+          450,
+          389,
+          655,
+          860
+        ],
+        "neck": [
+          327,
+          122,
+          675,
+          389
+        ],
+        "strings": null
+      }
+    },
+    {
+      "image": "az010_el+30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": [
+          440,
+          368,
+          655,
+          829
+        ],
+        "neck": [
+          317,
+          179,
+          675,
+          378
+        ],
+        "strings": null
+      }
+    },
+    {
+      "image": "az010_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": [
+          452,
+          443,
+          657,
+          832
+        ],
+        "neck": [
+          405,
+          151,
+          671,
+          430
+        ],
+        "strings": null
+      }
+    },
+    {
+      "image": "az055_el+10.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": [
+          364,
+          796,
+          505,
+          911
+        ],
+        "neck": [
+          325,
+          122,
+          731,
+          417
+        ],
+        "strings": [
+          384,
+          189,
+          711,
+          855
+        ]
+      }
+    },
+    {
+      "image": "az055_el+30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": null,
+        "neck": null,
+        "strings": null
+      }
+    },
+    {
+      "image": "az055_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": [
+          440,
+          399,
+          706,
+          890
+        ],
+        "neck": [
+          337,
+          174,
+          716,
+          399
+        ],
+        "strings": null
+      }
+    },
+    {
+      "image": "az100_el+10.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": null,
+        "neck": null,
+        "strings": null
+      }
+    },
+    {
+      "image": "az100_el+30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": null,
+        "neck": null,
+        "strings": null
+      }
+    },
+    {
+      "image": "az100_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": null,
+        "neck": null,
+        "strings": null
+      }
+    },
+    {
+      "image": "az155_el+10.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": [
+          428,
+          433,
+          581,
+          856
+        ],
+        "neck": [
+          427,
+          129,
+          601,
+          436
+        ],
+        "strings": [
+          477,
+          159,
+          576,
+          405
+        ]
+      }
+    },
+    {
+      "image": "az155_el+30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": null,
+        "neck": null,
+        "strings": null
+      }
+    },
+    {
+      "image": "az155_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": [
+          430,
+          348,
+          583,
+          880
+        ],
+        "neck": [
+          430,
+          220,
+          593,
+          368
+        ],
+        "strings": [
+          471,
+          225,
+          573,
+          870
+        ]
+      }
+    },
+    {
+      "image": "az190_el+10.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": null,
+        "neck": null,
+        "strings": null
+      }
+    },
+    {
+      "image": "az190_el+30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": [
+          318,
+          415,
+          641,
+          845
+        ],
+        "neck": [
+          318,
+          108,
+          689,
+          747
+        ],
+        "strings": [
+          384,
+          163,
+          629,
+          445
+        ]
+      }
+    },
+    {
+      "image": "az190_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": null,
+        "neck": null,
+        "strings": null
+      }
+    },
+    {
+      "image": "az235_el+10.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": null,
+        "neck": null,
+        "strings": null
+      }
+    },
+    {
+      "image": "az235_el+30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": [
+          288,
+          337,
+          566,
+          824
+        ],
+        "neck": [
+          286,
+          158,
+          711,
+          409
+        ],
+        "strings": null
+      }
+    },
+    {
+      "image": "az235_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": [
+          315,
+          407,
+          566,
+          876
+        ],
+        "neck": [
+          300,
+          136,
+          689,
+          412
+        ],
+        "strings": [
+          340,
+          190,
+          620,
+          845
+        ]
+      }
+    },
+    {
+      "image": "az280_el+10.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": [
+          384,
+          389,
+          573,
+          855
+        ],
+        "neck": [
+          368,
+          122,
+          573,
+          389
+        ],
+        "strings": null
+      }
+    },
+    {
+      "image": "az280_el+30.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": [
+          384,
+          358,
+          573,
+          819
+        ],
+        "neck": [
+          552,
+          204,
+          645,
+          819
+        ],
+        "strings": [
+          399,
+          307,
+          573,
+          798
+        ]
+      }
+    },
+    {
+      "image": "az280_el-15.png",
+      "image_size": [
+        1024,
+        1024
+      ],
+      "parts": {
+        "soundboard": [
+          384,
+          448,
+          573,
+          845
+        ],
+        "neck": [
+          372,
+          90,
+          640,
+          445
+        ],
+        "strings": [
+          404,
+          450,
+          568,
+          834
+        ]
+      }
+    }
+  ]
+}

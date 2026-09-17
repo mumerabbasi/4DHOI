@@ -1,0 +1,151 @@
+{
+  "object_name": "bicycle",
+  "image": "az100_el-15.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_05/bicycle/renders/face_id/az100_el-150001.exr",
+  "parts": {
+    "handlebar": {
+      "sam3_prompt": "The handlebar of the bicycle, including the curved steering bars and grips.",
+      "used_prompt": "The handlebar of the bicycle, including the curved steering bars and grips.",
+      "prompt": "The handlebar of the bicycle, including the curved steering bars and grips.",
+      "raw_candidates": [
+        {
+          "box": [
+            598.6392211914062,
+            271.2817077636719,
+            679.2006225585938,
+            362.3352966308594
+          ],
+          "score": 0.61328125
+        },
+        {
+          "box": [
+            596.5914306640625,
+            271.393310546875,
+            663.6710205078125,
+            300.81427001953125
+          ],
+          "score": 0.59375
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            598.6392211914062,
+            271.2817077636719,
+            679.2006225585938,
+            362.3352966308594
+          ],
+          "score": 0.61328125,
+          "original_area": 1695,
+          "clipped_area": 1646,
+          "silhouette_overlap": 0.9710914454277286
+        },
+        {
+          "box": [
+            596.5914306640625,
+            271.393310546875,
+            663.6710205078125,
+            300.81427001953125
+          ],
+          "score": 0.59375,
+          "original_area": 1127,
+          "clipped_area": 1115,
+          "silhouette_overlap": 0.9893522626441881
+        }
+      ]
+    },
+    "pedal": {
+      "sam3_prompt": "The pedal of the bicycle, the flat platform attached to the crank arm.",
+      "used_prompt": null,
+      "prompt": "The pedal of the bicycle, the flat platform attached to the crank arm.",
+      "raw_candidates": [],
+      "kept_candidates": []
+    },
+    "seat": {
+      "sam3_prompt": "The seat of the bicycle, the saddle positioned on top of the seat post.",
+      "used_prompt": "The seat of the bicycle, the saddle positioned on top of the seat post.",
+      "prompt": "The seat of the bicycle, the saddle positioned on top of the seat post.",
+      "raw_candidates": [
+        {
+          "box": [
+            346.5561828613281,
+            338.4653015136719,
+            472.8766784667969,
+            395.5911560058594
+          ],
+          "score": 0.94921875
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            346.5561828613281,
+            338.4653015136719,
+            472.8766784667969,
+            395.5911560058594
+          ],
+          "score": 0.94921875,
+          "original_area": 3692,
+          "clipped_area": 3691,
+          "silhouette_overlap": 0.9997291440953413
+        }
+      ]
+    },
+    "frame tubes": {
+      "sam3_prompt": "The frame tubes of the bicycle, the main structural bars connecting components.",
+      "used_prompt": "The frame tubes of the bicycle, the main structural bars connecting components.",
+      "prompt": "The frame tubes of the bicycle, the main structural bars connecting components.",
+      "raw_candidates": [
+        {
+          "box": [
+            300.75079345703125,
+            382.08526611328125,
+            656.17138671875,
+            561.0758666992188
+          ],
+          "score": 0.671875
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            300.75079345703125,
+            382.08526611328125,
+            656.17138671875,
+            561.0758666992188
+          ],
+          "score": 0.671875,
+          "original_area": 9975,
+          "clipped_area": 9888,
+          "silhouette_overlap": 0.9912781954887218
+        }
+      ]
+    },
+    "wheels": {
+      "sam3_prompt": "The wheels of the bicycle, including the tires, rims, and spokes.",
+      "used_prompt": null,
+      "prompt": "The wheels of the bicycle, including the tires, rims, and spokes.",
+      "raw_candidates": [
+        {
+          "box": [
+            601.7439575195312,
+            418.4862060546875,
+            886.9537963867188,
+            713.8704833984375
+          ],
+          "score": 0.96484375
+        },
+        {
+          "box": [
+            162.38075256347656,
+            434.611083984375,
+            437.5673828125,
+            720.571533203125
+          ],
+          "score": 0.9453125
+        }
+      ],
+      "kept_candidates": []
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "object_name": "umbrella",
+  "parts": [
+    "canopy",
+    "shaft"
+  ],
+  "prompt_views": [
+    "az010_el+10.png",
+    "az100_el+10.png",
+    "az190_el+10.png"
+  ],
+  "prompts": {
+    "canopy": {
+      "sam3_prompt": "canopy of the umbrella"
+    },
+    "shaft": {
+      "sam3_prompt": "shaft of the umbrella"
+    }
+  }
+}

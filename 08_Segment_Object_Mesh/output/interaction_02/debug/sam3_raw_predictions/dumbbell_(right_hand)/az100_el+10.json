@@ -1,0 +1,65 @@
+{
+  "object_name": "dumbbell (right hand)",
+  "image": "az100_el+10.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_02/dumbbell_(right_hand)/renders/face_id/az100_el+100001.exr",
+  "parts": {
+    "handle": {
+      "sam3_prompt": "The central cylindrical handle of the dumbbell. on the dumbbell (right hand)",
+      "used_prompt": null,
+      "prompt": "The central cylindrical handle of the dumbbell. on the dumbbell (right hand)",
+      "raw_candidates": [],
+      "kept_candidates": []
+    },
+    "weight plates": {
+      "sam3_prompt": "The circular weight plates on both ends of the dumbbell. on the dumbbell (right hand)",
+      "used_prompt": "The circular weight plates on both ends of the dumbbell. on the dumbbell (right hand)",
+      "prompt": "The circular weight plates on both ends of the dumbbell. on the dumbbell (right hand)",
+      "raw_candidates": [
+        {
+          "box": [
+            410.5,
+            335.62255859375,
+            728.4957275390625,
+            647.96240234375
+          ],
+          "score": 0.8671875
+        },
+        {
+          "box": [
+            345.9666442871094,
+            404.83111572265625,
+            514.8697509765625,
+            646.1065063476562
+          ],
+          "score": 0.671875
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            410.5,
+            335.62255859375,
+            728.4957275390625,
+            647.96240234375
+          ],
+          "score": 0.8671875,
+          "original_area": 77368,
+          "clipped_area": 77364,
+          "silhouette_overlap": 0.9999482990383621
+        },
+        {
+          "box": [
+            345.9666442871094,
+            404.83111572265625,
+            514.8697509765625,
+            646.1065063476562
+          ],
+          "score": 0.671875,
+          "original_area": 14877,
+          "clipped_area": 14877,
+          "silhouette_overlap": 1.0
+        }
+      ]
+    }
+  }
+}

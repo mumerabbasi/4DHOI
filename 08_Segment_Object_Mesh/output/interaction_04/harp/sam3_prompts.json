@@ -1,0 +1,24 @@
+{
+  "object_name": "harp",
+  "parts": [
+    "soundboard",
+    "neck",
+    "strings"
+  ],
+  "prompt_views": [
+    "az010_el+10.png",
+    "az100_el+10.png",
+    "az190_el+10.png"
+  ],
+  "prompts": {
+    "soundboard": {
+      "sam3_prompt": "soundboard of the harp"
+    },
+    "neck": {
+      "sam3_prompt": "neck of the harp"
+    },
+    "strings": {
+      "sam3_prompt": "strings of the harp"
+    }
+  }
+}

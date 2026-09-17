@@ -1,0 +1,46 @@
+{
+  "object part nodes": [
+    "umbrella, canopy",
+    "umbrella, shaft",
+    "umbrella, handle"
+  ],
+  "body part nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, left arm",
+    "person 1, right arm",
+    "person 1, left shoulder",
+    "person 1, right shoulder",
+    "person 1, left leg",
+    "person 1, right leg",
+    "person 1, left foot",
+    "person 1, right foot",
+    "person 1, head",
+    "person 1, hips"
+  ],
+  "interaction edges": [
+    {
+      "nodes": [
+        "umbrella, handle",
+        "person 1, right hand"
+      ],
+      "is_rel_static": true,
+      "is_continuous": true
+    }
+  ],
+  "interaction": "A person holds an open umbrella’s handle with their right hand while dancing gently and slowly at an extremely slow pace. The right hand maintains a firm grip on the handle, moving fluidly with the dance. The left arm swings naturally, legs bend slightly with each step, and hips sway rhythmically. The person has short black hair and a calm facial expression. They wear a white blouse, dark trousers, and beige flats. The umbrella features a classic black canopy and a curved wooden shaft. The scene unfolds in a clean, spacious indoor area with white walls and a wooden floor, providing a simple backdrop for the graceful, slow-motion dance.",
+  "object states": [
+    {
+      "name": "umbrella",
+      "is_translational": true,
+      "is_rotational": true,
+      "description": "the open umbrella with a black canopy being held and swayed gently"
+    }
+  ],
+  "human states": [
+    {
+      "name": "person 1",
+      "description": "the person with short black hair wearing a white blouse and dancing while holding the umbrella"
+    }
+  ]
+}

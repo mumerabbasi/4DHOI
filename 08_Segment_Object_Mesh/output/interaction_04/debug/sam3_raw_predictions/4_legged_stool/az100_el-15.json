@@ -1,0 +1,80 @@
+{
+  "object_name": "4-legged stool",
+  "image": "az100_el-15.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_04/4_legged_stool/renders/face_id/az100_el-150001.exr",
+  "parts": {
+    "seat": {
+      "sam3_prompt": "The flat oval seat of the 4-legged stool.",
+      "used_prompt": "The flat oval seat of the 4-legged stool.",
+      "prompt": "The flat oval seat of the 4-legged stool.",
+      "raw_candidates": [
+        {
+          "box": [
+            297.1063232421875,
+            206.25100708007812,
+            717.3594970703125,
+            372.9752502441406
+          ],
+          "score": 0.58203125
+        },
+        {
+          "box": [
+            296.53082275390625,
+            205.49781799316406,
+            716.0625,
+            298.88323974609375
+          ],
+          "score": 0.70703125
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            296.53082275390625,
+            205.49781799316406,
+            716.0625,
+            298.88323974609375
+          ],
+          "score": 0.70703125,
+          "original_area": 17328,
+          "clipped_area": 17324,
+          "silhouette_overlap": 0.9997691597414589
+        },
+        {
+          "box": [
+            297.1063232421875,
+            206.25100708007812,
+            717.3594970703125,
+            372.9752502441406
+          ],
+          "score": 0.58203125,
+          "original_area": 44988,
+          "clipped_area": 44985,
+          "silhouette_overlap": 0.9999333155508136
+        }
+      ],
+      "text_mask_found": true,
+      "fallback_used": false,
+      "fallback_bbox": null,
+      "fallback_error": null,
+      "final_source": "text"
+    },
+    "legs": {
+      "sam3_prompt": "The four legs and connecting stretchers of the 4-legged stool.",
+      "used_prompt": null,
+      "prompt": "The four legs and connecting stretchers of the 4-legged stool.",
+      "raw_candidates": [],
+      "kept_candidates": [],
+      "text_mask_found": false,
+      "fallback_used": true,
+      "fallback_bbox": [
+        668,
+        296,
+        770,
+        755
+      ],
+      "fallback_error": null,
+      "final_source": "bbox_fallback"
+    }
+  }
+}

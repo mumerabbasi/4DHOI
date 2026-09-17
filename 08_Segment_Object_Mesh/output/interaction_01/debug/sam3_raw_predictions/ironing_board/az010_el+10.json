@@ -1,0 +1,67 @@
+{
+  "object_name": "ironing board",
+  "image": "az010_el+10.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_01/ironing_board/renders/face_id/az010_el+100001.exr",
+  "parts": {
+    "top flat panel": {
+      "sam3_prompt": "top flat panel of the ironing board",
+      "used_prompt": "top flat panel of the ironing board",
+      "prompt": "top flat panel of the ironing board",
+      "raw_candidates": [
+        {
+          "box": [
+            317.53143310546875,
+            282.9420166015625,
+            632.6106567382812,
+            375.76953125
+          ],
+          "score": 0.97265625
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            317.53143310546875,
+            282.9420166015625,
+            632.6106567382812,
+            375.76953125
+          ],
+          "score": 0.97265625,
+          "original_area": 15931,
+          "clipped_area": 15918,
+          "silhouette_overlap": 0.9991839809177077
+        }
+      ]
+    },
+    "legs": {
+      "sam3_prompt": "The metal support legs and feet of the ironing board.",
+      "used_prompt": "The metal support legs and feet of the ironing board.",
+      "prompt": "The metal support legs and feet of the ironing board.",
+      "raw_candidates": [
+        {
+          "box": [
+            371.5135803222656,
+            353.57550048828125,
+            661.587890625,
+            779.3357543945312
+          ],
+          "score": 0.90234375
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            371.5135803222656,
+            353.57550048828125,
+            661.587890625,
+            779.3357543945312
+          ],
+          "score": 0.90234375,
+          "original_area": 23827,
+          "clipped_area": 23691,
+          "silhouette_overlap": 0.9942921895328829
+        }
+      ]
+    }
+  }
+}

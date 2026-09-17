@@ -1,0 +1,61 @@
+{
+  "object part nodes": [
+    "iron, handle",
+    "iron, soleplate",
+    "ironing board, top flat panel",
+    "ironing board, legs"
+  ],
+  "body part nodes": [
+    "person 1, left hand",
+    "person 1, right hand",
+    "person 1, left arm",
+    "person 1, right arm",
+    "person 1, left shoulder",
+    "person 1, right shoulder",
+    "person 1, left leg",
+    "person 1, right leg",
+    "person 1, left foot",
+    "person 1, right foot",
+    "person 1, head",
+    "person 1, hips"
+  ],
+  "interaction edges": [
+    {
+      "nodes": [
+        "iron, handle",
+        "person 1, right hand"
+      ],
+      "is_rel_static": true,
+      "is_continuous": true
+    },
+    {
+      "nodes": [
+        "iron, soleplate",
+        "ironing board, top flat panel"
+      ],
+      "is_rel_static": false,
+      "is_continuous": true
+    }
+  ],
+  "interaction": "A person is moving an iron across an ironing board while standing at an extremely slow pace. Their right hand firmly grips the iron’s handle, maintaining continuous contact, while the iron’s soleplate slides smoothly over the board’s top flat panel. The left arm swings gently to maintain balance, and the legs shift slightly with each step. The person has short brown hair, a focused facial expression, and wears a white t-shirt, dark pants, and gray sneakers. The iron features a sleek metallic finish, and the ironing board has a padded surface. The scene takes place in a clean, spacious indoor area with white walls and a wooden floor.",
+  "object states": [
+    {
+      "name": "iron",
+      "is_translational": true,
+      "is_rotational": true,
+      "description": "the handheld iron being slid across the board"
+    },
+    {
+      "name": "ironing board",
+      "is_translational": false,
+      "is_rotational": false,
+      "description": "the stationary ironing board supporting the iron"
+    }
+  ],
+  "human states": [
+    {
+      "name": "person 1",
+      "description": "the standing person holding the iron handle and moving it"
+    }
+  ]
+}

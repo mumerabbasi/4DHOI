@@ -1,0 +1,88 @@
+{
+  "object_name": "dumbbell (left hand)",
+  "image": "az190_el+10.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_02/dumbbell_(left_hand)/renders/face_id/az190_el+100001.exr",
+  "parts": {
+    "handle": {
+      "sam3_prompt": "The central cylindrical handle of the dumbbell. on the dumbbell (left hand)",
+      "used_prompt": "The central cylindrical handle of the dumbbell. on the dumbbell (left hand)",
+      "prompt": "The central cylindrical handle of the dumbbell. on the dumbbell (left hand)",
+      "raw_candidates": [
+        {
+          "box": [
+            344.603759765625,
+            390.47357177734375,
+            623.5703125,
+            606.6226806640625
+          ],
+          "score": 0.91015625
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            344.603759765625,
+            390.47357177734375,
+            623.5703125,
+            606.6226806640625
+          ],
+          "score": 0.91015625,
+          "original_area": 28655,
+          "clipped_area": 28655,
+          "silhouette_overlap": 1.0
+        }
+      ]
+    },
+    "weight plates": {
+      "sam3_prompt": "The circular weight plates on the ends of the dumbbell. on the dumbbell (left hand)",
+      "used_prompt": "The circular weight plates on the ends of the dumbbell. on the dumbbell (left hand)",
+      "prompt": "The circular weight plates on the ends of the dumbbell. on the dumbbell (left hand)",
+      "raw_candidates": [
+        {
+          "box": [
+            556.4276123046875,
+            458.9483642578125,
+            815.3397216796875,
+            764.271728515625
+          ],
+          "score": 0.71484375
+        },
+        {
+          "box": [
+            228.58851623535156,
+            286.2781982421875,
+            474.7928466796875,
+            557.9766235351562
+          ],
+          "score": 0.8984375
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            228.58851623535156,
+            286.2781982421875,
+            474.7928466796875,
+            557.9766235351562
+          ],
+          "score": 0.8984375,
+          "original_area": 39284,
+          "clipped_area": 39284,
+          "silhouette_overlap": 1.0
+        },
+        {
+          "box": [
+            556.4276123046875,
+            458.9483642578125,
+            815.3397216796875,
+            764.271728515625
+          ],
+          "score": 0.71484375,
+          "original_area": 40333,
+          "clipped_area": 40332,
+          "silhouette_overlap": 0.9999752064066645
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,172 @@
+{
+  "transforms": [
+    {
+      "name": "person_1",
+      "slug": "person_1",
+      "kind": "human",
+      "input_mesh_path": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/output/interaction_04/humans/person_1/hmr4d_results.pt",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_04/meshes/person_1.ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_init": 0.1649547662158817,
+        "scale_init": 1.1793397715042253,
+        "log_scale_alpha": 0.11886486411094666,
+        "scale_exp_alpha": 1.1262177155722983,
+        "tx_init_m": 0.0,
+        "ty_init_m": 0.0,
+        "tz_init_m": 0.042978961812984995,
+        "delta_tx_m": -0.025237951427698135,
+        "delta_ty_m": 0.005303948651999235,
+        "delta_tz_m": 0.2653958201408386,
+        "tx_total_m": -0.025237951427698135,
+        "ty_total_m": 0.005303948651999235,
+        "tz_total_m": 0.3083747819538236,
+        "obs_3d_count": 6000,
+        "obs_2d_count": 6000,
+        "model_sample_count": 2901,
+        "model_sample_count_total": 6000,
+        "model_sample_count_visible_fixed": 2901,
+        "model_sample_visible_ratio": 0.4835
+      },
+      "source_to_output_matrix_4x4": [
+        [
+          1.1262177228927612,
+          0.0,
+          0.0,
+          -0.025237951427698135
+        ],
+        [
+          0.0,
+          1.1262177228927612,
+          0.0,
+          0.005303948651999235
+        ],
+        [
+          0.0,
+          0.0,
+          1.1262177228927612,
+          0.3083747923374176
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "4 legged stool",
+      "slug": "4_legged_stool",
+      "kind": "object",
+      "input_mesh_path": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_04/meshes/4_legged_stool.ply",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_04/meshes/4_legged_stool.ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_init": 0.9569079473283435,
+        "scale_init": 2.6036334424472267,
+        "log_scale_alpha": 0.883895218372345,
+        "scale_exp_alpha": 2.420309000979,
+        "tx_init_m": 0.0,
+        "ty_init_m": 0.0,
+        "tz_init_m": -0.07149847138215915,
+        "delta_tx_m": -0.07688989490270615,
+        "delta_ty_m": 0.08154147118330002,
+        "delta_tz_m": 0.3280944526195526,
+        "tx_total_m": -0.07688989490270615,
+        "ty_total_m": 0.08154147118330002,
+        "tz_total_m": 0.25659598123739347,
+        "obs_3d_count": 6000,
+        "obs_2d_count": 6000,
+        "model_sample_count": 3303,
+        "model_sample_count_total": 6000,
+        "model_sample_count_visible_fixed": 3303,
+        "model_sample_visible_ratio": 0.5505
+      },
+      "source_to_output_matrix_4x4": [
+        [
+          2.420309066772461,
+          0.0,
+          0.0,
+          -0.07688989490270615
+        ],
+        [
+          0.0,
+          2.420309066772461,
+          0.0,
+          0.08154147118330002
+        ],
+        [
+          0.0,
+          0.0,
+          2.420309066772461,
+          0.2565959692001343
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "name": "harp",
+      "slug": "harp",
+      "kind": "object",
+      "input_mesh_path": "/my_workspace/4DHHOI/4DHOI/04_Generate_Object_Mesh/output/interaction_04/meshes/harp.ply",
+      "aligned_mesh_ply": "/my_workspace/4DHHOI/4DHOI/09_Align_Meshes/output/interaction_04/meshes/harp.ply",
+      "optimized_parameters": {
+        "status": "optimized",
+        "message": null,
+        "log_scale_init": 0.8724433198237692,
+        "scale_init": 2.3927499706406956,
+        "log_scale_alpha": 0.865963339805603,
+        "scale_exp_alpha": 2.3772951262630717,
+        "tx_init_m": 0.0,
+        "ty_init_m": 0.0,
+        "tz_init_m": 0.31809848227957804,
+        "delta_tx_m": -0.04045676440000534,
+        "delta_ty_m": -0.1055687740445137,
+        "delta_tz_m": 0.06678345799446106,
+        "tx_total_m": -0.04045676440000534,
+        "ty_total_m": -0.1055687740445137,
+        "tz_total_m": 0.3848819402740391,
+        "obs_3d_count": 6000,
+        "obs_2d_count": 6000,
+        "model_sample_count": 4342,
+        "model_sample_count_total": 6000,
+        "model_sample_count_visible_fixed": 4342,
+        "model_sample_visible_ratio": 0.7236666666666667
+      },
+      "source_to_output_matrix_4x4": [
+        [
+          2.3772950172424316,
+          0.0,
+          0.0,
+          -0.04045676440000534
+        ],
+        [
+          0.0,
+          2.3772950172424316,
+          0.0,
+          -0.1055687740445137
+        ],
+        [
+          0.0,
+          0.0,
+          2.3772950172424316,
+          0.3848819434642792
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    }
+  ]
+}

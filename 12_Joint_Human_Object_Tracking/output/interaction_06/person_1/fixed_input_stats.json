@@ -1,0 +1,49 @@
+{
+  "status": "fixed_smplx_sequence",
+  "name": "person 1",
+  "slug": "person_1",
+  "num_frames": 81,
+  "num_verts": 10475,
+  "num_faces": 20908,
+  "source_metadata": {
+    "source": "module_06_gvhmr_smpl_params_incam",
+    "hmr4d_results": "/my_workspace/4DHHOI/4DHOI/06_Estimate_Human_Motion/output/interaction_06/humans/person_1/hmr4d_results.pt",
+    "module09_transform": [
+      [
+        1.715925931930542,
+        0.0,
+        0.0,
+        -0.02006889134645462
+      ],
+      [
+        0.0,
+        1.715925931930542,
+        0.0,
+        -0.004344137851148844
+      ],
+      [
+        0.0,
+        0.0,
+        1.715925931930542,
+        0.26110783219337463
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "num_frames": 81,
+    "num_verts": 10475,
+    "num_faces": 20908,
+    "future_human_optimization_hooks": {
+      "root_translation_delta": false,
+      "root_rotation_delta": false,
+      "body_pose_delta": false,
+      "gvhmr_root_orient_prior": false,
+      "gvhmr_body_pose_prior": false,
+      "human_temporal_smoothness": false
+    }
+  }
+}

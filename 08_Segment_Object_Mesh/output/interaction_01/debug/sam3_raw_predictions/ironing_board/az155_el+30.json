@@ -1,0 +1,88 @@
+{
+  "object_name": "ironing board",
+  "image": "az155_el+30.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_01/ironing_board/renders/face_id/az155_el+300001.exr",
+  "parts": {
+    "top flat panel": {
+      "sam3_prompt": "top flat panel of the ironing board",
+      "used_prompt": "top flat panel of the ironing board",
+      "prompt": "top flat panel of the ironing board",
+      "raw_candidates": [
+        {
+          "box": [
+            316.6189880371094,
+            206.40994262695312,
+            755.9139404296875,
+            474.4931945800781
+          ],
+          "score": 0.98046875
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            316.6189880371094,
+            206.40994262695312,
+            755.9139404296875,
+            474.4931945800781
+          ],
+          "score": 0.98046875,
+          "original_area": 57258,
+          "clipped_area": 57257,
+          "silhouette_overlap": 0.999982535191589
+        }
+      ]
+    },
+    "legs": {
+      "sam3_prompt": "The metal support legs and feet of the ironing board.",
+      "used_prompt": "The metal support legs and feet of the ironing board.",
+      "prompt": "The metal support legs and feet of the ironing board.",
+      "raw_candidates": [
+        {
+          "box": [
+            319.38330078125,
+            408.91668701171875,
+            691.0451049804688,
+            834.8363647460938
+          ],
+          "score": 0.6796875
+        },
+        {
+          "box": [
+            461.38189697265625,
+            410.5083312988281,
+            690.7949829101562,
+            835.8104248046875
+          ],
+          "score": 0.80859375
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            461.38189697265625,
+            410.5083312988281,
+            690.7949829101562,
+            835.8104248046875
+          ],
+          "score": 0.80859375,
+          "original_area": 13706,
+          "clipped_area": 13670,
+          "silhouette_overlap": 0.9973734131037502
+        },
+        {
+          "box": [
+            319.38330078125,
+            408.91668701171875,
+            691.0451049804688,
+            834.8363647460938
+          ],
+          "score": 0.6796875,
+          "original_area": 19974,
+          "clipped_area": 19700,
+          "silhouette_overlap": 0.9862821668168619
+        }
+      ]
+    }
+  }
+}

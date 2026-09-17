@@ -1,0 +1,118 @@
+{
+  "object_name": "umbrella",
+  "image": "az055_el+30.png",
+  "face_id_path": "/my_workspace/4DHHOI/4DHOI/08_Segment_Object_Mesh/output/interaction_03/umbrella/renders/face_id/az055_el+300001.exr",
+  "parts": {
+    "canopy": {
+      "sam3_prompt": "The fabric canopy of the umbrella.",
+      "used_prompt": "The fabric canopy of the umbrella.",
+      "prompt": "The fabric canopy of the umbrella.",
+      "raw_candidates": [
+        {
+          "box": [
+            242.08145141601562,
+            279.5752258300781,
+            797.41064453125,
+            740.9412841796875
+          ],
+          "score": 0.8828125
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            242.08145141601562,
+            279.5752258300781,
+            797.41064453125,
+            740.9412841796875
+          ],
+          "score": 0.8828125,
+          "original_area": 177743,
+          "clipped_area": 177714,
+          "silhouette_overlap": 0.999836843082428
+        }
+      ]
+    },
+    "shaft": {
+      "sam3_prompt": "The central shaft of the umbrella.",
+      "used_prompt": "The central shaft of the umbrella.",
+      "prompt": "The central shaft of the umbrella.",
+      "raw_candidates": [
+        {
+          "box": [
+            446.01812744140625,
+            352.8826904296875,
+            476.13427734375,
+            396.83038330078125
+          ],
+          "score": 0.796875
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            446.01812744140625,
+            352.8826904296875,
+            476.13427734375,
+            396.83038330078125
+          ],
+          "score": 0.796875,
+          "original_area": 699,
+          "clipped_area": 699,
+          "silhouette_overlap": 1.0
+        }
+      ]
+    },
+    "handle": {
+      "sam3_prompt": "The curved handle of the umbrella.",
+      "used_prompt": "The curved handle of the umbrella.",
+      "prompt": "The curved handle of the umbrella.",
+      "raw_candidates": [
+        {
+          "box": [
+            251.06695556640625,
+            583.50244140625,
+            265.48065185546875,
+            624.0780029296875
+          ],
+          "score": 0.6875
+        },
+        {
+          "box": [
+            446.1915283203125,
+            352.91082763671875,
+            476.00146484375,
+            396.84759521484375
+          ],
+          "score": 0.69921875
+        }
+      ],
+      "kept_candidates": [
+        {
+          "box": [
+            446.1915283203125,
+            352.91082763671875,
+            476.00146484375,
+            396.84759521484375
+          ],
+          "score": 0.69921875,
+          "original_area": 700,
+          "clipped_area": 700,
+          "silhouette_overlap": 1.0
+        },
+        {
+          "box": [
+            251.06695556640625,
+            583.50244140625,
+            265.48065185546875,
+            624.0780029296875
+          ],
+          "score": 0.6875,
+          "original_area": 434,
+          "clipped_area": 423,
+          "silhouette_overlap": 0.9746543778801844
+        }
+      ]
+    }
+  }
+}

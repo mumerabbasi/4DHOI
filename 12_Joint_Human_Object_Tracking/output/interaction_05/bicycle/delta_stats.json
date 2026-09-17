@@ -1,0 +1,16 @@
+{
+  "slug": "bicycle",
+  "state_type": "absolute_object_trajectory_from_module12",
+  "frame0_fixed_identity": true,
+  "max_rot_deg": 3.44985064292822,
+  "mean_rot_deg": 1.7605500940710157,
+  "max_trans_m": 0.2816152274608612,
+  "mean_trans_m": 0.15384112298488617,
+  "global_scale": 0.9674224853515625,
+  "num_input_tracks": 5000,
+  "num_valid_seed_tracks": 3958,
+  "num_dropped_invalid_face": 1042,
+  "num_dropped_outside_mask0": 0,
+  "num_dropped_nonfinite_seed": 0,
+  "active_track_frame_pairs": 227383
+}
