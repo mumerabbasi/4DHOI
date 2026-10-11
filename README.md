@@ -7,7 +7,7 @@
 A modular research pipeline that turns a text prompt into a temporally coherent 4D human-object interaction: it builds a structured interaction graph, generates a video, reconstructs human and object geometry, aligns everything in a shared 3D scene, labels semantic object parts, tracks object motion, and jointly refines the final sequence.
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
-![Ollama](https://img.shields.io/badge/Ollama-LLM_%2B_VLM-000000?logo=ollama&logoColor=white)
+![Ollama](assets/ollama_badge.svg)
 ![FLUX](https://img.shields.io/badge/FLUX.2--klein-First_Frame-F97316)
 ![Wan 2.2](https://img.shields.io/badge/Wan_2.2-Image_to_Video-2563EB)
 ![Qwen-VL](https://img.shields.io/badge/Qwen_VL-Detection_%26_Selection-7C3AED)
@@ -203,6 +203,6 @@ This project integrates components and tooling around GVHMR, SAM3, SAM3D, Depth 
 
 <div align="center">
 
-Master's Thesis at the **3D AI Lab**, **Technical University of Munich**
+Guided Research at the **3D AI Lab**, **Technical University of Munich**
 
 </div>
